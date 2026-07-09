@@ -68,11 +68,15 @@ export const OBJECT_LAYER_VALUES = [-400, -100, 100, 200, 300, 400, 700, 900]
 /** Within a layer, whether the tool places new items on top or at the bottom. */
 export type Sorting = "over" | "under"
 
+/** The geometry a shape/area tool draws with. */
+export type Shape = "rectangle" | "ellipse" | "path"
+
 export type ToolParamSpec =
   | { kind: "customColor" }
   | { kind: "layer"; allowed: number[]; default: number }
   | { kind: "sorting"; default: Sorting }
   | { kind: "shadow"; default: boolean }
+  | { kind: "shape"; default: Shape | null }
 
 /** A tool that opens a parameters panel (its declared params) when selected. */
 export interface ToolLeaf {
@@ -121,6 +125,7 @@ const objectLayer = (def: number): ToolParamSpec => ({
 })
 const sorting = (def: Sorting): ToolParamSpec => ({ kind: "sorting", default: def })
 const shadow = (def: boolean): ToolParamSpec => ({ kind: "shadow", default: def })
+const shape = (def: Shape | null): ToolParamSpec => ({ kind: "shape", default: def })
 
 /** The top-level tool palette. Groups expand into their own panels. */
 export const TOOL_TREE: ToolNode[] = [
@@ -130,14 +135,17 @@ export const TOOL_TREE: ToolNode[] = [
     nameKey: "tools.design",
     icon: LuDraftingCompass,
     children: [
-      tool("build", "tools.build", LuHouse),
+      tool("build", "tools.build", LuHouse, { params: [shape("rectangle")] }),
       tool("wall", "tools.wall", LuBrickWall, {
         library: "walls",
         params: [customColor, sorting("under"), shadow(true)],
       }),
       tool("portal", "tools.portal", LuDoorOpen, { library: "portals", params: [customColor] }),
       tool("cave", "tools.cave", LuMountainSnow, { library: "caves", params: [customColor] }),
-      tool("pattern", "tools.pattern", LuGrid3X3, { library: "tilesets", params: [customColor] }),
+      tool("pattern", "tools.pattern", LuGrid3X3, {
+        library: "tilesets",
+        params: [customColor, shape("rectangle")],
+      }),
       tool("roof", "tools.roof", LuTriangle, {
         library: "roofs",
         params: [customColor, sorting("over")],
@@ -151,7 +159,7 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuMountain,
     children: [
       tool("terrainBrush", "tools.terrainBrush", LuBrush),
-      tool("water", "tools.water", LuDroplets),
+      tool("water", "tools.water", LuDroplets, { params: [shape(null)] }),
       tool("material", "tools.material", LuPaintBucket, { params: [objectLayer(-400)] }),
       tool("path", "tools.path", LuRoute, {
         library: "paths",

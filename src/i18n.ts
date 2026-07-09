@@ -137,6 +137,10 @@ const resources = {
         sortingOver: "Encima",
         sortingUnder: "Debajo",
         shadow: "Sombra",
+        shape: "Forma",
+        shapeRectangle: "Rectangular",
+        shapeEllipse: "Elíptica",
+        shapePath: "Libre",
       },
       layers: {
         terrain: "Terreno",
@@ -318,6 +322,10 @@ const resources = {
         sortingOver: "Over",
         sortingUnder: "Under",
         shadow: "Shadow",
+        shape: "Shape",
+        shapeRectangle: "Rectangle",
+        shapeEllipse: "Ellipse",
+        shapePath: "Path",
       },
       layers: {
         terrain: "Terrain",
