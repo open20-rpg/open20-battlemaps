@@ -136,6 +136,7 @@ const resources = {
         sorting: "Ordenamiento",
         sortingOver: "Encima",
         sortingUnder: "Debajo",
+        shadow: "Sombra",
       },
       layers: {
         terrain: "Terreno",
@@ -316,6 +317,7 @@ const resources = {
         sorting: "Sorting",
         sortingOver: "Over",
         sortingUnder: "Under",
+        shadow: "Shadow",
       },
       layers: {
         terrain: "Terrain",

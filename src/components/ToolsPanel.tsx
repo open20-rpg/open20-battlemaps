@@ -5,6 +5,7 @@ import { ObjectPreview } from "./ObjectPreview"
 import { CustomColorControl } from "./CustomColorControl"
 import { LayerControl } from "./LayerControl"
 import { SortingControl } from "./SortingControl"
+import { ShadowControl } from "./ShadowControl"
 import { TOOL_TREE, type ToolNode, type ToolParamSpec } from "../lib/tools"
 import { useTools } from "../context/tools"
 
@@ -166,6 +167,8 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
       return <LayerControl toolId={toolId} allowed={spec.allowed} defaultValue={spec.default} />
     case "sorting":
       return <SortingControl toolId={toolId} defaultValue={spec.default} />
+    case "shadow":
+      return <ShadowControl toolId={toolId} defaultValue={spec.default} />
   }
 }
 

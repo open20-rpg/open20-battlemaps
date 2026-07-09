@@ -72,6 +72,7 @@ export type ToolParamSpec =
   | { kind: "customColor" }
   | { kind: "layer"; allowed: number[]; default: number }
   | { kind: "sorting"; default: Sorting }
+  | { kind: "shadow"; default: boolean }
 
 /** A tool that opens a parameters panel (its declared params) when selected. */
 export interface ToolLeaf {
@@ -119,6 +120,7 @@ const objectLayer = (def: number): ToolParamSpec => ({
   default: def,
 })
 const sorting = (def: Sorting): ToolParamSpec => ({ kind: "sorting", default: def })
+const shadow = (def: boolean): ToolParamSpec => ({ kind: "shadow", default: def })
 
 /** The top-level tool palette. Groups expand into their own panels. */
 export const TOOL_TREE: ToolNode[] = [
@@ -131,7 +133,7 @@ export const TOOL_TREE: ToolNode[] = [
       tool("build", "tools.build", LuHouse),
       tool("wall", "tools.wall", LuBrickWall, {
         library: "walls",
-        params: [customColor, sorting("under")],
+        params: [customColor, sorting("under"), shadow(true)],
       }),
       tool("portal", "tools.portal", LuDoorOpen, { library: "portals", params: [customColor] }),
       tool("cave", "tools.cave", LuMountainSnow, { library: "caves", params: [customColor] }),
@@ -153,7 +155,7 @@ export const TOOL_TREE: ToolNode[] = [
       tool("material", "tools.material", LuPaintBucket, { params: [objectLayer(-400)] }),
       tool("path", "tools.path", LuRoute, {
         library: "paths",
-        params: [customColor, objectLayer(100), sorting("over")],
+        params: [customColor, objectLayer(100), sorting("over"), shadow(false)],
       }),
     ],
   },
@@ -165,11 +167,11 @@ export const TOOL_TREE: ToolNode[] = [
     children: [
       tool("object", "tools.object", LuBox, {
         library: "objects",
-        params: [customColor, objectLayer(100), sorting("over")],
+        params: [customColor, objectLayer(100), sorting("over"), shadow(true)],
       }),
       tool("scatter", "tools.scatter", LuSprayCan, {
         library: "objects",
-        params: [customColor, objectLayer(100), sorting("over")],
+        params: [customColor, objectLayer(100), sorting("over"), shadow(true)],
       }),
     ],
   },
@@ -180,7 +182,7 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuSparkles,
     children: [
       tool("environment", "tools.environment", LuCloudSun),
-      tool("light", "tools.light", LuLightbulb),
+      tool("light", "tools.light", LuLightbulb, { params: [shadow(true)] }),
     ],
   },
   {
