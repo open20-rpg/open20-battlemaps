@@ -8,6 +8,7 @@ import { AssetsManager } from "./components/AssetsManager"
 import { NewMapDialog } from "./components/NewMapDialog"
 import { ToolsPanel } from "./components/ToolsPanel"
 import { LibraryPanel } from "./components/LibraryPanel"
+import { MapEditor } from "./components/MapEditor"
 import { Modal } from "./components/Modal"
 import { StatusBar, STATUS_BAR_HEIGHT } from "./components/StatusBar"
 import { Toaster, toaster } from "./components/ui/toaster"
@@ -60,6 +61,8 @@ export default function App() {
 
       {/* Editor canvas with the sticky tools panel overlaid on the left */}
       <Box flex="1" position="relative" overflow="hidden">
+        {hasMap && <MapEditor />}
+        {!hasMap && (
         <Flex
           direction="column"
           align="center"
@@ -89,6 +92,7 @@ export default function App() {
             {t("canvas.openAssets")}
           </Button>
         </Flex>
+        )}
 
         {hasMap && <ToolsPanel />}
         {libraryCategory && <LibraryPanel category={libraryCategory} />}
