@@ -6,10 +6,13 @@ import {
   LuFolderOpen,
   LuGem,
   LuInfo,
+  LuLogOut,
   LuMenu,
   LuRedo2,
   LuSave,
+  LuSettings,
   LuSquarePen,
+  LuSquareX,
   LuUndo2,
   LuUpload,
 } from "react-icons/lu"
@@ -56,6 +59,7 @@ export interface MenuBarProps {
   onExit: () => void
   onNew: () => void
   onOpen: () => void
+  onCloseMap: () => void
   /** Placeholder handler for not-yet-implemented actions. */
   onComingSoon: (label: string) => void
 }
@@ -98,8 +102,18 @@ export function MenuBar(props: MenuBarProps) {
                 <LuFolderOpen />
                 <Text ml="2">{t("menu.recent")}</Text>
               </Menu.Item>
+              <Menu.Item
+                value="closeMap"
+                disabled={!props.mapOpen}
+                onClick={props.onCloseMap}
+              >
+                <LuSquareX />
+                <Text ml="2">{t("menu.closeMap")}</Text>
+              </Menu.Item>
+              <Menu.Separator />
               <Menu.Item value="prefs" onClick={props.onOpenPreferences}>
-                {t("menu.preferences")}
+                <LuSettings />
+                <Text ml="2">{t("menu.preferences")}</Text>
               </Menu.Item>
               <Menu.Separator />
               <Menu.Item
@@ -108,7 +122,8 @@ export function MenuBar(props: MenuBarProps) {
                 _hover={{ bg: "red.900/40", color: "red.200" }}
                 onClick={props.onExit}
               >
-                {t("menu.exit")}
+                <LuLogOut />
+                <Text ml="2">{t("menu.exit")}</Text>
               </Menu.Item>
             </Menu.Content>
           </Menu.Positioner>

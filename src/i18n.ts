@@ -8,6 +8,7 @@ const resources = {
       menu: {
         menu: "Menú",
         recent: "Abrir recientes",
+        closeMap: "Cerrar Mapa",
         preferences: "Preferencias",
         exit: "Salir",
         new: "Nuevo",
@@ -120,6 +121,7 @@ const resources = {
       menu: {
         menu: "Menu",
         recent: "Open recent",
+        closeMap: "Close Map",
         preferences: "Preferences",
         exit: "Exit",
         new: "New",

@@ -13,11 +13,11 @@ import { useMap } from "./context/map"
 
 export default function App() {
   const { t, i18n } = useTranslation()
-  const { hasMap, createMap } = useMap()
+  const { hasMap, createMap, closeMap } = useMap()
   const [assetsOpen, setAssetsOpen] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
-  const [newMapOpen, setNewMapOpen] = useState(true)
+  const [newMapOpen, setNewMapOpen] = useState(false)
 
   const notImplemented = (label: string) =>
     toaster.create({ title: t("toast.soon", { label }), type: "info" })
@@ -34,6 +34,7 @@ export default function App() {
         onExit={() => getCurrentWindow().close()}
         onNew={() => setNewMapOpen(true)}
         onOpen={() => notImplemented(t("toast.openMap"))}
+        onCloseMap={closeMap}
         onComingSoon={notImplemented}
       />
 
