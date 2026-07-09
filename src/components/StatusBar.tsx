@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { Box, Flex, HStack, Icon, Portal, Spinner, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuCircleCheck } from "react-icons/lu"
@@ -44,7 +43,6 @@ export function StatusBar() {
   const { hasMap } = useMap()
   const { activeTool } = useTools()
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
 
   // Overall progress = average of tasks that report a percentage.
   const withPct = tasks.filter((task) => typeof task.progress === "number")
@@ -98,13 +96,11 @@ export function StatusBar() {
       {/* Middle reserved for future status data (coords, zoom, etc.) */}
       <Box flex="1" />
 
-      {/* Loading indicator — always right-aligned */}
+      {/* Loading indicator — always right-aligned. Details show on hover only. */}
       <Sep />
       <Tooltip
         content={<TaskDetails />}
         disabled={!isLoading}
-        open={isLoading && open}
-        onOpenChange={(e) => setOpen(e.open)}
         openDelay={100}
         closeDelay={100}
         positioning={{ placement: "top-end" }}
@@ -118,14 +114,10 @@ export function StatusBar() {
         showArrow
       >
         <HStack
-          as="button"
           gap="1.5"
           px="1.5"
           h="full"
-          cursor={isLoading ? "pointer" : "default"}
           color={isLoading ? "menubar.fg" : "menubar.fgMuted"}
-          _hover={{ color: "menubar.fg" }}
-          onClick={() => setOpen((v) => !v)}
         >
           {isLoading ? (
             <Spinner size="xs" color="brand.fg" borderWidth="1.5px" />
