@@ -1,51 +1,150 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useState } from "react"
+import {
+  Box,
+  Button,
+  Dialog,
+  Flex,
+  Icon,
+  Portal,
+  Stack,
+  Text,
+} from "@chakra-ui/react"
+import { getCurrentWindow } from "@tauri-apps/api/window"
+import { LuGem, LuMap } from "react-icons/lu"
+import { MenuBar } from "./components/MenuBar"
+import { AssetsManager } from "./components/AssetsManager"
+import { Toaster, toaster } from "./components/ui/toaster"
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+const APP_VERSION = "0.1.0"
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+export default function App() {
+  const [assetsOpen, setAssetsOpen] = useState(false)
+  const [prefsOpen, setPrefsOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
+
+  const notImplemented = (label: string) =>
+    toaster.create({ title: `${label}: próximamente`, type: "info" })
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <Flex direction="column" h="100vh" bg="app.bg">
+      <MenuBar
+        assetsOpen={assetsOpen}
+        onToggleAssets={() => setAssetsOpen((v) => !v)}
+        onOpenPreferences={() => setPrefsOpen(true)}
+        onOpenAbout={() => setAboutOpen(true)}
+        onOpenRecent={() =>
+          toaster.create({ title: "No hay archivos recientes", type: "info" })
+        }
+        onExit={() => getCurrentWindow().close()}
+        onNew={() => notImplemented("Nuevo mapa")}
+        onOpen={() => notImplemented("Abrir mapa")}
+      />
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      {/* Empty editor canvas placeholder */}
+      <Box flex="1" position="relative" overflow="hidden">
+        <Flex
+          direction="column"
+          align="center"
+          justify="center"
+          h="full"
+          color="fg.muted"
+          gap="4"
+          css={{
+            backgroundImage:
+              "linear-gradient(#1c1c20 1px, transparent 1px), linear-gradient(90deg, #1c1c20 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }}
+        >
+          <Icon as={LuMap} boxSize="16" opacity={0.35} />
+          <Stack gap="1" align="center">
+            <Text fontSize="lg" fontWeight="medium">
+              OpenDraft
+            </Text>
+            <Text fontSize="sm">
+              Creá o abrí un mapa para empezar. Gestioná tus paquetes desde{" "}
+              <b>Activos</b>.
+            </Text>
+          </Stack>
+          <Button
+            variant="subtle"
+            colorPalette="blue"
+            onClick={() => setAssetsOpen(true)}
+          >
+            <LuGem />
+            Abrir Activos
+          </Button>
+        </Flex>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
+        {assetsOpen && <AssetsManager onClose={() => setAssetsOpen(false)} />}
+      </Box>
+
+      {/* Preferences dialog */}
+      <Dialog.Root
+        open={prefsOpen}
+        onOpenChange={(e) => setPrefsOpen(e.open)}
+        placement="center"
       >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
-  );
-}
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content bg="panel.bg" borderColor="panel.border" borderWidth="1px">
+              <Dialog.Header>
+                <Dialog.Title>Preferencias</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Stack gap="3" color="fg.muted" fontSize="sm">
+                  <Text>Tema: Oscuro (fijo)</Text>
+                  <Text>
+                    Más opciones de configuración estarán disponibles próximamente.
+                  </Text>
+                </Stack>
+              </Dialog.Body>
+              <Dialog.Footer>
+                <Button variant="subtle" onClick={() => setPrefsOpen(false)}>
+                  Cerrar
+                </Button>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
 
-export default App;
+      {/* About dialog */}
+      <Dialog.Root
+        open={aboutOpen}
+        onOpenChange={(e) => setAboutOpen(e.open)}
+        placement="center"
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content bg="panel.bg" borderColor="panel.border" borderWidth="1px">
+              <Dialog.Header>
+                <Dialog.Title>Acerca de OpenDraft</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Stack gap="2" color="fg.muted" fontSize="sm">
+                  <Text color="fg" fontWeight="semibold">
+                    OpenDraft v{APP_VERSION}
+                  </Text>
+                  <Text>
+                    Editor de mapas para juegos de rol, de código abierto e
+                    inspirado en Dungeondraft.
+                  </Text>
+                  <Text>Compatible con paquetes .dungeondraft_pack.</Text>
+                </Stack>
+              </Dialog.Body>
+              <Dialog.Footer>
+                <Button variant="subtle" onClick={() => setAboutOpen(false)}>
+                  Cerrar
+                </Button>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      <Toaster />
+    </Flex>
+  )
+}

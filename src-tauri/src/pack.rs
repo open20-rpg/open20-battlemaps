@@ -556,25 +556,37 @@ pub async fn load_asset(app: AppHandle, id: String, rel_path: String) -> Result<
     .map_err(|e| PackError::Other(e.to_string()))?
 }
 
-/// Pick a representative thumbnail for a pack (first png under thumbnails/),
-/// returned as base64. Dungeondraft has no single pack preview image.
+/// Pick a representative cover image for a pack, returned as base64.
+/// Prefers the pack's own `preview.png`, otherwise falls back to the first
+/// per-texture thumbnail. Returns None if the pack has no images at all.
 #[tauri::command]
 pub fn load_pack_thumbnail(app: AppHandle, id: String) -> Result<Option<LoadedImage>> {
     let dir = pack_dir(&app, &id)?;
-    let thumbs = dir.join("thumbnails");
-    if !thumbs.is_dir() {
-        return Ok(None);
-    }
-    let mut pngs: Vec<PathBuf> = fs::read_dir(&thumbs)?
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("png"))
-        .collect();
-    pngs.sort();
-    let Some(first) = pngs.into_iter().next() else {
+
+    // 1. The pack's own preview/cover image, if present.
+    let preview = dir.join("preview.png");
+    let chosen = if preview.is_file() {
+        Some(preview)
+    } else {
+        // 2. Fall back to the first per-texture thumbnail.
+        let thumbs = dir.join("thumbnails");
+        if thumbs.is_dir() {
+            let mut pngs: Vec<PathBuf> = fs::read_dir(&thumbs)?
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("png"))
+                .collect();
+            pngs.sort();
+            pngs.into_iter().next()
+        } else {
+            None
+        }
+    };
+
+    let Some(path) = chosen else {
         return Ok(None);
     };
-    let bytes = fs::read(&first)?;
+    let bytes = fs::read(&path)?;
     let data = base64::engine::general_purpose::STANDARD.encode(&bytes);
     Ok(Some(LoadedImage { mime: "image/png".to_string(), data }))
 }
