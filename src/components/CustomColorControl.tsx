@@ -11,6 +11,9 @@ import {
   saveUserPresets,
 } from "../lib/colors"
 
+// Touch-friendly swatch size.
+const DOT = "34px"
+
 /**
  * Custom Color parameter for asset tools: a dropdown of preset color swatches
  * (with a "+" that opens the color picker to add a new preset) plus a standalone
@@ -37,8 +40,8 @@ export function CustomColorControl({ toolId }: { toolId: string }) {
   }
 
   return (
-    <Box px="3" py="2.5">
-      <Text mb="1.5" fontSize="xs" color="fg.muted">
+    <Box px="3" py="3">
+      <Text mb="2" fontSize="xs" color="fg.muted">
         {t("tools.customColor")}
       </Text>
       <Flex gap="2" align="center">
@@ -50,38 +53,42 @@ export function CustomColorControl({ toolId }: { toolId: string }) {
           <Popover.Trigger asChild>
             <Flex
               as="button"
+              flex="1"
+              h={DOT}
               align="center"
-              gap="2"
-              px="2"
-              py="1"
+              justify="flex-end"
+              pr="1.5"
+              bg={color}
               borderWidth="1px"
               borderColor="panel.border"
               borderRadius="md"
               cursor="pointer"
+              overflow="hidden"
               _hover={{ borderColor: "brand.fg" }}
             >
-              <Box
-                w="18px"
-                h="18px"
-                borderRadius="full"
-                bg={color}
-                outline="1px solid"
-                outlineColor="whiteAlpha.400"
-              />
-              <LuChevronDown size={14} />
+              <Flex
+                align="center"
+                justify="center"
+                boxSize="22px"
+                borderRadius="sm"
+                bg="blackAlpha.500"
+                color="white"
+              >
+                <LuChevronDown size={15} />
+              </Flex>
             </Flex>
           </Popover.Trigger>
           <Portal>
             <Popover.Positioner>
               <Popover.Content w="auto" bg="panel.solid" borderColor="panel.border">
-                <Popover.Body p="2">
-                  <Flex wrap="wrap" gap="1.5" maxW="164px">
+                <Popover.Body p="3">
+                  <Flex wrap="wrap" gap="2" maxW="260px">
                     {presets.map((c) => (
                       <Box
                         as="button"
                         key={c}
-                        w="20px"
-                        h="20px"
+                        boxSize={DOT}
+                        flexShrink={0}
                         borderRadius="full"
                         bg={c}
                         borderWidth="2px"
@@ -94,21 +101,29 @@ export function CustomColorControl({ toolId }: { toolId: string }) {
                         }}
                       />
                     ))}
-                    {/* "+" opens the picker; the chosen color becomes a new preset. */}
-                    <ColorPickerPopover value={color} onCommit={addPreset}>
+                    {/* "+" opens the picker; the "Add" button inside it saves the
+                        chosen color as a new preset. */}
+                    <ColorPickerPopover
+                      value={color}
+                      onAdd={addPreset}
+                      addLabel={t("tools.addColorPreset")}
+                    >
                       <Flex
                         as="button"
                         align="center"
                         justify="center"
-                        w="20px"
-                        h="20px"
+                        boxSize="30px"
+                        flexShrink={0}
+                        // Nudge to visually match the swatches (its visible ring
+                        // makes it read a touch larger than the solid dots).
+                        m="2px"
                         borderRadius="full"
                         color="fg.muted"
                         borderWidth="1px"
                         borderColor="panel.border"
                         _hover={{ borderColor: "brand.fg", color: "brand.fg" }}
                       >
-                        <LuPlus size={12} />
+                        <LuPlus size={15} />
                       </Flex>
                     </ColorPickerPopover>
                   </Flex>
@@ -120,7 +135,7 @@ export function CustomColorControl({ toolId }: { toolId: string }) {
 
         {/* Standalone one-off custom color. */}
         <ColorPickerPopover value={color} onCommit={setColor}>
-          <IconButton aria-label={t("tools.pickCustomColor")} size="sm" variant="subtle">
+          <IconButton aria-label={t("tools.pickCustomColor")} size="md" variant="subtle">
             <LuPipette />
           </IconButton>
         </ColorPickerPopover>
