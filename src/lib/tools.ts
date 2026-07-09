@@ -71,10 +71,10 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuDraftingCompass,
     children: [
       tool("build", "tools.build", LuHouse),
-      tool("wall", "tools.wall", LuBrickWall),
-      tool("portal", "tools.portal", LuDoorOpen),
+      tool("wall", "tools.wall", LuBrickWall, "walls"),
+      tool("portal", "tools.portal", LuDoorOpen, "portals"),
       tool("cave", "tools.cave", LuMountainSnow),
-      tool("pattern", "tools.pattern", LuGrid3X3),
+      tool("pattern", "tools.pattern", LuGrid3X3, "tilesets"),
       tool("roof", "tools.roof", LuTriangle),
     ],
   },

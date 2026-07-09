@@ -27,7 +27,7 @@ import { useLoading } from "../context/loading"
 import { usePreview } from "../context/preview"
 import { getLibraryItems, searchLibrary, thumbUrl, type LibItem } from "../lib/library"
 
-const CELL = 70 // thumbnail size in px
+const CELL = 64 // thumbnail size in px (matches the 64x64 thumbnails)
 const GAP = 8
 const PAGE = 200 // items fetched per window request
 
@@ -41,18 +41,13 @@ const cellStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  borderRadius: 6,
-  border: "1px solid #34343c",
-  background: "var(--panel-header-bg)",
   overflow: "hidden",
 }
 const imgStyle: CSSProperties = { width: "100%", height: "100%", objectFit: "contain" }
 const fillerStyle: CSSProperties = { width: CELL, height: CELL, flexShrink: 0 }
 
-// Hover affordance done in CSS so cells need no per-cell handlers. Only loaded
-// items (which carry data-name) get the pointer cursor + accent border.
-const THUMB_CSS =
-  ".od-thumb[data-name]{cursor:pointer}.od-thumb[data-name]:hover{border-color:#5aa9ff}"
+// Only loaded items (which carry data-name) get the pointer cursor.
+const THUMB_CSS = ".od-thumb[data-name]{cursor:pointer}"
 
 // Plain-div cell, memoized so incoming page loads don't re-render already-painted
 // cells. The name tooltip is handled once at the grid level via event delegation,
