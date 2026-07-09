@@ -3,9 +3,7 @@ import { Box, Flex, Icon, IconButton, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import type { IconType } from "react-icons"
 import { LuX } from "react-icons/lu"
-
-// Shared z-index counter so the last window a user interacts with comes forward.
-let zCounter = 100
+import { ModalLayer } from "./Modal"
 
 interface Size {
   w: number
@@ -65,7 +63,8 @@ export interface FloatingWindowProps {
 /**
  * A draggable, optionally resizable/modal floating panel with a title bar.
  * Reused for every tool window in the app (assets, layers, properties, ...).
- * Content is laid out as a column: [title bar] [optional toolbar] [body].
+ * Layering (and the backdrop for `modal`) is handled by the modal stack, not
+ * by z-index — see {@link ModalLayer}.
  */
 export function FloatingWindow({
   title,
@@ -83,8 +82,6 @@ export function FloatingWindow({
   const { t } = useTranslation()
   const { pos, handlers } = useDrag(initialPosition)
   const [size, setSize] = useState<Size>(initialSize)
-  const [z, setZ] = useState(() => ++zCounter)
-  const bringToFront = () => setZ(++zCounter)
 
   // Bottom-right resize handle.
   const resizeStart = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
@@ -111,81 +108,78 @@ export function FloatingWindow({
     ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
   }, [])
 
-  return (
-    <>
-      {modal && (
+  const windowBox = (
+    <Box
+      position="absolute"
+      left={`${pos.x}px`}
+      top={`${pos.y}px`}
+      w={`${size.w}px`}
+      h={`${size.h}px`}
+      maxW="calc(100vw - 16px)"
+      maxH="calc(100vh - 16px)"
+      bg="panel.bg"
+      borderWidth="1px"
+      borderColor="panel.border"
+      borderRadius="lg"
+      boxShadow="0 12px 40px rgba(0,0,0,0.55)"
+      display="flex"
+      flexDirection="column"
+      overflow="hidden"
+    >
+      <Flex
+        align="center"
+        gap="2"
+        px="3"
+        py="2.5"
+        bg="panel.header"
+        borderBottomWidth="1px"
+        borderColor="panel.border"
+        cursor="move"
+        flexShrink={0}
+        {...handlers}
+      >
+        {icon && <Icon as={icon} color="brand.fg" boxSize="4" />}
+        <Text fontWeight="bold" fontSize="sm" flex="1" truncate>
+          {title}
+        </Text>
+        <IconButton aria-label={t("assets.close")} size="xs" variant="ghost" onClick={onClose}>
+          <LuX />
+        </IconButton>
+      </Flex>
+
+      {toolbar}
+
+      <Box flex="1" minH="0" display="flex" flexDirection="column" overflow="hidden">
+        {children}
+      </Box>
+
+      {resizable && (
         <Box
-          position="fixed"
-          inset="0"
-          bg="blackAlpha.600"
-          zIndex={z}
-          onPointerDown={closeOnBackdropClick ? onClose : undefined}
+          position="absolute"
+          right="0"
+          bottom="0"
+          boxSize="16px"
+          cursor="se-resize"
+          zIndex={1}
+          onPointerDown={onResizeDown}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeUp}
+          css={{
+            background:
+              "linear-gradient(135deg, transparent 50%, var(--chakra-colors-panel-border) 50%, var(--chakra-colors-panel-border) 62%, transparent 62%, transparent 74%, var(--chakra-colors-panel-border) 74%, var(--chakra-colors-panel-border) 86%, transparent 86%)",
+          }}
         />
       )}
-      <Box
-        position="absolute"
-        left={`${pos.x}px`}
-        top={`${pos.y}px`}
-        w={`${size.w}px`}
-        h={`${size.h}px`}
-        maxW="calc(100vw - 16px)"
-        maxH="calc(100vh - 16px)"
-        bg="panel.bg"
-        borderWidth="1px"
-        borderColor="panel.border"
-        borderRadius="lg"
-        boxShadow="0 12px 40px rgba(0,0,0,0.55)"
-        display="flex"
-        flexDirection="column"
-        overflow="hidden"
-        zIndex={modal ? z + 1 : z}
-        onPointerDownCapture={bringToFront}
-      >
-        <Flex
-          align="center"
-          gap="2"
-          px="3"
-          py="2.5"
-          bg="panel.header"
-          borderBottomWidth="1px"
-          borderColor="panel.border"
-          cursor="move"
-          flexShrink={0}
-          {...handlers}
-        >
-          {icon && <Icon as={icon} color="brand.fg" boxSize="4" />}
-          <Text fontWeight="bold" fontSize="sm" flex="1" truncate>
-            {title}
-          </Text>
-          <IconButton aria-label={t("assets.close")} size="xs" variant="ghost" onClick={onClose}>
-            <LuX />
-          </IconButton>
-        </Flex>
-
-        {toolbar}
-
-        <Box flex="1" minH="0" display="flex" flexDirection="column" overflow="hidden">
-          {children}
-        </Box>
-
-        {resizable && (
-          <Box
-            position="absolute"
-            right="0"
-            bottom="0"
-            boxSize="16px"
-            cursor="se-resize"
-            zIndex={1}
-            onPointerDown={onResizeDown}
-            onPointerMove={onResizeMove}
-            onPointerUp={onResizeUp}
-            css={{
-              background:
-                "linear-gradient(135deg, transparent 50%, var(--chakra-colors-panel-border) 50%, var(--chakra-colors-panel-border) 62%, transparent 62%, transparent 74%, var(--chakra-colors-panel-border) 74%, var(--chakra-colors-panel-border) 86%, transparent 86%)",
-            }}
-          />
-        )}
-      </Box>
-    </>
+    </Box>
   )
+
+  if (modal) {
+    return (
+      <ModalLayer open onClose={onClose} closeOnBackdrop={closeOnBackdropClick} centered={false}>
+        {windowBox}
+      </ModalLayer>
+    )
+  }
+
+  return windowBox
 }

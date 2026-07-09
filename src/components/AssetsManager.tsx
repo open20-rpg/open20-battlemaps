@@ -31,6 +31,7 @@ import {
 import { FloatingWindow } from "./FloatingWindow"
 import { useLoading } from "../context/loading"
 import { usePacks } from "../context/packs"
+import { useMap } from "../context/map"
 import {
   formatBytes,
   installPacks,
@@ -51,11 +52,12 @@ interface PackRowProps {
   pack: InstalledPack
   selected: boolean
   focused: boolean
+  disabled?: boolean
   onToggle: (id: string) => void
   onFocus: (id: string) => void
 }
 
-function PackRow({ pack, selected, focused, onToggle, onFocus }: PackRowProps) {
+function PackRow({ pack, selected, focused, disabled, onToggle, onFocus }: PackRowProps) {
   const { t } = useTranslation()
   const [thumb, setThumb] = useState<string | null>(null)
   const [thumbState, setThumbState] = useState<"loading" | "ok" | "none">("loading")
@@ -96,6 +98,7 @@ function PackRow({ pack, selected, focused, onToggle, onFocus }: PackRowProps) {
       <Box onClick={(e) => e.stopPropagation()} display="flex">
         <Checkbox.Root
           checked={selected}
+          disabled={disabled}
           onCheckedChange={() => onToggle(pack.id)}
           colorPalette="blue"
         >
@@ -298,6 +301,9 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const { start, update, stop, withLoading } = useLoading()
   const { packs, loading, ensureLoaded, refresh, addOrUpdate, applyEnabled, removePacks } =
     usePacks()
+  const { hasMap } = useMap()
+  // While a map is open, the pack selection is locked (read-only).
+  const readOnly = hasMap
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -417,7 +423,13 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       borderColor="panel.border"
       flexWrap="wrap"
     >
-      <Button size="xs" colorPalette="blue" onClick={handleInstall} loading={busy}>
+      <Button
+        size="xs"
+        colorPalette="blue"
+        onClick={handleInstall}
+        loading={busy}
+        disabled={readOnly}
+      >
         <LuPackagePlus />
         {t("assets.install")}
       </Button>
@@ -429,7 +441,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       <Button
         size="xs"
         variant="subtle"
-        disabled={!hasSelection || busy}
+        disabled={!hasSelection || busy || readOnly}
         onClick={() => setEnabledForSelected(true)}
       >
         <LuCirclePlay />
@@ -438,7 +450,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       <Button
         size="xs"
         variant="subtle"
-        disabled={!hasSelection || busy}
+        disabled={!hasSelection || busy || readOnly}
         onClick={() => setEnabledForSelected(false)}
       >
         <LuCircleOff />
@@ -448,13 +460,18 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
         size="xs"
         variant="subtle"
         colorPalette="red"
-        disabled={!hasSelection || busy}
+        disabled={!hasSelection || busy || readOnly}
         onClick={handleDelete}
       >
         <LuTrash2 />
         {t("assets.delete")}
       </Button>
       <Box flex="1" />
+      {readOnly && (
+        <Badge colorPalette="orange" variant="subtle" title={t("assets.readOnlyHint")}>
+          {t("assets.readOnly")}
+        </Badge>
+      )}
       <IconButton
         aria-label={t("assets.refresh")}
         size="xs"
@@ -494,6 +511,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
             >
               <Checkbox.Root
                 checked={allSelected ? true : selected.size > 0 ? "indeterminate" : false}
+                disabled={readOnly}
                 onCheckedChange={toggleAll}
                 colorPalette="blue"
                 size="sm"
@@ -551,6 +569,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
                   pack={pack}
                   selected={selected.has(pack.id)}
                   focused={focusedId === pack.id}
+                  disabled={readOnly}
                   onToggle={toggle}
                   onFocus={setFocusedId}
                 />

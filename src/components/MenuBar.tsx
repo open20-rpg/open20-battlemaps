@@ -47,6 +47,8 @@ function BarButton({ icon, label, disabled, active, onClick }: BarButtonProps) {
 
 export interface MenuBarProps {
   assetsOpen: boolean
+  /** Whether a map is currently open (enables Save/Export/Undo/Redo). */
+  mapOpen: boolean
   onToggleAssets: () => void
   onOpenPreferences: () => void
   onOpenAbout: () => void
@@ -54,6 +56,8 @@ export interface MenuBarProps {
   onExit: () => void
   onNew: () => void
   onOpen: () => void
+  /** Placeholder handler for not-yet-implemented actions. */
+  onComingSoon: (label: string) => void
 }
 
 export function MenuBar(props: MenuBarProps) {
@@ -113,10 +117,30 @@ export function MenuBar(props: MenuBarProps) {
 
       <BarButton icon={LuSquarePen} label={t("menu.new")} onClick={props.onNew} />
       <BarButton icon={LuFolderOpen} label={t("menu.open")} onClick={props.onOpen} />
-      <BarButton icon={LuSave} label={t("menu.save")} disabled />
-      <BarButton icon={LuUpload} label={t("menu.export")} disabled />
-      <BarButton icon={LuUndo2} label={t("menu.undo")} disabled />
-      <BarButton icon={LuRedo2} label={t("menu.redo")} disabled />
+      <BarButton
+        icon={LuSave}
+        label={t("menu.save")}
+        disabled={!props.mapOpen}
+        onClick={() => props.onComingSoon(t("menu.save"))}
+      />
+      <BarButton
+        icon={LuUpload}
+        label={t("menu.export")}
+        disabled={!props.mapOpen}
+        onClick={() => props.onComingSoon(t("menu.export"))}
+      />
+      <BarButton
+        icon={LuUndo2}
+        label={t("menu.undo")}
+        disabled={!props.mapOpen}
+        onClick={() => props.onComingSoon(t("menu.undo"))}
+      />
+      <BarButton
+        icon={LuRedo2}
+        label={t("menu.redo")}
+        disabled={!props.mapOpen}
+        onClick={() => props.onComingSoon(t("menu.redo"))}
+      />
       <BarButton
         icon={LuGem}
         label={t("menu.assets")}
