@@ -28,7 +28,7 @@ thiserror = "2"
 json5 = "0.4"
 md5 = "0.7"
 # Colorable-asset recoloring (decode/recolor/encode PNG on the fly).
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png", "webp"] }
 urlencoding = "2"
 
 # Android needs JNI to resolve `content://` picker URIs to a file descriptor

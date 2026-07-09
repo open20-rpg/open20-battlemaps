@@ -1,7 +1,8 @@
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { Box, Flex, IconButton, Popover, Portal, Text } from "@chakra-ui/react"
 import { LuChevronDown, LuPipette, LuPlus } from "react-icons/lu"
 import { useTranslation } from "react-i18next"
+import { ColorPickerPopover } from "./ColorPickerPopover"
 import { useTools } from "../context/tools"
 import {
   BUILTIN_COLOR_PRESETS,
@@ -12,7 +13,7 @@ import {
 
 /**
  * Custom Color parameter for asset tools: a dropdown of preset color swatches
- * (with a "+" to add a new preset via the color picker) plus a standalone
+ * (with a "+" that opens the color picker to add a new preset) plus a standalone
  * button that opens the picker for a one-off custom color. The chosen color is
  * stored in the tool's params so the library can read it and recolor assets.
  */
@@ -23,8 +24,6 @@ export function CustomColorControl({ toolId }: { toolId: string }) {
 
   const [userPresets, setUserPresets] = useState<string[]>(loadUserPresets)
   const [open, setOpen] = useState(false)
-  const pickRef = useRef<HTMLInputElement>(null)
-  const addRef = useRef<HTMLInputElement>(null)
 
   const presets = [...BUILTIN_COLOR_PRESETS, ...userPresets]
   const setColor = (c: string) => setToolParams(toolId, { customColor: c })
@@ -95,21 +94,23 @@ export function CustomColorControl({ toolId }: { toolId: string }) {
                         }}
                       />
                     ))}
-                    <Flex
-                      as="button"
-                      align="center"
-                      justify="center"
-                      w="20px"
-                      h="20px"
-                      borderRadius="full"
-                      color="fg.muted"
-                      borderWidth="1px"
-                      borderColor="panel.border"
-                      _hover={{ borderColor: "brand.fg", color: "brand.fg" }}
-                      onClick={() => addRef.current?.click()}
-                    >
-                      <LuPlus size={12} />
-                    </Flex>
+                    {/* "+" opens the picker; the chosen color becomes a new preset. */}
+                    <ColorPickerPopover value={color} onCommit={addPreset}>
+                      <Flex
+                        as="button"
+                        align="center"
+                        justify="center"
+                        w="20px"
+                        h="20px"
+                        borderRadius="full"
+                        color="fg.muted"
+                        borderWidth="1px"
+                        borderColor="panel.border"
+                        _hover={{ borderColor: "brand.fg", color: "brand.fg" }}
+                      >
+                        <LuPlus size={12} />
+                      </Flex>
+                    </ColorPickerPopover>
                   </Flex>
                 </Popover.Body>
               </Popover.Content>
@@ -117,31 +118,13 @@ export function CustomColorControl({ toolId }: { toolId: string }) {
           </Portal>
         </Popover.Root>
 
-        <IconButton
-          aria-label={t("tools.pickCustomColor")}
-          size="sm"
-          variant="subtle"
-          onClick={() => pickRef.current?.click()}
-        >
-          <LuPipette />
-        </IconButton>
+        {/* Standalone one-off custom color. */}
+        <ColorPickerPopover value={color} onCommit={setColor}>
+          <IconButton aria-label={t("tools.pickCustomColor")} size="sm" variant="subtle">
+            <LuPipette />
+          </IconButton>
+        </ColorPickerPopover>
       </Flex>
-
-      {/* Hidden native pickers: one sets the current color, one adds a preset. */}
-      <input
-        ref={pickRef}
-        type="color"
-        value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : DEFAULT_CUSTOM_COLOR}
-        onChange={(e) => setColor(e.currentTarget.value)}
-        style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
-      />
-      <input
-        ref={addRef}
-        type="color"
-        defaultValue={DEFAULT_CUSTOM_COLOR}
-        onChange={(e) => addPreset(e.currentTarget.value)}
-        style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
-      />
     </Box>
   )
 }

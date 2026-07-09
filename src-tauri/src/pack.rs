@@ -927,6 +927,42 @@ struct ColorableOnly {
     colorable: Vec<String>,
 }
 
+/// Remove JSON5-style trailing commas (`,` right before `]`/`}`) while respecting
+/// string literals, so the (large) Dungeondraft tags files parse with strict,
+/// fast serde_json instead of the much slower json5 parser.
+fn strip_trailing_commas(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut in_str = false;
+    let mut esc = false;
+    for ch in s.chars() {
+        if in_str {
+            out.push(ch);
+            if esc {
+                esc = false;
+            } else if ch == '\\' {
+                esc = true;
+            } else if ch == '"' {
+                in_str = false;
+            }
+            continue;
+        }
+        match ch {
+            '"' => {
+                in_str = true;
+                out.push(ch);
+            }
+            ']' | '}' => {
+                let end = out.trim_end().len();
+                let new_len = if out[..end].ends_with(',') { end - 1 } else { end };
+                out.truncate(new_len);
+                out.push(ch);
+            }
+            _ => out.push(ch),
+        }
+    }
+    out
+}
+
 /// Load (and cache) the set of colorable texture rel-paths for a pack, read from
 /// `data/default.dungeondraft_tags` (`tags.Colorable`).
 fn pack_colorable_set(app: &AppHandle, pack_id: &str) -> Arc<HashSet<String>> {
@@ -937,7 +973,13 @@ fn pack_colorable_set(app: &AppHandle, pack_id: &str) -> Arc<HashSet<String>> {
     let set: HashSet<String> = pack_dir(app, pack_id)
         .ok()
         .and_then(|dir| fs::read_to_string(dir.join("data/default.dungeondraft_tags")).ok())
-        .and_then(|txt| serde_json::from_str::<TagsFile>(&txt).ok())
+        .and_then(|txt| {
+            // Tags files use trailing commas; strip them for strict serde, and
+            // fall back to json5 for anything else non-standard.
+            serde_json::from_str::<TagsFile>(&strip_trailing_commas(&txt))
+                .or_else(|_| json5::from_str::<TagsFile>(&txt))
+                .ok()
+        })
         .map(|t| t.tags.colorable.into_iter().collect())
         .unwrap_or_default();
     let arc = Arc::new(set);
@@ -1064,6 +1106,13 @@ fn build_recolor_response(app: &AppHandle, uri: &tauri::http::Uri) -> tauri::htt
         let cfg = pack_color_cfg(app, &pack_id)?;
         recolor_png(&bytes, c, &cfg)
     });
+
+    eprintln!(
+        "[recolor] {:?} color={:?} -> {}",
+        canon.file_name().unwrap_or_default(),
+        color,
+        if recolored.is_some() { "RECOLORED" } else { "original" },
+    );
 
     let (body, ctype) = match recolored {
         Some(png) => (png, "image/png".to_string()),
