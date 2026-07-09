@@ -47,6 +47,7 @@ const resources = {
       assets: {
         title: "Activos",
         install: "Instalar",
+        openFolder: "Abrir carpeta",
         activate: "Activar",
         deactivate: "Desactivar",
         delete: "Eliminar",
@@ -135,6 +136,7 @@ const resources = {
       assets: {
         title: "Assets",
         install: "Install",
+        openFolder: "Open folder",
         activate: "Activate",
         deactivate: "Deactivate",
         delete: "Delete",

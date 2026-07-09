@@ -21,6 +21,7 @@ import { Trans, useTranslation } from "react-i18next"
 import {
   LuCircleOff,
   LuCirclePlay,
+  LuFolderOpen,
   LuGem,
   LuImageOff,
   LuPackagePlus,
@@ -35,6 +36,7 @@ import {
   listInstalled,
   loadPackThumbnail,
   onInstallProgress,
+  openPacksDir,
   pickPackFiles,
   setPackEnabled,
   toDataUrl,
@@ -420,6 +422,10 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       <Button size="xs" colorPalette="blue" onClick={handleInstall} loading={busy}>
         <LuPackagePlus />
         {t("assets.install")}
+      </Button>
+      <Button size="xs" variant="subtle" onClick={() => openPacksDir()}>
+        <LuFolderOpen />
+        {t("assets.openFolder")}
       </Button>
       <Box w="1px" h="20px" bg="panel.border" />
       <Button

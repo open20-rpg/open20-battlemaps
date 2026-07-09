@@ -8,6 +8,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             pack::install_packs,
             pack::list_installed,
+            pack::open_packs_dir,
             pack::uninstall_pack,
             pack::set_pack_enabled,
             pack::list_pack_contents,

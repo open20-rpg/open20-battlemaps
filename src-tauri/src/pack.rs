@@ -32,6 +32,7 @@ use std::path::{Path, PathBuf};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_opener::OpenerExt;
 
 const MAGIC: u32 = 0x4350_4447; // "GDPC"
 const HEADER_SIZE: u64 = 88; // where the file index begins
@@ -486,6 +487,17 @@ pub fn list_installed(app: AppHandle) -> Result<Vec<InstalledPack>> {
     }
     out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     Ok(out)
+}
+
+/// Reveal the folder where packs are unpacked in the system file manager.
+/// Creates the folder first so it always opens to a valid location.
+#[tauri::command]
+pub fn open_packs_dir(app: AppHandle) -> Result<()> {
+    let dir = packs_root(&app)?;
+    app.opener()
+        .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| PackError::Other(e.to_string()))?;
+    Ok(())
 }
 
 /// Delete a pack from disk and free its resources.

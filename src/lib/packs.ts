@@ -56,6 +56,11 @@ export function uninstallPack(id: string): Promise<void> {
   return invoke("uninstall_pack", { id })
 }
 
+/** Open the folder where packs are unpacked in the system file manager. */
+export function openPacksDir(): Promise<void> {
+  return invoke("open_packs_dir")
+}
+
 export function setPackEnabled(id: string, enabled: boolean): Promise<void> {
   return invoke("set_pack_enabled", { id, enabled })
 }
