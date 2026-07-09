@@ -15,7 +15,7 @@ import { Trans, useTranslation } from "react-i18next"
 import { LuGem, LuMap } from "react-icons/lu"
 import { MenuBar } from "./components/MenuBar"
 import { AssetsManager } from "./components/AssetsManager"
-import { StatusBar } from "./components/StatusBar"
+import { StatusBar, STATUS_BAR_HEIGHT } from "./components/StatusBar"
 import { Toaster, toaster } from "./components/ui/toaster"
 
 export default function App() {
@@ -28,7 +28,7 @@ export default function App() {
     toaster.create({ title: t("toast.soon", { label }), type: "info" })
 
   return (
-    <Flex direction="column" h="100vh" bg="app.bg">
+    <Flex direction="column" h="100vh" pb={STATUS_BAR_HEIGHT} bg="app.bg">
       <MenuBar
         assetsOpen={assetsOpen}
         onToggleAssets={() => setAssetsOpen((v) => !v)}

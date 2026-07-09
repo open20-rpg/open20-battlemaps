@@ -1,9 +1,12 @@
 import { useState } from "react"
-import { Box, Flex, HStack, Icon, Spinner, Text, VStack } from "@chakra-ui/react"
+import { Box, Flex, HStack, Icon, Portal, Spinner, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuCircleCheck } from "react-icons/lu"
 import { Tooltip } from "./ui/tooltip"
 import { useLoading } from "../context/loading"
+
+/** Height of the status bar; the app reserves this much space at the bottom. */
+export const STATUS_BAR_HEIGHT = "26px"
 
 function TaskDetails() {
   const { tasks } = useLoading()
@@ -48,9 +51,16 @@ export function StatusBar() {
     : t("status.ready")
 
   return (
+    <Portal>
     <Flex
       as="footer"
-      h="26px"
+      position="fixed"
+      bottom="0"
+      left="0"
+      right="0"
+      h={STATUS_BAR_HEIGHT}
+      // Above modal overlays/dialogs so the status bar is always visible.
+      zIndex="max"
       flexShrink={0}
       align="center"
       px="3"
@@ -76,7 +86,14 @@ export function StatusBar() {
         onOpenChange={(e) => setOpen(e.open)}
         openDelay={100}
         closeDelay={100}
-        contentProps={{ bg: "panel.bg", color: "fg", borderWidth: "1px", borderColor: "panel.border" }}
+        positioning={{ placement: "top-end" }}
+        contentProps={{
+          bg: "panel.bg",
+          color: "fg",
+          borderWidth: "1px",
+          borderColor: "panel.border",
+          zIndex: "max",
+        }}
         showArrow
       >
         <HStack
@@ -99,5 +116,6 @@ export function StatusBar() {
         </HStack>
       </Tooltip>
     </Flex>
+    </Portal>
   )
 }
