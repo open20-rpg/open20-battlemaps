@@ -90,6 +90,10 @@ function LibraryBrowser({ category }: { category: string }) {
   exactnessRef.current = exactness
 
   const [total, setTotal] = useState(0)
+  // Bumped on every completed search so the page-fetch effect re-runs even when
+  // total and the visible rows are unchanged (e.g. clearing/repeating a search
+  // while already scrolled to the top, after items were reset).
+  const [searchGen, setSearchGen] = useState(0)
   const items = useRef<Map<number, LibItem>>(new Map())
   const requestedPages = useRef<Set<number>>(new Set())
   const [, bump] = useReducer((x) => x + 1, 0)
@@ -146,6 +150,7 @@ function LibraryBrowser({ category }: { category: string }) {
       return withLoading(t("loading.searchingLibrary"), () =>
         searchLibrary(category, q, exactnessRef.current).then((res) => {
           setTotal(res.total)
+          setSearchGen((n) => n + 1)
           bump()
         }),
       )
@@ -189,7 +194,7 @@ function LibraryBrowser({ category }: { category: string }) {
         })
         .catch(() => requestedPages.current.delete(p))
     }
-  }, [firstRow, lastRow, cols, total])
+  }, [firstRow, lastRow, cols, total, searchGen])
 
   return (
     <Flex direction="column" flex="1" minH="0">
