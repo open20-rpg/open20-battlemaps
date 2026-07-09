@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react"
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+} from "react"
 import {
   Box,
   Flex,
@@ -14,7 +23,6 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useTranslation } from "react-i18next"
 import { LuImageOff, LuLibrary, LuX } from "react-icons/lu"
-import { Tooltip } from "./ui/tooltip"
 import { useLoading } from "../context/loading"
 import { getLibraryItems, searchLibrary, thumbUrl, type LibItem } from "../lib/library"
 
@@ -24,43 +32,51 @@ const PAGE = 200 // items fetched per window request
 
 // -- one thumbnail cell --------------------------------------------------------
 
-function ThumbCell({ item }: { item?: LibItem }) {
-  const [errored, setErrored] = useState(false)
+// Static styles kept out of render so memoized cells never re-create them.
+const cellStyle: CSSProperties = {
+  width: CELL,
+  height: CELL,
+  flexShrink: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 6,
+  border: "1px solid #34343c",
+  background: "var(--panel-header-bg)",
+  overflow: "hidden",
+}
+const imgStyle: CSSProperties = { width: "100%", height: "100%", objectFit: "contain" }
+const fillerStyle: CSSProperties = { width: CELL, height: CELL, flexShrink: 0 }
 
-  const box = (
-    <Flex
-      boxSize={`${CELL}px`}
-      flexShrink={0}
-      align="center"
-      justify="center"
-      borderRadius="md"
-      borderWidth="1px"
-      borderColor="panel.border"
-      bg="panel.header"
-      overflow="hidden"
-      cursor={item ? "pointer" : "default"}
-      _hover={item ? { borderColor: "brand.fg" } : undefined}
-    >
+// Hover affordance done in CSS so cells need no per-cell handlers. Only loaded
+// items (which carry data-name) get the pointer cursor + accent border.
+const THUMB_CSS =
+  ".od-thumb[data-name]{cursor:pointer}.od-thumb[data-name]:hover{border-color:#5aa9ff}"
+
+// Plain-div cell, memoized so incoming page loads don't re-render already-painted
+// cells. The name tooltip is handled once at the grid level via event delegation,
+// so a cell is just its image (or a broken-image glyph). decoding/lazy keep image
+// decode off the scroll thread.
+const ThumbCell = memo(function ThumbCell({ item }: { item?: LibItem }) {
+  const [errored, setErrored] = useState(false)
+  return (
+    <div className="od-thumb" data-name={item?.name} style={cellStyle}>
       {item && !errored ? (
         <img
           src={thumbUrl(item.thumb)}
           alt=""
+          draggable={false}
+          decoding="async"
+          loading="lazy"
           onError={() => setErrored(true)}
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          style={imgStyle}
         />
       ) : item ? (
-        <Icon as={LuImageOff} color="fg.muted" boxSize="4" />
+        <LuImageOff color="#8a8a90" size={16} />
       ) : null}
-    </Flex>
+    </div>
   )
-
-  if (!item) return box
-  return (
-    <Tooltip content={item.name} openDelay={250} positioning={{ placement: "top" }} showArrow>
-      {box}
-    </Tooltip>
-  )
-}
+})
 
 // -- the "All" browser (search + virtualized grid) -----------------------------
 
@@ -80,6 +96,33 @@ function LibraryBrowser({ category }: { category: string }) {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [cols, setCols] = useState(1)
+
+  // Single shared name tooltip driven by event delegation — avoids mounting one
+  // Chakra Tooltip per cell (dozens created/destroyed per second while scrolling).
+  const [tip, setTip] = useState<{ name: string; x: number; y: number } | null>(null)
+  const tipTimer = useRef<number | undefined>(undefined)
+
+  const handleGridOver = useCallback((e: ReactMouseEvent) => {
+    const cell = (e.target as HTMLElement).closest?.("[data-name]") as HTMLElement | null
+    window.clearTimeout(tipTimer.current)
+    if (!cell) {
+      setTip(null)
+      return
+    }
+    const name = cell.dataset.name ?? ""
+    const rect = cell.getBoundingClientRect()
+    tipTimer.current = window.setTimeout(
+      () => setTip({ name, x: rect.left + rect.width / 2, y: rect.top }),
+      250,
+    )
+  }, [])
+
+  const clearTip = useCallback(() => {
+    window.clearTimeout(tipTimer.current)
+    setTip(null)
+  }, [])
+
+  useEffect(() => () => window.clearTimeout(tipTimer.current), [])
 
   // Track the scroll area width -> number of columns.
   useEffect(() => {
@@ -150,6 +193,7 @@ function LibraryBrowser({ category }: { category: string }) {
 
   return (
     <Flex direction="column" flex="1" minH="0">
+      <style>{THUMB_CSS}</style>
       {/* Search + exactness controls */}
       <VStack align="stretch" gap="2.5" p="3" borderBottomWidth="1px" borderColor="panel.border">
         <HStack gap="1.5">
@@ -203,7 +247,16 @@ function LibraryBrowser({ category }: { category: string }) {
       </VStack>
 
       {/* Virtualized grid */}
-      <Box ref={scrollRef} flex="1" minH="0" overflowY="auto" overflowX="hidden">
+      <Box
+        ref={scrollRef}
+        flex="1"
+        minH="0"
+        overflowY="auto"
+        overflowX="hidden"
+        onMouseOver={handleGridOver}
+        onMouseLeave={clearTip}
+        onScroll={clearTip}
+      >
         {total === 0 ? (
           <Flex h="full" align="center" justify="center" p="6">
             <Text fontSize="xs" color="fg.muted">
@@ -215,29 +268,71 @@ function LibraryBrowser({ category }: { category: string }) {
             {virtualRows.map((vr) => {
               const rowStart = vr.index * cols
               return (
-                <Flex
+                <div
                   key={vr.key}
-                  position="absolute"
-                  top="0"
-                  left="0"
-                  width="100%"
-                  px={`${GAP}px`}
-                  gap={`${GAP}px`}
-                  transform={`translateY(${vr.start}px)`}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    display: "flex",
+                    padding: `0 ${GAP}px`,
+                    gap: `${GAP}px`,
+                    transform: `translateY(${vr.start}px)`,
+                  }}
                 >
                   {Array.from({ length: cols }, (_, c) => {
                     const idx = rowStart + c
                     if (idx >= total) {
-                      return <Box key={c} boxSize={`${CELL}px`} flexShrink={0} />
+                      return <div key={c} style={fillerStyle} />
                     }
                     return <ThumbCell key={idx} item={items.current.get(idx)} />
                   })}
-                </Flex>
+                </div>
               )
             })}
           </Box>
         )}
       </Box>
+
+      {tip && (
+        <div
+          style={{
+            position: "fixed",
+            left: tip.x,
+            top: tip.y,
+            transform: "translate(-50%, calc(-100% - 8px))",
+            pointerEvents: "none",
+            zIndex: 2000,
+            maxWidth: 280,
+            padding: "4px 8px",
+            borderRadius: 6,
+            background: "#212126",
+            border: "1px solid #34343c",
+            color: "#e7e7ea",
+            fontSize: 12,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          }}
+        >
+          {tip.name}
+          <span
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: -4,
+              width: 8,
+              height: 8,
+              transform: "translateX(-50%) rotate(45deg)",
+              background: "#212126",
+              borderRight: "1px solid #34343c",
+              borderBottom: "1px solid #34343c",
+            }}
+          />
+        </div>
+      )}
     </Flex>
   )
 }
