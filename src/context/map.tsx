@@ -29,7 +29,7 @@ const MapContext = createContext<MapContextValue | null>(null)
  * is open. No visual map representation yet — only the state.
  */
 export function MapProvider({ children }: { children: ReactNode }) {
-  const [map, setMap] = useState<MapDoc | null>({ width: 35, height: 20 })
+  const [map, setMap] = useState<MapDoc | null>(null)
 
   const createMap = useCallback((width: number, height: number) => {
     setMap({ width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) })
