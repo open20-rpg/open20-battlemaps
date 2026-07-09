@@ -5,6 +5,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(pack::LibraryState::default())
         .invoke_handler(tauri::generate_handler![
             pack::install_packs,
             pack::list_installed,
@@ -14,6 +15,8 @@ pub fn run() {
             pack::list_pack_contents,
             pack::load_asset,
             pack::load_pack_thumbnail,
+            pack::search_library,
+            pack::get_library_items,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

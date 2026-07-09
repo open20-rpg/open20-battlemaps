@@ -7,6 +7,7 @@ import { MenuBar } from "./components/MenuBar"
 import { AssetsManager } from "./components/AssetsManager"
 import { NewMapDialog } from "./components/NewMapDialog"
 import { ToolsPanel } from "./components/ToolsPanel"
+import { LibraryPanel } from "./components/LibraryPanel"
 import { Modal } from "./components/Modal"
 import { StatusBar, STATUS_BAR_HEIGHT } from "./components/StatusBar"
 import { Toaster, toaster } from "./components/ui/toaster"
@@ -16,7 +17,8 @@ import { useTools } from "./context/tools"
 export default function App() {
   const { t, i18n } = useTranslation()
   const { hasMap, createMap, closeMap } = useMap()
-  const { reset: resetTools } = useTools()
+  const { reset: resetTools, activeTool } = useTools()
+  const libraryCategory = hasMap ? activeTool?.library : undefined
 
   // Clear the tool selection whenever the map is closed.
   useEffect(() => {
@@ -79,6 +81,7 @@ export default function App() {
         </Flex>
 
         {hasMap && <ToolsPanel />}
+        {libraryCategory && <LibraryPanel category={libraryCategory} />}
 
         {assetsOpen && <AssetsManager onClose={() => setAssetsOpen(false)} />}
       </Box>

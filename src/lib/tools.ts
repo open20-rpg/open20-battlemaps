@@ -34,6 +34,8 @@ export interface ToolLeaf {
   /** i18n key for the display name. */
   nameKey: string
   icon: IconType
+  /** If set, the Library panel opens on the right, filtered to this category. */
+  library?: string
 }
 
 /** A folder that opens a panel listing its children. */
@@ -47,11 +49,17 @@ export interface ToolGroup {
 
 export type ToolNode = ToolLeaf | ToolGroup
 
-const tool = (id: string, nameKey: string, icon: IconType): ToolLeaf => ({
+const tool = (
+  id: string,
+  nameKey: string,
+  icon: IconType,
+  library?: string,
+): ToolLeaf => ({
   type: "tool",
   id,
   nameKey,
   icon,
+  library,
 })
 
 /** The top-level tool palette. Groups expand into their own panels. */
@@ -88,8 +96,8 @@ export const TOOL_TREE: ToolNode[] = [
     nameKey: "tools.objects",
     icon: LuShapes,
     children: [
-      tool("object", "tools.object", LuBox),
-      tool("scatter", "tools.scatter", LuSprayCan),
+      tool("object", "tools.object", LuBox, "objects"),
+      tool("scatter", "tools.scatter", LuSprayCan, "objects"),
     ],
   },
   {

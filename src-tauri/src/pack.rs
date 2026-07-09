@@ -28,6 +28,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
@@ -464,6 +465,7 @@ fn install_one(app: &AppHandle, pack_path: &Path) -> Result<InstalledPack> {
     let mut reg = read_registry(app);
     reg.insert(id.clone(), reg_entry.clone());
     write_registry(app, &reg)?;
+    clear_library(app);
 
     build_installed(app, &id, &reg_entry)
         .ok_or_else(|| PackError::Other("install verification failed".into()))
@@ -588,6 +590,7 @@ pub async fn uninstall_pack(app: AppHandle, id: String) -> Result<()> {
         let mut reg = read_registry(&app);
         reg.remove(&id);
         write_registry(&app, &reg)?;
+        clear_library(&app);
         Ok(())
     })
     .await
@@ -604,6 +607,7 @@ pub fn set_pack_enabled(app: AppHandle, id: String, enabled: bool) -> Result<()>
     // Preserve cached stats when toggling.
     reg.entry(id).or_default().enabled = enabled;
     write_registry(&app, &reg)?;
+    clear_library(&app);
     Ok(())
 }
 
@@ -683,4 +687,195 @@ pub fn load_pack_thumbnail(app: AppHandle, id: String) -> Result<Option<LoadedIm
     let bytes = fs::read(&path)?;
     let data = base64::engine::general_purpose::STANDARD.encode(&bytes);
     Ok(Some(LoadedImage { mime: "image/png".to_string(), data }))
+}
+
+// ---------------------------------------------------------------------------
+// Library (asset browser for the Object/Scatter tools, etc.)
+// ---------------------------------------------------------------------------
+//
+// Packs can hold >100k objects, so the library never ships the whole list over
+// IPC. A search filters an in-memory, cached per-pack index and stores the
+// result set in `LibraryState`; the frontend then pulls only the visible window
+// via `get_library_items`. Thumbnails are served through Tauri's asset protocol
+// (convertFileSrc) so the webview loads/frees the images natively.
+
+/// One indexed asset (kept lightweight; the thumbnail path is derived on demand).
+#[derive(Clone)]
+struct CacheItem {
+    rel_path: String,
+    name: String,
+    name_lower: String,
+}
+
+/// A filtered search hit, before its thumbnail path is resolved.
+#[derive(Clone)]
+struct LibItemLite {
+    pack_id: String,
+    rel_path: String,
+    name: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibItem {
+    id: String,
+    name: String,
+    /// Absolute path to the thumbnail PNG (use convertFileSrc on the frontend).
+    thumb: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibrarySearch {
+    total: usize,
+}
+
+/// Session-scoped library caches. Cleared when packs change.
+#[derive(Default)]
+pub struct LibraryState {
+    /// key = "<packId>/<category>" -> indexed items for that pack folder.
+    indexes: Mutex<HashMap<String, Arc<Vec<CacheItem>>>>,
+    /// The most recent search's results, served in windows.
+    results: Mutex<Vec<LibItemLite>>,
+}
+
+/// Drop all cached indexes/results (call when packs are added/removed/toggled).
+fn clear_library(app: &AppHandle) {
+    let state = app.state::<LibraryState>();
+    if let Ok(mut idx) = state.indexes.lock() {
+        idx.clear();
+    }
+    if let Ok(mut res) = state.results.lock() {
+        res.clear();
+    };
+}
+
+/// Walk `textures/<category>` of a pack and collect its files.
+fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<CacheItem> {
+    let Ok(dir) = pack_dir(app, pack_id) else {
+        return Vec::new();
+    };
+    let base = dir.join("textures").join(category);
+    let mut out = Vec::new();
+    let mut stack = vec![base];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = fs::read_dir(&d) else { continue };
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+                continue;
+            }
+            let rel = path
+                .strip_prefix(&dir)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            let name = path
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let name_lower = name.to_lowercase();
+            out.push(CacheItem { rel_path: rel, name, name_lower });
+        }
+    }
+    out
+}
+
+/// Is `q` a subsequence of `s` (its chars appear in order, gaps allowed)?
+fn is_subsequence(q: &str, s: &str) -> bool {
+    let mut chars = s.chars();
+    q.chars().all(|c| chars.any(|x| x == c))
+}
+
+/// Match `name` against `query` with an exactness in [0,1]. Near the exact end
+/// only substring matches count; lower down, subsequence (fuzzy) matches too.
+fn matches(name_lower: &str, query_lower: &str, exactness: f32) -> bool {
+    if query_lower.is_empty() {
+        return true;
+    }
+    if name_lower.contains(query_lower) {
+        return true;
+    }
+    if exactness >= 0.85 {
+        return false;
+    }
+    is_subsequence(query_lower, name_lower)
+}
+
+/// Run a library search over all enabled packs and cache the results.
+#[tauri::command]
+pub async fn search_library(
+    app: AppHandle,
+    category: String,
+    query: String,
+    exactness: f32,
+) -> Result<LibrarySearch> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<LibraryState>();
+        let reg = read_registry(&app);
+        let mut enabled: Vec<String> = reg
+            .iter()
+            .filter(|(_, r)| r.enabled)
+            .map(|(id, _)| id.clone())
+            .collect();
+        enabled.sort();
+
+        let q = query.to_lowercase();
+        let mut results: Vec<LibItemLite> = Vec::new();
+
+        for pack_id in &enabled {
+            let key = format!("{pack_id}/{category}");
+            let index = {
+                let mut idx = state.indexes.lock().unwrap();
+                if let Some(existing) = idx.get(&key) {
+                    existing.clone()
+                } else {
+                    let built = Arc::new(build_category_index(&app, pack_id, &category));
+                    idx.insert(key, built.clone());
+                    built
+                }
+            };
+            for item in index.iter() {
+                if matches(&item.name_lower, &q, exactness) {
+                    results.push(LibItemLite {
+                        pack_id: pack_id.clone(),
+                        rel_path: item.rel_path.clone(),
+                        name: item.name.clone(),
+                    });
+                }
+            }
+        }
+
+        results.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        let total = results.len();
+        *state.results.lock().unwrap() = results;
+        Ok(LibrarySearch { total })
+    })
+    .await
+    .map_err(|e| PackError::Other(e.to_string()))?
+}
+
+/// Fetch a window of the current search results, resolving thumbnail paths.
+#[tauri::command]
+pub fn get_library_items(app: AppHandle, offset: usize, limit: usize) -> Result<Vec<LibItem>> {
+    let state = app.state::<LibraryState>();
+    let results = state.results.lock().unwrap();
+    if offset >= results.len() {
+        return Ok(Vec::new());
+    }
+    let end = (offset + limit).min(results.len());
+    let mut out = Vec::with_capacity(end - offset);
+    for lite in &results[offset..end] {
+        let dir = pack_dir(&app, &lite.pack_id)?;
+        let res_path = format!("res://packs/{}/{}", lite.pack_id, lite.rel_path);
+        let hash = format!("{:x}", md5::compute(res_path.as_bytes()));
+        let thumb = dir.join("thumbnails").join(format!("{hash}.png"));
+        out.push(LibItem {
+            id: format!("{}|{}", lite.pack_id, lite.rel_path),
+            name: lite.name.clone(),
+            thumb: thumb.to_string_lossy().into_owned(),
+        });
+    }
+    Ok(out)
 }
