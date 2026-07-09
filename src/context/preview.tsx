@@ -3,10 +3,10 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 /** The object currently hovered (mouse) or pressed (touch) in the library. */
 export interface ObjectPreview {
   name: string
-  /** Thumbnail path — shown immediately while the full image loads. */
-  thumb: string
-  /** Full-size texture path. */
-  full: string
+  /** Ready-to-use thumbnail URL — shown immediately while the full loads. */
+  thumbUrl: string
+  /** Ready-to-use full-size image URL (recolored already if applicable). */
+  fullUrl: string
 }
 
 interface PreviewContextValue {

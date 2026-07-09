@@ -2,6 +2,7 @@ import { Flex, Icon, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { Tooltip } from "./ui/tooltip"
 import { ObjectPreview } from "./ObjectPreview"
+import { CustomColorControl } from "./CustomColorControl"
 import { TOOL_TREE, type ToolNode } from "../lib/tools"
 import { useTools } from "../context/tools"
 
@@ -182,11 +183,17 @@ function ParamsPanel({ tool }: { tool: Extract<ToolNode, { type: "tool" }> }) {
           {t(tool.nameKey)}
         </Text>
       </Flex>
-      <Flex flex="1" align="center" justify="center" p="6">
-        <Text fontSize="xs" color="fg.muted" textAlign="center">
-          {t("tools.emptyParams")}
-        </Text>
-      </Flex>
+      {tool.library ? (
+        <VStack align="stretch" gap="0" flex="1" minH="0" overflowY="auto">
+          <CustomColorControl toolId={tool.id} />
+        </VStack>
+      ) : (
+        <Flex flex="1" align="center" justify="center" p="6">
+          <Text fontSize="xs" color="fg.muted" textAlign="center">
+            {t("tools.emptyParams")}
+          </Text>
+        </Flex>
+      )}
     </VStack>
   )
 }

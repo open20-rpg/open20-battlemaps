@@ -27,6 +27,9 @@ base64 = "0.22"
 thiserror = "2"
 json5 = "0.4"
 md5 = "0.7"
+# Colorable-asset recoloring (decode/recolor/encode PNG on the fly).
+image = { version = "0.25", default-features = false, features = ["png"] }
+urlencoding = "2"
 
 # Android needs JNI to resolve `content://` picker URIs to a file descriptor
 # (the Storage Access Framework gives no real filesystem path).

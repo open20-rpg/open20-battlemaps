@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { Box, Text } from "@chakra-ui/react"
 import { usePreview } from "../context/preview"
-import { thumbUrl } from "../lib/library"
 
 // Keep a very large preview from spilling off-screen while still honouring
 // "full size" for the common (small texture) case.
@@ -29,7 +28,7 @@ export function ObjectPreview() {
     const img = new Image()
     const onDone = () => setFullLoaded(true)
     img.onload = onDone
-    img.src = thumbUrl(preview.full)
+    img.src = preview.fullUrl
     if (img.complete && img.naturalWidth > 0) onDone()
     return () => {
       img.onload = null
@@ -38,7 +37,7 @@ export function ObjectPreview() {
 
   if (!preview) return null
 
-  const src = thumbUrl(fullLoaded ? preview.full : preview.thumb)
+  const src = fullLoaded ? preview.fullUrl : preview.thumbUrl
 
   return (
     <Box

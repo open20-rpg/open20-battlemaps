@@ -6,6 +6,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(pack::LibraryState::default())
+        .register_asynchronous_uri_scheme_protocol("recolor", pack::recolor_protocol)
         .invoke_handler(tauri::generate_handler![
             pack::install_packs,
             pack::list_installed,

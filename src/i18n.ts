@@ -129,6 +129,9 @@ const resources = {
         prefabs: "Prefabricados",
         select: "Seleccionar",
         emptyParams: "Parámetros de la herramienta (próximamente).",
+        customColor: "Color personalizado",
+        pickCustomColor: "Elegir color personalizado",
+        addColorPreset: "Agregar color a la lista",
       },
       library: {
         title: "Biblioteca",
@@ -285,6 +288,9 @@ const resources = {
         prefabs: "Prefabs",
         select: "Select",
         emptyParams: "Tool parameters (coming soon).",
+        customColor: "Custom Color",
+        pickCustomColor: "Pick a custom color",
+        addColorPreset: "Add color to the list",
       },
       library: {
         title: "Library",

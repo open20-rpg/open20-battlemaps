@@ -25,7 +25,9 @@ import { useTranslation } from "react-i18next"
 import { LuImageOff, LuLibrary, LuX } from "react-icons/lu"
 import { useLoading } from "../context/loading"
 import { usePreview } from "../context/preview"
-import { getLibraryItems, searchLibrary, thumbUrl, type LibItem } from "../lib/library"
+import { useTools } from "../context/tools"
+import { getLibraryItems, itemImageUrl, searchLibrary, type LibItem } from "../lib/library"
+import { DEFAULT_CUSTOM_COLOR } from "../lib/colors"
 
 const CELL = 64 // thumbnail size in px (matches the 64x64 thumbnails)
 const GAP = 8
@@ -53,13 +55,21 @@ const THUMB_CSS = ".od-thumb[data-name]{cursor:pointer}"
 // cells. The name tooltip is handled once at the grid level via event delegation,
 // so a cell is just its image (or a broken-image glyph). decoding/lazy keep image
 // decode off the scroll thread.
-const ThumbCell = memo(function ThumbCell({ item, idx }: { item?: LibItem; idx: number }) {
+const ThumbCell = memo(function ThumbCell({
+  item,
+  idx,
+  color,
+}: {
+  item?: LibItem
+  idx: number
+  color: string
+}) {
   const [errored, setErrored] = useState(false)
   return (
     <div className="od-thumb" data-name={item?.name} data-idx={item ? idx : undefined} style={cellStyle}>
       {item && !errored ? (
         <img
-          src={thumbUrl(item.thumb)}
+          src={itemImageUrl(item.thumb, item.colorable, color)}
           alt=""
           draggable={false}
           decoding="async"
@@ -102,6 +112,13 @@ function LibraryBrowser({ category }: { category: string }) {
   const [tip, setTip] = useState<{ name: string; x: number; y: number } | null>(null)
   const tipTimer = useRef<number | undefined>(undefined)
 
+  // Custom color of the active tool — colorable items are served recolored.
+  const { activeToolId, getToolParams } = useTools()
+  const color =
+    (getToolParams(activeToolId ?? "").customColor as string) || DEFAULT_CUSTOM_COLOR
+  const colorRef = useRef(color)
+  colorRef.current = color
+
   // Object preview panel (next to the tools panel). Pointer events cover both
   // mouse hover and touch press. previewIdx dedupes so re-entering the same
   // cell (e.g. onto its <img> child) doesn't reload the full image.
@@ -128,7 +145,15 @@ function LibraryBrowser({ category }: { category: string }) {
       if (previewIdx.current !== idx) {
         previewIdx.current = idx
         const item = items.current.get(idx)
-        setPreview(item ? { name: item.name, thumb: item.thumb, full: item.full } : null)
+        setPreview(
+          item
+            ? {
+                name: item.name,
+                thumbUrl: itemImageUrl(item.thumb, item.colorable, colorRef.current),
+                fullUrl: itemImageUrl(item.full, item.colorable, colorRef.current),
+              }
+            : null,
+        )
       }
     },
     [setPreview],
@@ -314,7 +339,9 @@ function LibraryBrowser({ category }: { category: string }) {
                     if (idx >= total) {
                       return <div key={c} style={fillerStyle} />
                     }
-                    return <ThumbCell key={idx} idx={idx} item={items.current.get(idx)} />
+                    return (
+                      <ThumbCell key={idx} idx={idx} item={items.current.get(idx)} color={color} />
+                    )
                   })}
                 </div>
               )
