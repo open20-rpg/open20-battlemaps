@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Box, Button, Flex, Group, Icon, Stack, Text } from "@chakra-ui/react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { Trans, useTranslation } from "react-i18next"
@@ -6,14 +6,22 @@ import { LuGem, LuMap } from "react-icons/lu"
 import { MenuBar } from "./components/MenuBar"
 import { AssetsManager } from "./components/AssetsManager"
 import { NewMapDialog } from "./components/NewMapDialog"
+import { ToolsPanel } from "./components/ToolsPanel"
 import { Modal } from "./components/Modal"
 import { StatusBar, STATUS_BAR_HEIGHT } from "./components/StatusBar"
 import { Toaster, toaster } from "./components/ui/toaster"
 import { useMap } from "./context/map"
+import { useTools } from "./context/tools"
 
 export default function App() {
   const { t, i18n } = useTranslation()
   const { hasMap, createMap, closeMap } = useMap()
+  const { reset: resetTools } = useTools()
+
+  // Clear the tool selection whenever the map is closed.
+  useEffect(() => {
+    if (!hasMap) resetTools()
+  }, [hasMap, resetTools])
   const [assetsOpen, setAssetsOpen] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -38,7 +46,7 @@ export default function App() {
         onComingSoon={notImplemented}
       />
 
-      {/* Empty editor canvas placeholder */}
+      {/* Editor canvas with the sticky tools panel overlaid on the left */}
       <Box flex="1" position="relative" overflow="hidden">
         <Flex
           direction="column"
@@ -69,6 +77,8 @@ export default function App() {
             {t("canvas.openAssets")}
           </Button>
         </Flex>
+
+        {hasMap && <ToolsPanel />}
 
         {assetsOpen && <AssetsManager onClose={() => setAssetsOpen(false)} />}
       </Box>
