@@ -4,12 +4,14 @@ import {
   Button,
   Dialog,
   Flex,
+  Group,
   Icon,
   Portal,
   Stack,
   Text,
 } from "@chakra-ui/react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
+import { Trans, useTranslation } from "react-i18next"
 import { LuGem, LuMap } from "react-icons/lu"
 import { MenuBar } from "./components/MenuBar"
 import { AssetsManager } from "./components/AssetsManager"
@@ -18,12 +20,13 @@ import { Toaster, toaster } from "./components/ui/toaster"
 const APP_VERSION = "0.1.0"
 
 export default function App() {
+  const { t, i18n } = useTranslation()
   const [assetsOpen, setAssetsOpen] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
 
   const notImplemented = (label: string) =>
-    toaster.create({ title: `${label}: próximamente`, type: "info" })
+    toaster.create({ title: t("toast.soon", { label }), type: "info" })
 
   return (
     <Flex direction="column" h="100vh" bg="app.bg">
@@ -32,12 +35,10 @@ export default function App() {
         onToggleAssets={() => setAssetsOpen((v) => !v)}
         onOpenPreferences={() => setPrefsOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
-        onOpenRecent={() =>
-          toaster.create({ title: "No hay archivos recientes", type: "info" })
-        }
+        onOpenRecent={() => toaster.create({ title: t("toast.noRecent"), type: "info" })}
         onExit={() => getCurrentWindow().close()}
-        onNew={() => notImplemented("Nuevo mapa")}
-        onOpen={() => notImplemented("Abrir mapa")}
+        onNew={() => notImplemented(t("toast.newMap"))}
+        onOpen={() => notImplemented(t("toast.openMap"))}
       />
 
       {/* Empty editor canvas placeholder */}
@@ -58,20 +59,17 @@ export default function App() {
           <Icon as={LuMap} boxSize="16" opacity={0.35} />
           <Stack gap="1" align="center">
             <Text fontSize="lg" fontWeight="medium">
-              OpenDraft
+              {t("canvas.title")}
             </Text>
             <Text fontSize="sm">
-              Creá o abrí un mapa para empezar. Gestioná tus paquetes desde{" "}
-              <b>Activos</b>.
+              <Trans i18nKey="canvas.subtitle">
+                Creá o abrí un mapa para empezar. Gestioná tus paquetes desde <b>Activos</b>.
+              </Trans>
             </Text>
           </Stack>
-          <Button
-            variant="subtle"
-            colorPalette="blue"
-            onClick={() => setAssetsOpen(true)}
-          >
+          <Button variant="subtle" colorPalette="blue" onClick={() => setAssetsOpen(true)}>
             <LuGem />
-            Abrir Activos
+            {t("canvas.openAssets")}
           </Button>
         </Flex>
 
@@ -79,29 +77,46 @@ export default function App() {
       </Box>
 
       {/* Preferences dialog */}
-      <Dialog.Root
-        open={prefsOpen}
-        onOpenChange={(e) => setPrefsOpen(e.open)}
-        placement="center"
-      >
+      <Dialog.Root open={prefsOpen} onOpenChange={(e) => setPrefsOpen(e.open)} placement="center">
         <Portal>
           <Dialog.Backdrop />
           <Dialog.Positioner>
             <Dialog.Content bg="panel.bg" borderColor="panel.border" borderWidth="1px">
               <Dialog.Header>
-                <Dialog.Title>Preferencias</Dialog.Title>
+                <Dialog.Title>{t("prefs.title")}</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>
-                <Stack gap="3" color="fg.muted" fontSize="sm">
-                  <Text>Tema: Oscuro (fijo)</Text>
-                  <Text>
-                    Más opciones de configuración estarán disponibles próximamente.
-                  </Text>
+                <Stack gap="4" fontSize="sm">
+                  <Box>
+                    <Text mb="2" color="fg.muted">
+                      {t("prefs.language")}
+                    </Text>
+                    <Group attached>
+                      <Button
+                        size="sm"
+                        variant={i18n.language.startsWith("es") ? "solid" : "outline"}
+                        colorPalette="blue"
+                        onClick={() => i18n.changeLanguage("es")}
+                      >
+                        Español
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={i18n.language.startsWith("en") ? "solid" : "outline"}
+                        colorPalette="blue"
+                        onClick={() => i18n.changeLanguage("en")}
+                      >
+                        English
+                      </Button>
+                    </Group>
+                  </Box>
+                  <Text color="fg.muted">{t("prefs.theme")}</Text>
+                  <Text color="fg.muted">{t("prefs.more")}</Text>
                 </Stack>
               </Dialog.Body>
               <Dialog.Footer>
                 <Button variant="subtle" onClick={() => setPrefsOpen(false)}>
-                  Cerrar
+                  {t("prefs.close")}
                 </Button>
               </Dialog.Footer>
             </Dialog.Content>
@@ -110,33 +125,26 @@ export default function App() {
       </Dialog.Root>
 
       {/* About dialog */}
-      <Dialog.Root
-        open={aboutOpen}
-        onOpenChange={(e) => setAboutOpen(e.open)}
-        placement="center"
-      >
+      <Dialog.Root open={aboutOpen} onOpenChange={(e) => setAboutOpen(e.open)} placement="center">
         <Portal>
           <Dialog.Backdrop />
           <Dialog.Positioner>
             <Dialog.Content bg="panel.bg" borderColor="panel.border" borderWidth="1px">
               <Dialog.Header>
-                <Dialog.Title>Acerca de OpenDraft</Dialog.Title>
+                <Dialog.Title>{t("about.title")}</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>
                 <Stack gap="2" color="fg.muted" fontSize="sm">
                   <Text color="fg" fontWeight="semibold">
-                    OpenDraft v{APP_VERSION}
+                    {t("about.version", { version: APP_VERSION })}
                   </Text>
-                  <Text>
-                    Editor de mapas para juegos de rol, de código abierto e
-                    inspirado en Dungeondraft.
-                  </Text>
-                  <Text>Compatible con paquetes .dungeondraft_pack.</Text>
+                  <Text>{t("about.desc")}</Text>
+                  <Text>{t("about.compat")}</Text>
                 </Stack>
               </Dialog.Body>
               <Dialog.Footer>
                 <Button variant="subtle" onClick={() => setAboutOpen(false)}>
-                  Cerrar
+                  {t("prefs.close")}
                 </Button>
               </Dialog.Footer>
             </Dialog.Content>

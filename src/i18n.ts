@@ -1,0 +1,172 @@
+import i18n from "i18next"
+import { initReactI18next } from "react-i18next"
+import LanguageDetector from "i18next-browser-languagedetector"
+
+const resources = {
+  es: {
+    translation: {
+      menu: {
+        menu: "Menú",
+        recent: "Abrir recientes",
+        preferences: "Preferencias",
+        exit: "Salir",
+        new: "Nuevo",
+        open: "Abrir",
+        save: "Guardar",
+        export: "Exportar",
+        undo: "Deshacer",
+        redo: "Rehacer",
+        assets: "Activos",
+        extensions: "Extensiones",
+        about: "Acerca de",
+      },
+      canvas: {
+        title: "OpenDraft",
+        subtitle: "Creá o abrí un mapa para empezar. Gestioná tus paquetes desde <1>Activos</1>.",
+        openAssets: "Abrir Activos",
+      },
+      toast: {
+        noRecent: "No hay archivos recientes",
+        soon: "{{label}}: próximamente",
+        newMap: "Nuevo mapa",
+        openMap: "Abrir mapa",
+      },
+      prefs: {
+        title: "Preferencias",
+        theme: "Tema: Oscuro (fijo)",
+        language: "Idioma",
+        more: "Más opciones de configuración estarán disponibles próximamente.",
+        close: "Cerrar",
+      },
+      about: {
+        title: "Acerca de OpenDraft",
+        version: "OpenDraft v{{version}}",
+        desc: "Editor de mapas para juegos de rol, de código abierto e inspirado en Dungeondraft.",
+        compat: "Compatible con paquetes .dungeondraft_pack.",
+      },
+      assets: {
+        title: "Activos",
+        install: "Instalar",
+        activate: "Activar",
+        deactivate: "Desactivar",
+        delete: "Eliminar",
+        refresh: "Refrescar",
+        close: "Cerrar",
+        selectedCount: "{{count}} seleccionado(s)",
+        installedCount: "{{count}} pack(s) instalado(s)",
+        installing: "Instalando “{{pack}}” — {{index}}/{{total}}",
+        empty: "No hay activos instalados.",
+        emptyHint: "Usá <1>Instalar</1> para agregar archivos .dungeondraft_pack.",
+        active: "Activo",
+        inactive: "Inactivo",
+        files: "{{count}} archivos",
+        installError: "No se pudo instalar: {{error}}",
+        deleteTitle: "Desinstalar activos",
+        deleteConfirm: "¿Eliminar {{count}} pack(s)? Se borrarán los archivos del disco.",
+        errorTitle: "Error",
+      },
+      preview: {
+        empty: "Seleccioná un pack para ver sus detalles.",
+        author: "Autor",
+        version: "Versión",
+        id: "ID",
+        files: "Archivos",
+        size: "Tamaño",
+        keywords: "Etiquetas",
+        status: "Estado",
+        noImage: "Sin imagen de vista previa",
+      },
+    },
+  },
+  en: {
+    translation: {
+      menu: {
+        menu: "Menu",
+        recent: "Open recent",
+        preferences: "Preferences",
+        exit: "Exit",
+        new: "New",
+        open: "Open",
+        save: "Save",
+        export: "Export",
+        undo: "Undo",
+        redo: "Redo",
+        assets: "Assets",
+        extensions: "Extensions",
+        about: "About",
+      },
+      canvas: {
+        title: "OpenDraft",
+        subtitle: "Create or open a map to get started. Manage your packs from <1>Assets</1>.",
+        openAssets: "Open Assets",
+      },
+      toast: {
+        noRecent: "No recent files",
+        soon: "{{label}}: coming soon",
+        newMap: "New map",
+        openMap: "Open map",
+      },
+      prefs: {
+        title: "Preferences",
+        theme: "Theme: Dark (fixed)",
+        language: "Language",
+        more: "More configuration options will be available soon.",
+        close: "Close",
+      },
+      about: {
+        title: "About OpenDraft",
+        version: "OpenDraft v{{version}}",
+        desc: "Open-source RPG map editor inspired by Dungeondraft.",
+        compat: "Compatible with .dungeondraft_pack files.",
+      },
+      assets: {
+        title: "Assets",
+        install: "Install",
+        activate: "Activate",
+        deactivate: "Deactivate",
+        delete: "Delete",
+        refresh: "Refresh",
+        close: "Close",
+        selectedCount: "{{count}} selected",
+        installedCount: "{{count}} pack(s) installed",
+        installing: "Installing “{{pack}}” — {{index}}/{{total}}",
+        empty: "No assets installed.",
+        emptyHint: "Use <1>Install</1> to add .dungeondraft_pack files.",
+        active: "Active",
+        inactive: "Inactive",
+        files: "{{count}} files",
+        installError: "Could not install: {{error}}",
+        deleteTitle: "Uninstall assets",
+        deleteConfirm: "Delete {{count}} pack(s)? Files will be removed from disk.",
+        errorTitle: "Error",
+      },
+      preview: {
+        empty: "Select a pack to see its details.",
+        author: "Author",
+        version: "Version",
+        id: "ID",
+        files: "Files",
+        size: "Size",
+        keywords: "Keywords",
+        status: "Status",
+        noImage: "No preview image",
+      },
+    },
+  },
+}
+
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources,
+    fallbackLng: "en",
+    supportedLngs: ["es", "en"],
+    interpolation: { escapeValue: false },
+    detection: {
+      order: ["localStorage", "navigator"],
+      caches: ["localStorage"],
+    },
+  })
+
+export default i18n

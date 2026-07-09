@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type ReactNode } from "react"
 import { Box, Flex, Icon, IconButton, Text } from "@chakra-ui/react"
+import { useTranslation } from "react-i18next"
 import type { IconType } from "react-icons"
 import { LuX } from "react-icons/lu"
 
@@ -79,6 +80,7 @@ export function FloatingWindow({
   closeOnBackdropClick = true,
   children,
 }: FloatingWindowProps) {
+  const { t } = useTranslation()
   const { pos, handlers } = useDrag(initialPosition)
   const [size, setSize] = useState<Size>(initialSize)
   const [z, setZ] = useState(() => ++zCounter)
@@ -155,7 +157,7 @@ export function FloatingWindow({
           <Text fontWeight="bold" fontSize="sm" flex="1" truncate>
             {title}
           </Text>
-          <IconButton aria-label="Cerrar" size="xs" variant="ghost" onClick={onClose}>
+          <IconButton aria-label={t("assets.close")} size="xs" variant="ghost" onClick={onClose}>
             <LuX />
           </IconButton>
         </Flex>

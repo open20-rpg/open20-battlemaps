@@ -1,4 +1,5 @@
 import { Button, Flex, Icon, Menu, Portal, Text } from "@chakra-ui/react"
+import { useTranslation } from "react-i18next"
 import type { IconType } from "react-icons"
 import {
   LuBlocks,
@@ -56,6 +57,7 @@ export interface MenuBarProps {
 }
 
 export function MenuBar(props: MenuBarProps) {
+  const { t } = useTranslation()
   return (
     <Flex
       as="header"
@@ -82,7 +84,7 @@ export function MenuBar(props: MenuBarProps) {
             _open={{ bg: "menubar.hover" }}
           >
             <Icon as={LuMenu} boxSize="5" />
-            <Text>Menu</Text>
+            <Text>{t("menu.menu")}</Text>
           </Button>
         </Menu.Trigger>
         <Portal>
@@ -90,10 +92,10 @@ export function MenuBar(props: MenuBarProps) {
             <Menu.Content bg="panel.bg" borderColor="panel.border" minW="52">
               <Menu.Item value="recent" onClick={props.onOpenRecent}>
                 <LuFolderOpen />
-                <Text ml="2">Abrir recientes</Text>
+                <Text ml="2">{t("menu.recent")}</Text>
               </Menu.Item>
               <Menu.Item value="prefs" onClick={props.onOpenPreferences}>
-                Preferencias
+                {t("menu.preferences")}
               </Menu.Item>
               <Menu.Separator />
               <Menu.Item
@@ -102,27 +104,27 @@ export function MenuBar(props: MenuBarProps) {
                 _hover={{ bg: "red.900/40", color: "red.200" }}
                 onClick={props.onExit}
               >
-                Salir
+                {t("menu.exit")}
               </Menu.Item>
             </Menu.Content>
           </Menu.Positioner>
         </Portal>
       </Menu.Root>
 
-      <BarButton icon={LuSquarePen} label="Nuevo" onClick={props.onNew} />
-      <BarButton icon={LuFolderOpen} label="Abrir" onClick={props.onOpen} />
-      <BarButton icon={LuSave} label="Guardar" disabled />
-      <BarButton icon={LuUpload} label="Exportar" disabled />
-      <BarButton icon={LuUndo2} label="Deshacer" disabled />
-      <BarButton icon={LuRedo2} label="Rehacer" disabled />
+      <BarButton icon={LuSquarePen} label={t("menu.new")} onClick={props.onNew} />
+      <BarButton icon={LuFolderOpen} label={t("menu.open")} onClick={props.onOpen} />
+      <BarButton icon={LuSave} label={t("menu.save")} disabled />
+      <BarButton icon={LuUpload} label={t("menu.export")} disabled />
+      <BarButton icon={LuUndo2} label={t("menu.undo")} disabled />
+      <BarButton icon={LuRedo2} label={t("menu.redo")} disabled />
       <BarButton
         icon={LuGem}
-        label="Activos"
+        label={t("menu.assets")}
         active={props.assetsOpen}
         onClick={props.onToggleAssets}
       />
-      <BarButton icon={LuBlocks} label="Extensiones" disabled />
-      <BarButton icon={LuInfo} label="Acerca de" onClick={props.onOpenAbout} />
+      <BarButton icon={LuBlocks} label={t("menu.extensions")} disabled />
+      <BarButton icon={LuInfo} label={t("menu.about")} onClick={props.onOpenAbout} />
     </Flex>
   )
 }
