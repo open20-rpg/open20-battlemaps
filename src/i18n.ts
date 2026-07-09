@@ -143,6 +143,7 @@ const resources = {
         shapePath: "Libre",
         brushSize: "Tamaño del pincel",
         editPoints: "Editar Puntos",
+        bevelCorners: "Biselar Esquinas",
       },
       layers: {
         terrain: "Terreno",
@@ -330,6 +331,7 @@ const resources = {
         shapePath: "Path",
         brushSize: "Brush Size",
         editPoints: "Edit Points",
+        bevelCorners: "Bevel Corners",
       },
       layers: {
         terrain: "Terrain",

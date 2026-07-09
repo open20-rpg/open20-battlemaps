@@ -5,7 +5,7 @@ import { ObjectPreview } from "./ObjectPreview"
 import { CustomColorControl } from "./CustomColorControl"
 import { LayerControl } from "./LayerControl"
 import { SortingControl } from "./SortingControl"
-import { ShadowControl } from "./ShadowControl"
+import { SwitchParamControl } from "./SwitchParamControl"
 import { ShapeControl } from "./ShapeControl"
 import { BrushSizeControl } from "./BrushSizeControl"
 import { EditPointsControl } from "./EditPointsControl"
@@ -171,7 +171,23 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
     case "sorting":
       return <SortingControl toolId={toolId} defaultValue={spec.default} />
     case "shadow":
-      return <ShadowControl toolId={toolId} defaultValue={spec.default} />
+      return (
+        <SwitchParamControl
+          toolId={toolId}
+          paramKey="shadow"
+          labelKey="tools.shadow"
+          defaultValue={spec.default}
+        />
+      )
+    case "bevelCorners":
+      return (
+        <SwitchParamControl
+          toolId={toolId}
+          paramKey="bevelCorners"
+          labelKey="tools.bevelCorners"
+          defaultValue={spec.default}
+        />
+      )
     case "shape":
       return <ShapeControl toolId={toolId} defaultValue={spec.default} />
     case "brushSize":

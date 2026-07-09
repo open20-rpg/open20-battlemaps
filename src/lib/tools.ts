@@ -87,6 +87,7 @@ export type ToolParamSpec =
       default: number | null
     }
   | { kind: "editPoints"; default: boolean }
+  | { kind: "bevelCorners"; default: boolean }
 
 /** A per-tool parameter bag; shape is defined by each tool's params. */
 export type ToolParamValues = Record<string, unknown>
@@ -179,6 +180,7 @@ const sorting = (def: Sorting): ToolParamSpec => ({ kind: "sorting", default: de
 const shadow = (def: boolean): ToolParamSpec => ({ kind: "shadow", default: def })
 const shape = (def: Shape | null): ToolParamSpec => ({ kind: "shape", default: def })
 const editPoints = (def: boolean): ToolParamSpec => ({ kind: "editPoints", default: def })
+const bevelCorners = (def: boolean): ToolParamSpec => ({ kind: "bevelCorners", default: def })
 const brushSlider = (
   min: number,
   max: number,
@@ -201,7 +203,7 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuDraftingCompass,
     children: [
       tool("build", "tools.build", LuHouse, {
-        params: [shape("rectangle"), editPoints(false)],
+        params: [shape("rectangle"), bevelCorners(true), editPoints(false)],
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("wall", "tools.wall", LuBrickWall, {

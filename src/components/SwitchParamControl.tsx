@@ -3,29 +3,34 @@ import { useTranslation } from "react-i18next"
 import { useTools } from "../context/tools"
 
 /**
- * Shadow toggle: whether the tool's items cast a shadow. Stored (as a boolean)
- * in the tool's params, falling back to `defaultValue` until the user toggles.
+ * Reusable on/off switch for a boolean tool param. `paramKey` is where the
+ * value is stored in the tool's params, `labelKey` its i18n label. Falls back
+ * to `defaultValue` until toggled. Used by Shadow, Bevel Corners, etc.
  */
-export function ShadowControl({
+export function SwitchParamControl({
   toolId,
+  paramKey,
+  labelKey,
   defaultValue,
 }: {
   toolId: string
+  paramKey: string
+  labelKey: string
   defaultValue: boolean
 }) {
   const { t } = useTranslation()
   const { getToolParams, setToolParams } = useTools()
-  const checked = (getToolParams(toolId).shadow as boolean | undefined) ?? defaultValue
+  const checked = (getToolParams(toolId)[paramKey] as boolean | undefined) ?? defaultValue
 
   return (
     <Box px="3" py="3">
       <Flex align="center" justify="space-between">
         <Text fontSize="xs" color="fg.muted">
-          {t("tools.shadow")}
+          {t(labelKey)}
         </Text>
         <Switch.Root
           checked={checked}
-          onCheckedChange={(e) => setToolParams(toolId, { shadow: e.checked })}
+          onCheckedChange={(e) => setToolParams(toolId, { [paramKey]: e.checked })}
         >
           <Switch.HiddenInput />
           <Switch.Control>
