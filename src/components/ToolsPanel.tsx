@@ -8,6 +8,7 @@ import { SortingControl } from "./SortingControl"
 import { ShadowControl } from "./ShadowControl"
 import { ShapeControl } from "./ShapeControl"
 import { BrushSizeControl } from "./BrushSizeControl"
+import { EditPointsControl } from "./EditPointsControl"
 import { TOOL_TREE, type ToolNode, type ToolParamSpec } from "../lib/tools"
 import { useTools } from "../context/tools"
 
@@ -184,6 +185,8 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
           defaultValue={spec.default}
         />
       )
+    case "editPoints":
+      return <EditPointsControl toolId={toolId} defaultValue={spec.default} />
   }
 }
 

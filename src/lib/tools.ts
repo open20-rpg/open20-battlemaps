@@ -86,6 +86,7 @@ export type ToolParamSpec =
       step: number
       default: number | null
     }
+  | { kind: "editPoints"; default: boolean }
 
 /** A per-tool parameter bag; shape is defined by each tool's params. */
 export type ToolParamValues = Record<string, unknown>
@@ -109,6 +110,20 @@ export type ParamNormalizer = (
 export const mutuallyExclusiveNull = (a: string, b: string): ParamNormalizer => (merged, patch) => {
   if (a in patch && merged[a] != null) return { ...merged, [b]: null }
   if (b in patch && merged[b] != null) return { ...merged, [a]: null }
+  return merged
+}
+
+/**
+ * Exclusivity between `shape` and `editPoints`: exactly one is active. Turning
+ * edit-points on clears the shape; picking a shape turns edit-points off;
+ * turning edit-points off requires a shape, so it restores `defaultShape` when
+ * none is selected.
+ */
+export const shapeVsEditPoints = (defaultShape: Shape): ParamNormalizer => (merged, patch) => {
+  if (patch.editPoints === true) return { ...merged, shape: null }
+  if ("shape" in patch && patch.shape != null) return { ...merged, editPoints: false }
+  if (patch.editPoints === false && merged.shape == null)
+    return { ...merged, shape: defaultShape }
   return merged
 }
 
@@ -163,6 +178,7 @@ const objectLayer = (def: number): ToolParamSpec => ({
 const sorting = (def: Sorting): ToolParamSpec => ({ kind: "sorting", default: def })
 const shadow = (def: boolean): ToolParamSpec => ({ kind: "shadow", default: def })
 const shape = (def: Shape | null): ToolParamSpec => ({ kind: "shape", default: def })
+const editPoints = (def: boolean): ToolParamSpec => ({ kind: "editPoints", default: def })
 const brushSlider = (
   min: number,
   max: number,
@@ -184,10 +200,13 @@ export const TOOL_TREE: ToolNode[] = [
     nameKey: "tools.design",
     icon: LuDraftingCompass,
     children: [
-      tool("build", "tools.build", LuHouse, { params: [shape("rectangle")] }),
+      tool("build", "tools.build", LuHouse, {
+        params: [shape("rectangle"), editPoints(false)],
+        normalizeParams: shapeVsEditPoints("rectangle"),
+      }),
       tool("wall", "tools.wall", LuBrickWall, {
         library: "walls",
-        params: [customColor, sorting("under"), shadow(true)],
+        params: [customColor, sorting("under"), shadow(true), editPoints(false)],
       }),
       tool("portal", "tools.portal", LuDoorOpen, { library: "portals", params: [customColor] }),
       tool("cave", "tools.cave", LuMountainSnow, {
@@ -196,7 +215,8 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("pattern", "tools.pattern", LuGrid3X3, {
         library: "tilesets",
-        params: [customColor, shape("rectangle")],
+        params: [customColor, shape("rectangle"), editPoints(false)],
+        normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("roof", "tools.roof", LuTriangle, {
         library: "roofs",
@@ -223,7 +243,7 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("path", "tools.path", LuRoute, {
         library: "paths",
-        params: [customColor, objectLayer(100), sorting("over"), shadow(false)],
+        params: [customColor, objectLayer(100), sorting("over"), shadow(false), editPoints(false)],
       }),
     ],
   },

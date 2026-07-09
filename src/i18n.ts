@@ -142,6 +142,7 @@ const resources = {
         shapeEllipse: "Elíptica",
         shapePath: "Libre",
         brushSize: "Tamaño del pincel",
+        editPoints: "Editar Puntos",
       },
       layers: {
         terrain: "Terreno",
@@ -328,6 +329,7 @@ const resources = {
         shapeEllipse: "Ellipse",
         shapePath: "Path",
         brushSize: "Brush Size",
+        editPoints: "Edit Points",
       },
       layers: {
         terrain: "Terrain",
