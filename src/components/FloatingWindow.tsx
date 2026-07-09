@@ -121,7 +121,6 @@ export function FloatingWindow({
       borderWidth="1px"
       borderColor="panel.border"
       borderRadius="lg"
-      boxShadow="0 12px 40px rgba(0,0,0,0.55)"
       display="flex"
       flexDirection="column"
       overflow="hidden"

@@ -204,7 +204,6 @@ export function ToolsPanel() {
       bottom="0"
       zIndex="docked"
       maxW="80%"
-      boxShadow="4px 0 16px rgba(0,0,0,0.35)"
     >
       <IconBar nodes={TOOL_TREE} selectedId={path[0]?.id} onSelect={selectTop} />
       {path.map((node, i) => {

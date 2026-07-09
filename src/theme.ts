@@ -6,6 +6,13 @@ import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react"
  */
 const config = defineConfig({
   globalCss: {
+    ":root": {
+      // Panel translucency, configurable at runtime, e.g.:
+      //   document.documentElement.style.setProperty("--panel-alpha", "0.7")
+      "--panel-alpha": "0.5",
+      "--panel-bg": "rgba(33, 33, 38, var(--panel-alpha))",
+      "--panel-header-bg": "rgba(25, 25, 32, var(--panel-alpha))",
+    },
     "html, body, #root": {
       height: "100%",
       margin: 0,
@@ -38,8 +45,8 @@ const config = defineConfig({
         "menubar.fg": { value: "#e7e7ea" },
         "menubar.fgMuted": { value: "#8a8a90" },
         "menubar.hover": { value: "#2c2c31" },
-        "panel.bg": { value: "#212126" },
-        "panel.header": { value: "#191920" },
+        "panel.bg": { value: "var(--panel-bg)" },
+        "panel.header": { value: "var(--panel-header-bg)" },
         "panel.border": { value: "#34343c" },
         "panel.rowHover": { value: "#2a2a31" },
         "panel.rowSelected": { value: "#26364f" },

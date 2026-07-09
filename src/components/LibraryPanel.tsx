@@ -261,7 +261,6 @@ export function LibraryPanel({ category }: { category: string }) {
       bg="panel.bg"
       borderLeftWidth="1px"
       borderColor="panel.border"
-      boxShadow="-4px 0 16px rgba(0,0,0,0.35)"
     >
       <Flex
         align="center"

@@ -105,7 +105,6 @@ export function Modal({
         borderWidth="1px"
         borderColor="panel.border"
         borderRadius="lg"
-        boxShadow="0 12px 40px rgba(0,0,0,0.55)"
         w={SIZE_WIDTH[size]}
         maxW="calc(100vw - 32px)"
         display="flex"

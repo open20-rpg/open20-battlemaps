@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Box, Button, Flex, Group, Icon, Stack, Text } from "@chakra-ui/react"
+import { Box, Button, Flex, Group, HStack, Icon, Slider, Stack, Text } from "@chakra-ui/react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { Trans, useTranslation } from "react-i18next"
 import { LuGem, LuMap } from "react-icons/lu"
@@ -24,6 +24,16 @@ export default function App() {
   useEffect(() => {
     if (!hasMap) resetTools()
   }, [hasMap, resetTools])
+
+  // Panel translucency setting (persisted, applied to the --panel-alpha var).
+  const [panelAlpha, setPanelAlpha] = useState(() => {
+    const saved = Number(localStorage.getItem("opendraft.panel-alpha"))
+    return Number.isFinite(saved) && saved > 0 ? saved : 0.5
+  })
+  useEffect(() => {
+    document.documentElement.style.setProperty("--panel-alpha", String(panelAlpha))
+    localStorage.setItem("opendraft.panel-alpha", String(panelAlpha))
+  }, [panelAlpha])
   const [assetsOpen, setAssetsOpen] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -130,6 +140,35 @@ export default function App() {
                 English
               </Button>
             </Group>
+          </Box>
+          <Box>
+            <Text mb="2" color="fg.muted">
+              {t("prefs.panelOpacity")}
+            </Text>
+            <HStack gap="3">
+              <Slider.Root
+                flex="1"
+                size="sm"
+                colorPalette="blue"
+                min={30}
+                max={100}
+                step={1}
+                value={[Math.round(panelAlpha * 100)]}
+                onValueChange={(e) => setPanelAlpha(e.value[0] / 100)}
+              >
+                <Slider.Control>
+                  <Slider.Track>
+                    <Slider.Range />
+                  </Slider.Track>
+                  <Slider.Thumb index={0}>
+                    <Slider.HiddenInput />
+                  </Slider.Thumb>
+                </Slider.Control>
+              </Slider.Root>
+              <Text w="10" textAlign="right" color="fg.muted">
+                {Math.round(panelAlpha * 100)}%
+              </Text>
+            </HStack>
           </Box>
           <Text color="fg.muted">{t("prefs.theme")}</Text>
           <Text color="fg.muted">{t("prefs.more")}</Text>
