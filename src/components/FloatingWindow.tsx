@@ -135,6 +135,9 @@ export function FloatingWindow({
         borderColor="panel.border"
         cursor="move"
         flexShrink={0}
+        // Stop the browser from claiming the touch gesture as a scroll/pan
+        // (which fires pointercancel and kills the drag on touch devices).
+        touchAction="none"
         {...handlers}
       >
         {icon && <Icon as={icon} color="brand.fg" boxSize="4" />}
@@ -160,6 +163,7 @@ export function FloatingWindow({
           boxSize="16px"
           cursor="se-resize"
           zIndex={1}
+          touchAction="none"
           onPointerDown={onResizeDown}
           onPointerMove={onResizeMove}
           onPointerUp={onResizeUp}

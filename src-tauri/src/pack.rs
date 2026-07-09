@@ -390,10 +390,80 @@ struct InstallProgress<'a> {
     percent: u8,
 }
 
+/// Open the source pack for reading.
+///
+/// On desktop the picker returns a real filesystem path. On Android the Storage
+/// Access Framework returns a `content://` URI that has no path, so we resolve
+/// it to a file descriptor through the platform ContentResolver and read the
+/// pack straight from it — no temporary copy, so disk/time cost matches desktop.
+fn open_pack_source(src: &str) -> Result<File> {
+    #[cfg(target_os = "android")]
+    {
+        if src.starts_with("content://") {
+            return open_content_uri(src);
+        }
+    }
+    Ok(File::open(src)?)
+}
+
+/// Resolve an Android `content://` URI to an owned `File` via a `content://`
+/// ParcelFileDescriptor. `detachFd` transfers ownership of the fd to us, so the
+/// returned `File` stays valid after the JNI thread detaches.
+#[cfg(target_os = "android")]
+fn open_content_uri(uri: &str) -> Result<File> {
+    use jni::objects::{JObject, JValue};
+    use std::os::unix::io::FromRawFd;
+
+    let jni_err = |ctx: &str, e: jni::errors::Error| PackError::Other(format!("{ctx}: {e}"));
+
+    let ctx = ndk_context::android_context();
+    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
+        .map_err(|e| jni_err("JavaVM", e))?;
+    let mut env = vm.attach_current_thread().map_err(|e| jni_err("attach", e))?;
+    let context = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    let resolver = env
+        .call_method(&context, "getContentResolver", "()Landroid/content/ContentResolver;", &[])
+        .and_then(|v| v.l())
+        .map_err(|e| jni_err("getContentResolver", e))?;
+
+    let juri = env.new_string(uri).map_err(|e| jni_err("new_string", e))?;
+    let uri_obj = env
+        .call_static_method(
+            "android/net/Uri",
+            "parse",
+            "(Ljava/lang/String;)Landroid/net/Uri;",
+            &[JValue::Object(&juri)],
+        )
+        .and_then(|v| v.l())
+        .map_err(|e| jni_err("Uri.parse", e))?;
+
+    let mode = env.new_string("r").map_err(|e| jni_err("new_string", e))?;
+    let pfd = env
+        .call_method(
+            &resolver,
+            "openFileDescriptor",
+            "(Landroid/net/Uri;Ljava/lang/String;)Landroid/os/ParcelFileDescriptor;",
+            &[JValue::Object(&uri_obj), JValue::Object(&mode)],
+        )
+        .and_then(|v| v.l())
+        .map_err(|e| jni_err("openFileDescriptor", e))?;
+    if pfd.is_null() {
+        return Err(PackError::Other("openFileDescriptor returned null".into()));
+    }
+
+    let fd = env
+        .call_method(&pfd, "detachFd", "()I", &[])
+        .and_then(|v| v.i())
+        .map_err(|e| jni_err("detachFd", e))?;
+
+    Ok(unsafe { File::from_raw_fd(fd) })
+}
+
 /// Extract a single pack file into `app_data/packs/<id>/`, streaming every
 /// file through a fixed buffer so memory stays bounded regardless of pack size.
-fn install_one(app: &AppHandle, pack_path: &Path) -> Result<InstalledPack> {
-    let file = File::open(pack_path)?;
+fn install_one(app: &AppHandle, pack_src: &str) -> Result<InstalledPack> {
+    let file = open_pack_source(pack_src)?;
     let mut reader = BufReader::new(file);
     let entries = read_index(&mut reader)?;
 
@@ -515,7 +585,7 @@ pub async fn install_packs(app: AppHandle, paths: Vec<String>) -> Result<Vec<Ins
     tauri::async_runtime::spawn_blocking(move || {
         let mut installed = Vec::new();
         for p in &paths {
-            let pack = install_one(&app, Path::new(p))?;
+            let pack = install_one(&app, p)?;
             installed.push(pack);
         }
         Ok(installed)

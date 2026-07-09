@@ -20,6 +20,9 @@ const config = defineConfig({
       color: "fg",
       overflow: "hidden",
       userSelect: "none",
+      // Prevent double-tap-to-zoom on touch (pinch is blocked via the viewport meta).
+      touchAction: "manipulation",
+      textSizeAdjust: "100%",
     },
     "*::-webkit-scrollbar": { width: "10px", height: "10px" },
     "*::-webkit-scrollbar-thumb": {
