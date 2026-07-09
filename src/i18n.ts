@@ -133,6 +133,9 @@ const resources = {
         pickCustomColor: "Elegir color personalizado",
         addColorPreset: "Agregar color a la lista",
         layer: "Capa",
+        sorting: "Ordenamiento",
+        sortingOver: "Encima",
+        sortingUnder: "Debajo",
       },
       layers: {
         terrain: "Terreno",
@@ -310,6 +313,9 @@ const resources = {
         pickCustomColor: "Pick a custom color",
         addColorPreset: "Add color to the list",
         layer: "Layer",
+        sorting: "Sorting",
+        sortingOver: "Over",
+        sortingUnder: "Under",
       },
       layers: {
         terrain: "Terrain",

@@ -4,6 +4,7 @@ import { Tooltip } from "./ui/tooltip"
 import { ObjectPreview } from "./ObjectPreview"
 import { CustomColorControl } from "./CustomColorControl"
 import { LayerControl } from "./LayerControl"
+import { SortingControl } from "./SortingControl"
 import { TOOL_TREE, type ToolNode, type ToolParamSpec } from "../lib/tools"
 import { useTools } from "../context/tools"
 
@@ -163,6 +164,8 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
       return <CustomColorControl toolId={toolId} />
     case "layer":
       return <LayerControl toolId={toolId} allowed={spec.allowed} defaultValue={spec.default} />
+    case "sorting":
+      return <SortingControl toolId={toolId} defaultValue={spec.default} />
   }
 }
 
