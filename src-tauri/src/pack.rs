@@ -871,10 +871,17 @@ pub fn get_library_items(app: AppHandle, offset: usize, limit: usize) -> Result<
         let res_path = format!("res://packs/{}/{}", lite.pack_id, lite.rel_path);
         let hash = format!("{:x}", md5::compute(res_path.as_bytes()));
         let thumb = dir.join("thumbnails").join(format!("{hash}.png"));
+        // Some packs ship no pre-baked thumbnails; fall back to the texture
+        // itself (the webview scales it down to the cell size).
+        let image = if thumb.is_file() {
+            thumb
+        } else {
+            dir.join(&lite.rel_path)
+        };
         out.push(LibItem {
             id: format!("{}|{}", lite.pack_id, lite.rel_path),
             name: lite.name.clone(),
-            thumb: thumb.to_string_lossy().into_owned(),
+            thumb: image.to_string_lossy().into_owned(),
         });
     }
     Ok(out)
