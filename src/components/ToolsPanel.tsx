@@ -7,6 +7,7 @@ import { LayerControl } from "./LayerControl"
 import { SortingControl } from "./SortingControl"
 import { ShadowControl } from "./ShadowControl"
 import { ShapeControl } from "./ShapeControl"
+import { BrushSizeControl } from "./BrushSizeControl"
 import { TOOL_TREE, type ToolNode, type ToolParamSpec } from "../lib/tools"
 import { useTools } from "../context/tools"
 
@@ -172,6 +173,17 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
       return <ShadowControl toolId={toolId} defaultValue={spec.default} />
     case "shape":
       return <ShapeControl toolId={toolId} defaultValue={spec.default} />
+    case "brushSize":
+      return (
+        <BrushSizeControl
+          toolId={toolId}
+          ui={spec.ui}
+          min={spec.min}
+          max={spec.max}
+          step={spec.step}
+          defaultValue={spec.default}
+        />
+      )
   }
 }
 

@@ -65,7 +65,18 @@ export function ToolsProvider({ children }: { children: ReactNode }) {
   )
 
   const setToolParams = useCallback((toolId: string, patch: ToolParams) => {
-    setParamsByTool((prev) => ({ ...prev, [toolId]: { ...(prev[toolId] ?? {}), ...patch } }))
+    setParamsByTool((prev) => {
+      const merged = { ...(prev[toolId] ?? {}), ...patch }
+      // Apply the tool's cross-field rule (if any) so dependent params stay
+      // consistent in the same update — no effect reacting after the fact.
+      const found = findToolPath(TOOL_TREE, toolId)
+      const node = found?.[found.length - 1]
+      const resolved =
+        node?.type === "tool" && node.normalizeParams
+          ? node.normalizeParams(merged, patch)
+          : merged
+      return { ...prev, [toolId]: resolved }
+    })
   }, [])
 
   const value = useMemo<ToolsContextValue>(

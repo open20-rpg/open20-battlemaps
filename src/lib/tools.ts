@@ -77,6 +77,40 @@ export type ToolParamSpec =
   | { kind: "sorting"; default: Sorting }
   | { kind: "shadow"; default: boolean }
   | { kind: "shape"; default: Shape | null }
+  | {
+      kind: "brushSize"
+      /** "slider" = draggable slider; "buttons" = one growing-circle button per step. */
+      ui: "slider" | "buttons"
+      min: number
+      max: number
+      step: number
+      default: number | null
+    }
+
+/** A per-tool parameter bag; shape is defined by each tool's params. */
+export type ToolParamValues = Record<string, unknown>
+
+/**
+ * Cross-field rule run right after a param change: given the already-merged
+ * params and the patch that caused the change, it returns the params to store.
+ * Use it to keep dependent params consistent (e.g. mutually-exclusive fields)
+ * instead of reacting after the fact with an effect.
+ */
+export type ParamNormalizer = (
+  merged: ToolParamValues,
+  patch: ToolParamValues,
+) => ToolParamValues
+
+/**
+ * When one of two params is set to a non-null value, clear the other. Reusable
+ * building block for mutually-exclusive params (e.g. Water Brush's shape vs
+ * brush size — picking one unsets the other).
+ */
+export const mutuallyExclusiveNull = (a: string, b: string): ParamNormalizer => (merged, patch) => {
+  if (a in patch && merged[a] != null) return { ...merged, [b]: null }
+  if (b in patch && merged[b] != null) return { ...merged, [a]: null }
+  return merged
+}
 
 /** A tool that opens a parameters panel (its declared params) when selected. */
 export interface ToolLeaf {
@@ -89,6 +123,8 @@ export interface ToolLeaf {
   library?: string
   /** Parameter controls shown in this tool's panel, in order. */
   params?: ToolParamSpec[]
+  /** Cross-field rule applied after any of this tool's params changes. */
+  normalizeParams?: ParamNormalizer
 }
 
 /** A folder that opens a panel listing its children. */
@@ -106,7 +142,7 @@ const tool = (
   id: string,
   nameKey: string,
   icon: IconType,
-  opts?: { library?: string; params?: ToolParamSpec[] },
+  opts?: { library?: string; params?: ToolParamSpec[]; normalizeParams?: ParamNormalizer },
 ): ToolLeaf => ({
   type: "tool",
   id,
@@ -114,6 +150,7 @@ const tool = (
   icon,
   library: opts?.library,
   params: opts?.params,
+  normalizeParams: opts?.normalizeParams,
 })
 
 // Shared param specs, so tools reuse the same controls with minimal config.
@@ -126,6 +163,18 @@ const objectLayer = (def: number): ToolParamSpec => ({
 const sorting = (def: Sorting): ToolParamSpec => ({ kind: "sorting", default: def })
 const shadow = (def: boolean): ToolParamSpec => ({ kind: "shadow", default: def })
 const shape = (def: Shape | null): ToolParamSpec => ({ kind: "shape", default: def })
+const brushSlider = (
+  min: number,
+  max: number,
+  step: number,
+  def: number | null,
+): ToolParamSpec => ({ kind: "brushSize", ui: "slider", min, max, step, default: def })
+const brushButtons = (
+  min: number,
+  max: number,
+  step: number,
+  def: number | null,
+): ToolParamSpec => ({ kind: "brushSize", ui: "buttons", min, max, step, default: def })
 
 /** The top-level tool palette. Groups expand into their own panels. */
 export const TOOL_TREE: ToolNode[] = [
@@ -141,7 +190,10 @@ export const TOOL_TREE: ToolNode[] = [
         params: [customColor, sorting("under"), shadow(true)],
       }),
       tool("portal", "tools.portal", LuDoorOpen, { library: "portals", params: [customColor] }),
-      tool("cave", "tools.cave", LuMountainSnow, { library: "caves", params: [customColor] }),
+      tool("cave", "tools.cave", LuMountainSnow, {
+        library: "caves",
+        params: [customColor, brushButtons(0.5, 2.5, 0.5, 1)],
+      }),
       tool("pattern", "tools.pattern", LuGrid3X3, {
         library: "tilesets",
         params: [customColor, shape("rectangle")],
@@ -158,9 +210,17 @@ export const TOOL_TREE: ToolNode[] = [
     nameKey: "tools.terrain",
     icon: LuMountain,
     children: [
-      tool("terrainBrush", "tools.terrainBrush", LuBrush),
-      tool("water", "tools.water", LuDroplets, { params: [shape(null)] }),
-      tool("material", "tools.material", LuPaintBucket, { params: [objectLayer(-400)] }),
+      tool("terrainBrush", "tools.terrainBrush", LuBrush, {
+        params: [brushSlider(1, 25, 1, 8)],
+      }),
+      tool("water", "tools.water", LuDroplets, {
+        params: [shape("rectangle"), brushButtons(0.5, 2.5, 0.5, null)],
+        // Shape and brush size are mutually exclusive: picking one clears the other.
+        normalizeParams: mutuallyExclusiveNull("brushSize", "shape"),
+      }),
+      tool("material", "tools.material", LuPaintBucket, {
+        params: [objectLayer(-400), brushButtons(1, 5, 1, 2)],
+      }),
       tool("path", "tools.path", LuRoute, {
         library: "paths",
         params: [customColor, objectLayer(100), sorting("over"), shadow(false)],

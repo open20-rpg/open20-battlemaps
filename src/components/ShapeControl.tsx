@@ -20,8 +20,10 @@ export function ShapeControl({
 }) {
   const { t } = useTranslation()
   const { getToolParams, setToolParams } = useTools()
-  const stored = getToolParams(toolId).shape as Shape | undefined
-  const current: Shape | null = stored ?? defaultValue
+  // An explicit stored `null` means "no shape" — only fall back to the default
+  // when nothing has been stored yet (undefined), not when it's null.
+  const stored = getToolParams(toolId).shape as Shape | null | undefined
+  const current: Shape | null = stored === undefined ? defaultValue : stored
 
   const options: { value: Shape; label: string; icon: typeof LuSquare }[] = [
     { value: "rectangle", label: t("tools.shapeRectangle"), icon: LuSquare },

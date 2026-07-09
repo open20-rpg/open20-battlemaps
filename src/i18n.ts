@@ -141,6 +141,7 @@ const resources = {
         shapeRectangle: "Rectangular",
         shapeEllipse: "Elíptica",
         shapePath: "Libre",
+        brushSize: "Tamaño del pincel",
       },
       layers: {
         terrain: "Terreno",
@@ -326,6 +327,7 @@ const resources = {
         shapeRectangle: "Rectangle",
         shapeEllipse: "Ellipse",
         shapePath: "Path",
+        brushSize: "Brush Size",
       },
       layers: {
         terrain: "Terrain",
