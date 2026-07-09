@@ -1107,13 +1107,6 @@ fn build_recolor_response(app: &AppHandle, uri: &tauri::http::Uri) -> tauri::htt
         recolor_png(&bytes, c, &cfg)
     });
 
-    eprintln!(
-        "[recolor] {:?} color={:?} -> {}",
-        canon.file_name().unwrap_or_default(),
-        color,
-        if recolored.is_some() { "RECOLORED" } else { "original" },
-    );
-
     let (body, ctype) = match recolored {
         Some(png) => (png, "image/png".to_string()),
         None => (bytes, mime_for(&canon)),
