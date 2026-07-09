@@ -860,11 +860,24 @@ fn clear_library(app: &AppHandle) {
     };
 }
 
+/// Some categories group several part textures per item inside a subfolder
+/// (e.g. `caves/<name>/{floor,wall}.png`, `roofs/<name>/{tiles,edge,hip,ridge}.png`).
+/// For those we list only the main part, named after its subfolder. Returns the
+/// main part's file stem, or `None` for flat categories that list every file.
+fn main_part(category: &str) -> Option<&'static str> {
+    match category {
+        "caves" => Some("floor"),
+        "roofs" => Some("tiles"),
+        _ => None,
+    }
+}
+
 /// Walk `textures/<category>` of a pack and collect its files.
 fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<CacheItem> {
     let Ok(dir) = pack_dir(app, pack_id) else {
         return Vec::new();
     };
+    let main = main_part(category);
     let base = dir.join("textures").join(category);
     let mut out = Vec::new();
     let mut stack = vec![base];
@@ -876,15 +889,27 @@ fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<C
                 stack.push(path);
                 continue;
             }
+            let stem = path
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            // Grouped categories: keep only the main part, named after its folder.
+            let name = if let Some(part) = main {
+                if !stem.eq_ignore_ascii_case(part) {
+                    continue;
+                }
+                path.parent()
+                    .and_then(|p| p.file_name())
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or(stem)
+            } else {
+                stem
+            };
             let rel = path
                 .strip_prefix(&dir)
                 .unwrap_or(&path)
                 .to_string_lossy()
                 .replace('\\', "/");
-            let name = path
-                .file_stem()
-                .map(|s| s.to_string_lossy().into_owned())
-                .unwrap_or_default();
             let name_lower = name.to_lowercase();
             out.push(CacheItem { rel_path: rel, name, name_lower });
         }

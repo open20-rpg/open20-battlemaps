@@ -73,9 +73,9 @@ export const TOOL_TREE: ToolNode[] = [
       tool("build", "tools.build", LuHouse),
       tool("wall", "tools.wall", LuBrickWall, "walls"),
       tool("portal", "tools.portal", LuDoorOpen, "portals"),
-      tool("cave", "tools.cave", LuMountainSnow),
+      tool("cave", "tools.cave", LuMountainSnow, "caves"),
       tool("pattern", "tools.pattern", LuGrid3X3, "tilesets"),
-      tool("roof", "tools.roof", LuTriangle),
+      tool("roof", "tools.roof", LuTriangle, "roofs"),
     ],
   },
   {
