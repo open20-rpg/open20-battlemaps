@@ -105,11 +105,13 @@ export function StatusBar() {
         closeDelay={100}
         positioning={{ placement: "top-end" }}
         contentProps={{
-          bg: "panel.bg",
           color: "fg",
           borderWidth: "1px",
           borderColor: "panel.border",
           zIndex: "max",
+          // The recipe derives the content bg AND the arrow fill/border from
+          // --tooltip-bg, so override that (not bg/--arrow-background).
+          css: { "--tooltip-bg": "#212126" },
         }}
         showArrow
       >
