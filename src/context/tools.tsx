@@ -38,7 +38,7 @@ const ToolsContext = createContext<ToolsContextValue | null>(null)
  * both the tools UI and future editor features can read and change them.
  */
 export function ToolsProvider({ children }: { children: ReactNode }) {
-  const [path, setPath] = useState<ToolNode[]>([])
+  const [path, setPath] = useState<ToolNode[]>(() => findToolPath(TOOL_TREE, "select") ?? [])
   const [paramsByTool, setParamsByTool] = useState<Record<string, ToolParams>>({})
 
   const last = path[path.length - 1]

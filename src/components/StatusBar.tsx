@@ -4,9 +4,16 @@ import { useTranslation } from "react-i18next"
 import { LuCircleCheck } from "react-icons/lu"
 import { Tooltip } from "./ui/tooltip"
 import { useLoading } from "../context/loading"
+import { useMap } from "../context/map"
+import { useTools } from "../context/tools"
 
 /** Height of the status bar; the app reserves this much space at the bottom. */
 export const STATUS_BAR_HEIGHT = "26px"
+
+/** A thin vertical divider between status-bar items. */
+function Sep() {
+  return <Box w="1px" h="14px" bg="panel.border" mx="2.5" flexShrink={0} />
+}
 
 function TaskDetails() {
   const { tasks } = useLoading()
@@ -34,6 +41,8 @@ function TaskDetails() {
 
 export function StatusBar() {
   const { tasks, isLoading } = useLoading()
+  const { hasMap } = useMap()
+  const { activeTool } = useTools()
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
@@ -75,10 +84,22 @@ export function StatusBar() {
         OpenDraft v{__APP_VERSION__}
       </Text>
 
+      {/* Current tool (only when a map is open and a tool is picked) */}
+      {hasMap && activeTool && (
+        <>
+          <Sep />
+          <HStack gap="1.5" color="menubar.fg">
+            <Icon as={activeTool.icon} boxSize="3.5" color="brand.fg" />
+            <Text>{t(activeTool.nameKey)}</Text>
+          </HStack>
+        </>
+      )}
+
       {/* Middle reserved for future status data (coords, zoom, etc.) */}
       <Box flex="1" />
 
       {/* Loading indicator — always right-aligned */}
+      <Sep />
       <Tooltip
         content={<TaskDetails />}
         disabled={!isLoading}
