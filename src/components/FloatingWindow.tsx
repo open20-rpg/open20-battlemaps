@@ -6,6 +6,11 @@ import { LuX } from "react-icons/lu"
 // Shared z-index counter so the last window a user interacts with comes forward.
 let zCounter = 100
 
+interface Size {
+  w: number
+  h: number
+}
+
 function useDrag(initial: { x: number; y: number }) {
   const [pos, setPos] = useState(initial)
   const drag = useRef<{ dx: number; dy: number } | null>(null)
@@ -41,8 +46,12 @@ export interface FloatingWindowProps {
   onClose: () => void
   /** Initial top-left position in px. */
   initialPosition?: { x: number; y: number }
-  width?: string
-  height?: string
+  /** Initial size in px. */
+  initialSize?: Size
+  /** Smallest size the user can resize down to. */
+  minSize?: Size
+  /** Show a bottom-right resize handle. */
+  resizable?: boolean
   /** Optional toolbar rendered under the title bar. */
   toolbar?: ReactNode
   /** When true, render a backdrop that blocks interaction with the rest of the app. */
@@ -53,25 +62,52 @@ export interface FloatingWindowProps {
 }
 
 /**
- * A draggable, self-contained floating panel with a title bar and close button.
+ * A draggable, optionally resizable/modal floating panel with a title bar.
  * Reused for every tool window in the app (assets, layers, properties, ...).
- * Content is laid out as a column: [title bar] [optional toolbar] [scrolling body].
+ * Content is laid out as a column: [title bar] [optional toolbar] [body].
  */
 export function FloatingWindow({
   title,
   icon,
   onClose,
   initialPosition = { x: 120, y: 90 },
-  width = "520px",
-  height = "560px",
+  initialSize = { w: 520, h: 560 },
+  minSize = { w: 320, h: 260 },
+  resizable = false,
   toolbar,
   modal = false,
   closeOnBackdropClick = true,
   children,
 }: FloatingWindowProps) {
   const { pos, handlers } = useDrag(initialPosition)
+  const [size, setSize] = useState<Size>(initialSize)
   const [z, setZ] = useState(() => ++zCounter)
   const bringToFront = () => setZ(++zCounter)
+
+  // Bottom-right resize handle.
+  const resizeStart = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
+  const onResizeDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation()
+      resizeStart.current = { x: e.clientX, y: e.clientY, w: size.w, h: size.h }
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    },
+    [size],
+  )
+  const onResizeMove = useCallback(
+    (e: React.PointerEvent) => {
+      const s = resizeStart.current
+      if (!s) return
+      const w = Math.max(minSize.w, Math.min(window.innerWidth - pos.x - 8, s.w + (e.clientX - s.x)))
+      const h = Math.max(minSize.h, Math.min(window.innerHeight - pos.y - 8, s.h + (e.clientY - s.y)))
+      setSize({ w, h })
+    },
+    [minSize, pos],
+  )
+  const onResizeUp = useCallback((e: React.PointerEvent) => {
+    resizeStart.current = null
+    ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+  }, [])
 
   return (
     <>
@@ -88,47 +124,65 @@ export function FloatingWindow({
         position="absolute"
         left={`${pos.x}px`}
         top={`${pos.y}px`}
-      w={width}
-      maxW="calc(100vw - 24px)"
-      h={height}
-      maxH="calc(100vh - 80px)"
-      bg="panel.bg"
-      borderWidth="1px"
-      borderColor="panel.border"
-      borderRadius="lg"
-      boxShadow="0 12px 40px rgba(0,0,0,0.55)"
-      display="flex"
-      flexDirection="column"
-      overflow="hidden"
-      zIndex={modal ? z + 1 : z}
-      onPointerDownCapture={bringToFront}
-    >
-      <Flex
-        align="center"
-        gap="2"
-        px="3"
-        py="2.5"
-        bg="panel.header"
-        borderBottomWidth="1px"
+        w={`${size.w}px`}
+        h={`${size.h}px`}
+        maxW="calc(100vw - 16px)"
+        maxH="calc(100vh - 16px)"
+        bg="panel.bg"
+        borderWidth="1px"
         borderColor="panel.border"
-        cursor="move"
-        flexShrink={0}
-        {...handlers}
+        borderRadius="lg"
+        boxShadow="0 12px 40px rgba(0,0,0,0.55)"
+        display="flex"
+        flexDirection="column"
+        overflow="hidden"
+        zIndex={modal ? z + 1 : z}
+        onPointerDownCapture={bringToFront}
       >
-        {icon && <Icon as={icon} color="brand.fg" boxSize="4" />}
-        <Text fontWeight="bold" fontSize="sm" flex="1" truncate>
-          {title}
-        </Text>
-        <IconButton aria-label="Cerrar" size="xs" variant="ghost" onClick={onClose}>
-          <LuX />
-        </IconButton>
-      </Flex>
+        <Flex
+          align="center"
+          gap="2"
+          px="3"
+          py="2.5"
+          bg="panel.header"
+          borderBottomWidth="1px"
+          borderColor="panel.border"
+          cursor="move"
+          flexShrink={0}
+          {...handlers}
+        >
+          {icon && <Icon as={icon} color="brand.fg" boxSize="4" />}
+          <Text fontWeight="bold" fontSize="sm" flex="1" truncate>
+            {title}
+          </Text>
+          <IconButton aria-label="Cerrar" size="xs" variant="ghost" onClick={onClose}>
+            <LuX />
+          </IconButton>
+        </Flex>
 
-      {toolbar}
+        {toolbar}
 
-      <Box flex="1" minH="0" display="flex" flexDirection="column" overflow="hidden">
-        {children}
-      </Box>
+        <Box flex="1" minH="0" display="flex" flexDirection="column" overflow="hidden">
+          {children}
+        </Box>
+
+        {resizable && (
+          <Box
+            position="absolute"
+            right="0"
+            bottom="0"
+            boxSize="16px"
+            cursor="se-resize"
+            zIndex={1}
+            onPointerDown={onResizeDown}
+            onPointerMove={onResizeMove}
+            onPointerUp={onResizeUp}
+            css={{
+              background:
+                "linear-gradient(135deg, transparent 50%, var(--chakra-colors-panel-border) 50%, var(--chakra-colors-panel-border) 62%, transparent 62%, transparent 74%, var(--chakra-colors-panel-border) 74%, var(--chakra-colors-panel-border) 86%, transparent 86%)",
+            }}
+          />
+        )}
       </Box>
     </>
   )
