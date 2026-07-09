@@ -108,23 +108,33 @@ export function CustomColorControl({ toolId }: { toolId: string }) {
                       onAdd={addPreset}
                       addLabel={t("tools.addColorPreset")}
                     >
-                      <Flex
+                      {/* Mirror the swatch structure exactly so it reads the same
+                          size/shape, just with a "+" instead of a color fill. */}
+                      <Box
                         as="button"
-                        align="center"
-                        justify="center"
-                        boxSize="30px"
+                        position="relative"
+                        boxSize={DOT}
+                        minW={DOT}
+                        minH={DOT}
                         flexShrink={0}
-                        // Nudge to visually match the swatches (its visible ring
-                        // makes it read a touch larger than the solid dots).
-                        m="2px"
                         borderRadius="full"
                         color="fg.muted"
-                        borderWidth="1px"
-                        borderColor="panel.border"
-                        _hover={{ borderColor: "brand.fg", color: "brand.fg" }}
+                        borderWidth="2px"
+                        borderColor="transparent"
+                        outline="1px solid"
+                        outlineColor="whiteAlpha.300"
+                        _hover={{ outlineColor: "brand.fg", color: "brand.fg" }}
                       >
-                        <LuPlus size={15} />
-                      </Flex>
+                        <LuPlus
+                          size={16}
+                          style={{
+                            position: "absolute",
+                            top: "50%",
+                            left: "50%",
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        />
+                      </Box>
                     </ColorPickerPopover>
                   </Flex>
                 </Popover.Body>
