@@ -24,7 +24,7 @@
 //! buffer — the whole archive is never held in memory. Only the small index
 //! and individual small assets (manifest, thumbnails) are ever fully read.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -264,21 +264,62 @@ fn registry_path(app: &AppHandle) -> Result<PathBuf> {
     Ok(packs_root(app)?.join("registry.json"))
 }
 
-/// registry.json maps pack id -> whether it is enabled.
-fn read_registry(app: &AppHandle) -> std::collections::HashMap<String, bool> {
-    let path = match registry_path(app) {
-        Ok(p) => p,
-        Err(_) => return Default::default(),
-    };
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+/// One registry.json entry. `file_count`/`size_bytes` are cached at install
+/// time so listing never has to walk a (possibly huge) pack tree.
+#[derive(Debug, Clone)]
+struct PackReg {
+    enabled: bool,
+    file_count: Option<usize>,
+    size_bytes: Option<u64>,
 }
 
-fn write_registry(app: &AppHandle, reg: &std::collections::HashMap<String, bool>) -> Result<()> {
+impl Default for PackReg {
+    fn default() -> Self {
+        Self { enabled: true, file_count: None, size_bytes: None }
+    }
+}
+
+/// Read registry.json into a map. Backward compatible with the old format
+/// where each value was a plain bool (enabled) with no cached stats.
+fn read_registry(app: &AppHandle) -> HashMap<String, PackReg> {
+    let Ok(path) = registry_path(app) else { return HashMap::new() };
+    let Ok(text) = fs::read_to_string(path) else { return HashMap::new() };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return HashMap::new();
+    };
+    let Some(obj) = value.as_object() else { return HashMap::new() };
+
+    let mut map = HashMap::new();
+    for (id, v) in obj {
+        let reg = match v {
+            serde_json::Value::Bool(b) => PackReg { enabled: *b, ..Default::default() },
+            serde_json::Value::Object(o) => PackReg {
+                enabled: o.get("enabled").and_then(|x| x.as_bool()).unwrap_or(true),
+                file_count: o.get("fileCount").and_then(|x| x.as_u64()).map(|n| n as usize),
+                size_bytes: o.get("sizeBytes").and_then(|x| x.as_u64()),
+            },
+            _ => PackReg::default(),
+        };
+        map.insert(id.clone(), reg);
+    }
+    map
+}
+
+fn write_registry(app: &AppHandle, reg: &HashMap<String, PackReg>) -> Result<()> {
     let path = registry_path(app)?;
-    fs::write(path, serde_json::to_vec_pretty(reg)?)?;
+    let mut obj = serde_json::Map::new();
+    for (id, r) in reg {
+        let mut e = serde_json::Map::new();
+        e.insert("enabled".into(), serde_json::json!(r.enabled));
+        if let Some(fc) = r.file_count {
+            e.insert("fileCount".into(), serde_json::json!(fc));
+        }
+        if let Some(sb) = r.size_bytes {
+            e.insert("sizeBytes".into(), serde_json::json!(sb));
+        }
+        obj.insert(id.clone(), serde_json::Value::Object(e));
+    }
+    fs::write(path, serde_json::to_vec_pretty(&serde_json::Value::Object(obj))?)?;
     Ok(())
 }
 
@@ -309,20 +350,25 @@ fn read_installed_manifest(dir: &Path) -> Manifest {
         .unwrap_or_default()
 }
 
-fn build_installed(app: &AppHandle, id: &str, enabled: bool) -> Option<InstalledPack> {
+fn build_installed(app: &AppHandle, id: &str, reg: &PackReg) -> Option<InstalledPack> {
     let dir = pack_dir(app, id).ok()?;
     if !dir.is_dir() {
         return None;
     }
     let manifest = read_installed_manifest(&dir);
-    let (file_count, size_bytes) = dir_stats(&dir);
+    // Use cached stats when available; only walk the tree as a last resort
+    // (legacy packs installed before stats were cached).
+    let (file_count, size_bytes) = match (reg.file_count, reg.size_bytes) {
+        (Some(fc), Some(sb)) => (fc, sb),
+        _ => dir_stats(&dir),
+    };
     Some(InstalledPack {
         id: id.to_string(),
         name: manifest.name.clone().unwrap_or_else(|| id.to_string()),
         version: manifest.version.clone(),
         author: manifest.author.clone(),
         keywords: split_keywords(&manifest.keywords),
-        enabled,
+        enabled: reg.enabled,
         path: dir.to_string_lossy().into_owned(),
         file_count,
         size_bytes,
@@ -368,6 +414,7 @@ fn install_one(app: &AppHandle, pack_path: &Path) -> Result<InstalledPack> {
     let total = entries.len();
     let mut copy_buf = vec![0u8; COPY_BUF];
     let mut written: HashSet<String> = HashSet::new();
+    let mut total_bytes: u64 = 0;
 
     for (index, entry) in entries.iter().enumerate() {
         let rel = normalize_res_path(&entry.path, &id);
@@ -375,6 +422,7 @@ fn install_one(app: &AppHandle, pack_path: &Path) -> Result<InstalledPack> {
         if !written.insert(rel.clone()) {
             continue;
         }
+        total_bytes += entry.size;
         let out_path = dest.join(&rel);
         // Safety: ensure we stay inside dest.
         if !out_path.starts_with(&dest) {
@@ -408,11 +456,17 @@ fn install_one(app: &AppHandle, pack_path: &Path) -> Result<InstalledPack> {
         );
     }
 
+    let reg_entry = PackReg {
+        enabled: true,
+        file_count: Some(written.len()),
+        size_bytes: Some(total_bytes),
+    };
     let mut reg = read_registry(app);
-    reg.insert(id.clone(), true);
+    reg.insert(id.clone(), reg_entry.clone());
     write_registry(app, &reg)?;
 
-    build_installed(app, &id, true).ok_or_else(|| PackError::Other("install verification failed".into()))
+    build_installed(app, &id, &reg_entry)
+        .ok_or_else(|| PackError::Other("install verification failed".into()))
 }
 
 // ---------------------------------------------------------------------------
@@ -470,23 +524,45 @@ pub async fn install_packs(app: AppHandle, paths: Vec<String>) -> Result<Vec<Ins
 
 /// List every installed pack (reading its manifest from disk).
 #[tauri::command]
-pub fn list_installed(app: AppHandle) -> Result<Vec<InstalledPack>> {
-    let reg = read_registry(&app);
-    let root = packs_root(&app)?;
-    let mut out = Vec::new();
-    for entry in fs::read_dir(&root)?.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
+pub async fn list_installed(app: AppHandle) -> Result<Vec<InstalledPack>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut reg = read_registry(&app);
+        let root = packs_root(&app)?;
+        let mut out = Vec::new();
+        let mut dirty = false;
+        for entry in fs::read_dir(&root)?.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let id = entry.file_name().to_string_lossy().into_owned();
+            let reg_entry = reg.get(&id).cloned().unwrap_or_default();
+            let had_stats = reg_entry.file_count.is_some() && reg_entry.size_bytes.is_some();
+            if let Some(pack) = build_installed(&app, &id, &reg_entry) {
+                // Persist stats we had to compute for a legacy pack so the next
+                // listing is instant.
+                if !had_stats {
+                    reg.insert(
+                        id.clone(),
+                        PackReg {
+                            enabled: pack.enabled,
+                            file_count: Some(pack.file_count),
+                            size_bytes: Some(pack.size_bytes),
+                        },
+                    );
+                    dirty = true;
+                }
+                out.push(pack);
+            }
         }
-        let id = entry.file_name().to_string_lossy().into_owned();
-        let enabled = reg.get(&id).copied().unwrap_or(true);
-        if let Some(pack) = build_installed(&app, &id, enabled) {
-            out.push(pack);
+        if dirty {
+            let _ = write_registry(&app, &reg);
         }
-    }
-    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    Ok(out)
+        out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(out)
+    })
+    .await
+    .map_err(|e| PackError::Other(e.to_string()))?
 }
 
 /// Reveal the folder where packs are unpacked in the system file manager.
@@ -500,17 +576,22 @@ pub fn open_packs_dir(app: AppHandle) -> Result<()> {
     Ok(())
 }
 
-/// Delete a pack from disk and free its resources.
+/// Delete a pack from disk and free its resources. Runs on a blocking thread
+/// because removing a large pack (hundreds of thousands of files) is slow.
 #[tauri::command]
-pub fn uninstall_pack(app: AppHandle, id: String) -> Result<()> {
-    let dir = pack_dir(&app, &id)?;
-    if dir.is_dir() {
-        fs::remove_dir_all(&dir)?;
-    }
-    let mut reg = read_registry(&app);
-    reg.remove(&id);
-    write_registry(&app, &reg)?;
-    Ok(())
+pub async fn uninstall_pack(app: AppHandle, id: String) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = pack_dir(&app, &id)?;
+        if dir.is_dir() {
+            fs::remove_dir_all(&dir)?;
+        }
+        let mut reg = read_registry(&app);
+        reg.remove(&id);
+        write_registry(&app, &reg)?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| PackError::Other(e.to_string()))?
 }
 
 /// Enable or disable a pack (toggles a flag; files stay on disk).
@@ -520,7 +601,8 @@ pub fn set_pack_enabled(app: AppHandle, id: String, enabled: bool) -> Result<()>
         return Err(PackError::NotInstalled(id));
     }
     let mut reg = read_registry(&app);
-    reg.insert(id, enabled);
+    // Preserve cached stats when toggling.
+    reg.entry(id).or_default().enabled = enabled;
     write_registry(&app, &reg)?;
     Ok(())
 }

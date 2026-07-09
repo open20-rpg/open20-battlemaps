@@ -30,10 +30,10 @@ import {
 } from "react-icons/lu"
 import { FloatingWindow } from "./FloatingWindow"
 import { useLoading } from "../context/loading"
+import { usePacks } from "../context/packs"
 import {
   formatBytes,
   installPacks,
-  listInstalled,
   loadPackThumbnail,
   onInstallProgress,
   openPacksDir,
@@ -296,10 +296,10 @@ function PackPreview({ pack }: { pack: InstalledPack | null }) {
 export function AssetsManager({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const { start, update, stop, withLoading } = useLoading()
-  const [packs, setPacks] = useState<InstalledPack[]>([])
+  const { packs, loading, ensureLoaded, refresh, addOrUpdate, applyEnabled, removePacks } =
+    usePacks()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focusedId, setFocusedId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<InstallProgress | null>(null)
 
@@ -309,19 +309,9 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   tRef.current = t
   const installTaskRef = useRef<string | null>(null)
 
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    await withLoading(tRef.current("loading.loadingAssets"), async () => {
-      const list = await listInstalled()
-      setPacks(list)
-      setSelected((prev) => new Set([...prev].filter((id) => list.some((p) => p.id === id))))
-      setFocusedId((prev) => (prev && list.some((p) => p.id === prev) ? prev : null))
-    })
-    setLoading(false)
-  }, [withLoading])
-
   useEffect(() => {
-    refresh()
+    // Load lazily on first open; reopening reuses the cached list.
+    ensureLoaded()
     const unlisten = onInstallProgress((p) => {
       setProgress(p)
       if (installTaskRef.current) {
@@ -334,7 +324,13 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
     return () => {
       unlisten.then((fn) => fn())
     }
-  }, [refresh, update])
+  }, [ensureLoaded, update])
+
+  // Prune selection/focus when the cached list changes (e.g. after a delete).
+  useEffect(() => {
+    setSelected((prev) => new Set([...prev].filter((id) => packs.some((p) => p.id === id))))
+    setFocusedId((prev) => (prev && packs.some((p) => p.id === prev) ? prev : null))
+  }, [packs])
 
   const toggle = useCallback((id: string) => {
     setSelected((prev) => {
@@ -361,8 +357,9 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
     const taskId = start(t("loading.installingAssets"))
     installTaskRef.current = taskId
     try {
-      await installPacks(paths)
-      await refresh()
+      const installed = await installPacks(paths)
+      // Merge into the cache instead of re-listing.
+      addOrUpdate(installed)
     } catch (err) {
       await confirm(t("assets.installError", { error: String(err) }), {
         title: t("assets.errorTitle"),
@@ -377,11 +374,12 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   }
 
   const setEnabledForSelected = async (enabled: boolean) => {
+    const ids = [...selected]
     setBusy(true)
     try {
       await withLoading(t("loading.updatingPacks"), async () => {
-        await Promise.all([...selected].map((id) => setPackEnabled(id, enabled)))
-        await refresh()
+        await Promise.all(ids.map((id) => setPackEnabled(id, enabled)))
+        applyEnabled(ids, enabled)
       })
     } finally {
       setBusy(false)
@@ -400,8 +398,8 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
     try {
       await withLoading(t("loading.deletingAssets"), async () => {
         for (const id of ids) await uninstallPack(id)
+        removePacks(ids)
         setSelected(new Set())
-        await refresh()
       })
     } finally {
       setBusy(false)
