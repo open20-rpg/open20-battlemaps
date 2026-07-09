@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react"
 import {
   Box,
@@ -24,6 +24,7 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 import { useTranslation } from "react-i18next"
 import { LuImageOff, LuLibrary, LuX } from "react-icons/lu"
 import { useLoading } from "../context/loading"
+import { usePreview } from "../context/preview"
 import { getLibraryItems, searchLibrary, thumbUrl, type LibItem } from "../lib/library"
 
 const CELL = 70 // thumbnail size in px
@@ -57,10 +58,10 @@ const THUMB_CSS =
 // cells. The name tooltip is handled once at the grid level via event delegation,
 // so a cell is just its image (or a broken-image glyph). decoding/lazy keep image
 // decode off the scroll thread.
-const ThumbCell = memo(function ThumbCell({ item }: { item?: LibItem }) {
+const ThumbCell = memo(function ThumbCell({ item, idx }: { item?: LibItem; idx: number }) {
   const [errored, setErrored] = useState(false)
   return (
-    <div className="od-thumb" data-name={item?.name} style={cellStyle}>
+    <div className="od-thumb" data-name={item?.name} data-idx={item ? idx : undefined} style={cellStyle}>
       {item && !errored ? (
         <img
           src={thumbUrl(item.thumb)}
@@ -106,27 +107,54 @@ function LibraryBrowser({ category }: { category: string }) {
   const [tip, setTip] = useState<{ name: string; x: number; y: number } | null>(null)
   const tipTimer = useRef<number | undefined>(undefined)
 
-  const handleGridOver = useCallback((e: ReactMouseEvent) => {
-    const cell = (e.target as HTMLElement).closest?.("[data-name]") as HTMLElement | null
-    window.clearTimeout(tipTimer.current)
-    if (!cell) {
-      setTip(null)
-      return
-    }
-    const name = cell.dataset.name ?? ""
-    const rect = cell.getBoundingClientRect()
-    tipTimer.current = window.setTimeout(
-      () => setTip({ name, x: rect.left + rect.width / 2, y: rect.top }),
-      250,
-    )
-  }, [])
+  // Object preview panel (next to the tools panel). Pointer events cover both
+  // mouse hover and touch press. previewIdx dedupes so re-entering the same
+  // cell (e.g. onto its <img> child) doesn't reload the full image.
+  const { setPreview } = usePreview()
+  const previewIdx = useRef<number | null>(null)
 
-  const clearTip = useCallback(() => {
+  const handlePointerOver = useCallback(
+    (e: ReactPointerEvent) => {
+      const cell = (e.target as HTMLElement).closest?.("[data-idx]") as HTMLElement | null
+      if (!cell) {
+        window.clearTimeout(tipTimer.current)
+        return
+      }
+      const idx = Number(cell.dataset.idx)
+      // Name tooltip.
+      const name = cell.dataset.name ?? ""
+      window.clearTimeout(tipTimer.current)
+      const rect = cell.getBoundingClientRect()
+      tipTimer.current = window.setTimeout(
+        () => setTip({ name, x: rect.left + rect.width / 2, y: rect.top }),
+        250,
+      )
+      // Object preview (deduped by cell index).
+      if (previewIdx.current !== idx) {
+        previewIdx.current = idx
+        const item = items.current.get(idx)
+        setPreview(item ? { name: item.name, thumb: item.thumb, full: item.full } : null)
+      }
+    },
+    [setPreview],
+  )
+
+  const clearAll = useCallback(() => {
     window.clearTimeout(tipTimer.current)
     setTip(null)
-  }, [])
+    previewIdx.current = null
+    setPreview(null)
+  }, [setPreview])
 
-  useEffect(() => () => window.clearTimeout(tipTimer.current), [])
+  // Clear the tooltip timer and any lingering preview when unmounting (tool
+  // switch / library close).
+  useEffect(
+    () => () => {
+      window.clearTimeout(tipTimer.current)
+      setPreview(null)
+    },
+    [setPreview],
+  )
 
   // Track the scroll area width -> number of columns.
   useEffect(() => {
@@ -258,9 +286,9 @@ function LibraryBrowser({ category }: { category: string }) {
         minH="0"
         overflowY="auto"
         overflowX="hidden"
-        onMouseOver={handleGridOver}
-        onMouseLeave={clearTip}
-        onScroll={clearTip}
+        onPointerOver={handlePointerOver}
+        onPointerLeave={clearAll}
+        onScroll={clearAll}
       >
         {total === 0 ? (
           <Flex h="full" align="center" justify="center" p="6">
@@ -291,7 +319,7 @@ function LibraryBrowser({ category }: { category: string }) {
                     if (idx >= total) {
                       return <div key={c} style={fillerStyle} />
                     }
-                    return <ThumbCell key={idx} item={items.current.get(idx)} />
+                    return <ThumbCell key={idx} idx={idx} item={items.current.get(idx)} />
                   })}
                 </div>
               )

@@ -5,6 +5,8 @@ export interface LibItem {
   name: string
   /** Absolute path to the thumbnail PNG. */
   thumb: string
+  /** Absolute path to the full-size texture (for the hover preview). */
+  full: string
 }
 
 /**

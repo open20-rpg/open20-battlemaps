@@ -830,6 +830,8 @@ pub struct LibItem {
     name: String,
     /// Absolute path to the thumbnail PNG (use convertFileSrc on the frontend).
     thumb: String,
+    /// Absolute path to the full-size texture (for the hover preview panel).
+    full: String,
 }
 
 #[derive(Serialize)]
@@ -978,18 +980,16 @@ pub fn get_library_items(app: AppHandle, offset: usize, limit: usize) -> Result<
         let dir = pack_dir(&app, &lite.pack_id)?;
         let res_path = format!("res://packs/{}/{}", lite.pack_id, lite.rel_path);
         let hash = format!("{:x}", md5::compute(res_path.as_bytes()));
+        let full = dir.join(&lite.rel_path);
         let thumb = dir.join("thumbnails").join(format!("{hash}.png"));
         // Some packs ship no pre-baked thumbnails; fall back to the texture
         // itself (the webview scales it down to the cell size).
-        let image = if thumb.is_file() {
-            thumb
-        } else {
-            dir.join(&lite.rel_path)
-        };
+        let image = if thumb.is_file() { thumb } else { full.clone() };
         out.push(LibItem {
             id: format!("{}|{}", lite.pack_id, lite.rel_path),
             name: lite.name.clone(),
             thumb: image.to_string_lossy().into_owned(),
+            full: full.to_string_lossy().into_owned(),
         });
     }
     Ok(out)

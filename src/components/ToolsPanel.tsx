@@ -1,6 +1,7 @@
 import { Flex, Icon, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { Tooltip } from "./ui/tooltip"
+import { ObjectPreview } from "./ObjectPreview"
 import { TOOL_TREE, type ToolNode } from "../lib/tools"
 import { useTools } from "../context/tools"
 
@@ -220,6 +221,8 @@ export function ToolsPanel() {
         }
         return <ParamsPanel key={`${i}-${node.id}`} tool={node} />
       })}
+      {/* Hover/press preview, pinned just to the right of the whole panel. */}
+      <ObjectPreview />
     </Flex>
   )
 }

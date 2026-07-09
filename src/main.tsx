@@ -7,6 +7,7 @@ import { PacksProvider } from "./context/packs";
 import { MapProvider } from "./context/map";
 import { ModalStackProvider } from "./context/modalStack";
 import { ToolsProvider } from "./context/tools";
+import { PreviewProvider } from "./context/preview";
 import "./i18n";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           <PacksProvider>
             <MapProvider>
               <ToolsProvider>
-                <App />
+                <PreviewProvider>
+                  <App />
+                </PreviewProvider>
               </ToolsProvider>
             </MapProvider>
           </PacksProvider>
