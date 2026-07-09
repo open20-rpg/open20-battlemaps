@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next"
 import { Tooltip } from "./ui/tooltip"
 import { ObjectPreview } from "./ObjectPreview"
 import { CustomColorControl } from "./CustomColorControl"
-import { TOOL_TREE, type ToolNode } from "../lib/tools"
+import { LayerControl } from "./LayerControl"
+import { TOOL_TREE, type ToolNode, type ToolParamSpec } from "../lib/tools"
 import { useTools } from "../context/tools"
 
 const BAR_W = "46px"
@@ -153,10 +154,21 @@ function GroupPanel({ group, expanded, selectedChildId, onSelect }: GroupPanelPr
   )
 }
 
-// -- tool parameters panel (empty for now) -------------------------------------
+// -- tool parameters panel -----------------------------------------------------
+
+/** Render a single declared param using the matching reusable control. */
+function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpec }) {
+  switch (spec.kind) {
+    case "customColor":
+      return <CustomColorControl toolId={toolId} />
+    case "layer":
+      return <LayerControl toolId={toolId} allowed={spec.allowed} defaultValue={spec.default} />
+  }
+}
 
 function ParamsPanel({ tool }: { tool: Extract<ToolNode, { type: "tool" }> }) {
   const { t } = useTranslation()
+  const params = tool.params ?? []
   return (
     <VStack
       w="260px"
@@ -183,9 +195,11 @@ function ParamsPanel({ tool }: { tool: Extract<ToolNode, { type: "tool" }> }) {
           {t(tool.nameKey)}
         </Text>
       </Flex>
-      {tool.library ? (
+      {params.length > 0 ? (
         <VStack align="stretch" gap="0" flex="1" minH="0" overflowY="auto">
-          <CustomColorControl toolId={tool.id} />
+          {params.map((spec, i) => (
+            <ToolParamControl key={i} toolId={tool.id} spec={spec} />
+          ))}
         </VStack>
       ) : (
         <Flex flex="1" align="center" justify="center" p="6">
