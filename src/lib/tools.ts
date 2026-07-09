@@ -87,7 +87,7 @@ export const TOOL_TREE: ToolNode[] = [
       tool("terrainBrush", "tools.terrainBrush", LuBrush),
       tool("water", "tools.water", LuDroplets),
       tool("material", "tools.material", LuPaintBucket),
-      tool("path", "tools.path", LuRoute),
+      tool("path", "tools.path", LuRoute, "paths"),
     ],
   },
   {
