@@ -47,6 +47,8 @@ const config = defineConfig({
         "menubar.hover": { value: "#2c2c31" },
         "panel.bg": { value: "var(--panel-bg)" },
         "panel.header": { value: "var(--panel-header-bg)" },
+        // Always-opaque panel surface (dropdown menus, etc.).
+        "panel.solid": { value: "#212126" },
         "panel.border": { value: "#34343c" },
         "panel.rowHover": { value: "#2a2a31" },
         "panel.rowSelected": { value: "#26364f" },

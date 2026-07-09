@@ -97,7 +97,7 @@ export function MenuBar(props: MenuBarProps) {
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
-            <Menu.Content bg="panel.bg" borderColor="panel.border" minW="52">
+            <Menu.Content bg="panel.solid" borderColor="panel.border" minW="52">
               <Menu.Item value="recent" onClick={props.onOpenRecent}>
                 <LuFolderOpen />
                 <Text ml="2">{t("menu.recent")}</Text>
