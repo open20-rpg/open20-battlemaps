@@ -406,21 +406,59 @@ fn open_pack_source(src: &str) -> Result<File> {
     Ok(File::open(src)?)
 }
 
+/// Captures the `JavaVM` when the JVM loads our native library. The Tauri/wry
+/// runtime does not populate `ndk-context`, so `JNI_OnLoad` is the reliable way
+/// to reach the VM from arbitrary threads (e.g. the blocking install pool).
+#[cfg(target_os = "android")]
+mod android_jni {
+    use jni::sys::{jint, JNI_VERSION_1_6};
+    use jni::JavaVM;
+    use std::ffi::c_void;
+    use std::sync::OnceLock;
+
+    static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
+
+    #[no_mangle]
+    pub extern "system" fn JNI_OnLoad(vm: *mut jni::sys::JavaVM, _reserved: *mut c_void) -> jint {
+        if let Ok(vm) = unsafe { JavaVM::from_raw(vm) } {
+            let _ = JAVA_VM.set(vm);
+        }
+        JNI_VERSION_1_6
+    }
+
+    pub fn java_vm() -> Option<&'static JavaVM> {
+        JAVA_VM.get()
+    }
+}
+
 /// Resolve an Android `content://` URI to an owned `File` via a `content://`
 /// ParcelFileDescriptor. `detachFd` transfers ownership of the fd to us, so the
 /// returned `File` stays valid after the JNI thread detaches.
 #[cfg(target_os = "android")]
 fn open_content_uri(uri: &str) -> Result<File> {
-    use jni::objects::{JObject, JValue};
+    use jni::objects::JValue;
     use std::os::unix::io::FromRawFd;
 
     let jni_err = |ctx: &str, e: jni::errors::Error| PackError::Other(format!("{ctx}: {e}"));
 
-    let ctx = ndk_context::android_context();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
-        .map_err(|e| jni_err("JavaVM", e))?;
+    let vm = android_jni::java_vm()
+        .ok_or_else(|| PackError::Other("JavaVM not captured (JNI_OnLoad missing)".into()))?;
     let mut env = vm.attach_current_thread().map_err(|e| jni_err("attach", e))?;
-    let context = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    // App Context via ActivityThread.currentApplication() — available off any
+    // thread once the app is running, without ndk-context or an activity handle.
+    let context = env
+        .call_static_method(
+            "android/app/ActivityThread",
+            "currentApplication",
+            "()Landroid/app/Application;",
+            &[],
+        )
+        .and_then(|v| v.l())
+        .map_err(|e| jni_err("currentApplication", e))?;
+    if context.is_null() {
+        return Err(PackError::Other("no current Application context".into()));
+    }
 
     let resolver = env
         .call_method(&context, "getContentResolver", "()Landroid/content/ContentResolver;", &[])

@@ -32,5 +32,4 @@ md5 = "0.7"
 # (the Storage Access Framework gives no real filesystem path).
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
-ndk-context = "0.1"
 
