@@ -13,19 +13,26 @@ export interface LibItem {
 
 /**
  * Run a search over all enabled packs for the given category (e.g. "objects").
- * The backend caches the full result set; only the total count is returned.
+ * The backend caches the full result set under `key` (a per-browser id, so
+ * several asset browsers can be open at once); only the total count is returned.
  */
 export function searchLibrary(
+  key: string,
   category: string,
   query: string,
   exactness: number,
 ): Promise<{ total: number }> {
-  return invoke("search_library", { category, query, exactness })
+  return invoke("search_library", { key, category, query, exactness })
 }
 
-/** Fetch a window of the current search results. */
-export function getLibraryItems(offset: number, limit: number): Promise<LibItem[]> {
-  return invoke("get_library_items", { offset, limit })
+/** Fetch a window of a browser instance's search results. */
+export function getLibraryItems(key: string, offset: number, limit: number): Promise<LibItem[]> {
+  return invoke("get_library_items", { key, offset, limit })
+}
+
+/** Free a browser instance's cached results (call when it unmounts). */
+export function releaseLibrarySearch(key: string): Promise<void> {
+  return invoke("release_library_search", { key })
 }
 
 /** Turn a thumbnail file path into an asset-protocol URL the webview can load. */

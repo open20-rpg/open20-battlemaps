@@ -9,7 +9,8 @@ import { SwitchParamControl } from "./SwitchParamControl"
 import { ShapeControl } from "./ShapeControl"
 import { BrushSizeControl } from "./BrushSizeControl"
 import { EditPointsControl } from "./EditPointsControl"
-import { TOOL_TREE, type ToolNode, type ToolParamSpec } from "../lib/tools"
+import { AssetPickerControl } from "./AssetPickerControl"
+import { TOOL_TREE, paramGrows, type ToolNode, type ToolParamSpec } from "../lib/tools"
 import { useTools } from "../context/tools"
 
 const BAR_W = "46px"
@@ -203,6 +204,17 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
       )
     case "editPoints":
       return <EditPointsControl toolId={toolId} defaultValue={spec.default} />
+    case "assetPicker":
+      return (
+        <AssetPickerControl
+          toolId={toolId}
+          paramKey={spec.paramKey}
+          labelKey={spec.labelKey}
+          category={spec.category}
+          select={spec.select}
+          defaultColor={spec.defaultColor}
+        />
+      )
   }
 }
 
@@ -211,7 +223,7 @@ function ParamsPanel({ tool }: { tool: Extract<ToolNode, { type: "tool" }> }) {
   const params = tool.params ?? []
   return (
     <VStack
-      w="260px"
+      w="308px"
       h="full"
       flexShrink={0}
       gap="0"
@@ -236,10 +248,29 @@ function ParamsPanel({ tool }: { tool: Extract<ToolNode, { type: "tool" }> }) {
         </Text>
       </Flex>
       {params.length > 0 ? (
-        <VStack align="stretch" gap="0" flex="1" minH="0" overflowY="auto">
-          {params.map((spec, i) => (
-            <ToolParamControl key={i} toolId={tool.id} spec={spec} />
-          ))}
+        // When a param grows (e.g. an asset picker), the column must not scroll
+        // so the growing children can flex; otherwise let compact params scroll.
+        <VStack
+          align="stretch"
+          gap="0"
+          flex="1"
+          minH="0"
+          overflowY={params.some(paramGrows) ? "hidden" : "auto"}
+        >
+          {params.map((spec, i) => {
+            const grows = paramGrows(spec)
+            return (
+              <Flex
+                key={i}
+                direction="column"
+                flex={grows ? "1" : undefined}
+                minH={grows ? "0" : undefined}
+                flexShrink={grows ? 1 : 0}
+              >
+                <ToolParamControl toolId={tool.id} spec={spec} />
+              </Flex>
+            )
+          })}
         </VStack>
       ) : (
         <Flex flex="1" align="center" justify="center" p="6">

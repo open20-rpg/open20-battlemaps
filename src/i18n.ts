@@ -144,6 +144,8 @@ const resources = {
         brushSize: "Tamaño del pincel",
         editPoints: "Editar Puntos",
         bevelCorners: "Biselar Esquinas",
+        floor: "Piso",
+        buildWall: "Pared",
       },
       layers: {
         terrain: "Terreno",
@@ -332,6 +334,8 @@ const resources = {
         brushSize: "Brush Size",
         editPoints: "Edit Points",
         bevelCorners: "Bevel Corners",
+        floor: "Floor",
+        buildWall: "Wall",
       },
       layers: {
         terrain: "Terrain",

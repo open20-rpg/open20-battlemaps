@@ -847,8 +847,10 @@ pub struct LibrarySearch {
 pub struct LibraryState {
     /// key = "<packId>/<category>" -> indexed items for that pack folder.
     indexes: Mutex<HashMap<String, Arc<Vec<CacheItem>>>>,
-    /// The most recent search's results, served in windows.
-    results: Mutex<Vec<LibItemLite>>,
+    /// Cached search results per browser instance (caller-provided key), served
+    /// in windows. Keyed so multiple asset browsers can be open at once (e.g.
+    /// the Building tool's Floor and Wall selectors) without clobbering.
+    results: Mutex<HashMap<String, Vec<LibItemLite>>>,
     /// packId -> colorable texture rel-paths (from data/default.dungeondraft_tags).
     colorable: Mutex<HashMap<String, Arc<HashSet<String>>>>,
     /// packId -> parsed `custom_color_overrides` (None once loaded = pack has none).
@@ -1201,6 +1203,7 @@ fn matches(name_lower: &str, query_lower: &str, exactness: f32) -> bool {
 #[tauri::command]
 pub async fn search_library(
     app: AppHandle,
+    key: String,
     category: String,
     query: String,
     exactness: f32,
@@ -1243,18 +1246,27 @@ pub async fn search_library(
 
         results.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         let total = results.len();
-        *state.results.lock().unwrap() = results;
+        state.results.lock().unwrap().insert(key, results);
         Ok(LibrarySearch { total })
     })
     .await
     .map_err(|e| PackError::Other(e.to_string()))?
 }
 
-/// Fetch a window of the current search results, resolving thumbnail paths.
+/// Fetch a window of a browser instance's search results, resolving thumbnails.
 #[tauri::command]
-pub fn get_library_items(app: AppHandle, offset: usize, limit: usize) -> Result<Vec<LibItem>> {
+pub fn get_library_items(
+    app: AppHandle,
+    key: String,
+    offset: usize,
+    limit: usize,
+) -> Result<Vec<LibItem>> {
     let state = app.state::<LibraryState>();
-    let results = state.results.lock().unwrap();
+    let map = state.results.lock().unwrap();
+    let results = match map.get(&key) {
+        Some(r) => r,
+        None => return Ok(Vec::new()),
+    };
     if offset >= results.len() {
         return Ok(Vec::new());
     }
@@ -1280,4 +1292,11 @@ pub fn get_library_items(app: AppHandle, offset: usize, limit: usize) -> Result<
         });
     }
     Ok(out)
+}
+
+/// Drop a browser instance's cached results (call when the browser unmounts).
+#[tauri::command]
+pub fn release_library_search(app: AppHandle, key: String) {
+    let state = app.state::<LibraryState>();
+    state.results.lock().unwrap().remove(&key);
 }

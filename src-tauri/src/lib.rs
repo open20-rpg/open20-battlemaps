@@ -18,6 +18,7 @@ pub fn run() {
             pack::load_pack_thumbnail,
             pack::search_library,
             pack::get_library_items,
+            pack::release_library_search,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

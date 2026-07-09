@@ -88,6 +88,17 @@ export type ToolParamSpec =
     }
   | { kind: "editPoints"; default: boolean }
   | { kind: "bevelCorners"; default: boolean }
+  | {
+      kind: "assetPicker"
+      /** Where the { assets, color } value is stored in the tool's params. */
+      paramKey: string
+      /** i18n label shown above the browser. */
+      labelKey: string
+      /** Asset category to browse (e.g. "floors", "walls"). */
+      category: string
+      select: "single" | "multi"
+      defaultColor: string
+    }
 
 /** A per-tool parameter bag; shape is defined by each tool's params. */
 export type ToolParamValues = Record<string, unknown>
@@ -181,6 +192,22 @@ const shadow = (def: boolean): ToolParamSpec => ({ kind: "shadow", default: def 
 const shape = (def: Shape | null): ToolParamSpec => ({ kind: "shape", default: def })
 const editPoints = (def: boolean): ToolParamSpec => ({ kind: "editPoints", default: def })
 const bevelCorners = (def: boolean): ToolParamSpec => ({ kind: "bevelCorners", default: def })
+const assetPicker = (
+  paramKey: string,
+  labelKey: string,
+  category: string,
+  select: "single" | "multi",
+  defaultColor: string,
+): ToolParamSpec => ({ kind: "assetPicker", paramKey, labelKey, category, select, defaultColor })
+
+/**
+ * Whether a param control should flex-grow to fill leftover panel height (vs.
+ * taking its natural height). Asset pickers grow (and split the space evenly
+ * when several are present); everything else stays compact.
+ */
+export function paramGrows(spec: ToolParamSpec): boolean {
+  return spec.kind === "assetPicker"
+}
 const brushSlider = (
   min: number,
   max: number,
@@ -203,7 +230,13 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuDraftingCompass,
     children: [
       tool("build", "tools.build", LuHouse, {
-        params: [shape("rectangle"), bevelCorners(true), editPoints(false)],
+        params: [
+          shape("rectangle"),
+          editPoints(false),
+          assetPicker("floor", "tools.floor", "tilesets", "single", "#ffffff"),
+          assetPicker("wall", "tools.buildWall", "walls", "single", "#ffffff"),
+          bevelCorners(true),
+        ],
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("wall", "tools.wall", LuBrickWall, {
