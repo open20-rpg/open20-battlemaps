@@ -32,6 +32,7 @@ function BarButton({ icon, label, disabled, active, onClick }: BarButtonProps) {
       h="46px"
       px="3.5"
       gap="2"
+      flexShrink={0}
       borderRadius="0"
       fontWeight="medium"
       fontSize="sm"
@@ -74,7 +75,21 @@ export function MenuBar(props: MenuBarProps) {
       borderColor="panel.border"
       align="stretch"
       flexShrink={0}
-      css={{ WebkitUserSelect: "none" }}
+      overflowX="auto"
+      overflowY="hidden"
+      // Let a plain vertical wheel scroll the bar horizontally (no Shift needed).
+      onWheel={(e) => {
+        const el = e.currentTarget
+        if (el.scrollWidth > el.clientWidth && e.deltaY !== 0) {
+          el.scrollLeft += e.deltaY
+        }
+      }}
+      css={{
+        WebkitUserSelect: "none",
+        // Scrollable when the items don't fit, but hide the scrollbar.
+        scrollbarWidth: "none",
+        "&::-webkit-scrollbar": { display: "none" },
+      }}
     >
       {/* "Menu" dropdown */}
       <Menu.Root positioning={{ placement: "bottom-start" }}>
@@ -84,6 +99,7 @@ export function MenuBar(props: MenuBarProps) {
             h="46px"
             px="3.5"
             gap="2"
+            flexShrink={0}
             borderRadius="0"
             fontWeight="medium"
             fontSize="sm"
