@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Badge,
   Box,
@@ -28,6 +28,7 @@ import {
   LuTrash2,
 } from "react-icons/lu"
 import { FloatingWindow } from "./FloatingWindow"
+import { useLoading } from "../context/loading"
 import {
   formatBytes,
   installPacks,
@@ -292,6 +293,7 @@ function PackPreview({ pack }: { pack: InstalledPack | null }) {
 
 export function AssetsManager({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
+  const { start, update, stop, withLoading } = useLoading()
   const [packs, setPacks] = useState<InstalledPack[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focusedId, setFocusedId] = useState<string | null>(null)
@@ -299,25 +301,38 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<InstallProgress | null>(null)
 
+  // Keep latest t/update for the long-lived progress listener without
+  // re-subscribing on every render.
+  const tRef = useRef(t)
+  tRef.current = t
+  const installTaskRef = useRef<string | null>(null)
+
   const refresh = useCallback(async () => {
     setLoading(true)
-    try {
+    await withLoading(tRef.current("loading.loadingAssets"), async () => {
       const list = await listInstalled()
       setPacks(list)
       setSelected((prev) => new Set([...prev].filter((id) => list.some((p) => p.id === id))))
       setFocusedId((prev) => (prev && list.some((p) => p.id === prev) ? prev : null))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+    })
+    setLoading(false)
+  }, [withLoading])
 
   useEffect(() => {
     refresh()
-    const unlisten = onInstallProgress(setProgress)
+    const unlisten = onInstallProgress((p) => {
+      setProgress(p)
+      if (installTaskRef.current) {
+        update(installTaskRef.current, {
+          message: tRef.current("loading.installingPack", { pack: p.pack }),
+          progress: p.percent,
+        })
+      }
+    })
     return () => {
       unlisten.then((fn) => fn())
     }
-  }, [refresh])
+  }, [refresh, update])
 
   const toggle = useCallback((id: string) => {
     setSelected((prev) => {
@@ -341,6 +356,8 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
     if (paths.length === 0) return
     setBusy(true)
     setProgress(null)
+    const taskId = start(t("loading.installingAssets"))
+    installTaskRef.current = taskId
     try {
       await installPacks(paths)
       await refresh()
@@ -350,6 +367,8 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
         kind: "error",
       })
     } finally {
+      installTaskRef.current = null
+      stop(taskId)
       setBusy(false)
       setProgress(null)
     }
@@ -358,8 +377,10 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const setEnabledForSelected = async (enabled: boolean) => {
     setBusy(true)
     try {
-      await Promise.all([...selected].map((id) => setPackEnabled(id, enabled)))
-      await refresh()
+      await withLoading(t("loading.updatingPacks"), async () => {
+        await Promise.all([...selected].map((id) => setPackEnabled(id, enabled)))
+        await refresh()
+      })
     } finally {
       setBusy(false)
     }
@@ -375,9 +396,11 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
     if (!ok) return
     setBusy(true)
     try {
-      for (const id of ids) await uninstallPack(id)
-      setSelected(new Set())
-      await refresh()
+      await withLoading(t("loading.deletingAssets"), async () => {
+        for (const id of ids) await uninstallPack(id)
+        setSelected(new Set())
+        await refresh()
+      })
     } finally {
       setBusy(false)
     }

@@ -15,9 +15,8 @@ import { Trans, useTranslation } from "react-i18next"
 import { LuGem, LuMap } from "react-icons/lu"
 import { MenuBar } from "./components/MenuBar"
 import { AssetsManager } from "./components/AssetsManager"
+import { StatusBar } from "./components/StatusBar"
 import { Toaster, toaster } from "./components/ui/toaster"
-
-const APP_VERSION = "0.1.0"
 
 export default function App() {
   const { t, i18n } = useTranslation()
@@ -75,6 +74,8 @@ export default function App() {
 
         {assetsOpen && <AssetsManager onClose={() => setAssetsOpen(false)} />}
       </Box>
+
+      <StatusBar />
 
       {/* Preferences dialog */}
       <Dialog.Root open={prefsOpen} onOpenChange={(e) => setPrefsOpen(e.open)} placement="center">
@@ -136,7 +137,7 @@ export default function App() {
               <Dialog.Body>
                 <Stack gap="2" color="fg.muted" fontSize="sm">
                   <Text color="fg" fontWeight="semibold">
-                    {t("about.version", { version: APP_VERSION })}
+                    {t("about.version", { version: __APP_VERSION__ })}
                   </Text>
                   <Text>{t("about.desc")}</Text>
                   <Text>{t("about.compat")}</Text>
