@@ -16,7 +16,7 @@ val tauriProperties = Properties().apply {
 android {
     signingConfigs {
         create("release") {
-            val props = java.util.Properties()
+            val props = Properties()
             val propFile = rootProject.file("keystore.properties")
             if (propFile.exists()) {
                 propFile.inputStream().use { props.load(it) }
