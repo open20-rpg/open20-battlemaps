@@ -9,6 +9,8 @@ import { SwitchParamControl } from "./SwitchParamControl"
 import { ShapeControl } from "./ShapeControl"
 import { BrushSizeControl } from "./BrushSizeControl"
 import { EditPointsControl } from "./EditPointsControl"
+import { ToggleTextControl } from "./ToggleTextControl"
+import { SliderControl } from "./SliderControl"
 import { AssetPickerControl } from "./AssetPickerControl"
 import { TOOL_TREE, paramGrows, type ToolNode, type ToolParamSpec } from "../lib/tools"
 import { useTools } from "../context/tools"
@@ -171,21 +173,35 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
       return <LayerControl toolId={toolId} allowed={spec.allowed} defaultValue={spec.default} />
     case "sorting":
       return <SortingControl toolId={toolId} defaultValue={spec.default} />
-    case "shadow":
+    case "switch":
       return (
         <SwitchParamControl
           toolId={toolId}
-          paramKey="shadow"
-          labelKey="tools.shadow"
+          paramKey={spec.paramKey}
+          labelKey={spec.labelKey}
           defaultValue={spec.default}
         />
       )
-    case "bevelCorners":
+    case "toggleText":
       return (
-        <SwitchParamControl
+        <ToggleTextControl
           toolId={toolId}
-          paramKey="bevelCorners"
-          labelKey="tools.bevelCorners"
+          paramKey={spec.paramKey}
+          trueLabelKey={spec.trueLabelKey}
+          falseLabelKey={spec.falseLabelKey}
+          icon={spec.icon}
+          defaultValue={spec.default}
+        />
+      )
+    case "slider":
+      return (
+        <SliderControl
+          toolId={toolId}
+          paramKey={spec.paramKey}
+          labelKey={spec.labelKey}
+          min={spec.min}
+          max={spec.max}
+          step={spec.step}
           defaultValue={spec.default}
         />
       )
@@ -213,14 +229,24 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
           category={spec.category}
           select={spec.select}
           defaultColor={spec.defaultColor}
+          allowNull={spec.allowNull}
         />
       )
   }
 }
 
+/** Stable-ish key for a param, so toggling visibility doesn't reshuffle others. */
+function paramKeyOf(spec: ToolParamSpec, i: number): string {
+  return "paramKey" in spec ? `${spec.kind}:${spec.paramKey}` : `${spec.kind}:${i}`
+}
+
 function ParamsPanel({ tool }: { tool: Extract<ToolNode, { type: "tool" }> }) {
   const { t } = useTranslation()
-  const params = tool.params ?? []
+  const { getToolParams } = useTools()
+  // Filter out params hidden by their visibleWhen predicate for the current
+  // values (e.g. Portal shows Rotate 180 or Rotation depending on `anchored`).
+  const values = getToolParams(tool.id)
+  const params = (tool.params ?? []).filter((s) => !s.visibleWhen || s.visibleWhen(values))
   return (
     <VStack
       w="308px"
@@ -261,7 +287,7 @@ function ParamsPanel({ tool }: { tool: Extract<ToolNode, { type: "tool" }> }) {
             const grows = paramGrows(spec)
             return (
               <Flex
-                key={i}
+                key={paramKeyOf(spec, i)}
                 direction="column"
                 flex={grows ? "1" : undefined}
                 minH={grows ? "0" : undefined}

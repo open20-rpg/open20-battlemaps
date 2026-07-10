@@ -13,7 +13,7 @@ import {
 import { Box, Flex, HStack, IconButton, Input, Slider, Text, VStack } from "@chakra-ui/react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useTranslation } from "react-i18next"
-import { LuImageOff, LuX } from "react-icons/lu"
+import { LuBan, LuImageOff, LuX } from "react-icons/lu"
 import { useLoading } from "../context/loading"
 import { usePreview } from "../context/preview"
 import {
@@ -56,6 +56,18 @@ const listCellStyle: CSSProperties = {
   overflow: "hidden",
 }
 const listImgStyle: CSSProperties = { maxWidth: "100%", height: "auto", objectFit: "contain" }
+
+// "No asset" cell (dashed empty square), used when allowNull is set.
+const nullCellStyle: CSSProperties = {
+  width: CELL,
+  height: CELL,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  border: "1px dashed #55555f",
+  borderRadius: 6,
+  cursor: "pointer",
+}
 
 // Loaded items get the pointer cursor; the selected one gets a highlight ring.
 const THUMB_CSS =
@@ -138,6 +150,15 @@ const ListCell = memo(function ListCell({
   )
 })
 
+// The "no asset" cell — rendered as display slot 0 when allowNull is set.
+function NullCell({ selected }: { selected: boolean }) {
+  return (
+    <div className="od-thumb" data-null="" data-selected={selected ? "" : undefined} style={nullCellStyle}>
+      <LuBan color="#8a8a90" size={18} />
+    </div>
+  )
+}
+
 // -- reusable asset browser (search + virtualized grid + optional selection) ---
 
 export interface AssetSelectorProps {
@@ -156,6 +177,8 @@ export interface AssetSelectorProps {
   showPreview?: boolean
   /** Show the search box + exactness slider (hidden for param pickers). */
   showSearch?: boolean
+  /** Show an empty first cell that selects "no asset" (empty selection). */
+  allowNull?: boolean
 }
 
 export function AssetSelector({
@@ -167,6 +190,7 @@ export function AssetSelector({
   onSelectionChange,
   showPreview = false,
   showSearch = true,
+  allowNull = false,
 }: AssetSelectorProps) {
   const { t } = useTranslation()
   const { withLoading } = useLoading()
@@ -266,6 +290,12 @@ export function AssetSelector({
   const handleClick = useCallback(
     async (e: ReactMouseEvent) => {
       if (!select || !onSelectionChange) return
+      // The empty/null cell clears the selection.
+      if ((e.target as HTMLElement).closest?.("[data-null]")) {
+        onSelectionChange([])
+        anchorIdx.current = null
+        return
+      }
       const cell = (e.target as HTMLElement).closest?.("[data-idx]") as HTMLElement | null
       if (!cell) return
       const idx = Number(cell.dataset.idx)
@@ -352,8 +382,13 @@ export function AssetSelector({
     void runSearch("")
   }, [category, runSearch])
 
-  // List mode = one item per row (cols is 1); grid = ceil(total / cols) rows.
-  const rowCount = Math.ceil(total / cols)
+  // The null option occupies display slot 0; real items shift up by one.
+  const nullOffset = allowNull ? 1 : 0
+  const displayTotal = total + nullOffset
+  const noneSelected = (selectedIds?.length ?? 0) === 0
+
+  // List mode = one item per row (cols is 1); grid = ceil(displayTotal / cols).
+  const rowCount = Math.ceil(displayTotal / cols)
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
@@ -368,8 +403,9 @@ export function AssetSelector({
   // Fetch the pages that cover the currently visible rows.
   useEffect(() => {
     if (total === 0) return
-    const startIdx = firstRow * cols
-    const endIdx = Math.min(total, (lastRow + 1) * cols)
+    // Map the visible display range back to real item indices (minus the null slot).
+    const startIdx = Math.max(0, firstRow * cols - nullOffset)
+    const endIdx = Math.min(total, (lastRow + 1) * cols - nullOffset)
     if (endIdx <= startIdx) return
     const firstPage = Math.floor(startIdx / PAGE)
     const lastPage = Math.floor((endIdx - 1) / PAGE)
@@ -383,17 +419,17 @@ export function AssetSelector({
         })
         .catch(() => requestedPages.current.delete(p))
     }
-  }, [firstRow, lastRow, cols, total, searchGen, browserKey])
+  }, [firstRow, lastRow, cols, total, searchGen, browserKey, nullOffset])
 
   // Single-select must always hold one item: when nothing is selected, default
   // to the first result once it has loaded (runs again if the first page loads
-  // after mount, via `tick`).
+  // after mount, via `tick`). Skipped when null is allowed (empty is valid).
   useEffect(() => {
-    if (select !== "single" || !onSelectionChange) return
+    if (select !== "single" || allowNull || !onSelectionChange) return
     if ((selectedIds?.length ?? 0) > 0 || total === 0) return
     const first = items.current.get(0)
     if (first) onSelectionChange([first.id])
-  }, [select, onSelectionChange, selectedIds, total, tick])
+  }, [select, allowNull, onSelectionChange, selectedIds, total, tick])
 
   return (
     <Flex direction="column" flex="1" minH="0">
@@ -462,7 +498,7 @@ export function AssetSelector({
         onScroll={clearAll}
         onClick={select ? (e) => void handleClick(e) : undefined}
       >
-        {total === 0 ? (
+        {total === 0 && !allowNull ? (
           <Flex h="full" align="center" justify="center" p="6">
             <Text fontSize="xs" color="fg.muted">
               {t("library.empty")}
@@ -487,10 +523,12 @@ export function AssetSelector({
                   }}
                 >
                   {(() => {
-                    const item = items.current.get(vr.index)
+                    if (allowNull && vr.index === 0) return <NullCell selected={noneSelected} />
+                    const idx = vr.index - nullOffset
+                    const item = items.current.get(idx)
                     return (
                       <ListCell
-                        idx={vr.index}
+                        idx={idx}
                         item={item}
                         color={color}
                         selected={item ? selectedSet.has(item.id) : false}
@@ -513,10 +551,14 @@ export function AssetSelector({
                   }}
                 >
                   {Array.from({ length: cols }, (_, c) => {
-                    const idx = vr.index * cols + c
-                    if (idx >= total) {
+                    const displayIdx = vr.index * cols + c
+                    if (displayIdx >= displayTotal) {
                       return <div key={c} style={fillerStyle} />
                     }
+                    if (allowNull && displayIdx === 0) {
+                      return <NullCell key="null" selected={noneSelected} />
+                    }
+                    const idx = displayIdx - nullOffset
                     const item = items.current.get(idx)
                     return (
                       <ThumbCell

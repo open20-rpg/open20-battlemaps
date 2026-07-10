@@ -1,5 +1,6 @@
 import type { IconType } from "react-icons"
 import {
+  LuAnchor,
   LuBox,
   LuBoxes,
   LuBrickWall,
@@ -71,11 +72,32 @@ export type Sorting = "over" | "under"
 /** The geometry a shape/area tool draws with. */
 export type Shape = "rectangle" | "ellipse" | "path"
 
-export type ToolParamSpec =
+/** The parameter kinds, before the shared `visibleWhen` field is mixed in. */
+type ToolParamKind =
   | { kind: "customColor" }
   | { kind: "layer"; allowed: number[]; default: number }
   | { kind: "sorting"; default: Sorting }
-  | { kind: "shadow"; default: boolean }
+  /** On/off switch (Shadow, Bevel Corners, Rotate 180, …). */
+  | { kind: "switch"; paramKey: string; labelKey: string; default: boolean }
+  /** Single button whose label flips with its boolean value. */
+  | {
+      kind: "toggleText"
+      paramKey: string
+      trueLabelKey: string
+      falseLabelKey: string
+      icon: IconType
+      default: boolean
+    }
+  /** Plain numeric slider (Rotation, …). */
+  | {
+      kind: "slider"
+      paramKey: string
+      labelKey: string
+      min: number
+      max: number
+      step: number
+      default: number
+    }
   | { kind: "shape"; default: Shape | null }
   | {
       kind: "brushSize"
@@ -87,18 +109,28 @@ export type ToolParamSpec =
       default: number | null
     }
   | { kind: "editPoints"; default: boolean }
-  | { kind: "bevelCorners"; default: boolean }
   | {
       kind: "assetPicker"
       /** Where the { assets, color } value is stored in the tool's params. */
       paramKey: string
       /** i18n label shown above the browser. */
       labelKey: string
-      /** Asset category to browse (e.g. "floors", "walls"). */
+      /** Asset category to browse (e.g. "tilesets", "walls"). */
       category: string
       select: "single" | "multi"
       defaultColor: string
+      /** Show an empty first cell that selects "no asset" (null). */
+      allowNull: boolean
     }
+
+/**
+ * A reusable tool parameter. Any kind may carry `visibleWhen`: a predicate over
+ * the tool's current params deciding whether the control is shown (e.g. Portal's
+ * Rotate 180 vs Rotation, gated on `anchored`).
+ */
+export type ToolParamSpec = ToolParamKind & {
+  visibleWhen?: (values: ToolParamValues) => boolean
+}
 
 /** A per-tool parameter bag; shape is defined by each tool's params. */
 export type ToolParamValues = Record<string, unknown>
@@ -188,17 +220,54 @@ const objectLayer = (def: number): ToolParamSpec => ({
   default: def,
 })
 const sorting = (def: Sorting): ToolParamSpec => ({ kind: "sorting", default: def })
-const shadow = (def: boolean): ToolParamSpec => ({ kind: "shadow", default: def })
+const switchParam = (paramKey: string, labelKey: string, def: boolean): ToolParamSpec => ({
+  kind: "switch",
+  paramKey,
+  labelKey,
+  default: def,
+})
+const shadow = (def: boolean): ToolParamSpec => switchParam("shadow", "tools.shadow", def)
+const bevelCorners = (def: boolean): ToolParamSpec =>
+  switchParam("bevelCorners", "tools.bevelCorners", def)
+const toggleText = (
+  paramKey: string,
+  trueLabelKey: string,
+  falseLabelKey: string,
+  icon: IconType,
+  def: boolean,
+): ToolParamSpec => ({ kind: "toggleText", paramKey, trueLabelKey, falseLabelKey, icon, default: def })
+const sliderParam = (
+  paramKey: string,
+  labelKey: string,
+  min: number,
+  max: number,
+  step: number,
+  def: number,
+): ToolParamSpec => ({ kind: "slider", paramKey, labelKey, min, max, step, default: def })
 const shape = (def: Shape | null): ToolParamSpec => ({ kind: "shape", default: def })
 const editPoints = (def: boolean): ToolParamSpec => ({ kind: "editPoints", default: def })
-const bevelCorners = (def: boolean): ToolParamSpec => ({ kind: "bevelCorners", default: def })
 const assetPicker = (
   paramKey: string,
   labelKey: string,
   category: string,
   select: "single" | "multi",
   defaultColor: string,
-): ToolParamSpec => ({ kind: "assetPicker", paramKey, labelKey, category, select, defaultColor })
+  allowNull = false,
+): ToolParamSpec => ({
+  kind: "assetPicker",
+  paramKey,
+  labelKey,
+  category,
+  select,
+  defaultColor,
+  allowNull,
+})
+
+/** Gate a param's visibility on the tool's current params. */
+const when = (
+  spec: ToolParamSpec,
+  visibleWhen: (values: ToolParamValues) => boolean,
+): ToolParamSpec => ({ ...spec, visibleWhen })
 
 /**
  * Whether a param control should flex-grow to fill leftover panel height (vs.
@@ -248,7 +317,16 @@ export const TOOL_TREE: ToolNode[] = [
           bevelCorners(true),
         ],
       }),
-      tool("portal", "tools.portal", LuDoorOpen, { library: "portals", params: [customColor] }),
+      tool("portal", "tools.portal", LuDoorOpen, {
+        params: [
+          toggleText("allowLight", "tools.allowLight", "tools.blockLight", LuDoorOpen, true),
+          toggleText("anchored", "tools.anchored", "tools.freestanding", LuAnchor, true),
+          // Anchored portals snap in 180° flips; freestanding ones rotate freely.
+          when(switchParam("rotate180", "tools.rotate180", false), (p) => p.anchored !== false),
+          when(sliderParam("rotation", "tools.rotation", -180, 180, 1, 0), (p) => p.anchored === false),
+          assetPicker("style", "tools.style", "portals", "single", "#ffffff", true),
+        ],
+      }),
       tool("cave", "tools.cave", LuMountainSnow, {
         library: "caves",
         params: [customColor, brushButtons(0.5, 2.5, 0.5, 1)],

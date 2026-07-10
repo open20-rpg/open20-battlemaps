@@ -22,6 +22,7 @@ export function AssetPickerControl({
   category,
   select,
   defaultColor,
+  allowNull = false,
 }: {
   toolId: string
   paramKey: string
@@ -29,6 +30,7 @@ export function AssetPickerControl({
   category: string
   select: "single" | "multi"
   defaultColor: string
+  allowNull?: boolean
 }) {
   const { t } = useTranslation()
   const { getToolParams, setToolParams } = useTools()
@@ -53,6 +55,7 @@ export function AssetPickerControl({
         onSelectionChange={(ids) => setValue({ assets: ids })}
         showPreview
         showSearch={false}
+        allowNull={allowNull}
       />
       {/* Color selector below the browser. */}
       <Box px="3" py="2.5" borderTopWidth="1px" borderColor="panel.border" flexShrink={0}>
