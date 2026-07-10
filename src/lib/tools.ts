@@ -240,8 +240,13 @@ export const TOOL_TREE: ToolNode[] = [
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("wall", "tools.wall", LuBrickWall, {
-        library: "walls",
-        params: [customColor, sorting("under"), shadow(true), editPoints(false)],
+        params: [
+          editPoints(false),
+          sorting("under"),
+          shadow(true),
+          assetPicker("wall", "tools.buildWall", "walls", "single", "#ffffff"),
+          bevelCorners(true),
+        ],
       }),
       tool("portal", "tools.portal", LuDoorOpen, { library: "portals", params: [customColor] }),
       tool("cave", "tools.cave", LuMountainSnow, {

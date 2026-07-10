@@ -180,7 +180,7 @@ export function AssetSelector({
   const [searchGen, setSearchGen] = useState(0)
   const items = useRef<Map<number, LibItem>>(new Map())
   const requestedPages = useRef<Set<number>>(new Set())
-  const [, bump] = useReducer((x) => x + 1, 0)
+  const [tick, bump] = useReducer((x) => x + 1, 0)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [cols, setCols] = useState(1)
@@ -384,6 +384,16 @@ export function AssetSelector({
         .catch(() => requestedPages.current.delete(p))
     }
   }, [firstRow, lastRow, cols, total, searchGen, browserKey])
+
+  // Single-select must always hold one item: when nothing is selected, default
+  // to the first result once it has loaded (runs again if the first page loads
+  // after mount, via `tick`).
+  useEffect(() => {
+    if (select !== "single" || !onSelectionChange) return
+    if ((selectedIds?.length ?? 0) > 0 || total === 0) return
+    const first = items.current.get(0)
+    if (first) onSelectionChange([first.id])
+  }, [select, onSelectionChange, selectedIds, total, tick])
 
   return (
     <Flex direction="column" flex="1" minH="0">
