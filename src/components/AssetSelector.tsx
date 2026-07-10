@@ -27,6 +27,11 @@ import {
 const CELL = 64 // thumbnail size in px (matches the 64x64 thumbnails)
 const GAP = 8
 const PAGE = 200 // items fetched per window request
+const LIST_ROW_EST = 40 // avg natural thumb height, used to estimate list scroll
+
+// Categories whose thumbnails vary in size (wall/path strips) are shown as a
+// single column at natural size instead of the fixed square grid.
+const LIST_CATEGORIES = new Set(["walls", "paths"])
 
 // -- one thumbnail cell --------------------------------------------------------
 
@@ -41,6 +46,16 @@ const cellStyle: CSSProperties = {
 }
 const imgStyle: CSSProperties = { width: "100%", height: "100%", objectFit: "contain" }
 const fillerStyle: CSSProperties = { width: CELL, height: CELL, flexShrink: 0 }
+
+// List-mode cell: image at natural size, capped to the column width.
+const listCellStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: LIST_ROW_EST,
+  overflow: "hidden",
+}
+const listImgStyle: CSSProperties = { maxWidth: "100%", height: "auto", objectFit: "contain" }
 
 // Loaded items get the pointer cursor; the selected one gets a highlight ring.
 const THUMB_CSS =
@@ -84,6 +99,45 @@ const ThumbCell = memo(function ThumbCell({
   )
 })
 
+// List-mode cell (single column, natural-size image). Same data-* delegation
+// hooks as the grid cell so tooltip/preview/selection keep working.
+const ListCell = memo(function ListCell({
+  item,
+  idx,
+  color,
+  selected,
+}: {
+  item?: LibItem
+  idx: number
+  color: string
+  selected: boolean
+}) {
+  const [errored, setErrored] = useState(false)
+  return (
+    <div
+      className="od-thumb"
+      data-name={item?.name}
+      data-idx={item ? idx : undefined}
+      data-selected={selected ? "" : undefined}
+      style={listCellStyle}
+    >
+      {item && !errored ? (
+        <img
+          src={itemImageUrl(item.thumb, item.colorable, color)}
+          alt=""
+          draggable={false}
+          decoding="async"
+          loading="lazy"
+          onError={() => setErrored(true)}
+          style={listImgStyle}
+        />
+      ) : item ? (
+        <LuImageOff color="#8a8a90" size={16} />
+      ) : null}
+    </div>
+  )
+})
+
 // -- reusable asset browser (search + virtualized grid + optional selection) ---
 
 export interface AssetSelectorProps {
@@ -100,6 +154,8 @@ export interface AssetSelectorProps {
   onSelectionChange?: (ids: string[]) => void
   /** Drive the shared hover/press preview panel (used by the Library). */
   showPreview?: boolean
+  /** Show the search box + exactness slider (hidden for param pickers). */
+  showSearch?: boolean
 }
 
 export function AssetSelector({
@@ -110,6 +166,7 @@ export function AssetSelector({
   selectedIds,
   onSelectionChange,
   showPreview = false,
+  showSearch = true,
 }: AssetSelectorProps) {
   const { t } = useTranslation()
   const { withLoading } = useLoading()
@@ -127,6 +184,8 @@ export function AssetSelector({
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [cols, setCols] = useState(1)
+  // Wall/path thumbs vary in size -> single-column list at natural size.
+  const layout = LIST_CATEGORIES.has(category) ? "list" : "grid"
 
   const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds])
   const selectedRef = useRef(selectedSet)
@@ -253,8 +312,12 @@ export function AssetSelector({
     [browserKey, setPreview, showPreview],
   )
 
-  // Track the scroll area width -> number of columns.
+  // Track the scroll area width -> number of columns (list mode is always 1).
   useEffect(() => {
+    if (layout === "list") {
+      setCols(1)
+      return
+    }
     const el = scrollRef.current
     if (!el) return
     const measure = () => {
@@ -265,7 +328,7 @@ export function AssetSelector({
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [layout])
 
   const runSearch = useCallback(
     (q: string) => {
@@ -289,11 +352,12 @@ export function AssetSelector({
     void runSearch("")
   }, [category, runSearch])
 
+  // List mode = one item per row (cols is 1); grid = ceil(total / cols) rows.
   const rowCount = Math.ceil(total / cols)
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => CELL + GAP,
+    estimateSize: () => (layout === "list" ? LIST_ROW_EST + GAP : CELL + GAP),
     overscan: 6,
   })
 
@@ -324,6 +388,7 @@ export function AssetSelector({
   return (
     <Flex direction="column" flex="1" minH="0">
       <style>{THUMB_CSS}</style>
+      {showSearch && (
       <VStack align="stretch" gap="2.5" p="3" borderBottomWidth="1px" borderColor="panel.border">
         <HStack gap="1.5">
           <Input
@@ -374,6 +439,7 @@ export function AssetSelector({
           {t("library.results", { count: total })}
         </Text>
       </VStack>
+      )}
 
       <Box
         ref={scrollRef}
@@ -394,9 +460,35 @@ export function AssetSelector({
           </Flex>
         ) : (
           <Box position="relative" width="100%" height={`${rowVirtualizer.getTotalSize()}px`}>
-            {virtualRows.map((vr) => {
-              const rowStart = vr.index * cols
-              return (
+            {virtualRows.map((vr) =>
+              layout === "list" ? (
+                // One natural-size item per row, measured for dynamic height.
+                <div
+                  key={vr.key}
+                  data-index={vr.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    padding: `0 ${GAP}px ${GAP}px`,
+                    transform: `translateY(${vr.start}px)`,
+                  }}
+                >
+                  {(() => {
+                    const item = items.current.get(vr.index)
+                    return (
+                      <ListCell
+                        idx={vr.index}
+                        item={item}
+                        color={color}
+                        selected={item ? selectedSet.has(item.id) : false}
+                      />
+                    )
+                  })()}
+                </div>
+              ) : (
                 <div
                   key={vr.key}
                   style={{
@@ -411,7 +503,7 @@ export function AssetSelector({
                   }}
                 >
                   {Array.from({ length: cols }, (_, c) => {
-                    const idx = rowStart + c
+                    const idx = vr.index * cols + c
                     if (idx >= total) {
                       return <div key={c} style={fillerStyle} />
                     }
@@ -427,8 +519,8 @@ export function AssetSelector({
                     )
                   })}
                 </div>
-              )
-            })}
+              ),
+            )}
           </Box>
         )}
       </Box>

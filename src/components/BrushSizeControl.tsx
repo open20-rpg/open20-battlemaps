@@ -42,7 +42,7 @@ interface VariantProps extends BrushSizeControlProps {
 function BrushSlider({ min, max, step, current, onPick }: VariantProps) {
   const { t } = useTranslation()
   return (
-    <Box px="3" py="3">
+    <Box px="3" py="1.5">
       <Flex mb="2" align="center" justify="space-between">
         <Text fontSize="xs" color="fg.muted">
           {t("tools.brushSize")}
@@ -82,7 +82,7 @@ function BrushButtons({ min, max, step, current, onPick }: VariantProps) {
   const MAX_DOT = 22
 
   return (
-    <Box px="3" py="3">
+    <Box px="3" py="1.5">
       <Flex mb="2" align="center" justify="space-between">
         <Text fontSize="xs" color="fg.muted">
           {t("tools.brushSize")}

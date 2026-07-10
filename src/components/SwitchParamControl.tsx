@@ -23,7 +23,7 @@ export function SwitchParamControl({
   const checked = (getToolParams(toolId)[paramKey] as boolean | undefined) ?? defaultValue
 
   return (
-    <Box px="3" py="3">
+    <Box px="3" py="1.5">
       <Flex align="center" justify="space-between">
         <Text fontSize="xs" color="fg.muted">
           {t(labelKey)}

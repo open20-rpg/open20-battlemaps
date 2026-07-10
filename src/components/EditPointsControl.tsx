@@ -21,7 +21,7 @@ export function EditPointsControl({
   const active = (getToolParams(toolId).editPoints as boolean | undefined) ?? defaultValue
 
   return (
-    <Box px="3" py="3">
+    <Box px="3" py="1.5">
       <Flex borderWidth="1px" borderColor="panel.border" borderRadius="md" overflow="hidden">
         <Flex
           as="button"

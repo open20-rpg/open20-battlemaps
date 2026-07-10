@@ -52,6 +52,7 @@ export function AssetPickerControl({
         selectedIds={assets}
         onSelectionChange={(ids) => setValue({ assets: ids })}
         showPreview
+        showSearch={false}
       />
       {/* Color selector below the browser. */}
       <Box px="3" py="2.5" borderTopWidth="1px" borderColor="panel.border" flexShrink={0}>

@@ -27,7 +27,7 @@ export function SortingControl({
   ]
 
   return (
-    <Box px="3" py="3">
+    <Box px="3" py="1.5">
       <Text mb="2" fontSize="xs" color="fg.muted">
         {t("tools.sorting")}
       </Text>
