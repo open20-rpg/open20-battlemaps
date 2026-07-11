@@ -1,30 +1,25 @@
 import { create } from "zustand"
-
-/** The open map document. For now it only holds its dimensions in tiles. */
-export interface MapDoc {
-  width: number
-  height: number
-}
+import { temporal } from "zundo"
+import { type MapDocument } from "../features/map/model/types"
 
 interface MapState {
   /**
-   * The current document. Its existence drives UI affordances: the assets
-   * panel becomes read-only and Save/Export become enabled while a map is
-   * open. Mutations to the document itself go through the commands in
-   * `features/map/commands` — never `set` from components.
+   * The current document, or null when no map is open. Its existence drives
+   * UI affordances: the assets panel becomes read-only and Save/Export become
+   * enabled while a map is open.
+   *
+   * The document is mutated ONLY through the commands in
+   * `features/map/commands` — never `setState` from components. Commands are
+   * what the undo/redo history tracks.
    */
-  map: MapDoc | null
-  createMap: (width: number, height: number) => void
-  closeMap: () => void
+  map: MapDocument | null
 }
 
-export const useMapStore = create<MapState>()((set) => ({
-  map: null,
-  createMap: (width, height) =>
-    set({
-      map: { width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) },
-    }),
-  closeMap: () => set({ map: null }),
-}))
+export const useMapStore = create<MapState>()(
+  temporal((): MapState => ({ map: null }), {
+    // Only the document takes part in undo/redo.
+    partialize: (s) => ({ map: s.map }),
+  }),
+)
 
 export const useHasMap = (): boolean => useMapStore((s) => s.map !== null)

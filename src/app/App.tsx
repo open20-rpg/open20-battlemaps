@@ -10,18 +10,17 @@ import { AboutDialog } from "./dialogs/AboutDialog"
 import { AssetsManager } from "../features/packs/AssetsManager"
 import { NewMapDialog } from "../features/map/NewMapDialog"
 import { MapEditor } from "../features/map/MapEditor"
+import { closeMap, createMap } from "../features/map/commands"
 import { ToolsPanel } from "../features/tools/ToolsPanel"
 import { LibraryPanel } from "../features/library"
 import { Toaster, toaster } from "../ui/chakra/toaster"
-import { useHasMap, useMapStore } from "../stores/mapStore"
+import { useHasMap } from "../stores/mapStore"
 import { useActiveTool, useToolsStore } from "../stores/toolsStore"
 import { useSettingsStore } from "../stores/settingsStore"
 
 export default function App() {
   const { t } = useTranslation()
   const hasMap = useHasMap()
-  const createMap = useMapStore((s) => s.createMap)
-  const closeMap = useMapStore((s) => s.closeMap)
   const resetTools = useToolsStore((s) => s.reset)
   const activeTool = useActiveTool()
   const libraryCategory = hasMap ? activeTool?.library : undefined
