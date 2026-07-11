@@ -175,11 +175,19 @@ const shape = (def: Shape | null, allowBrush = false): ToolParamSpec => ({
   default: def,
   allowBrush,
 })
-const editPoints = (def: boolean): ToolParamSpec => ({
+const editPoints = (def: boolean, labelKey = "tools.editPoints"): ToolParamSpec => ({
   kind: "editPoints",
   paramKey: "editPoints",
+  labelKey,
   default: def,
 })
+
+/** Path in/out transition styles (a segmented choice). */
+const PATH_TRANSITIONS: SegmentedChoice[] = [
+  { value: "none", labelKey: "tools.transNone" },
+  { value: "fade", labelKey: "tools.transFade" },
+  { value: "growth", labelKey: "tools.transGrowth" },
+]
 const brushSize = (min: number, max: number, step: number, def: number): ToolParamSpec => ({
   kind: "brushSize",
   paramKey: "brushSize",
@@ -375,11 +383,14 @@ export const TOOL_TREE: ToolNode[] = [
       tool("path", "tools.path", LuRoute, {
         library: "paths",
         params: [
-          customColor(),
+          editPoints(false, "tools.editPath"),
           objectLayer(100),
           sorting("over"),
-          shadow(false),
-          editPoints(false),
+          sliderParam("width", "tools.width", 0.1, 5, 0.01, 1),
+          sliderParam("smoothness", "tools.smoothness", 0, 1, 0.1, 1),
+          switchParam("blockLight", "tools.blockLight", false),
+          segmented("transitionIn", "tools.transitionIn", PATH_TRANSITIONS, "none"),
+          segmented("transitionOut", "tools.transitionOut", PATH_TRANSITIONS, "none"),
         ],
       }),
     ],

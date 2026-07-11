@@ -93,7 +93,13 @@ export function ToolParamControl({
         />
       )
     case "editPoints":
-      return <EditPointsControl value={getParam(values, spec)} onChange={onChange} />
+      return (
+        <EditPointsControl
+          value={getParam(values, spec)}
+          labelKey={spec.labelKey}
+          onChange={onChange}
+        />
+      )
     case "assetPicker": {
       const recolor = spec.recolor ?? "own"
       const recolorColor =

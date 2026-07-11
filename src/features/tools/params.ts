@@ -108,7 +108,8 @@ export type ToolParamSpec =
   | (BaseSpec<"shape"> & { allowBrush: boolean })
   /** Draggable size slider, always visible and never null. */
   | (BaseSpec<"brushSize"> & { min: number; max: number; step: number })
-  | BaseSpec<"editPoints">
+  /** Edit-points toggle; `labelKey` names it (Edit Points / Edit Path…). */
+  | (BaseSpec<"editPoints"> & { labelKey: string })
   /** Embedded asset browser + color, stored as an {@link AssetSelection}. */
   | (BaseSpec<"assetPicker"> & {
       labelKey: string

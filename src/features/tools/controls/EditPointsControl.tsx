@@ -9,9 +9,11 @@ import { useTranslation } from "react-i18next"
  */
 export function EditPointsControl({
   value,
+  labelKey,
   onChange,
 }: {
   value: boolean
+  labelKey: string
   onChange: (value: boolean) => void
 }) {
   const { t } = useTranslation()
@@ -33,7 +35,7 @@ export function EditPointsControl({
           aria-pressed={value}
         >
           <Icon as={LuSpline} boxSize="4" />
-          <Text fontSize="sm">{t("tools.editPoints")}</Text>
+          <Text fontSize="sm">{t(labelKey)}</Text>
         </Flex>
       </Flex>
     </Box>
