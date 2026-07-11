@@ -99,6 +99,10 @@ ni accionable.
   `user.email` configurados en git). No agregues trailers de co-autoría ni de asistentes
   (`Co-Authored-By` u otros).
 - Nunca trabajes en worktrees, siempre sobre la rama principal.
+- **Nunca hagas `git commit` ni `git push` sin permiso explícito para ese
+  cambio puntual** — ni siquiera en tareas que impliquen git de por sí (bump
+  de versión, releases, fixes ya verificados). Dejá el cambio hecho y sin
+  commitear, y pedí confirmación antes de commitear/pushear.
 
 ## Release
 
