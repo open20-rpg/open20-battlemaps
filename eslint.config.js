@@ -23,14 +23,6 @@ export default tseslint.config(
     },
   },
   {
-    // Chakra CLI snippets (toaster exports the imperative `toaster` next to
-    // the component, per Chakra's design).
-    files: ["src/ui/chakra/**"],
-    rules: {
-      "react-refresh/only-export-components": "off",
-    },
-  },
-  {
     files: ["*.config.{js,ts}", "vite.config.ts"],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
   },

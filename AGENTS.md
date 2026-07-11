@@ -9,10 +9,19 @@ hay gestión de packs, librería de assets y el sistema de herramientas/params.
 
 - `npm run dev` — frontend solo (Vite). `npm run tauri dev` — app completa.
 - `npm run check` — tsc + eslint + prettier check. `npm run test` — Vitest.
-  Corré ambos antes de terminar cualquier cambio.
 - `npm run doctor` — react-doctor (mal uso de React: efectos, renders, etc.).
 - Backend: `cargo check --manifest-path src-tauri/Cargo.toml` y `cargo test`
   tras tocar Rust; `cargo fmt` antes de terminar.
+
+**Ningún cambio está terminado si no pasan `npm run check`, `npm run test` y
+`npm run doctor` (este último debe dar 100/100, cero issues).** Los hallazgos
+se arreglan en la causa raíz: está PROHIBIDO suprimirlos (`eslint-disable`,
+`@ts-ignore`/`@ts-expect-error`, `#[allow]`, apagar reglas en
+`eslint.config.js`, o excluir archivos de react-doctor). Hoy el repo tiene
+cero supresiones; mantenelo así. Única excepción tolerada: la warning
+informativa `react-hooks/incompatible-library` (el React Compiler no puede
+optimizar componentes que usan `@tanstack/react-virtual`) — no es suprimible
+ni accionable.
 
 ## Arquitectura (invariantes — no romper)
 
