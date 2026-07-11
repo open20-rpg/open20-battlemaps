@@ -30,115 +30,17 @@ struct InstallProgress<'a> {
 ///
 /// On desktop the picker returns a real filesystem path. On Android the Storage
 /// Access Framework returns a `content://` URI that has no path, so we resolve
-/// it to a file descriptor through the platform ContentResolver and read the
-/// pack straight from it — no temporary copy, so disk/time cost matches desktop.
+/// it to a file descriptor through the platform ContentResolver (see
+/// `crate::android_fs`) and read the pack straight from it — no temporary
+/// copy, so disk/time cost matches desktop.
 fn open_pack_source(src: &str) -> Result<File> {
     #[cfg(target_os = "android")]
     {
         if src.starts_with("content://") {
-            return open_content_uri(src);
+            return crate::android_fs::open_content_uri(src, "r").map_err(PackError::Other);
         }
     }
     Ok(File::open(src)?)
-}
-
-/// Captures the `JavaVM` when the JVM loads our native library. The Tauri/wry
-/// runtime does not populate `ndk-context`, so `JNI_OnLoad` is the reliable way
-/// to reach the VM from arbitrary threads (e.g. the blocking install pool).
-#[cfg(target_os = "android")]
-mod android_jni {
-    use jni::sys::{jint, JNI_VERSION_1_6};
-    use jni::JavaVM;
-    use std::ffi::c_void;
-    use std::sync::OnceLock;
-
-    static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
-
-    #[no_mangle]
-    pub extern "system" fn JNI_OnLoad(vm: *mut jni::sys::JavaVM, _reserved: *mut c_void) -> jint {
-        if let Ok(vm) = unsafe { JavaVM::from_raw(vm) } {
-            let _ = JAVA_VM.set(vm);
-        }
-        JNI_VERSION_1_6
-    }
-
-    pub fn java_vm() -> Option<&'static JavaVM> {
-        JAVA_VM.get()
-    }
-}
-
-/// Resolve an Android `content://` URI to an owned `File` via a `content://`
-/// ParcelFileDescriptor. `detachFd` transfers ownership of the fd to us, so the
-/// returned `File` stays valid after the JNI thread detaches.
-#[cfg(target_os = "android")]
-fn open_content_uri(uri: &str) -> Result<File> {
-    use jni::objects::JValue;
-    use std::os::unix::io::FromRawFd;
-
-    let jni_err = |ctx: &str, e: jni::errors::Error| PackError::Other(format!("{ctx}: {e}"));
-
-    let vm = android_jni::java_vm()
-        .ok_or_else(|| PackError::Other("JavaVM not captured (JNI_OnLoad missing)".into()))?;
-    let mut env = vm
-        .attach_current_thread()
-        .map_err(|e| jni_err("attach", e))?;
-
-    // App Context via ActivityThread.currentApplication() — available off any
-    // thread once the app is running, without ndk-context or an activity handle.
-    let context = env
-        .call_static_method(
-            "android/app/ActivityThread",
-            "currentApplication",
-            "()Landroid/app/Application;",
-            &[],
-        )
-        .and_then(|v| v.l())
-        .map_err(|e| jni_err("currentApplication", e))?;
-    if context.is_null() {
-        return Err(PackError::Other("no current Application context".into()));
-    }
-
-    let resolver = env
-        .call_method(
-            &context,
-            "getContentResolver",
-            "()Landroid/content/ContentResolver;",
-            &[],
-        )
-        .and_then(|v| v.l())
-        .map_err(|e| jni_err("getContentResolver", e))?;
-
-    let juri = env.new_string(uri).map_err(|e| jni_err("new_string", e))?;
-    let uri_obj = env
-        .call_static_method(
-            "android/net/Uri",
-            "parse",
-            "(Ljava/lang/String;)Landroid/net/Uri;",
-            &[JValue::Object(&juri)],
-        )
-        .and_then(|v| v.l())
-        .map_err(|e| jni_err("Uri.parse", e))?;
-
-    let mode = env.new_string("r").map_err(|e| jni_err("new_string", e))?;
-    let pfd = env
-        .call_method(
-            &resolver,
-            "openFileDescriptor",
-            "(Landroid/net/Uri;Ljava/lang/String;)Landroid/os/ParcelFileDescriptor;",
-            &[JValue::Object(&uri_obj), JValue::Object(&mode)],
-        )
-        .and_then(|v| v.l())
-        .map_err(|e| jni_err("openFileDescriptor", e))?;
-    if pfd.is_null() {
-        return Err(PackError::Other("openFileDescriptor returned null".into()));
-    }
-
-    let fd = env
-        .call_method(&pfd, "detachFd", "()I", &[])
-        .and_then(|v| v.i())
-        .map_err(|e| jni_err("detachFd", e))?;
-
-    Ok(unsafe { File::from_raw_fd(fd) })
 }
 
 /// Extract a single pack file into `app_data/packs/<id>/`, streaming every

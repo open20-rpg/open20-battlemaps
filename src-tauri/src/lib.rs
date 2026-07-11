@@ -1,3 +1,5 @@
+#[cfg(target_os = "android")]
+mod android_fs;
 mod fonts;
 mod map;
 mod pack;
