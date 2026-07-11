@@ -76,6 +76,9 @@ ni accionable.
 - Comentarios: explican restricciones y porqués, no qué hace la línea.
 - Lógica pura nueva (params, commands, model, io, parsing en Rust) exige test
   unitario junto al archivo (`*.test.ts` / `#[cfg(test)]`).
+- **Commits a nombre de quien los hace** (el `user.name` y
+  `user.email` configurados en git). No agregues trailers de co-autoría ni de asistentes
+  (`Co-Authored-By` u otros).
 
 ## Verificación
 
