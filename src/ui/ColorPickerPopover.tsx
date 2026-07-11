@@ -25,6 +25,8 @@ export function ColorPickerPopover({
 }) {
   const [open, setOpen] = useState(false)
   const [color, setColor] = useState(() => parseColor(value))
+  // Opaque form of the current color, for the alpha track fallback gradient.
+  const opaqueHex = color.toString("hex")
 
   return (
     <ColorPicker.Root
@@ -57,6 +59,16 @@ export function ColorPickerPopover({
               <ColorPicker.AreaThumb boxSize="18px" />
             </ColorPicker.Area>
             <ColorPicker.ChannelSlider channel="hue" h="22px">
+              {/* Static rainbow fallback: Chakra's hue gradient uses modern CSS
+                  color interpolation the Android WebView can't render. */}
+              <Box
+                position="absolute"
+                inset="0"
+                borderRadius="full"
+                css={{
+                  background: "linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)",
+                }}
+              />
               <ColorPicker.ChannelSliderTrack h="full" borderRadius="full">
                 <ColorPicker.ChannelSliderThumb boxSize="22px" />
               </ColorPicker.ChannelSliderTrack>
@@ -71,6 +83,13 @@ export function ColorPickerPopover({
                     "conic-gradient(#0000 90deg, #7a7a7a 90deg 180deg, #0000 180deg 270deg, #7a7a7a 270deg)",
                   backgroundSize: "12px 12px",
                 }}
+              />
+              {/* Transparent→color fallback over the checkerboard (Android). */}
+              <Box
+                position="absolute"
+                inset="0"
+                borderRadius="full"
+                css={{ background: `linear-gradient(to right, transparent, ${opaqueHex})` }}
               />
               <ColorPicker.ChannelSliderTrack h="full" borderRadius="full">
                 <ColorPicker.ChannelSliderThumb boxSize="22px" />
