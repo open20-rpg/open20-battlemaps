@@ -47,7 +47,13 @@ export function useMapFile() {
 
   const handleOpen = guarded(async () => {
     try {
-      await openMapFlow()
+      const { opened, missingPacks } = await openMapFlow()
+      if (opened && missingPacks.length > 0) {
+        toaster.create({
+          title: t("toast.missingPacks", { count: missingPacks.length }),
+          type: "warning",
+        })
+      }
     } catch (err) {
       toaster.create({ title: t("toast.mapOpenError", { error: String(err) }), type: "error" })
     }

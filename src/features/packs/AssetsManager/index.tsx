@@ -16,6 +16,7 @@ import { withLoading } from "../../../stores/loadingStore"
 import { usePacksStore } from "../../../stores/packsStore"
 import { useHasMap } from "../../../stores/mapStore"
 import { openPacksDir, setPackEnabled, uninstallPack } from "../api"
+import { isPackUsed, clearPackReferences } from "../../map/packUsage"
 import { PackList } from "./PackList"
 import { PackPreview } from "./PackPreview"
 import { useInstallFlow } from "./useInstallFlow"
@@ -32,8 +33,6 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const applyEnabled = usePacksStore((s) => s.applyEnabled)
   const removePacks = usePacksStore((s) => s.removePacks)
   const hasMap = useHasMap()
-  // While a map is open, the pack selection is locked (read-only).
-  const readOnly = hasMap
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [mutating, setMutating] = useState(false)
@@ -77,11 +76,25 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
 
   const setEnabledForSelected = async (enabled: boolean) => {
     const ids = [...selected]
+    if (ids.length === 0) return
+
+    // Deactivating a pack the open map depends on deletes the configs that
+    // reference it, and that reset isn't tracked by undo/redo — confirm first.
+    const usedIds = enabled ? [] : ids.filter((id) => isPackUsed(id))
+    if (usedIds.length > 0) {
+      const ok = await confirm(t("assets.deactivateUsedConfirm", { count: usedIds.length }), {
+        title: t("assets.deactivateUsedTitle"),
+        kind: "warning",
+      })
+      if (!ok) return
+    }
+
     setMutating(true)
     try {
       await withLoading(t("loading.updatingPacks"), async () => {
         await Promise.all(ids.map((id) => setPackEnabled(id, enabled)))
         applyEnabled(ids, enabled)
+        for (const id of usedIds) clearPackReferences(id)
       })
     } finally {
       setMutating(false)
@@ -121,7 +134,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       borderColor="panel.border"
       flexWrap="wrap"
     >
-      <Button size="xs" colorPalette="blue" onClick={install} loading={busy} disabled={readOnly}>
+      <Button size="xs" colorPalette="blue" onClick={install} loading={busy} disabled={hasMap}>
         <LuPackagePlus />
         {t("assets.install")}
       </Button>
@@ -133,7 +146,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       <Button
         size="xs"
         variant="subtle"
-        disabled={!hasSelection || busy || readOnly}
+        disabled={!hasSelection || busy}
         onClick={() => setEnabledForSelected(true)}
       >
         <LuCirclePlay />
@@ -142,7 +155,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       <Button
         size="xs"
         variant="subtle"
-        disabled={!hasSelection || busy || readOnly}
+        disabled={!hasSelection || busy}
         onClick={() => setEnabledForSelected(false)}
       >
         <LuCircleOff />
@@ -152,16 +165,16 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
         size="xs"
         variant="subtle"
         colorPalette="red"
-        disabled={!hasSelection || busy || readOnly}
+        disabled={!hasSelection || busy || hasMap}
         onClick={handleDelete}
       >
         <LuTrash2 />
         {t("assets.delete")}
       </Button>
       <Box flex="1" />
-      {readOnly && (
-        <Badge colorPalette="orange" variant="subtle" title={t("assets.readOnlyHint")}>
-          {t("assets.readOnly")}
+      {hasMap && (
+        <Badge colorPalette="orange" variant="subtle" title={t("assets.mapOpenHint")}>
+          {t("assets.mapOpenBadge")}
         </Badge>
       )}
       <IconButton
@@ -196,7 +209,6 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
             loading={loading}
             selected={selected}
             focusedId={focusedId}
-            readOnly={readOnly}
             progress={progress}
             onToggle={toggle}
             onToggleAll={toggleAll}

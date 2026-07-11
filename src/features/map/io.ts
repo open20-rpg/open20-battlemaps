@@ -4,16 +4,20 @@ import { useMapStore } from "../../stores/mapStore"
 import { useMapFileStore } from "../../stores/mapFileStore"
 import { useViewStore } from "../../stores/viewStore"
 import { useToolsStore } from "../../stores/toolsStore"
+import { usePacksStore } from "../../stores/packsStore"
+import { setPackEnabled } from "../packs/api"
 import { TOOL_BY_ID } from "../tools/definitions"
 import { resolveParams, type ToolParamValues } from "../tools/params"
 import { loadMap } from "./commands"
+import { getUsedPackIds } from "./packUsage"
 import type { MapDocument } from "./model/types"
 
 /**
  * `.opdr` save format — a plain JSON envelope around the map document plus
- * enough editor state to restore the session: view toggles/zoom and any tool
+ * enough editor state to restore the session: view toggles/zoom, any tool
  * params that differ from their defaults (kept as deltas so the file stays
- * small and forward-compatible as new tools/params are added).
+ * small and forward-compatible as new tools/params are added), and the pack
+ * ids the map depends on (re-enabled on open if the user has them off).
  */
 export const OPDR_FORMAT = "opendraft-map"
 export const OPDR_FORMAT_VERSION = 1
@@ -46,6 +50,14 @@ export interface OpdrFile {
   view: OpdrView
   /** Per-tool param deltas — only params that differ from their spec default. */
   tools: Record<string, ToolParamValues>
+  /** Pack ids referenced by the map (assets picked in tools/entities). */
+  packs: string[]
+}
+
+export interface OpenMapResult {
+  opened: boolean
+  /** Pack ids the map references that aren't installed on this machine. */
+  missingPacks: string[]
 }
 
 export class OpdrParseError extends Error {}
@@ -66,7 +78,7 @@ function diffToolParams(
   return out
 }
 
-/** Snapshot the current session (map + view + tool deltas) into a save envelope. */
+/** Snapshot the current session (map + view + tool deltas + used packs) into a save envelope. */
 function buildSaveFile(): OpdrFile {
   const map = useMapStore.getState().map
   if (!map) throw new Error("No map is open")
@@ -86,6 +98,7 @@ function buildSaveFile(): OpdrFile {
     map,
     view: { grid, snap, lighting, shadows, zoom },
     tools: diffToolParams(paramsByTool),
+    packs: [...getUsedPackIds()],
   }
 }
 
@@ -107,13 +120,39 @@ function parseSaveFile(raw: string): OpdrFile {
   return file as OpdrFile
 }
 
+/**
+ * Enable every pack the map depends on that's currently installed but
+ * disabled. Returns the ids that aren't installed at all (nothing we can do
+ * about those beyond letting the caller warn the user).
+ */
+async function enableMapPacks(packIds: string[]): Promise<string[]> {
+  if (packIds.length === 0) return []
+  // The pack list is loaded lazily (first AssetsManager open); make sure we
+  // have it before deciding what's disabled vs. not installed at all.
+  if (!usePacksStore.getState().loaded) await usePacksStore.getState().refresh()
+  const installed = usePacksStore.getState().packs
+  const missing: string[] = []
+  const toEnable: string[] = []
+  for (const id of packIds) {
+    const pack = installed.find((p) => p.id === id)
+    if (!pack) missing.push(id)
+    else if (!pack.enabled) toEnable.push(id)
+  }
+  if (toEnable.length > 0) {
+    await Promise.all(toEnable.map((id) => setPackEnabled(id, true)))
+    usePacksStore.getState().applyEnabled(toEnable, true)
+  }
+  return missing
+}
+
 /** Apply a parsed save file to the live stores, replacing the current session. */
-function applySaveFile(file: OpdrFile): void {
+async function applySaveFile(file: OpdrFile): Promise<string[]> {
   loadMap(file.map)
   useViewStore.setState({ ...file.view })
   for (const [toolId, delta] of Object.entries(file.tools)) {
     useToolsStore.getState().setToolParams(toolId, delta)
   }
+  return enableMapPacks(file.packs ?? [])
 }
 
 async function writeMapTo(path: string): Promise<void> {
@@ -140,13 +179,13 @@ export async function saveMap(): Promise<boolean> {
   return saveMapAs()
 }
 
-/** Prompt for a `.opdr` file and load it, replacing the current session. False if cancelled. */
-export async function openMapFlow(): Promise<boolean> {
+/** Prompt for a `.opdr` file and load it, replacing the current session. */
+export async function openMapFlow(): Promise<OpenMapResult> {
   const selected = await openDialog({ filters: OPDR_FILTERS, multiple: false })
-  if (!selected || Array.isArray(selected)) return false
+  if (!selected || Array.isArray(selected)) return { opened: false, missingPacks: [] }
   const raw = await invoke<string>("load_map", { path: selected })
   const file = parseSaveFile(raw)
-  applySaveFile(file)
+  const missingPacks = await applySaveFile(file)
   useMapFileStore.getState().setLoaded(selected, file.meta.createdAt, file.meta.appVersion)
-  return true
+  return { opened: true, missingPacks }
 }

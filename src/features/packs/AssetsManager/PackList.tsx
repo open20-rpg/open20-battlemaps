@@ -138,7 +138,6 @@ interface PackListProps {
   loading: boolean
   selected: Set<string>
   focusedId: string | null
-  readOnly: boolean
   /** Install progress shown between the header and the list, when present. */
   progress: InstallProgress | null
   onToggle: (id: string) => void
@@ -151,7 +150,6 @@ export function PackList({
   loading,
   selected,
   focusedId,
-  readOnly,
   progress,
   onToggle,
   onToggleAll,
@@ -174,7 +172,6 @@ export function PackList({
         >
           <Checkbox.Root
             checked={allSelected ? true : selected.size > 0 ? "indeterminate" : false}
-            disabled={readOnly}
             onCheckedChange={onToggleAll}
             colorPalette="blue"
             size="sm"
@@ -232,7 +229,6 @@ export function PackList({
               pack={pack}
               selected={selected.has(pack.id)}
               focused={focusedId === pack.id}
-              disabled={readOnly}
               onToggle={onToggle}
               onFocus={onFocus}
             />

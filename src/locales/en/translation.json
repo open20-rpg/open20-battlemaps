@@ -28,7 +28,8 @@
     "openMap": "Open map",
     "mapSaved": "Map saved",
     "mapSaveError": "Couldn't save the map: {{error}}",
-    "mapOpenError": "Couldn't open the map: {{error}}"
+    "mapOpenError": "Couldn't open the map: {{error}}",
+    "missingPacks": "{{count}} pack(s) used by this map aren't installed"
   },
   "prefs": {
     "title": "Preferences",
@@ -74,8 +75,8 @@
     "delete": "Delete",
     "refresh": "Refresh",
     "close": "Close",
-    "readOnly": "Read-only",
-    "readOnlyHint": "The map is open: asset pack selection is read-only.",
+    "mapOpenBadge": "Map open",
+    "mapOpenHint": "A map is open: installing and deleting packs is disabled.",
     "selectedCount": "{{count}} selected",
     "installedCount": "{{count}} pack(s) installed",
     "installing": "Installing “{{pack}}” — {{index}}/{{total}}",
@@ -87,7 +88,9 @@
     "installError": "Could not install: {{error}}",
     "deleteTitle": "Uninstall assets",
     "deleteConfirm": "Delete {{count}} pack(s)? Files will be removed from disk.",
-    "errorTitle": "Error"
+    "errorTitle": "Error",
+    "deactivateUsedTitle": "Deactivate pack(s) in use?",
+    "deactivateUsedConfirm": "{{count}} of the selected pack(s) are used by the current map. Deactivating will delete the configurations that depend on them. This can't be undone — save your map first if you want to keep them."
   },
   "preview": {
     "empty": "Select a pack to see its details.",
