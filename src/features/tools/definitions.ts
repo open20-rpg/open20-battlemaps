@@ -135,6 +135,9 @@ const customColor = (
 
 /** Deep/Shallow water swatches offered by the Water Brush color pickers. */
 const WATER_PRESETS = ["#3aa19a", "#8bceb0", "#ffcc55", "#3c8ab8"]
+
+/** Light color swatches offered by the Light Tool color picker. */
+const LIGHT_PRESETS = ["#eccd8b", "#eaefca", "#80beff", "#ffad58", "#4dd569"]
 const objectLayer = (def: number): ToolParamSpec => ({
   kind: "layer",
   paramKey: "layer",
@@ -441,8 +444,22 @@ export const TOOL_TREE: ToolNode[] = [
     nameKey: "tools.effects",
     icon: LuSparkles,
     children: [
-      tool("environment", "tools.environment", LuCloudSun),
-      tool("light", "tools.light", LuLightbulb, { params: [shadow(true)] }),
+      tool("environment", "tools.environment", LuCloudSun, {
+        params: [customColor("ambientLight", "tools.ambientLight", "#ffffff")],
+      }),
+      tool("light", "tools.light", LuLightbulb, {
+        params: [
+          sliderParam("range", "tools.range", 0.5, 20, 0.1, 5),
+          sliderParam("intensity", "tools.intensity", 0.5, 3, 0.1, 1),
+          shadow(true),
+          switchParam("widgets", "tools.widgets", true),
+          customColor("color", "tools.color", "#eccd8b", LIGHT_PRESETS),
+          // The Style browser embeds the lights library, recolored by Color.
+          assetPicker("style", "tools.style", "lights", "single", DEFAULT_CUSTOM_COLOR, false, {
+            fromParam: "color",
+          }),
+        ],
+      }),
     ],
   },
   {

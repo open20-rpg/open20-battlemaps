@@ -4,4 +4,4 @@
  * `category_folder` in src-tauri.
  */
 export type AssetCategory =
-  "tilesets" | "walls" | "portals" | "caves" | "roofs" | "paths" | "objects" | "terrain"
+  "tilesets" | "walls" | "portals" | "caves" | "roofs" | "paths" | "objects" | "terrain" | "lights"

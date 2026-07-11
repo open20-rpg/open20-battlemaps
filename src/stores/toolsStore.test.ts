@@ -15,7 +15,9 @@ describe("toolsStore", () => {
   })
 
   it("getToolParams resolves defaults for never-selected tools", () => {
-    expect(getToolParams("light")).toEqual({ shadow: true })
+    // A tool with params materializes all of them; a param-less tool is empty.
+    expect(getToolParams("light")).toMatchObject({ shadow: true, widgets: true, range: 5 })
+    expect(getToolParams("mapSettings")).toEqual({})
   })
 
   it("applies the tool's normalizer within the same update", () => {
