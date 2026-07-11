@@ -13,7 +13,8 @@
     "redo": "Rehacer",
     "assets": "Activos",
     "extensions": "Extensiones",
-    "about": "Acerca de"
+    "about": "Acerca de",
+    "saveAs": "Guardar como"
   },
   "canvas": {
     "title": "OpenDraft",
@@ -24,7 +25,10 @@
     "noRecent": "No hay archivos recientes",
     "soon": "{{label}}: próximamente",
     "newMap": "Nuevo mapa",
-    "openMap": "Abrir mapa"
+    "openMap": "Abrir mapa",
+    "mapSaved": "Mapa guardado",
+    "mapSaveError": "No se pudo guardar el mapa: {{error}}",
+    "mapOpenError": "No se pudo abrir el mapa: {{error}}"
   },
   "prefs": {
     "title": "Preferencias",
@@ -254,7 +258,8 @@
     "ready": "Listo",
     "loading": "Cargando...",
     "loadingCount": "Cargando {{count}} procesos...",
-    "processes": "Procesos en curso"
+    "processes": "Procesos en curso",
+    "untitled": "Sin título"
   },
   "loading": {
     "installingAssets": "Instalando activos",
@@ -264,5 +269,11 @@
     "deletingAssets": "Eliminando activos",
     "searchingLibrary": "Buscando en la biblioteca",
     "loadingFonts": "Cargando fuentes"
+  },
+  "mapFile": {
+    "discardTitle": "¿Descartar los cambios sin guardar?",
+    "discardBody": "Este mapa tiene cambios sin guardar. Si continúas, se perderán.",
+    "discardConfirm": "Descartar",
+    "discardCancel": "Cancelar"
   }
 }

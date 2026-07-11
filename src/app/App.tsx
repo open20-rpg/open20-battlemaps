@@ -11,6 +11,7 @@ import { AssetsManager } from "../features/packs/AssetsManager"
 import { NewMapDialog } from "../features/map/NewMapDialog"
 import { MapEditor } from "../features/map/MapEditor"
 import { closeMap, createMap } from "../features/map/commands"
+import { useMapFile } from "../features/map/useMapFile"
 import { ToolsPanel } from "../features/tools/ToolsPanel"
 import { LibraryPanel } from "../features/library/LibraryPanel"
 import { Toaster } from "../ui/chakra/toaster"
@@ -45,6 +46,8 @@ export default function App() {
   const notImplemented = (label: string) =>
     toaster.create({ title: t("toast.soon", { label }), type: "info" })
 
+  const { handleSave, handleSaveAs, handleOpen, guarded } = useMapFile()
+
   return (
     <Flex direction="column" h="100vh" pb={STATUS_BAR_HEIGHT} bg="app.bg">
       <MenuBar
@@ -55,9 +58,11 @@ export default function App() {
         onOpenAbout={() => setAboutOpen(true)}
         onOpenRecent={() => toaster.create({ title: t("toast.noRecent"), type: "info" })}
         onExit={() => getCurrentWindow().close()}
-        onNew={() => setNewMapOpen(true)}
-        onOpen={() => notImplemented(t("toast.openMap"))}
-        onCloseMap={closeMap}
+        onNew={guarded(() => setNewMapOpen(true))}
+        onOpen={handleOpen}
+        onCloseMap={guarded(closeMap)}
+        onSave={handleSave}
+        onSaveAs={handleSaveAs}
         onComingSoon={notImplemented}
       />
 

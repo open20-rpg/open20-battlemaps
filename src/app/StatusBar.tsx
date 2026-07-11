@@ -4,6 +4,7 @@ import { LuCircleCheck } from "react-icons/lu"
 import { Tooltip } from "../ui/chakra/tooltip"
 import { useIsLoading, useLoadingStore } from "../stores/loadingStore"
 import { useHasMap } from "../stores/mapStore"
+import { useMapDirty, useMapFilePath } from "../stores/mapFileStore"
 import { useActiveTool } from "../stores/toolsStore"
 
 /** Height of the status bar; the app reserves this much space at the bottom. */
@@ -42,8 +43,12 @@ export function StatusBar() {
   const tasks = useLoadingStore((s) => s.tasks)
   const isLoading = useIsLoading()
   const hasMap = useHasMap()
+  const filePath = useMapFilePath()
+  const dirty = useMapDirty()
   const activeTool = useActiveTool()
   const { t } = useTranslation()
+
+  const fileName = filePath ? (filePath.split(/[\\/]/).pop() ?? filePath) : t("status.untitled")
 
   // Overall progress = average of tasks that report a percentage.
   const withPct = tasks.filter((task) => typeof task.progress === "number")
@@ -82,6 +87,17 @@ export function StatusBar() {
         <Text fontWeight="medium" color="menubar.fgMuted">
           OpenDraft v{__APP_VERSION__}
         </Text>
+
+        {/* Current file (only when a map is open) */}
+        {hasMap && (
+          <>
+            <Sep />
+            <Text color="menubar.fg">
+              {fileName}
+              {dirty ? " •" : ""}
+            </Text>
+          </>
+        )}
 
         {/* Current tool (only when a map is open and a tool is picked) */}
         {hasMap && activeTool && (

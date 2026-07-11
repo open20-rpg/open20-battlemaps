@@ -1,4 +1,5 @@
 mod fonts;
+mod map;
 mod pack;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -22,6 +23,8 @@ pub fn run() {
             pack::get_library_items,
             pack::release_library_search,
             fonts::list_system_fonts,
+            map::save_map,
+            map::load_map,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

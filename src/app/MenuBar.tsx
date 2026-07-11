@@ -61,6 +61,8 @@ export interface MenuBarProps {
   onNew: () => void
   onOpen: () => void
   onCloseMap: () => void
+  onSave: () => void
+  onSaveAs: () => void
   /** Placeholder handler for not-yet-implemented actions. */
   onComingSoon: (label: string) => void
 }
@@ -122,6 +124,10 @@ export function MenuBar(props: MenuBarProps) {
                 <LuSquareX />
                 <Text ml="2">{t("menu.closeMap")}</Text>
               </Menu.Item>
+              <Menu.Item value="saveAs" disabled={!props.mapOpen} onClick={props.onSaveAs}>
+                <LuSave />
+                <Text ml="2">{t("menu.saveAs")}</Text>
+              </Menu.Item>
               <Menu.Separator />
               <Menu.Item value="prefs" onClick={props.onOpenPreferences}>
                 <LuSettings />
@@ -148,7 +154,7 @@ export function MenuBar(props: MenuBarProps) {
         icon={LuSave}
         label={t("menu.save")}
         disabled={!props.mapOpen}
-        onClick={() => props.onComingSoon(t("menu.save"))}
+        onClick={props.onSave}
       />
       <BarButton
         icon={LuUpload}

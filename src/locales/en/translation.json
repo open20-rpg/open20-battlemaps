@@ -13,7 +13,8 @@
     "redo": "Redo",
     "assets": "Assets",
     "extensions": "Extensions",
-    "about": "About"
+    "about": "About",
+    "saveAs": "Save As"
   },
   "canvas": {
     "title": "OpenDraft",
@@ -24,7 +25,10 @@
     "noRecent": "No recent files",
     "soon": "{{label}}: coming soon",
     "newMap": "New map",
-    "openMap": "Open map"
+    "openMap": "Open map",
+    "mapSaved": "Map saved",
+    "mapSaveError": "Couldn't save the map: {{error}}",
+    "mapOpenError": "Couldn't open the map: {{error}}"
   },
   "prefs": {
     "title": "Preferences",
@@ -254,7 +258,8 @@
     "ready": "Ready",
     "loading": "Loading...",
     "loadingCount": "Loading {{count}} processes...",
-    "processes": "Running processes"
+    "processes": "Running processes",
+    "untitled": "Untitled"
   },
   "loading": {
     "installingAssets": "Installing assets",
@@ -264,5 +269,11 @@
     "deletingAssets": "Deleting assets",
     "searchingLibrary": "Searching library",
     "loadingFonts": "Loading fonts"
+  },
+  "mapFile": {
+    "discardTitle": "Discard unsaved changes?",
+    "discardBody": "This map has unsaved changes. Continuing will discard them.",
+    "discardConfirm": "Discard",
+    "discardCancel": "Cancel"
   }
 }
