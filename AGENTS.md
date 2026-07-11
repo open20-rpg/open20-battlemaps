@@ -18,9 +18,10 @@ hay gestión de packs, librería de assets y el sistema de herramientas/params.
 
 - **Estados globales separados por dominio** en `src/stores/` (Zustand): map,
   tools, packs, settings, preview, loading, modalStack. Nunca fusionarlos ni
-  crear un store "app". La comunicación entre features pasa por stores; las
-  features no se importan entre sí, salvo a través del `index.ts` público de
-  otra feature (ej. `features/library` exporta `AssetSelector`).
+  crear un store "app". La comunicación de _estado_ entre features pasa por
+  stores; una feature puede componer componentes públicos de otra (ej. el
+  asset picker de tools usa `library/AssetSelector`) importando el archivo
+  directo — sin barrels (`index.ts` re-export): empeoran el tree-shaking.
 - **Herramientas data-driven**: `features/tools/definitions.ts` define la
   paleta como datos (`TOOL_TREE`); `features/tools/behaviors/` define el
   comportamiento por id (registry, hoy vacío hasta que llegue el editor). Para

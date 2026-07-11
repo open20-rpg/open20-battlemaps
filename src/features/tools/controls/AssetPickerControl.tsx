@@ -1,7 +1,7 @@
 import { Box, Flex, Text } from "@chakra-ui/react"
 import { LuChevronDown } from "react-icons/lu"
 import { useTranslation } from "react-i18next"
-import { AssetSelector } from "../../library"
+import { AssetSelector } from "../../library/AssetSelector"
 import { ColorPickerPopover } from "../../../ui/ColorPickerPopover"
 import { type AssetCategory } from "../../../lib/categories"
 import { type AssetSelection } from "../params"

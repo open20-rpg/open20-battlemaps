@@ -23,11 +23,11 @@ export default tseslint.config(
     },
   },
   {
-    // Chakra CLI snippets — vendored code, keep diffable against upstream.
-    files: ["src/ui/chakra/**", "src/components/ui/**"],
+    // Chakra CLI snippets (toaster exports the imperative `toaster` next to
+    // the component, per Chakra's design).
+    files: ["src/ui/chakra/**"],
     rules: {
       "react-refresh/only-export-components": "off",
-      "@typescript-eslint/no-empty-object-type": "off",
     },
   },
   {

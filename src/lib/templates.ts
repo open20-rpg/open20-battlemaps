@@ -30,17 +30,23 @@ export function loadUserTemplates(): MapTemplate[] {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed
-      .filter(
-        (t) =>
-          t && typeof t.name === "string" && Number.isFinite(t.width) && Number.isFinite(t.height),
+    const out: MapTemplate[] = []
+    for (const t of parsed) {
+      if (
+        !t ||
+        typeof t.name !== "string" ||
+        !Number.isFinite(t.width) ||
+        !Number.isFinite(t.height)
       )
-      .map((t) => ({
+        continue
+      out.push({
         id: String(t.id ?? `u_${t.name}`),
         name: String(t.name),
         width: Math.max(1, Math.round(t.width)),
         height: Math.max(1, Math.round(t.height)),
-      }))
+      })
+    }
+    return out
   } catch {
     return []
   }

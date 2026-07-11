@@ -1,6 +1,6 @@
 import { Flex } from "@chakra-ui/react"
 import { useToolsStore } from "../../stores/toolsStore"
-import { ObjectPreview } from "../library"
+import { ObjectPreview } from "../library/ObjectPreview"
 import { TOOL_TREE } from "./definitions"
 import { IconBar } from "./panels/IconBar"
 import { GroupPanel } from "./panels/GroupPanel"
