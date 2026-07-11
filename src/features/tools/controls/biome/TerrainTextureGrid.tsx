@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 import { useAssetSearch } from "../../../library/AssetSelector/useAssetSearch"
 import { thumbUrl, type LibItem } from "../../../library/api"
 
-const CELL = 180 // texture tile size in px
+const CELL = 140 // texture tile size in px
 const GAP = 10
 const NAME_H = 28 // room for the (up to 2-line) name under each tile
 const ROW_H = CELL + NAME_H + GAP
