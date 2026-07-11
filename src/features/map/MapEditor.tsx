@@ -1,5 +1,5 @@
 import { Box, Image } from "@chakra-ui/react"
-import mapCover from "../assets/map-placeholder.png"
+import mapCover from "../../assets/map-placeholder.png"
 
 /**
  * The map editor. For now it only shows a placeholder cover image; the real

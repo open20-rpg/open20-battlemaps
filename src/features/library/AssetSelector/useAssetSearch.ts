@@ -144,14 +144,14 @@ export function useAssetSearch({
   // after mount, via `tick`). Skipped when null is allowed (empty is valid).
   // The parent callback goes through an effect event so the effect itself only
   // reacts to the values that can make a default selection necessary.
-  const applyDefaultSelection = useEffectEvent((ids: string[] | undefined, count: number) => {
+  const applyDefaultSelection = useEffectEvent(() => {
     if (select !== "single" || allowNull || !onSelectionChange) return
-    if ((ids?.length ?? 0) > 0 || count === 0) return
+    if ((selectedIds?.length ?? 0) > 0 || total === 0) return
     const first = items.current.get(0)
     if (first) onSelectionChange([first.id])
   })
   useEffect(() => {
-    applyDefaultSelection(selectedIds, total)
+    applyDefaultSelection()
   }, [select, allowNull, selectedIds, total, tick])
 
   // Release the backend result cache when the browser instance goes away.

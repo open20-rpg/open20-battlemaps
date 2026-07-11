@@ -7,10 +7,9 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react"
-import { Box, Flex, HStack, IconButton, Input, Slider, Text, VStack } from "@chakra-ui/react"
+import { Box, Flex, Text } from "@chakra-ui/react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useTranslation } from "react-i18next"
-import { LuX } from "react-icons/lu"
 import { usePreviewStore } from "../../../stores/previewStore"
 import { itemImageUrl } from "../api"
 import { ListCell, NullCell, ThumbCell } from "./cells"
@@ -26,6 +25,7 @@ import {
   tipArrowStyle,
   tipStyle,
 } from "./constants"
+import { SearchBar } from "./SearchBar"
 import { useAssetSearch } from "./useAssetSearch"
 
 // -- reusable asset browser (search + virtualized grid + optional selection) ---
@@ -245,56 +245,14 @@ export function AssetSelector({
     <Flex direction="column" flex="1" minH="0">
       <style>{THUMB_CSS}</style>
       {showSearch && (
-        <VStack align="stretch" gap="2.5" p="3" borderBottomWidth="1px" borderColor="panel.border">
-          <HStack gap="1.5">
-            <Input
-              size="sm"
-              value={queryInput}
-              placeholder={t("library.searchPlaceholder")}
-              onChange={(e) => setQueryInput(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void runSearch(queryInput)
-              }}
-            />
-            <IconButton
-              aria-label={t("library.clear")}
-              size="sm"
-              variant="subtle"
-              onClick={() => {
-                setQueryInput("")
-                void runSearch("")
-              }}
-            >
-              <LuX />
-            </IconButton>
-          </HStack>
-          <HStack gap="2.5" fontSize="2xs" color="fg.muted">
-            <Text flexShrink={0}>{t("library.fuzzy")}</Text>
-            <Slider.Root
-              flex="1"
-              size="sm"
-              colorPalette="blue"
-              min={0}
-              max={100}
-              step={1}
-              value={[Math.round(exactness * 100)]}
-              onValueChange={(e) => setExactness(e.value[0] / 100)}
-            >
-              <Slider.Control>
-                <Slider.Track>
-                  <Slider.Range />
-                </Slider.Track>
-                <Slider.Thumb index={0}>
-                  <Slider.HiddenInput />
-                </Slider.Thumb>
-              </Slider.Control>
-            </Slider.Root>
-            <Text flexShrink={0}>{t("library.exact")}</Text>
-          </HStack>
-          <Text fontSize="2xs" color="fg.muted">
-            {t("library.results", { count: total })}
-          </Text>
-        </VStack>
+        <SearchBar
+          queryInput={queryInput}
+          setQueryInput={setQueryInput}
+          exactness={exactness}
+          setExactness={setExactness}
+          runSearch={runSearch}
+          total={total}
+        />
       )}
 
       <Box
