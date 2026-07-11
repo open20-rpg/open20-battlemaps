@@ -169,6 +169,14 @@ const sliderParam = (
   step: number,
   def: number,
 ): ToolParamSpec => ({ kind: "slider", paramKey, labelKey, min, max, step, default: def })
+const range = (
+  paramKey: string,
+  labelKey: string,
+  min: number,
+  max: number,
+  step: number,
+  def: [number, number],
+): ToolParamSpec => ({ kind: "range", paramKey, labelKey, min, max, step, default: def })
 const shape = (def: Shape | null, allowBrush = false): ToolParamSpec => ({
   kind: "shape",
   paramKey: "shape",
@@ -415,7 +423,15 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("scatter", "tools.scatter", LuSprayCan, {
         library: "objects",
-        params: [customColor(), objectLayer(100), sorting("over"), shadow(true)],
+        params: [
+          objectLayer(100),
+          sorting("over"),
+          range("rotation", "tools.rotation", -180, 180, 1, [-180, 180]),
+          range("scale", "tools.scale", 0.1, 4, 0.01, [1, 1]),
+          sliderParam("spread", "tools.spread", -1, 4, 0.01, 0.5),
+          shadow(true),
+          customColor(),
+        ],
       }),
     ],
   },

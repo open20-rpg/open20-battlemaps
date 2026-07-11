@@ -64,6 +64,7 @@ export interface ParamValueByKind {
   switch: boolean
   segmented: string
   slider: number
+  range: [number, number]
   shape: Shape | null
   brushSize: number
   editPoints: boolean
@@ -104,6 +105,8 @@ export type ToolParamSpec =
   | (BaseSpec<"segmented"> & { labelKey: string; options: SegmentedChoice[] })
   /** Plain numeric slider (Rotation, …). */
   | (BaseSpec<"slider"> & { labelKey: string; min: number; max: number; step: number })
+  /** Two-thumb range slider with numeric ends (Scatter Rotation/Scale). */
+  | (BaseSpec<"range"> & { labelKey: string; min: number; max: number; step: number })
   /** Shape selector. `allowBrush` adds a free-paint "brush" option (Water Brush). */
   | (BaseSpec<"shape"> & { allowBrush: boolean })
   /** Draggable size slider, always visible and never null. */

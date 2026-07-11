@@ -4,6 +4,7 @@ import { CustomColorControl } from "./CustomColorControl"
 import { LayerControl } from "./LayerControl"
 import { SortingControl } from "./SortingControl"
 import { SegmentedParamControl } from "./SegmentedParamControl"
+import { RangeSliderControl } from "./RangeSliderControl"
 import { SwitchParamControl } from "./SwitchParamControl"
 import { ShapeControl } from "./ShapeControl"
 import { EditPointsControl } from "./EditPointsControl"
@@ -78,6 +79,17 @@ export function ToolParamControl({
         <ShapeControl
           value={getParam(values, spec)}
           allowBrush={spec.allowBrush}
+          onChange={onChange}
+        />
+      )
+    case "range":
+      return (
+        <RangeSliderControl
+          value={getParam(values, spec)}
+          labelKey={spec.labelKey}
+          min={spec.min}
+          max={spec.max}
+          step={spec.step}
           onChange={onChange}
         />
       )
