@@ -198,7 +198,7 @@ export function AssetSelector({
   allowNull = false,
 }: AssetSelectorProps) {
   const { t } = useTranslation()
-  
+
   const [queryInput, setQueryInput] = useState("")
   const [exactness, setExactness] = useState(0.5)
   const exactnessRef = useRef(exactness)

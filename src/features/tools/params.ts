@@ -84,10 +84,7 @@ export type ToolParamSpec =
  * Use it to keep dependent params consistent (e.g. mutually-exclusive fields)
  * instead of reacting after the fact with an effect.
  */
-export type ParamNormalizer = (
-  merged: ToolParamValues,
-  patch: ToolParamValues,
-) => ToolParamValues
+export type ParamNormalizer = (merged: ToolParamValues, patch: ToolParamValues) => ToolParamValues
 
 /**
  * Materialize a tool's params: every declared spec contributes its default,

@@ -14,12 +14,6 @@ export interface InstalledPack {
   sizeBytes: number
 }
 
-export interface AssetInfo {
-  relPath: string
-  category: string
-  sizeBytes: number
-}
-
 export interface LoadedImage {
   mime: string
   /** base64 without data-url prefix */
@@ -65,14 +59,6 @@ export function setPackEnabled(id: string, enabled: boolean): Promise<void> {
   return invoke("set_pack_enabled", { id, enabled })
 }
 
-export function listPackContents(id: string): Promise<AssetInfo[]> {
-  return invoke("list_pack_contents", { id })
-}
-
-export function loadAsset(id: string, relPath: string): Promise<LoadedImage> {
-  return invoke("load_asset", { id, relPath })
-}
-
 export function loadPackThumbnail(id: string): Promise<LoadedImage | null> {
   return invoke("load_pack_thumbnail", { id })
 }
@@ -85,4 +71,3 @@ export function onInstallProgress(cb: (p: InstallProgress) => void): Promise<Unl
 export function toDataUrl(img: LoadedImage): string {
   return `data:${img.mime};base64,${img.data}`
 }
-

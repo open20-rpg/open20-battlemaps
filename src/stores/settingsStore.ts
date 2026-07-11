@@ -48,7 +48,9 @@ export const useSettingsStore = create<SettingsState>()(
       ...readLegacy(),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),
       addColorPreset: (color) =>
-        set((s) => (s.colorPresets.includes(color) ? s : { colorPresets: [...s.colorPresets, color] })),
+        set((s) =>
+          s.colorPresets.includes(color) ? s : { colorPresets: [...s.colorPresets, color] },
+        ),
       addTemplate: (tpl) => set((s) => ({ userTemplates: [...s.userTemplates, tpl] })),
       removeTemplate: (id) =>
         set((s) => ({ userTemplates: s.userTemplates.filter((t) => t.id !== id) })),

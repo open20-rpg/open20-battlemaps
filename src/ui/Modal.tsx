@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useEffectEvent, type ReactNode } from "react"
 import { Box, Flex, Heading, IconButton, Portal } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuX } from "react-icons/lu"
@@ -28,15 +28,17 @@ export function ModalLayer({
 }: ModalLayerProps) {
   const { active } = useModalLayer(open)
 
-  // Escape closes only the top (active) layer.
+  // Escape closes only the top (active) layer. `onClose` is read through an
+  // effect event so a new callback identity doesn't re-subscribe the listener.
+  const requestClose = useEffectEvent(() => onClose())
   useEffect(() => {
     if (!active) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
+      if (e.key === "Escape") requestClose()
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [active, onClose])
+  }, [active])
 
   if (!open) return null
 

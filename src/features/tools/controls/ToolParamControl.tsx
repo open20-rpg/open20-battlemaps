@@ -32,7 +32,9 @@ export function ToolParamControl({
     case "customColor":
       return <CustomColorControl value={getParam(values, spec)} onChange={onChange} />
     case "layer":
-      return <LayerControl value={getParam(values, spec)} allowed={spec.allowed} onChange={onChange} />
+      return (
+        <LayerControl value={getParam(values, spec)} allowed={spec.allowed} onChange={onChange} />
+      )
     case "sorting":
       return <SortingControl value={getParam(values, spec)} onChange={onChange} />
     case "switch":
