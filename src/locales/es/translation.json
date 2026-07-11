@@ -152,7 +152,10 @@
     "brushMode": "Modo de Pincel",
     "digCave": "Excavar",
     "blastOpen": "Detonar",
-    "showBlastArea": "Mostrar Área Detonada"
+    "showBlastArea": "Mostrar Área Detonada",
+    "color": "Color",
+    "patternAsset": "Patrón",
+    "outline": "Contorno"
   },
   "layers": {
     "terrain": "Terreno",

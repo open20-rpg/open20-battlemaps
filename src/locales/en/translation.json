@@ -152,7 +152,10 @@
     "brushMode": "Brush Mode",
     "digCave": "Dig Cave",
     "blastOpen": "Blast Open",
-    "showBlastArea": "Show Blast Opened Area"
+    "showBlastArea": "Show Blast Opened Area",
+    "color": "Color",
+    "patternAsset": "Pattern",
+    "outline": "Outline"
   },
   "layers": {
     "terrain": "Terrain",

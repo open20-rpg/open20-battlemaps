@@ -272,8 +272,24 @@ export const TOOL_TREE: ToolNode[] = [
         ],
       }),
       tool("pattern", "tools.pattern", LuGrid3X3, {
-        library: "tilesets",
-        params: [customColor(), shape("rectangle"), editPoints(false)],
+        params: [
+          shape("rectangle"),
+          editPoints(false),
+          sliderParam("rotation", "tools.rotation", -180, 180, 1, 0),
+          objectLayer(100),
+          // Embedded tilesets browser (no separate library), recolored by Color.
+          assetPicker(
+            "pattern",
+            "tools.patternAsset",
+            "tilesets",
+            "single",
+            DEFAULT_CUSTOM_COLOR,
+            false,
+            "customColor",
+          ),
+          customColor("customColor", "tools.color"),
+          switchParam("outline", "tools.outline", false),
+        ],
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("roof", "tools.roof", LuTriangle, {
