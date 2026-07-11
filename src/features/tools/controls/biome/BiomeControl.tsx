@@ -26,15 +26,17 @@ export function BiomeControl({
   const { t } = useTranslation()
   const [openSlot, setOpenSlot] = useState<number | null>(null)
 
+  // Slots belong to the selected biome; switching biomes swaps them.
+  const stored = value.slotsByBiome[value.biome] ?? []
   const count = value.unlocked ? BIOME_MAX_SLOTS : 4
-  const slots = Array.from({ length: count }, (_, i) => value.slots[i] ?? null)
+  const slots = Array.from({ length: count }, (_, i) => stored[i] ?? null)
 
   const setBiome = (biome: string) => onChange({ ...value, biome })
   const setUnlocked = (unlocked: boolean) => onChange({ ...value, unlocked })
   const setSlot = (index: number, texture: BiomeTexture) => {
-    const next = value.slots.slice()
+    const next = stored.slice()
     next[index] = texture
-    onChange({ ...value, slots: next })
+    onChange({ ...value, slotsByBiome: { ...value.slotsByBiome, [value.biome]: next } })
   }
   const fill = () =>
     toaster.create({ title: t("toast.soon", { label: t("tools.fill") }), type: "info" })
@@ -67,14 +69,14 @@ export function BiomeControl({
           <Flex
             key={i}
             align="center"
-            h="44px"
+            h="64px"
             borderWidth="1px"
             borderColor="panel.border"
             borderRadius="md"
             overflow="hidden"
             flexShrink={0}
           >
-            <Box boxSize="42px" flexShrink={0} bg="panel.header">
+            <Box boxSize="64px" flexShrink={0} bg="panel.header">
               {slot && (
                 <img
                   src={thumbUrl(slot.thumb)}
@@ -91,7 +93,8 @@ export function BiomeControl({
               as="button"
               align="center"
               justify="center"
-              boxSize="42px"
+              w="48px"
+              h="full"
               flexShrink={0}
               color="menubar.fg"
               _hover={{ bg: "panel.rowHover", color: "brand.fg" }}

@@ -33,6 +33,8 @@ export function useTerrainTextures(): { loading: boolean; packs: TerrainPack[] }
   const [items, setItems] = useState<LibItem[]>([])
 
   useEffect(() => {
+    // Ensure the installed-pack list is loaded so groups show pack names, not ids.
+    usePacksStore.getState().ensureLoaded()
     let cancelled = false
     void (async () => {
       const { total } = await searchLibrary(BROWSER_KEY, "terrain", "", 1)

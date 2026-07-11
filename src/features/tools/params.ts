@@ -38,11 +38,15 @@ export interface BiomeTexture {
   thumb: string
 }
 
-/** Value of a `biome` param: the picked biome plus its texture slots. */
+/**
+ * Value of a `biome` param: the picked biome plus each biome's own texture
+ * slots. Slots are stored per biome, so switching biomes swaps the visible
+ * textures and switching back restores them. Up to {@link BIOME_MAX_SLOTS}
+ * slots per biome — the first 4 always show, 4 more when `unlocked`.
+ */
 export interface BiomeSelection {
   biome: string
-  /** Up to {@link BIOME_MAX_SLOTS} slots; the first 4 always show, 4 more when unlocked. */
-  slots: (BiomeTexture | null)[]
+  slotsByBiome: Record<string, (BiomeTexture | null)[]>
   unlocked: boolean
 }
 

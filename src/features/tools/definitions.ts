@@ -183,11 +183,7 @@ const biome = (paramKey: string, labelKey: string): ToolParamSpec => ({
   kind: "biome",
   paramKey,
   labelKey,
-  default: {
-    biome: "barren",
-    slots: [null, null, null, null, null, null, null, null],
-    unlocked: false,
-  },
+  default: { biome: "settlement", slotsByBiome: {}, unlocked: false },
 })
 const assetPicker = (
   paramKey: string,
