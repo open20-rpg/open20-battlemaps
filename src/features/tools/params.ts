@@ -70,6 +70,10 @@ export interface ParamValueByKind {
   editPoints: boolean
   assetPicker: AssetSelection
   biome: BiomeSelection
+  /** Command buttons hold no value — they only dispatch an action. */
+  button: null
+  /** Selected font family ("" = default). */
+  font: string
 }
 
 export type ParamKind = keyof ParamValueByKind
@@ -125,6 +129,15 @@ export type ToolParamSpec =
     })
   /** Biome selector + terrain texture slots (Terrain Brush). */
   | (BaseSpec<"biome"> & { labelKey: string })
+  /** Command button (Text's Delete); `disabled` gates it (always false for now). */
+  | (BaseSpec<"button"> & {
+      labelKey: string
+      icon: IconType
+      colorPalette?: string
+      disabled?: boolean
+    })
+  /** OS font-family selector (Text tool). */
+  | (BaseSpec<"font"> & { labelKey: string })
 
 /**
  * Cross-field rule run right after a param change: given the already-merged

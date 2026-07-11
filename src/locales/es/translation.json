@@ -180,6 +180,16 @@
     "ambientLight": "Luz Ambiental",
     "range": "Alcance",
     "widgets": "Widgets",
+    "visible": "Visible",
+    "sharpenFonts": "Afinar Fuentes",
+    "modeEdit": "Editar",
+    "modeMove": "Mover",
+    "delete": "Eliminar",
+    "font": "Fuente",
+    "fontDefault": "Predeterminada",
+    "fontSize": "Tamaño de Fuente",
+    "fontColor": "Color de Fuente",
+    "textBox": "Caja de Texto",
     "width": "Ancho",
     "smoothness": "Suavidad",
     "transitionIn": "Transición de Entrada",
@@ -245,6 +255,7 @@
     "loadingAssets": "Cargando activos",
     "updatingPacks": "Actualizando activos",
     "deletingAssets": "Eliminando activos",
-    "searchingLibrary": "Buscando en la biblioteca"
+    "searchingLibrary": "Buscando en la biblioteca",
+    "loadingFonts": "Cargando fuentes"
   }
 }

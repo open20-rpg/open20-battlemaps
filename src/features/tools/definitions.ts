@@ -23,6 +23,7 @@ import {
   LuShapes,
   LuSparkles,
   LuSprayCan,
+  LuTrash2,
   LuTriangle,
   LuType,
 } from "react-icons/lu"
@@ -180,6 +181,18 @@ const range = (
   step: number,
   def: [number, number],
 ): ToolParamSpec => ({ kind: "range", paramKey, labelKey, min, max, step, default: def })
+const button = (
+  paramKey: string,
+  labelKey: string,
+  icon: IconType,
+  colorPalette?: string,
+): ToolParamSpec => ({ kind: "button", paramKey, labelKey, icon, colorPalette, default: null })
+const font = (paramKey: string, labelKey: string): ToolParamSpec => ({
+  kind: "font",
+  paramKey,
+  labelKey,
+  default: "",
+})
 const shape = (def: Shape | null, allowBrush = false): ToolParamSpec => ({
   kind: "shape",
   paramKey: "shape",
@@ -473,7 +486,26 @@ export const TOOL_TREE: ToolNode[] = [
       tool("referenceImage", "tools.referenceImage", LuImage),
     ],
   },
-  tool("text", "tools.text", LuType),
+  tool("text", "tools.text", LuType, {
+    params: [
+      switchParam("visible", "tools.visible", true),
+      switchParam("sharpenFonts", "tools.sharpenFonts", true),
+      segmented(
+        "mode",
+        "tools.mode",
+        [
+          { value: "edit", labelKey: "tools.modeEdit" },
+          { value: "move", labelKey: "tools.modeMove" },
+        ],
+        "edit",
+      ),
+      button("delete", "tools.delete", LuTrash2, "red"),
+      font("font", "tools.font"),
+      sliderParam("fontSize", "tools.fontSize", 8, 256, 1, 32),
+      customColor("fontColor", "tools.fontColor", "#000000"),
+      switchParam("textBox", "tools.textBox", false),
+    ],
+  }),
   tool("prefabs", "tools.prefabs", LuBoxes),
   tool("select", "tools.select", LuMousePointer2),
 ]

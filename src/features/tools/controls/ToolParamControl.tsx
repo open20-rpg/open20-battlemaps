@@ -11,6 +11,8 @@ import { EditPointsControl } from "./EditPointsControl"
 import { SliderControl } from "./SliderControl"
 import { AssetPickerControl } from "./AssetPickerControl"
 import { BiomeControl } from "./biome/BiomeControl"
+import { ButtonControl } from "./ButtonControl"
+import { FontControl } from "./FontControl"
 
 /**
  * The single wiring point between param specs and the tools store: resolves
@@ -133,6 +135,19 @@ export function ToolParamControl({
     case "biome":
       return (
         <BiomeControl value={getParam(values, spec)} labelKey={spec.labelKey} onChange={onChange} />
+      )
+    case "button":
+      return (
+        <ButtonControl
+          labelKey={spec.labelKey}
+          icon={spec.icon}
+          colorPalette={spec.colorPalette}
+          disabled={spec.disabled}
+        />
+      )
+    case "font":
+      return (
+        <FontControl value={getParam(values, spec)} labelKey={spec.labelKey} onChange={onChange} />
       )
   }
 }

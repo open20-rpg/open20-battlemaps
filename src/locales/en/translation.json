@@ -180,6 +180,16 @@
     "ambientLight": "Ambient Light",
     "range": "Range",
     "widgets": "Widgets",
+    "visible": "Visible",
+    "sharpenFonts": "Sharpen Fonts",
+    "modeEdit": "Edit",
+    "modeMove": "Move",
+    "delete": "Delete",
+    "font": "Font",
+    "fontDefault": "Default",
+    "fontSize": "Font Size",
+    "fontColor": "Font Color",
+    "textBox": "Text Box",
     "width": "Width",
     "smoothness": "Smoothness",
     "transitionIn": "Transition In",
@@ -245,6 +255,7 @@
     "loadingAssets": "Loading assets",
     "updatingPacks": "Updating packs",
     "deletingAssets": "Deleting assets",
-    "searchingLibrary": "Searching library"
+    "searchingLibrary": "Searching library",
+    "loadingFonts": "Loading fonts"
   }
 }
