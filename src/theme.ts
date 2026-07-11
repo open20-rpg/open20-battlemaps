@@ -9,7 +9,7 @@ const config = defineConfig({
     ":root": {
       // Panel translucency, configurable at runtime, e.g.:
       //   document.documentElement.style.setProperty("--panel-alpha", "0.7")
-      "--panel-alpha": "0.5",
+      "--panel-alpha": "0.8",
       "--panel-bg": "rgba(33, 33, 38, var(--panel-alpha))",
       "--panel-header-bg": "rgba(25, 25, 32, var(--panel-alpha))",
     },

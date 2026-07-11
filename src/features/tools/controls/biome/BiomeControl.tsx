@@ -81,7 +81,8 @@ export function BiomeControl({
                 minW="0"
                 h="full"
                 cursor="pointer"
-                _hover={{ bg: "panel.rowHover" }}
+                bg={isSelected ? "panel.rowSelected/50" : undefined}
+                _hover={{ bg: isSelected ? "panel.rowSelected/50" : "panel.rowHover/60" }}
                 onClick={() => selectSlot(i)}
                 aria-pressed={isSelected}
               >
