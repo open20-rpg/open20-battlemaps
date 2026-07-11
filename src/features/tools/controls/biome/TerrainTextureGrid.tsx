@@ -15,7 +15,7 @@ import { thumbUrl, type LibItem } from "../../../library/api"
 
 const CELL = 140 // texture tile size in px
 const GAP = 10
-const NAME_H = 28 // room for the (up to 2-line) name under each tile
+const NAME_H = 18 // single-line (ellipsized) name under each tile
 const ROW_H = CELL + NAME_H + GAP
 
 /**
@@ -187,10 +187,10 @@ export function TerrainTextureGrid({
                       <Text
                         fontSize="xs"
                         color="fg.muted"
-                        lineClamp={2}
                         textAlign="center"
                         w="full"
-                        wordBreak="break-word"
+                        maxW="full"
+                        truncate
                         h={`${NAME_H}px`}
                       >
                         {item?.name ?? ""}
