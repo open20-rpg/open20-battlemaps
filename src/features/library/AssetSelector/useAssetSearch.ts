@@ -18,6 +18,8 @@ export interface UseAssetSearchOptions {
   browserKey: string
   /** Asset category to search (e.g. "objects", "floors", "walls"). */
   category: string
+  /** Scope the search to one pack (omit for all enabled packs). */
+  packId?: string
   /** Whether display slot 0 is the "no asset" cell (shifts real items by one). */
   allowNull: boolean
   /** Selection mode; needed for the single-select default described below. */
@@ -37,6 +39,7 @@ export interface UseAssetSearchOptions {
 export function useAssetSearch({
   browserKey,
   category,
+  packId,
   allowNull,
   select,
   selectedIds,
@@ -70,14 +73,14 @@ export function useAssetSearch({
       requestedPages.current.clear()
       scrollRef.current?.scrollTo({ top: 0 })
       return withLoading(t("loading.searchingLibrary"), () =>
-        searchLibrary(browserKey, category, q, exactnessRef.current).then((res) => {
+        searchLibrary(browserKey, category, q, exactnessRef.current, packId).then((res) => {
           setTotal(res.total)
           setSearchGen((n) => n + 1)
           bump()
         }),
       )
     },
-    [browserKey, category, t, scrollRef],
+    [browserKey, category, packId, t, scrollRef],
   )
 
   // Reset the query box when the category changes (panel opens/switches),
@@ -88,8 +91,8 @@ export function useAssetSearch({
     setQueryInput("")
   }
 
-  // Fresh "all" search whenever the category changes (runSearch is recreated
-  // per category/browser, so it doubles as the trigger).
+  // Fresh "all" search whenever the category or pack scope changes (runSearch is
+  // recreated per category/pack/browser, so it doubles as the trigger).
   useEffect(() => {
     void runSearch("")
   }, [runSearch])

@@ -145,6 +145,38 @@ fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<C
     out
 }
 
+/// Does a pack ship at least one file under `textures/<category>`?
+fn pack_has_category(app: &AppHandle, pack_id: &str, category: &str) -> bool {
+    let Ok(dir) = pack_dir(app, pack_id) else {
+        return false;
+    };
+    let mut stack = vec![dir.join("textures").join(category)];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = fs::read_dir(&d) else { continue };
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Enabled pack ids that ship textures for `category` (for per-pack browsers).
+pub(crate) fn packs_with_category(app: &AppHandle, category: &str) -> Vec<String> {
+    let reg = read_registry(app);
+    let mut out: Vec<String> = reg
+        .iter()
+        .filter(|(id, r)| r.enabled && pack_has_category(app, id, category))
+        .map(|(id, _)| id.clone())
+        .collect();
+    out.sort();
+    out
+}
+
 /// Is `q` a subsequence of `s` (its chars appear in order, gaps allowed)?
 fn is_subsequence(q: &str, s: &str) -> bool {
     let mut chars = s.chars();
@@ -173,6 +205,7 @@ pub(crate) fn search(
     category: &str,
     query: &str,
     exactness: f32,
+    pack_id: Option<&str>,
 ) -> Result<LibrarySearch> {
     let state = app.state::<LibraryState>();
     let reg = read_registry(app);
@@ -181,6 +214,10 @@ pub(crate) fn search(
         .filter(|(_, r)| r.enabled)
         .map(|(id, _)| id.clone())
         .collect();
+    // Optionally scope the search to a single pack (e.g. the terrain picker).
+    if let Some(pid) = pack_id {
+        enabled.retain(|id| id == pid);
+    }
     enabled.sort();
 
     let q = query.to_lowercase();

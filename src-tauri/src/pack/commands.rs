@@ -242,7 +242,7 @@ pub fn load_pack_thumbnail(app: AppHandle, id: String) -> Result<Option<LoadedIm
     }))
 }
 
-/// Run a library search over all enabled packs and cache the results.
+/// Run a library search (all enabled packs, or one when `pack_id` is set).
 #[tauri::command]
 pub async fn search_library(
     app: AppHandle,
@@ -250,12 +250,21 @@ pub async fn search_library(
     category: String,
     query: String,
     exactness: f32,
+    pack_id: Option<String>,
 ) -> Result<LibrarySearch> {
     tauri::async_runtime::spawn_blocking(move || {
-        library::search(&app, key, &category, &query, exactness)
+        library::search(&app, key, &category, &query, exactness, pack_id.as_deref())
     })
     .await
     .map_err(|e| PackError::Other(e.to_string()))?
+}
+
+/// List enabled packs that ship textures for a category (per-pack browsers).
+#[tauri::command]
+pub async fn packs_with_category(app: AppHandle, category: String) -> Result<Vec<String>> {
+    tauri::async_runtime::spawn_blocking(move || library::packs_with_category(&app, &category))
+        .await
+        .map_err(|e| PackError::Other(e.to_string()))
 }
 
 /// Fetch a window of a browser instance's search results, resolving thumbnails.

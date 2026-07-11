@@ -21,8 +21,15 @@ export function searchLibrary(
   category: string,
   query: string,
   exactness: number,
+  /** Scope the search to a single pack (omit for all enabled packs). */
+  packId?: string,
 ): Promise<{ total: number }> {
-  return invoke("search_library", { key, category, query, exactness })
+  return invoke("search_library", { key, category, query, exactness, packId })
+}
+
+/** List enabled packs that ship textures for a category (for per-pack browsers). */
+export function packsWithCategory(category: string): Promise<string[]> {
+  return invoke("packs_with_category", { category })
 }
 
 /** Fetch a window of a browser instance's search results. */

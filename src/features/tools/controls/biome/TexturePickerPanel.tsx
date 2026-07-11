@@ -1,17 +1,17 @@
-import { useState } from "react"
-import { Box, Flex, Spinner, Text, VStack } from "@chakra-ui/react"
+import { useEffect, useMemo, useState } from "react"
+import { Flex, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuMountain } from "react-icons/lu"
 import { FloatingWindow } from "../../../../ui/FloatingWindow"
-import { thumbUrl, type LibItem } from "../../../library/api"
+import { usePacksStore } from "../../../../stores/packsStore"
+import { withLoading } from "../../../../stores/loadingStore"
+import { packsWithCategory, type LibItem } from "../../../library/api"
 import { type BiomeTexture } from "../../params"
-import { useTerrainTextures } from "./useTerrainTextures"
-
-const TILE = 100
+import { TerrainTextureGrid } from "./TerrainTextureGrid"
 
 /**
- * Floating terrain-texture browser: installed packs (that ship terrain) on the
- * left, the selected pack's textures as a 100×100 grid on the right. Picking a
+ * Floating terrain-texture browser: packs that ship terrain on the left, the
+ * selected pack's textures (virtualized 180×180 grid) on the right. Picking a
  * texture assigns it to the slot that opened the panel.
  */
 export function TexturePickerPanel({
@@ -22,8 +22,30 @@ export function TexturePickerPanel({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const { loading, packs } = useTerrainTextures()
+  const installed = usePacksStore((s) => s.packs)
+  // null = still loading the pack list.
+  const [packIds, setPackIds] = useState<string[] | null>(null)
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void withLoading(t("loading.loadingAssets"), async () => {
+      usePacksStore.getState().ensureLoaded()
+      const ids = await packsWithCategory("terrain")
+      if (!cancelled) setPackIds(ids)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [t])
+
+  // Resolve pack names and keep a stable, name-sorted order.
+  const packs = useMemo(() => {
+    const nameById = new Map(installed.map((p) => [p.id, p.name]))
+    return (packIds ?? [])
+      .map((id) => ({ id, name: nameById.get(id) ?? id }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [packIds, installed])
 
   // Derive the active pack so no effect is needed to seed a default.
   const activePack = packs.find((p) => p.id === selectedPackId) ?? packs[0]
@@ -38,15 +60,15 @@ export function TexturePickerPanel({
       title={t("tools.terrainTextures")}
       icon={LuMountain}
       onClose={onClose}
-      initialSize={{ w: 640, h: 460 }}
-      minSize={{ w: 420, h: 300 }}
+      initialSize={{ w: 720, h: 500 }}
+      minSize={{ w: 480, h: 320 }}
       resizable
       modal
     >
       <Flex flex="1" minH="0">
-        {/* Left: packs that include terrain textures. */}
+        {/* Left: packs that ship terrain textures. */}
         <VStack
-          w="180px"
+          w="190px"
           flexShrink={0}
           align="stretch"
           gap="0.5"
@@ -77,54 +99,17 @@ export function TexturePickerPanel({
               </Flex>
             )
           })}
+          {packIds !== null && packs.length === 0 && (
+            <Text fontSize="xs" color="fg.muted" p="2">
+              {t("tools.noTerrainPacks")}
+            </Text>
+          )}
         </VStack>
 
-        {/* Right: textures of the active pack. */}
-        <Box flex="1" minW="0" overflowY="auto" p="3">
-          {loading ? (
-            <Flex h="full" align="center" justify="center">
-              <Spinner color="brand.fg" />
-            </Flex>
-          ) : packs.length === 0 ? (
-            <Flex h="full" align="center" justify="center">
-              <Text fontSize="sm" color="fg.muted" textAlign="center">
-                {t("tools.noTerrainPacks")}
-              </Text>
-            </Flex>
-          ) : (
-            <Flex wrap="wrap" gap="3">
-              {activePack?.items.map((item) => (
-                <VStack
-                  as="button"
-                  key={item.id}
-                  w={`${TILE}px`}
-                  gap="1"
-                  onClick={() => pick(item)}
-                >
-                  <Box
-                    boxSize={`${TILE}px`}
-                    borderWidth="1px"
-                    borderColor="panel.border"
-                    borderRadius="md"
-                    overflow="hidden"
-                    bg="panel.header"
-                    _hover={{ borderColor: "brand.fg" }}
-                  >
-                    <img
-                      src={thumbUrl(item.thumb)}
-                      alt=""
-                      draggable={false}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  </Box>
-                  <Text fontSize="xs" color="fg.muted" lineClamp={2} textAlign="center">
-                    {item.name}
-                  </Text>
-                </VStack>
-              ))}
-            </Flex>
-          )}
-        </Box>
+        {/* Right: virtualized 180×180 grid for the active pack. */}
+        <Flex flex="1" minW="0" direction="column">
+          {activePack && <TerrainTextureGrid packId={activePack.id} onPick={pick} />}
+        </Flex>
       </Flex>
     </FloatingWindow>
   )

@@ -49,6 +49,10 @@ ni accionable.
   (`useMapStore.subscribe`). Nada de entidades del mapa como componentes React
   ni estado del documento en `useState`.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
+- **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
+  se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para
+  que aparezca en la StatusBar y no bloquee percibidamente la UI. Nunca hagas un
+  `await invoke(...)` "pelado" en un flujo que el usuario dispara.
 - `localStorage` solo a través de `useSettingsStore` (clave versionada
   `opendraft.settings`).
 - Rust: la lógica vive en `src-tauri/src/pack/{format,registry,install,library,recolor}.rs`;

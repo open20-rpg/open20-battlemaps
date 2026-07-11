@@ -17,6 +17,7 @@ pub fn run() {
             pack::load_asset,
             pack::load_pack_thumbnail,
             pack::search_library,
+            pack::packs_with_category,
             pack::get_library_items,
             pack::release_library_search,
         ])
