@@ -76,7 +76,7 @@
     "refresh": "Refresh",
     "close": "Close",
     "mapOpenBadge": "Map open",
-    "mapOpenHint": "A map is open: installing and deleting packs is disabled.",
+    "mapOpenHint": "A map is open: deleting packs is disabled.",
     "selectedCount": "{{count}} selected",
     "installedCount": "{{count}} pack(s) installed",
     "installing": "Installing “{{pack}}” — {{index}}/{{total}}",

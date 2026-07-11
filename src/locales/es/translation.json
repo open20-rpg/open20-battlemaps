@@ -76,7 +76,7 @@
     "refresh": "Refrescar",
     "close": "Cerrar",
     "mapOpenBadge": "Mapa abierto",
-    "mapOpenHint": "Hay un mapa abierto: instalar y eliminar paquetes está deshabilitado.",
+    "mapOpenHint": "Hay un mapa abierto: eliminar paquetes está deshabilitado.",
     "selectedCount": "{{count}} seleccionado(s)",
     "installedCount": "{{count}} pack(s) instalado(s)",
     "installing": "Instalando “{{pack}}” — {{index}}/{{total}}",

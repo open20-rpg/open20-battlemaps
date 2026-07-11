@@ -134,7 +134,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       borderColor="panel.border"
       flexWrap="wrap"
     >
-      <Button size="xs" colorPalette="blue" onClick={install} loading={busy} disabled={hasMap}>
+      <Button size="xs" colorPalette="blue" onClick={install} loading={busy}>
         <LuPackagePlus />
         {t("assets.install")}
       </Button>
