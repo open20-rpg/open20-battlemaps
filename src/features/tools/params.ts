@@ -48,6 +48,8 @@ export interface BiomeSelection {
   biome: string
   slotsByBiome: Record<string, (BiomeTexture | null)[]>
   unlocked: boolean
+  /** Index of the slot the brush/fill paints with. */
+  selectedSlot: number
 }
 
 export const BIOME_MAX_SLOTS = 8

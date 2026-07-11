@@ -98,6 +98,7 @@ ni accionable.
 - **Commits a nombre de quien los hace** (el `user.name` y
   `user.email` configurados en git). No agregues trailers de co-autoría ni de asistentes
   (`Co-Authored-By` u otros).
+- Nunca trabajes en worktrees, siempre sobre la rama principal.
 
 ## Verificación
 

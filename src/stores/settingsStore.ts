@@ -42,7 +42,7 @@ function readLegacy(): Partial<
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      panelAlpha: 0.5,
+      panelAlpha: 0.8,
       colorPresets: [],
       userTemplates: [],
       ...readLegacy(),
