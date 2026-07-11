@@ -91,8 +91,11 @@ interface BaseSpec<K extends ParamKind> {
 }
 
 export type ToolParamSpec =
-  /** Preset-swatch color picker (`labelKey` names it: Custom/Ground/Wall…). */
-  | (BaseSpec<"customColor"> & { labelKey: string })
+  /**
+   * Preset-swatch color picker (`labelKey` names it: Custom/Ground/Wall…).
+   * `presets` overrides the built-in swatches for this param (e.g. Water).
+   */
+  | (BaseSpec<"customColor"> & { labelKey: string; presets?: string[] })
   | (BaseSpec<"layer"> & { allowed: number[] })
   | BaseSpec<"sorting">
   /** On/off switch (Shadow, Bevel Corners, Rotate 180, Block Light, …). */

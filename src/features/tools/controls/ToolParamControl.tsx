@@ -35,6 +35,7 @@ export function ToolParamControl({
         <CustomColorControl
           value={getParam(values, spec)}
           labelKey={spec.labelKey}
+          presets={spec.presets}
           onChange={onChange}
         />
       )

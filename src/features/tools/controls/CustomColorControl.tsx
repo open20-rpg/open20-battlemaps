@@ -14,15 +14,19 @@ const DOT = "34px"
  * (with a "+" that opens the color picker to add a new preset) plus a standalone
  * button that opens the picker for a one-off custom color. The chosen color is
  * stored in the tool's params so the library can read it and recolor assets.
- * Presets are user settings, so they come from the settings store.
+ * The built-in swatches default to the global palette but a param can supply
+ * its own (e.g. Water's Deep/Shallow colors); user-added presets append.
  */
 export function CustomColorControl({
   value,
   labelKey,
+  presets: builtinPresets,
   onChange,
 }: {
   value: string
   labelKey: string
+  /** Built-in swatches for this param (defaults to the global palette). */
+  presets?: string[]
   onChange: (value: string) => void
 }) {
   const { t } = useTranslation()
@@ -30,7 +34,7 @@ export function CustomColorControl({
   const addColorPreset = useSettingsStore((s) => s.addColorPreset)
   const [open, setOpen] = useState(false)
 
-  const presets = [...BUILTIN_COLOR_PRESETS, ...userPresets]
+  const presets = [...(builtinPresets ?? BUILTIN_COLOR_PRESETS), ...userPresets]
   const addPreset = (c: string) => {
     if (!presets.includes(c)) addColorPreset(c)
     onChange(c)

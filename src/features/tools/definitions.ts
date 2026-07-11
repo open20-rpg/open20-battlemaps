@@ -120,12 +120,21 @@ const tool = (
 
 // Shared param specs, so tools reuse the same controls with minimal config.
 // Every spec carries an explicit paramKey; defaults live only in the spec.
-const customColor = (paramKey = "customColor", labelKey = "tools.customColor"): ToolParamSpec => ({
+const customColor = (
+  paramKey = "customColor",
+  labelKey = "tools.customColor",
+  defaultColor: string = DEFAULT_CUSTOM_COLOR,
+  presets?: string[],
+): ToolParamSpec => ({
   kind: "customColor",
   paramKey,
   labelKey,
-  default: DEFAULT_CUSTOM_COLOR,
+  default: defaultColor,
+  presets,
 })
+
+/** Deep/Shallow water swatches offered by the Water Brush color pickers. */
+const WATER_PRESETS = ["#3aa19a", "#8bceb0", "#ffcc55", "#3c8ab8"]
 const objectLayer = (def: number): ToolParamSpec => ({
   kind: "layer",
   paramKey: "layer",
@@ -351,7 +360,14 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("water", "tools.water", LuDroplets, {
         // Free-paint via the `brush` shape; the size slider is always visible.
-        params: [shape("brush", true), brushSize(0.5, 2.5, 0.5, 1)],
+        params: [
+          shape("brush", true),
+          brushSize(0.5, 2.5, 0.5, 1),
+          customColor("deepColor", "tools.deepColor", "#3aa19a", WATER_PRESETS),
+          customColor("shallowColor", "tools.shallowColor", "#8bceb0", WATER_PRESETS),
+          sliderParam("blendDistance", "tools.blendDistance", 0.5, 4, 0.1, 1.5),
+          switchParam("disableBorder", "tools.disableBorder", false),
+        ],
       }),
       tool("material", "tools.material", LuPaintBucket, {
         params: [objectLayer(-400), brushSize(1, 5, 1, 2)],
