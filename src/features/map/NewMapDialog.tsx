@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
   Button,
   Field,
@@ -24,13 +24,21 @@ interface NewMapDialogProps {
 
 const clampTile = (n: number) => (Number.isFinite(n) ? Math.max(1, Math.round(n)) : 1)
 
-export function NewMapDialog({ open, onOpenChange, onCreate, onOpenAssets }: NewMapDialogProps) {
+export function NewMapDialog(props: NewMapDialogProps) {
+  // Remount the content each time the dialog is (re)opened so every field
+  // resets to the first template without any state syncing.
+  return <NewMapDialogContent key={String(props.open)} {...props} />
+}
+
+function NewMapDialogContent({ open, onOpenChange, onCreate, onOpenAssets }: NewMapDialogProps) {
   const { t } = useTranslation()
   const { templates, addTemplate, removeTemplate } = useTemplates()
 
-  const [selectedId, setSelectedId] = useState(DEFAULT_TEMPLATES[0].id)
-  const [width, setWidth] = useState(DEFAULT_TEMPLATES[0].width)
-  const [height, setHeight] = useState(DEFAULT_TEMPLATES[0].height)
+  // Start on the first template (the built-ins always come first).
+  const first = templates[0] ?? DEFAULT_TEMPLATES[0]
+  const [selectedId, setSelectedId] = useState(first.id)
+  const [width, setWidth] = useState(first.width)
+  const [height, setHeight] = useState(first.height)
 
   // Nested "New template" dialog.
   const [tplOpen, setTplOpen] = useState(false)
@@ -39,19 +47,6 @@ export function NewMapDialog({ open, onOpenChange, onCreate, onOpenAssets }: New
   const [tplHeight, setTplHeight] = useState(20)
 
   const selected = templates.find((tpl) => tpl.id === selectedId)
-
-  // Reset to the first template each time the dialog is opened.
-  useEffect(() => {
-    if (!open) return
-    const first = templates[0]
-    if (first) {
-      setSelectedId(first.id)
-      setWidth(first.width)
-      setHeight(first.height)
-    }
-    // Only re-run when the dialog is (re)opened.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
 
   const selectTemplate = (id: string) => {
     setSelectedId(id)

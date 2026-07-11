@@ -1,168 +1,32 @@
 import {
-  memo,
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
-  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react"
 import { Box, Flex, HStack, IconButton, Input, Slider, Text, VStack } from "@chakra-ui/react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useTranslation } from "react-i18next"
-import { LuBan, LuImageOff, LuX } from "react-icons/lu"
-import { withLoading } from "../../stores/loadingStore"
-import { usePreviewStore } from "../../stores/previewStore"
+import { LuX } from "react-icons/lu"
+import { usePreviewStore } from "../../../stores/previewStore"
+import { itemImageUrl } from "../api"
+import { ListCell, NullCell, ThumbCell } from "./cells"
 import {
-  getLibraryItems,
-  itemImageUrl,
-  releaseLibrarySearch,
-  searchLibrary,
-  type LibItem,
-} from "./api"
-
-const CELL = 64 // thumbnail size in px (matches the 64x64 thumbnails)
-const GAP = 8
-const PAGE = 200 // items fetched per window request
-const LIST_ROW_EST = 40 // avg natural thumb height, used to estimate list scroll
-
-// Categories whose thumbnails vary in size (wall/path strips) are shown as a
-// single column at natural size instead of the fixed square grid.
-const LIST_CATEGORIES = new Set(["walls", "paths"])
-
-// -- one thumbnail cell --------------------------------------------------------
-
-const cellStyle: CSSProperties = {
-  width: CELL,
-  height: CELL,
-  flexShrink: 0,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  overflow: "hidden",
-}
-const imgStyle: CSSProperties = { width: "100%", height: "100%", objectFit: "contain" }
-const fillerStyle: CSSProperties = { width: CELL, height: CELL, flexShrink: 0 }
-
-// List-mode cell: image at natural size, capped to the column width.
-const listCellStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minHeight: LIST_ROW_EST,
-  overflow: "hidden",
-}
-const listImgStyle: CSSProperties = { maxWidth: "100%", height: "auto", objectFit: "contain" }
-
-// "No asset" cell (dashed empty square), used when allowNull is set.
-const nullCellStyle: CSSProperties = {
-  width: CELL,
-  height: CELL,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  border: "1px dashed #55555f",
-  borderRadius: 6,
-  cursor: "pointer",
-}
-
-// Loaded items get the pointer cursor; the selected one gets a highlight ring.
-const THUMB_CSS =
-  ".od-thumb[data-name]{cursor:pointer}" +
-  ".od-thumb[data-selected]{outline:2px solid #5aa9ff;outline-offset:-2px;border-radius:6px;background:#26364f}"
-
-const ThumbCell = memo(function ThumbCell({
-  item,
-  idx,
-  color,
-  selected,
-}: {
-  item?: LibItem
-  idx: number
-  color: string
-  selected: boolean
-}) {
-  const [errored, setErrored] = useState(false)
-  return (
-    <div
-      className="od-thumb"
-      data-name={item?.name}
-      data-idx={item ? idx : undefined}
-      data-selected={selected ? "" : undefined}
-      style={cellStyle}
-    >
-      {item && !errored ? (
-        <img
-          src={itemImageUrl(item.thumb, item.colorable, color)}
-          alt=""
-          draggable={false}
-          decoding="async"
-          loading="lazy"
-          onError={() => setErrored(true)}
-          style={imgStyle}
-        />
-      ) : item ? (
-        <LuImageOff color="#8a8a90" size={16} />
-      ) : null}
-    </div>
-  )
-})
-
-// List-mode cell (single column, natural-size image). Same data-* delegation
-// hooks as the grid cell so tooltip/preview/selection keep working.
-const ListCell = memo(function ListCell({
-  item,
-  idx,
-  color,
-  selected,
-}: {
-  item?: LibItem
-  idx: number
-  color: string
-  selected: boolean
-}) {
-  const [errored, setErrored] = useState(false)
-  return (
-    <div
-      className="od-thumb"
-      data-name={item?.name}
-      data-idx={item ? idx : undefined}
-      data-selected={selected ? "" : undefined}
-      style={listCellStyle}
-    >
-      {item && !errored ? (
-        <img
-          src={itemImageUrl(item.thumb, item.colorable, color)}
-          alt=""
-          draggable={false}
-          decoding="async"
-          loading="lazy"
-          onError={() => setErrored(true)}
-          style={listImgStyle}
-        />
-      ) : item ? (
-        <LuImageOff color="#8a8a90" size={16} />
-      ) : null}
-    </div>
-  )
-})
-
-// The "no asset" cell — rendered as display slot 0 when allowNull is set.
-function NullCell({ selected }: { selected: boolean }) {
-  return (
-    <div
-      className="od-thumb"
-      data-null=""
-      data-selected={selected ? "" : undefined}
-      style={nullCellStyle}
-    >
-      <LuBan color="#8a8a90" size={18} />
-    </div>
-  )
-}
+  CELL,
+  GAP,
+  LIST_CATEGORIES,
+  LIST_ROW_EST,
+  THUMB_CSS,
+  fillerStyle,
+  gridRowStyle,
+  listRowStyle,
+  tipArrowStyle,
+  tipStyle,
+} from "./constants"
+import { useAssetSearch } from "./useAssetSearch"
 
 // -- reusable asset browser (search + virtualized grid + optional selection) ---
 
@@ -199,21 +63,32 @@ export function AssetSelector({
 }: AssetSelectorProps) {
   const { t } = useTranslation()
 
-  const [queryInput, setQueryInput] = useState("")
-  const [exactness, setExactness] = useState(0.5)
-  const exactnessRef = useRef(exactness)
-  exactnessRef.current = exactness
-
-  const [total, setTotal] = useState(0)
-  const [searchGen, setSearchGen] = useState(0)
-  const items = useRef<Map<number, LibItem>>(new Map())
-  const requestedPages = useRef<Set<number>>(new Set())
-  const [tick, bump] = useReducer((x) => x + 1, 0)
-
   const scrollRef = useRef<HTMLDivElement>(null)
   const [cols, setCols] = useState(1)
   // Wall/path thumbs vary in size -> single-column list at natural size.
   const layout = LIST_CATEGORIES.has(category) ? "list" : "grid"
+
+  const {
+    items,
+    total,
+    searchGen,
+    nullOffset,
+    queryInput,
+    setQueryInput,
+    exactness,
+    setExactness,
+    runSearch,
+    loadVisibleRows,
+    ensureLoaded,
+  } = useAssetSearch({
+    browserKey,
+    category,
+    allowNull,
+    select,
+    selectedIds,
+    onSelectionChange,
+    scrollRef,
+  })
 
   const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds])
   const selectedRef = useRef(selectedSet)
@@ -260,7 +135,7 @@ export function AssetSelector({
         )
       }
     },
-    [setPreview, showPreview],
+    [items, setPreview, showPreview],
   )
 
   const clearAll = useCallback(() => {
@@ -271,25 +146,6 @@ export function AssetSelector({
       setPreview(null)
     }
   }, [setPreview, showPreview])
-
-  // Ensure every index in [from, to] is loaded (used by shift-range selection).
-  const ensureLoaded = useCallback(
-    async (from: number, to: number) => {
-      const first = Math.floor(from / PAGE)
-      const last = Math.floor(to / PAGE)
-      const jobs: Promise<void>[] = []
-      for (let p = first; p <= last; p++) {
-        if (items.current.has(p * PAGE)) continue
-        jobs.push(
-          getLibraryItems(browserKey, p * PAGE, PAGE).then((batch) => {
-            batch.forEach((it, i) => items.current.set(p * PAGE + i, it))
-          }),
-        )
-      }
-      if (jobs.length) await Promise.all(jobs)
-    },
-    [browserKey],
-  )
 
   const handleClick = useCallback(
     async (e: ReactMouseEvent) => {
@@ -333,17 +189,16 @@ export function AssetSelector({
         anchorIdx.current = idx
       }
     },
-    [select, onSelectionChange, ensureLoaded],
+    [select, onSelectionChange, ensureLoaded, items],
   )
 
-  // Release the backend cache and clear any lingering preview on unmount.
+  // Clear any lingering tooltip/preview on unmount.
   useEffect(
     () => () => {
       window.clearTimeout(tipTimer.current)
       if (showPreview) setPreview(null)
-      void releaseLibrarySearch(browserKey)
     },
-    [browserKey, setPreview, showPreview],
+    [setPreview, showPreview],
   )
 
   // Track the scroll area width -> number of columns (list mode is always 1).
@@ -364,30 +219,6 @@ export function AssetSelector({
     return () => ro.disconnect()
   }, [layout])
 
-  const runSearch = useCallback(
-    (q: string) => {
-      items.current.clear()
-      requestedPages.current.clear()
-      scrollRef.current?.scrollTo({ top: 0 })
-      return withLoading(t("loading.searchingLibrary"), () =>
-        searchLibrary(browserKey, category, q, exactnessRef.current).then((res) => {
-          setTotal(res.total)
-          setSearchGen((n) => n + 1)
-          bump()
-        }),
-      )
-    },
-    [browserKey, category, t],
-  )
-
-  // Fresh "all" search whenever the category changes (panel opens/switches).
-  useEffect(() => {
-    setQueryInput("")
-    void runSearch("")
-  }, [category, runSearch])
-
-  // The null option occupies display slot 0; real items shift up by one.
-  const nullOffset = allowNull ? 1 : 0
   const displayTotal = total + nullOffset
   const noneSelected = (selectedIds?.length ?? 0) === 0
 
@@ -404,36 +235,11 @@ export function AssetSelector({
   const firstRow = virtualRows[0]?.index ?? 0
   const lastRow = virtualRows[virtualRows.length - 1]?.index ?? 0
 
-  // Fetch the pages that cover the currently visible rows.
+  // Fetch the pages that cover the currently visible rows (searchGen retriggers
+  // the fetch after a new search even when the window itself didn't move).
   useEffect(() => {
-    if (total === 0) return
-    // Map the visible display range back to real item indices (minus the null slot).
-    const startIdx = Math.max(0, firstRow * cols - nullOffset)
-    const endIdx = Math.min(total, (lastRow + 1) * cols - nullOffset)
-    if (endIdx <= startIdx) return
-    const firstPage = Math.floor(startIdx / PAGE)
-    const lastPage = Math.floor((endIdx - 1) / PAGE)
-    for (let p = firstPage; p <= lastPage; p++) {
-      if (requestedPages.current.has(p)) continue
-      requestedPages.current.add(p)
-      getLibraryItems(browserKey, p * PAGE, PAGE)
-        .then((batch) => {
-          batch.forEach((it, i) => items.current.set(p * PAGE + i, it))
-          bump()
-        })
-        .catch(() => requestedPages.current.delete(p))
-    }
-  }, [firstRow, lastRow, cols, total, searchGen, browserKey, nullOffset])
-
-  // Single-select must always hold one item: when nothing is selected, default
-  // to the first result once it has loaded (runs again if the first page loads
-  // after mount, via `tick`). Skipped when null is allowed (empty is valid).
-  useEffect(() => {
-    if (select !== "single" || allowNull || !onSelectionChange) return
-    if ((selectedIds?.length ?? 0) > 0 || total === 0) return
-    const first = items.current.get(0)
-    if (first) onSelectionChange([first.id])
-  }, [select, allowNull, onSelectionChange, selectedIds, total, tick])
+    loadVisibleRows(firstRow, lastRow, cols)
+  }, [loadVisibleRows, firstRow, lastRow, cols, searchGen])
 
   return (
     <Flex direction="column" flex="1" minH="0">
@@ -517,14 +323,7 @@ export function AssetSelector({
                   key={vr.key}
                   data-index={vr.index}
                   ref={rowVirtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    padding: `0 ${GAP}px ${GAP}px`,
-                    transform: `translateY(${vr.start}px)`,
-                  }}
+                  style={{ ...listRowStyle, transform: `translateY(${vr.start}px)` }}
                 >
                   {(() => {
                     if (allowNull && vr.index === 0) return <NullCell selected={noneSelected} />
@@ -543,16 +342,7 @@ export function AssetSelector({
               ) : (
                 <div
                   key={vr.key}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    display: "flex",
-                    padding: `0 ${GAP}px`,
-                    gap: `${GAP}px`,
-                    transform: `translateY(${vr.start}px)`,
-                  }}
+                  style={{ ...gridRowStyle, transform: `translateY(${vr.start}px)` }}
                 >
                   {Array.from({ length: cols }, (_, c) => {
                     const displayIdx = vr.index * cols + c
@@ -582,41 +372,9 @@ export function AssetSelector({
       </Box>
 
       {tip && (
-        <div
-          style={{
-            position: "fixed",
-            left: tip.x,
-            top: tip.y,
-            transform: "translate(-50%, calc(-100% - 8px))",
-            pointerEvents: "none",
-            zIndex: 2000,
-            maxWidth: 280,
-            padding: "4px 8px",
-            borderRadius: 6,
-            background: "#212126",
-            border: "1px solid #34343c",
-            color: "#e7e7ea",
-            fontSize: 12,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
-          }}
-        >
+        <div style={{ ...tipStyle, left: tip.x, top: tip.y }}>
           {tip.name}
-          <span
-            style={{
-              position: "absolute",
-              left: "50%",
-              bottom: -4,
-              width: 8,
-              height: 8,
-              transform: "translateX(-50%) rotate(45deg)",
-              background: "#212126",
-              borderRight: "1px solid #34343c",
-              borderBottom: "1px solid #34343c",
-            }}
-          />
+          <span style={tipArrowStyle} />
         </div>
       )}
     </Flex>

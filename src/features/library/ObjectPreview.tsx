@@ -19,11 +19,19 @@ export function ObjectPreview() {
   const preview = usePreviewStore((s) => s.preview)
   const [fullLoaded, setFullLoaded] = useState(false)
 
+  // Show the thumbnail again whenever the previewed object changes, adjusted
+  // during render (previous-value-in-state) so the stale full image never
+  // flashes for the new object.
+  const [prevPreview, setPrevPreview] = useState(preview)
+  if (preview !== prevPreview) {
+    setPrevPreview(preview)
+    setFullLoaded(false)
+  }
+
   // Preload the full image via a detached Image so load detection is reliable
   // even when the browser already has it cached (a rendered <img>'s onLoad can
   // silently not fire for cached sources, leaving us stuck on the thumbnail).
   useEffect(() => {
-    setFullLoaded(false)
     if (!preview) return
     const img = new Image()
     const onDone = () => setFullLoaded(true)

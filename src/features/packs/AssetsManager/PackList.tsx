@@ -7,13 +7,14 @@ import {
   HStack,
   Icon,
   Image,
+  Progress,
   Spinner,
   Text,
   VStack,
 } from "@chakra-ui/react"
 import { Trans, useTranslation } from "react-i18next"
 import { LuGem, LuImageOff } from "react-icons/lu"
-import { loadPackThumbnail, toDataUrl, type InstalledPack } from "../api"
+import { loadPackThumbnail, toDataUrl, type InstalledPack, type InstallProgress } from "../api"
 import { formatBytes } from "../../../lib/format"
 
 // -- one pack row --------------------------------------------------------------
@@ -138,6 +139,8 @@ interface PackListProps {
   selected: Set<string>
   focusedId: string | null
   readOnly: boolean
+  /** Install progress shown between the header and the list, when present. */
+  progress: InstallProgress | null
   onToggle: (id: string) => void
   onToggleAll: () => void
   onFocus: (id: string) => void
@@ -149,6 +152,7 @@ export function PackList({
   selected,
   focusedId,
   readOnly,
+  progress,
   onToggle,
   onToggleAll,
   onFocus,
@@ -184,6 +188,24 @@ export function PackList({
               : t("assets.installedCount", { count: packs.length })}
           </Text>
         </HStack>
+      )}
+
+      {/* Progress */}
+      {progress && (
+        <Box px="3" py="2" borderBottomWidth="1px" borderColor="panel.border" flexShrink={0}>
+          <Text fontSize="xs" color="fg.muted" mb="1" truncate>
+            {t("assets.installing", {
+              pack: progress.pack,
+              index: progress.index,
+              total: progress.total,
+            })}
+          </Text>
+          <Progress.Root value={progress.percent} size="xs" colorPalette="blue">
+            <Progress.Track>
+              <Progress.Range />
+            </Progress.Track>
+          </Progress.Root>
+        </Box>
       )}
 
       {/* List */}

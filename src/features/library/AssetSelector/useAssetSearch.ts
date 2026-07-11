@@ -1,0 +1,175 @@
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useReducer,
+  useRef,
+  useState,
+  type RefObject,
+} from "react"
+import { useTranslation } from "react-i18next"
+import { withLoading } from "../../../stores/loadingStore"
+import { getLibraryItems, releaseLibrarySearch, searchLibrary, type LibItem } from "../api"
+
+const PAGE = 200 // items fetched per window request
+
+export interface UseAssetSearchOptions {
+  /** Unique per-instance id for the backend result cache (lets several coexist). */
+  browserKey: string
+  /** Asset category to search (e.g. "objects", "floors", "walls"). */
+  category: string
+  /** Whether display slot 0 is the "no asset" cell (shifts real items by one). */
+  allowNull: boolean
+  /** Selection mode; needed for the single-select default described below. */
+  select?: "single" | "multi"
+  /** Selected item ids (controlled). */
+  selectedIds?: string[]
+  onSelectionChange?: (ids: string[]) => void
+  /** Scroll container of the virtualized grid (reset to top on a new search). */
+  scrollRef: RefObject<HTMLDivElement | null>
+}
+
+/**
+ * Non-visual half of the AssetSelector: paginated search against the backend
+ * cache, the visible-window fetching and the sparse item map. Items live in a
+ * ref (the map mutates as pages arrive); `tick` bumps to trigger re-renders.
+ */
+export function useAssetSearch({
+  browserKey,
+  category,
+  allowNull,
+  select,
+  selectedIds,
+  onSelectionChange,
+  scrollRef,
+}: UseAssetSearchOptions) {
+  const { t } = useTranslation()
+
+  const [queryInput, setQueryInput] = useState("")
+  const [exactness, setExactnessState] = useState(0.5)
+  // Latest exactness for runSearch without making it a reactive dependency
+  // (moving the slider must not re-trigger the category-change search).
+  const exactnessRef = useRef(0.5)
+  const setExactness = useCallback((v: number) => {
+    exactnessRef.current = v
+    setExactnessState(v)
+  }, [])
+
+  const [total, setTotal] = useState(0)
+  const [searchGen, setSearchGen] = useState(0)
+  const items = useRef<Map<number, LibItem>>(new Map())
+  const requestedPages = useRef<Set<number>>(new Set())
+  const [tick, bump] = useReducer((x) => x + 1, 0)
+
+  // The null option occupies display slot 0; real items shift up by one.
+  const nullOffset = allowNull ? 1 : 0
+
+  const runSearch = useCallback(
+    (q: string) => {
+      items.current.clear()
+      requestedPages.current.clear()
+      scrollRef.current?.scrollTo({ top: 0 })
+      return withLoading(t("loading.searchingLibrary"), () =>
+        searchLibrary(browserKey, category, q, exactnessRef.current).then((res) => {
+          setTotal(res.total)
+          setSearchGen((n) => n + 1)
+          bump()
+        }),
+      )
+    },
+    [browserKey, category, t, scrollRef],
+  )
+
+  // Reset the query box when the category changes (panel opens/switches),
+  // adjusted during render so the stale query never hits the screen.
+  const [prevCategory, setPrevCategory] = useState(category)
+  if (category !== prevCategory) {
+    setPrevCategory(category)
+    setQueryInput("")
+  }
+
+  // Fresh "all" search whenever the category changes (runSearch is recreated
+  // per category/browser, so it doubles as the trigger).
+  useEffect(() => {
+    void runSearch("")
+  }, [runSearch])
+
+  // Fetch the pages that cover the currently visible rows. The caller invokes
+  // this from an effect fed by the virtualizer's window (rows are display rows,
+  // i.e. including the null slot).
+  const loadVisibleRows = useCallback(
+    (firstRow: number, lastRow: number, cols: number) => {
+      if (total === 0) return
+      // Map the visible display range back to real item indices (minus the null slot).
+      const startIdx = Math.max(0, firstRow * cols - nullOffset)
+      const endIdx = Math.min(total, (lastRow + 1) * cols - nullOffset)
+      if (endIdx <= startIdx) return
+      const firstPage = Math.floor(startIdx / PAGE)
+      const lastPage = Math.floor((endIdx - 1) / PAGE)
+      for (let p = firstPage; p <= lastPage; p++) {
+        if (requestedPages.current.has(p)) continue
+        requestedPages.current.add(p)
+        getLibraryItems(browserKey, p * PAGE, PAGE)
+          .then((batch) => {
+            batch.forEach((it, i) => items.current.set(p * PAGE + i, it))
+            bump()
+          })
+          .catch(() => requestedPages.current.delete(p))
+      }
+    },
+    [browserKey, total, nullOffset],
+  )
+
+  // Ensure every index in [from, to] is loaded (used by shift-range selection).
+  const ensureLoaded = useCallback(
+    async (from: number, to: number) => {
+      const first = Math.floor(from / PAGE)
+      const last = Math.floor(to / PAGE)
+      const jobs: Promise<void>[] = []
+      for (let p = first; p <= last; p++) {
+        if (items.current.has(p * PAGE)) continue
+        jobs.push(
+          getLibraryItems(browserKey, p * PAGE, PAGE).then((batch) => {
+            batch.forEach((it, i) => items.current.set(p * PAGE + i, it))
+          }),
+        )
+      }
+      if (jobs.length) await Promise.all(jobs)
+    },
+    [browserKey],
+  )
+
+  // Single-select must always hold one item: when nothing is selected, default
+  // to the first result once it has loaded (runs again if the first page loads
+  // after mount, via `tick`). Skipped when null is allowed (empty is valid).
+  // The parent callback goes through an effect event so the effect itself only
+  // reacts to the values that can make a default selection necessary.
+  const applyDefaultSelection = useEffectEvent((ids: string[] | undefined, count: number) => {
+    if (select !== "single" || allowNull || !onSelectionChange) return
+    if ((ids?.length ?? 0) > 0 || count === 0) return
+    const first = items.current.get(0)
+    if (first) onSelectionChange([first.id])
+  })
+  useEffect(() => {
+    applyDefaultSelection(selectedIds, total)
+  }, [select, allowNull, selectedIds, total, tick])
+
+  // Release the backend result cache when the browser instance goes away.
+  useEffect(() => () => void releaseLibrarySearch(browserKey), [browserKey])
+
+  return {
+    /** Sparse index → item map; mutated in place as pages arrive. */
+    items,
+    total,
+    /** Bumped on every new search; retriggers visible-window fetching. */
+    searchGen,
+    nullOffset,
+    queryInput,
+    setQueryInput,
+    exactness,
+    setExactness,
+    runSearch,
+    loadVisibleRows,
+    ensureLoaded,
+  }
+}
