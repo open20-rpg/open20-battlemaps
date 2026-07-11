@@ -93,9 +93,9 @@ export function ToolParamControl({
     case "editPoints":
       return <EditPointsControl value={getParam(values, spec)} onChange={onChange} />
     case "assetPicker": {
-      const recolorColor = spec.recolorFromParam
-        ? (values[spec.recolorFromParam] as string)
-        : undefined
+      const recolor = spec.recolor ?? "own"
+      const recolorColor =
+        typeof recolor === "object" ? (values[recolor.fromParam] as string) : undefined
       return (
         <AssetPickerControl
           value={getParam(values, spec)}
@@ -104,6 +104,7 @@ export function ToolParamControl({
           category={spec.category}
           select={spec.select}
           allowNull={spec.allowNull}
+          showColorSwatch={recolor === "own"}
           recolorColor={recolorColor}
           onChange={onChange}
         />

@@ -13,6 +13,15 @@ export interface AssetSelection {
   color: string
 }
 
+/**
+ * How an asset picker colors its grid:
+ *  - "own": shows its own color swatch, stored in the value (Build floor/wall…).
+ *  - "none": no color — plain thumbnails, no swatch (Roof Style).
+ *  - { fromParam }: recolored by a sibling param, no swatch (Cave Style by
+ *    `groundColor`); the value's own `color` is then unused.
+ */
+export type AssetRecolor = "own" | "none" | { fromParam: string }
+
 /** One choice of a `segmented` param (its stored value + i18n label + icon). */
 export interface SegmentedChoice {
   value: string
@@ -80,12 +89,8 @@ export type ToolParamSpec =
       select: "single" | "multi"
       /** Show an empty first cell that selects "no asset" (null). */
       allowNull: boolean
-      /**
-       * When set, the picker drops its own color swatch and recolors the grid
-       * with the color read from this sibling param (e.g. Cave's Style recolors
-       * by `groundColor`). Its stored `color` is then unused.
-       */
-      recolorFromParam?: string
+      /** Grid color source (defaults to "own"). See {@link AssetRecolor}. */
+      recolor?: AssetRecolor
     })
 
 /**

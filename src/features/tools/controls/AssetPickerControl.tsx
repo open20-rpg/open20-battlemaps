@@ -11,9 +11,9 @@ import { type AssetSelection } from "../params"
  * Library) plus a color selector below. Lets a tool store a chosen asset (or
  * assets) with a color. Grows to fill the available panel height.
  *
- * When `recolorColor` is provided, the picker drops its own color swatch and
- * recolors the grid with that externally-driven color (e.g. Cave's Style
- * recolored by the Ground Color param).
+ * The grid color is decided by the caller: `showColorSwatch` renders the own
+ * color swatch (and recolors by the stored color); otherwise `recolorColor`
+ * (a sibling param's color, or none) recolors the grid with no swatch.
  */
 export function AssetPickerControl({
   value,
@@ -22,6 +22,7 @@ export function AssetPickerControl({
   category,
   select,
   allowNull = false,
+  showColorSwatch = true,
   recolorColor,
   onChange,
 }: {
@@ -32,12 +33,16 @@ export function AssetPickerControl({
   category: AssetCategory
   select: "single" | "multi"
   allowNull?: boolean
-  /** Externally-controlled recolor; when set, hides the own color swatch. */
+  /** Render the own color swatch (edits the stored color). */
+  showColorSwatch?: boolean
+  /** Externally-driven recolor used when `showColorSwatch` is false. */
   recolorColor?: string
   onChange: (value: AssetSelection) => void
 }) {
   const { t } = useTranslation()
-  const ownColor = recolorColor === undefined
+  // Own swatch → recolor by the stored color; else by the external color (or
+  // "" = plain thumbnails when there is no color at all).
+  const gridColor = showColorSwatch ? value.color : (recolorColor ?? "")
 
   return (
     <Flex direction="column" flex="1" minH="0">
@@ -47,7 +52,7 @@ export function AssetPickerControl({
       <AssetSelector
         browserKey={browserKey}
         category={category}
-        color={ownColor ? value.color : recolorColor}
+        color={gridColor}
         select={select}
         selectedIds={value.assets}
         onSelectionChange={(ids) => onChange({ ...value, assets: ids })}
@@ -55,8 +60,8 @@ export function AssetPickerControl({
         showSearch={false}
         allowNull={allowNull}
       />
-      {/* Own color selector below the browser (unless recolor is external). */}
-      {ownColor && (
+      {/* Own color selector below the browser (unless colored externally). */}
+      {showColorSwatch && (
         <Box px="3" py="2.5" borderTopWidth="1px" borderColor="panel.border" flexShrink={0}>
           <ColorPickerPopover
             value={value.color}

@@ -30,6 +30,7 @@ import { type AssetCategory } from "../../lib/categories"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import {
   shapeVsEditPoints,
+  type AssetRecolor,
   type ParamNormalizer,
   type SegmentedChoice,
   type Shape,
@@ -185,7 +186,7 @@ const assetPicker = (
   select: "single" | "multi",
   defaultColor: string,
   allowNull = false,
-  recolorFromParam?: string,
+  recolor: AssetRecolor = "own",
 ): ToolParamSpec => ({
   kind: "assetPicker",
   paramKey,
@@ -194,7 +195,7 @@ const assetPicker = (
   select,
   default: { assets: [], color: defaultColor },
   allowNull,
-  recolorFromParam,
+  recolor,
 })
 
 /** Gate a param's visibility on the tool's current params. */
@@ -260,15 +261,9 @@ export const TOOL_TREE: ToolNode[] = [
           switchParam("showBlast", "tools.showBlastArea", false),
           // The Style browser embeds the caves library (no separate panel), and
           // recolors its assets with the Ground Color instead of its own swatch.
-          assetPicker(
-            "style",
-            "tools.style",
-            "caves",
-            "single",
-            DEFAULT_CUSTOM_COLOR,
-            false,
-            "groundColor",
-          ),
+          assetPicker("style", "tools.style", "caves", "single", DEFAULT_CUSTOM_COLOR, false, {
+            fromParam: "groundColor",
+          }),
         ],
       }),
       tool("pattern", "tools.pattern", LuGrid3X3, {
@@ -285,7 +280,9 @@ export const TOOL_TREE: ToolNode[] = [
             "single",
             DEFAULT_CUSTOM_COLOR,
             false,
-            "customColor",
+            {
+              fromParam: "customColor",
+            },
           ),
           customColor("customColor", "tools.color"),
           switchParam("outline", "tools.outline", false),
@@ -293,8 +290,41 @@ export const TOOL_TREE: ToolNode[] = [
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("roof", "tools.roof", LuTriangle, {
-        library: "roofs",
-        params: [customColor(), sorting("over")],
+        params: [
+          segmented(
+            "mode",
+            "tools.mode",
+            [
+              { value: "quickbox", labelKey: "tools.quickbox" },
+              { value: "manual", labelKey: "tools.manual" },
+            ],
+            "quickbox",
+          ),
+          sorting("over"),
+          segmented(
+            "type",
+            "tools.type",
+            [
+              { value: "gable", labelKey: "tools.gable" },
+              { value: "hip", labelKey: "tools.hip" },
+              { value: "dormer", labelKey: "tools.dormer" },
+            ],
+            "gable",
+          ),
+          // Embedded roofs browser (no separate library); roofs carry no color.
+          assetPicker(
+            "style",
+            "tools.style",
+            "roofs",
+            "single",
+            DEFAULT_CUSTOM_COLOR,
+            false,
+            "none",
+          ),
+          switchParam("shade", "tools.shade", true),
+          sliderParam("sunDirection", "tools.sunDirection", -180, 180, 0.1, 45),
+          sliderParam("shadeContrast", "tools.shadeContrast", 0, 1, 0.05, 0.3),
+        ],
       }),
     ],
   },

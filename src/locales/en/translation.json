@@ -155,7 +155,17 @@
     "showBlastArea": "Show Blast Opened Area",
     "color": "Color",
     "patternAsset": "Pattern",
-    "outline": "Outline"
+    "outline": "Outline",
+    "mode": "Mode",
+    "quickbox": "Quickbox",
+    "manual": "Manual",
+    "type": "Type",
+    "gable": "Gable",
+    "hip": "Hip",
+    "dormer": "Dormer",
+    "shade": "Shade",
+    "sunDirection": "Sun Direction",
+    "shadeContrast": "Shade Contrast"
   },
   "layers": {
     "terrain": "Terrain",

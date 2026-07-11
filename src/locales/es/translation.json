@@ -155,7 +155,17 @@
     "showBlastArea": "Mostrar Área Detonada",
     "color": "Color",
     "patternAsset": "Patrón",
-    "outline": "Contorno"
+    "outline": "Contorno",
+    "mode": "Modo",
+    "quickbox": "Quickbox",
+    "manual": "Manual",
+    "type": "Tipo",
+    "gable": "Dos aguas",
+    "hip": "Cuatro aguas",
+    "dormer": "Buhardilla",
+    "shade": "Sombreado",
+    "sunDirection": "Dirección del Sol",
+    "shadeContrast": "Contraste de Sombra"
   },
   "layers": {
     "terrain": "Terreno",
