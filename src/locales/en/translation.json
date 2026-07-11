@@ -75,8 +75,6 @@
     "delete": "Delete",
     "refresh": "Refresh",
     "close": "Close",
-    "mapOpenBadge": "Map open",
-    "mapOpenHint": "A map is open: deleting packs is disabled.",
     "selectedCount": "{{count}} selected",
     "installedCount": "{{count}} pack(s) installed",
     "installing": "Installing “{{pack}}” — {{index}}/{{total}}",
@@ -90,7 +88,9 @@
     "deleteConfirm": "Delete {{count}} pack(s)? Files will be removed from disk.",
     "errorTitle": "Error",
     "deactivateUsedTitle": "Deactivate pack(s) in use?",
-    "deactivateUsedConfirm": "{{count}} of the selected pack(s) are used by the current map. Deactivating will delete the configurations that depend on them. This can't be undone — save your map first if you want to keep them."
+    "deactivateUsedConfirm": "{{count}} of the selected pack(s) are used by the current map. Deactivating will delete the configurations that depend on them. This can't be undone — save your map first if you want to keep them.",
+    "deleteUsedTitle": "Delete pack(s) in use?",
+    "deleteUsedConfirm": "{{count}} of the selected pack(s) are used by the current map. Deleting will remove the files from disk and delete the configurations that depend on them. This can't be undone — save your map first if you want to keep them."
   },
   "preview": {
     "empty": "Select a pack to see its details.",

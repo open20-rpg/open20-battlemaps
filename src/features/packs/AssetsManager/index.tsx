@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Badge, Box, Button, Flex, HStack, IconButton } from "@chakra-ui/react"
+import { Box, Button, Flex, HStack, IconButton } from "@chakra-ui/react"
 import { confirm } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 import {
@@ -14,7 +14,6 @@ import {
 import { FloatingWindow } from "../../../ui/FloatingWindow"
 import { withLoading } from "../../../stores/loadingStore"
 import { usePacksStore } from "../../../stores/packsStore"
-import { useHasMap } from "../../../stores/mapStore"
 import { openPacksDir, setPackEnabled, uninstallPack } from "../api"
 import { isPackUsed, clearPackReferences } from "../../map/packUsage"
 import { PackList } from "./PackList"
@@ -32,7 +31,6 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const addOrUpdate = usePacksStore((s) => s.addOrUpdate)
   const applyEnabled = usePacksStore((s) => s.applyEnabled)
   const removePacks = usePacksStore((s) => s.removePacks)
-  const hasMap = useHasMap()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [mutating, setMutating] = useState(false)
@@ -104,6 +102,18 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const handleDelete = async () => {
     const ids = [...selected]
     if (ids.length === 0) return
+
+    // Deleting a pack the open map depends on deletes the configs that
+    // reference it too, and that reset isn't tracked by undo/redo — confirm first.
+    const usedIds = ids.filter((id) => isPackUsed(id))
+    if (usedIds.length > 0) {
+      const ok = await confirm(t("assets.deleteUsedConfirm", { count: usedIds.length }), {
+        title: t("assets.deleteUsedTitle"),
+        kind: "warning",
+      })
+      if (!ok) return
+    }
+
     const ok = await confirm(t("assets.deleteConfirm", { count: ids.length }), {
       title: t("assets.deleteTitle"),
       kind: "warning",
@@ -112,6 +122,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
     setMutating(true)
     try {
       await withLoading(t("loading.deletingAssets"), async () => {
+        for (const id of usedIds) clearPackReferences(id)
         // Each uninstall touches its own pack directory, so they are
         // independent and safe to run in parallel.
         await Promise.all(ids.map((id) => uninstallPack(id)))
@@ -165,18 +176,13 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
         size="xs"
         variant="subtle"
         colorPalette="red"
-        disabled={!hasSelection || busy || hasMap}
+        disabled={!hasSelection || busy}
         onClick={handleDelete}
       >
         <LuTrash2 />
         {t("assets.delete")}
       </Button>
       <Box flex="1" />
-      {hasMap && (
-        <Badge colorPalette="orange" variant="subtle" title={t("assets.mapOpenHint")}>
-          {t("assets.mapOpenBadge")}
-        </Badge>
-      )}
       <IconButton
         aria-label={t("assets.refresh")}
         size="xs"

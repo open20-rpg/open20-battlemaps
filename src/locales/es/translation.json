@@ -75,8 +75,6 @@
     "delete": "Eliminar",
     "refresh": "Refrescar",
     "close": "Cerrar",
-    "mapOpenBadge": "Mapa abierto",
-    "mapOpenHint": "Hay un mapa abierto: eliminar paquetes está deshabilitado.",
     "selectedCount": "{{count}} seleccionado(s)",
     "installedCount": "{{count}} pack(s) instalado(s)",
     "installing": "Instalando “{{pack}}” — {{index}}/{{total}}",
@@ -90,7 +88,9 @@
     "deleteConfirm": "¿Eliminar {{count}} pack(s)? Se borrarán los archivos del disco.",
     "errorTitle": "Error",
     "deactivateUsedTitle": "¿Desactivar paquetes en uso?",
-    "deactivateUsedConfirm": "{{count}} de los paquetes seleccionados se están usando en el mapa actual. Desactivarlos eliminará las configuraciones que dependen de ellos. Esta acción no se puede deshacer — guardá el mapa primero si querés conservarlas."
+    "deactivateUsedConfirm": "{{count}} de los paquetes seleccionados se están usando en el mapa actual. Desactivarlos eliminará las configuraciones que dependen de ellos. Esta acción no se puede deshacer — guardá el mapa primero si querés conservarlas.",
+    "deleteUsedTitle": "¿Eliminar paquetes en uso?",
+    "deleteUsedConfirm": "{{count}} de los paquetes seleccionados se están usando en el mapa actual. Eliminarlos borrará los archivos del disco y las configuraciones que dependen de ellos. Esta acción no se puede deshacer — guardá el mapa primero si querés conservarlas."
   },
   "preview": {
     "empty": "Seleccioná un pack para ver sus detalles.",
