@@ -6,7 +6,6 @@ import { SortingControl } from "./SortingControl"
 import { SwitchParamControl } from "./SwitchParamControl"
 import { ShapeControl } from "./ShapeControl"
 import { EditPointsControl } from "./EditPointsControl"
-import { ToggleTextControl } from "./ToggleTextControl"
 import { SliderControl } from "./SliderControl"
 import { AssetPickerControl } from "./AssetPickerControl"
 
@@ -42,16 +41,6 @@ export function ToolParamControl({
         <SwitchParamControl
           value={getParam(values, spec)}
           labelKey={spec.labelKey}
-          onChange={onChange}
-        />
-      )
-    case "toggleText":
-      return (
-        <ToggleTextControl
-          value={getParam(values, spec)}
-          trueLabelKey={spec.trueLabelKey}
-          falseLabelKey={spec.falseLabelKey}
-          icon={spec.icon}
           onChange={onChange}
         />
       )

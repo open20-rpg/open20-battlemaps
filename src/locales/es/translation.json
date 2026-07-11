@@ -142,10 +142,8 @@
     "bevelCorners": "Biselar Esquinas",
     "floor": "Piso",
     "buildWall": "Pared",
-    "allowLight": "Permitir Luz",
     "blockLight": "Bloquear Luz",
     "anchored": "Anclado",
-    "freestanding": "Independiente",
     "rotate180": "Rotar 180",
     "rotation": "Rotación",
     "style": "Estilo"

@@ -1,4 +1,3 @@
-import { type IconType } from "react-icons"
 import { type AssetCategory } from "../../lib/categories"
 
 /** Within a layer, whether the tool places new items on top or at the bottom. */
@@ -23,7 +22,6 @@ export interface ParamValueByKind {
   layer: number
   sorting: Sorting
   switch: boolean
-  toggleText: boolean
   slider: number
   shape: Shape | null
   brushSize: number
@@ -54,14 +52,8 @@ export type ToolParamSpec =
   | BaseSpec<"customColor">
   | (BaseSpec<"layer"> & { allowed: number[] })
   | BaseSpec<"sorting">
-  /** On/off switch (Shadow, Bevel Corners, Rotate 180, …). */
+  /** On/off switch (Shadow, Bevel Corners, Rotate 180, Block Light, …). */
   | (BaseSpec<"switch"> & { labelKey: string })
-  /** Single button whose label flips with its boolean value. */
-  | (BaseSpec<"toggleText"> & {
-      trueLabelKey: string
-      falseLabelKey: string
-      icon: IconType
-    })
   /** Plain numeric slider (Rotation, …). */
   | (BaseSpec<"slider"> & { labelKey: string; min: number; max: number; step: number })
   /** Shape selector. `allowBrush` adds a free-paint "brush" option (Water Brush). */

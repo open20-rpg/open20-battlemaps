@@ -142,10 +142,8 @@
     "bevelCorners": "Bevel Corners",
     "floor": "Floor",
     "buildWall": "Wall",
-    "allowLight": "Allow Light",
     "blockLight": "Block Light",
     "anchored": "Anchored",
-    "freestanding": "Freestanding",
     "rotate180": "Rotate 180",
     "rotation": "Rotation",
     "style": "Style"

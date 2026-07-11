@@ -1,6 +1,5 @@
 import { type IconType } from "react-icons"
 import {
-  LuAnchor,
   LuBox,
   LuBoxes,
   LuBrickWall,
@@ -144,20 +143,6 @@ const switchParam = (paramKey: string, labelKey: string, def: boolean): ToolPara
 const shadow = (def: boolean): ToolParamSpec => switchParam("shadow", "tools.shadow", def)
 const bevelCorners = (def: boolean): ToolParamSpec =>
   switchParam("bevelCorners", "tools.bevelCorners", def)
-const toggleText = (
-  paramKey: string,
-  trueLabelKey: string,
-  falseLabelKey: string,
-  icon: IconType,
-  def: boolean,
-): ToolParamSpec => ({
-  kind: "toggleText",
-  paramKey,
-  trueLabelKey,
-  falseLabelKey,
-  icon,
-  default: def,
-})
 const sliderParam = (
   paramKey: string,
   labelKey: string,
@@ -220,9 +205,9 @@ export const TOOL_TREE: ToolNode[] = [
         params: [
           shape("rectangle"),
           editPoints(false),
+          bevelCorners(true),
           assetPicker("floor", "tools.floor", "tilesets", "single", "#ffffff"),
           assetPicker("wall", "tools.buildWall", "walls", "single", "#ffffff"),
-          bevelCorners(true),
         ],
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
@@ -230,15 +215,15 @@ export const TOOL_TREE: ToolNode[] = [
         params: [
           editPoints(false),
           sorting("under"),
+          bevelCorners(true),
           shadow(true),
           assetPicker("wall", "tools.buildWall", "walls", "single", "#ffffff"),
-          bevelCorners(true),
         ],
       }),
       tool("portal", "tools.portal", LuDoorOpen, {
         params: [
-          toggleText("allowLight", "tools.allowLight", "tools.blockLight", LuDoorOpen, true),
-          toggleText("anchored", "tools.anchored", "tools.freestanding", LuAnchor, true),
+          switchParam("blockLight", "tools.blockLight", false),
+          switchParam("anchored", "tools.anchored", true),
           // Anchored portals snap in 180° flips; freestanding ones rotate freely.
           when(switchParam("rotate180", "tools.rotate180", false), (p) => p.anchored !== false),
           when(
