@@ -146,7 +146,13 @@
     "anchored": "Anchored",
     "rotate180": "Rotate 180",
     "rotation": "Rotation",
-    "style": "Style"
+    "style": "Style",
+    "groundColor": "Ground Color",
+    "wallColor": "Wall Color",
+    "brushMode": "Brush Mode",
+    "digCave": "Dig Cave",
+    "blastOpen": "Blast Open",
+    "showBlastArea": "Show Blast Opened Area"
   },
   "layers": {
     "terrain": "Terrain",

@@ -18,9 +18,11 @@ const DOT = "34px"
  */
 export function CustomColorControl({
   value,
+  labelKey,
   onChange,
 }: {
   value: string
+  labelKey: string
   onChange: (value: string) => void
 }) {
   const { t } = useTranslation()
@@ -37,7 +39,7 @@ export function CustomColorControl({
   return (
     <Box px="3" py="1.5">
       <Text mb="2" fontSize="xs" color="fg.muted">
-        {t("tools.customColor")}
+        {t(labelKey)}
       </Text>
       <Flex gap="2" align="center">
         <Popover.Root

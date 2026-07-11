@@ -1,3 +1,4 @@
+import { type IconType } from "react-icons"
 import { type AssetCategory } from "../../lib/categories"
 
 /** Within a layer, whether the tool places new items on top or at the bottom. */
@@ -12,6 +13,13 @@ export interface AssetSelection {
   color: string
 }
 
+/** One choice of a `segmented` param (its stored value + i18n label + icon). */
+export interface SegmentedChoice {
+  value: string
+  labelKey: string
+  icon?: IconType
+}
+
 /**
  * The value type each param kind reads/writes. This is the single source of
  * truth tying a `kind` to its runtime value — controls and consumers narrow
@@ -22,6 +30,7 @@ export interface ParamValueByKind {
   layer: number
   sorting: Sorting
   switch: boolean
+  segmented: string
   slider: number
   shape: Shape | null
   brushSize: number
@@ -49,11 +58,14 @@ interface BaseSpec<K extends ParamKind> {
 }
 
 export type ToolParamSpec =
-  | BaseSpec<"customColor">
+  /** Preset-swatch color picker (`labelKey` names it: Custom/Ground/Wall…). */
+  | (BaseSpec<"customColor"> & { labelKey: string })
   | (BaseSpec<"layer"> & { allowed: number[] })
   | BaseSpec<"sorting">
   /** On/off switch (Shadow, Bevel Corners, Rotate 180, Block Light, …). */
   | (BaseSpec<"switch"> & { labelKey: string })
+  /** Segmented single-choice control (Brush Mode: Dig Cave / Blast Open, …). */
+  | (BaseSpec<"segmented"> & { labelKey: string; options: SegmentedChoice[] })
   /** Plain numeric slider (Rotation, …). */
   | (BaseSpec<"slider"> & { labelKey: string; min: number; max: number; step: number })
   /** Shape selector. `allowBrush` adds a free-paint "brush" option (Water Brush). */
@@ -68,6 +80,12 @@ export type ToolParamSpec =
       select: "single" | "multi"
       /** Show an empty first cell that selects "no asset" (null). */
       allowNull: boolean
+      /**
+       * When set, the picker drops its own color swatch and recolors the grid
+       * with the color read from this sibling param (e.g. Cave's Style recolors
+       * by `groundColor`). Its stored `color` is then unused.
+       */
+      recolorFromParam?: string
     })
 
 /**

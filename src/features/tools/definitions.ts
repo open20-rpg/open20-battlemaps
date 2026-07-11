@@ -31,6 +31,7 @@ import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import {
   shapeVsEditPoints,
   type ParamNormalizer,
+  type SegmentedChoice,
   type Shape,
   type Sorting,
   type ToolParamSpec,
@@ -118,11 +119,12 @@ const tool = (
 
 // Shared param specs, so tools reuse the same controls with minimal config.
 // Every spec carries an explicit paramKey; defaults live only in the spec.
-const customColor: ToolParamSpec = {
+const customColor = (paramKey = "customColor", labelKey = "tools.customColor"): ToolParamSpec => ({
   kind: "customColor",
-  paramKey: "customColor",
+  paramKey,
+  labelKey,
   default: DEFAULT_CUSTOM_COLOR,
-}
+})
 const objectLayer = (def: number): ToolParamSpec => ({
   kind: "layer",
   paramKey: "layer",
@@ -134,6 +136,12 @@ const sorting = (def: Sorting): ToolParamSpec => ({
   paramKey: "sorting",
   default: def,
 })
+const segmented = (
+  paramKey: string,
+  labelKey: string,
+  options: SegmentedChoice[],
+  def: string,
+): ToolParamSpec => ({ kind: "segmented", paramKey, labelKey, options, default: def })
 const switchParam = (paramKey: string, labelKey: string, def: boolean): ToolParamSpec => ({
   kind: "switch",
   paramKey,
@@ -177,6 +185,7 @@ const assetPicker = (
   select: "single" | "multi",
   defaultColor: string,
   allowNull = false,
+  recolorFromParam?: string,
 ): ToolParamSpec => ({
   kind: "assetPicker",
   paramKey,
@@ -185,6 +194,7 @@ const assetPicker = (
   select,
   default: { assets: [], color: defaultColor },
   allowNull,
+  recolorFromParam,
 })
 
 /** Gate a param's visibility on the tool's current params. */
@@ -234,17 +244,41 @@ export const TOOL_TREE: ToolNode[] = [
         ],
       }),
       tool("cave", "tools.cave", LuMountainSnow, {
-        library: "caves",
-        params: [customColor, brushSize(0.5, 2.5, 0.5, 1)],
+        params: [
+          brushSize(0.5, 2.5, 0.5, 1),
+          customColor("groundColor", "tools.groundColor"),
+          customColor("wallColor", "tools.wallColor"),
+          segmented(
+            "brushMode",
+            "tools.brushMode",
+            [
+              { value: "dig", labelKey: "tools.digCave" },
+              { value: "blast", labelKey: "tools.blastOpen" },
+            ],
+            "dig",
+          ),
+          switchParam("showBlast", "tools.showBlastArea", false),
+          // The Style browser embeds the caves library (no separate panel), and
+          // recolors its assets with the Ground Color instead of its own swatch.
+          assetPicker(
+            "style",
+            "tools.style",
+            "caves",
+            "single",
+            DEFAULT_CUSTOM_COLOR,
+            false,
+            "groundColor",
+          ),
+        ],
       }),
       tool("pattern", "tools.pattern", LuGrid3X3, {
         library: "tilesets",
-        params: [customColor, shape("rectangle"), editPoints(false)],
+        params: [customColor(), shape("rectangle"), editPoints(false)],
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("roof", "tools.roof", LuTriangle, {
         library: "roofs",
-        params: [customColor, sorting("over")],
+        params: [customColor(), sorting("over")],
       }),
     ],
   },
@@ -266,7 +300,13 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("path", "tools.path", LuRoute, {
         library: "paths",
-        params: [customColor, objectLayer(100), sorting("over"), shadow(false), editPoints(false)],
+        params: [
+          customColor(),
+          objectLayer(100),
+          sorting("over"),
+          shadow(false),
+          editPoints(false),
+        ],
       }),
     ],
   },
@@ -278,11 +318,11 @@ export const TOOL_TREE: ToolNode[] = [
     children: [
       tool("object", "tools.object", LuBox, {
         library: "objects",
-        params: [customColor, objectLayer(100), sorting("over"), shadow(true)],
+        params: [customColor(), objectLayer(100), sorting("over"), shadow(true)],
       }),
       tool("scatter", "tools.scatter", LuSprayCan, {
         library: "objects",
-        params: [customColor, objectLayer(100), sorting("over"), shadow(true)],
+        params: [customColor(), objectLayer(100), sorting("over"), shadow(true)],
       }),
     ],
   },

@@ -10,6 +10,10 @@ import { type AssetSelection } from "../params"
  * Asset-picker param: an embedded asset browser (search + grid, same as the
  * Library) plus a color selector below. Lets a tool store a chosen asset (or
  * assets) with a color. Grows to fill the available panel height.
+ *
+ * When `recolorColor` is provided, the picker drops its own color swatch and
+ * recolors the grid with that externally-driven color (e.g. Cave's Style
+ * recolored by the Ground Color param).
  */
 export function AssetPickerControl({
   value,
@@ -18,6 +22,7 @@ export function AssetPickerControl({
   category,
   select,
   allowNull = false,
+  recolorColor,
   onChange,
 }: {
   value: AssetSelection
@@ -27,9 +32,12 @@ export function AssetPickerControl({
   category: AssetCategory
   select: "single" | "multi"
   allowNull?: boolean
+  /** Externally-controlled recolor; when set, hides the own color swatch. */
+  recolorColor?: string
   onChange: (value: AssetSelection) => void
 }) {
   const { t } = useTranslation()
+  const ownColor = recolorColor === undefined
 
   return (
     <Flex direction="column" flex="1" minH="0">
@@ -39,7 +47,7 @@ export function AssetPickerControl({
       <AssetSelector
         browserKey={browserKey}
         category={category}
-        color={value.color}
+        color={ownColor ? value.color : recolorColor}
         select={select}
         selectedIds={value.assets}
         onSelectionChange={(ids) => onChange({ ...value, assets: ids })}
@@ -47,37 +55,42 @@ export function AssetPickerControl({
         showSearch={false}
         allowNull={allowNull}
       />
-      {/* Color selector below the browser. */}
-      <Box px="3" py="2.5" borderTopWidth="1px" borderColor="panel.border" flexShrink={0}>
-        <ColorPickerPopover value={value.color} onCommit={(c) => onChange({ ...value, color: c })}>
-          <Flex
-            as="button"
-            w="full"
-            h="30px"
-            align="center"
-            justify="flex-end"
-            pr="1.5"
-            bg={value.color}
-            borderWidth="1px"
-            borderColor="panel.border"
-            borderRadius="md"
-            cursor="pointer"
-            overflow="hidden"
-            _hover={{ borderColor: "brand.fg" }}
+      {/* Own color selector below the browser (unless recolor is external). */}
+      {ownColor && (
+        <Box px="3" py="2.5" borderTopWidth="1px" borderColor="panel.border" flexShrink={0}>
+          <ColorPickerPopover
+            value={value.color}
+            onCommit={(c) => onChange({ ...value, color: c })}
           >
             <Flex
+              as="button"
+              w="full"
+              h="30px"
               align="center"
-              justify="center"
-              boxSize="20px"
-              borderRadius="sm"
-              bg="blackAlpha.500"
-              color="white"
+              justify="flex-end"
+              pr="1.5"
+              bg={value.color}
+              borderWidth="1px"
+              borderColor="panel.border"
+              borderRadius="md"
+              cursor="pointer"
+              overflow="hidden"
+              _hover={{ borderColor: "brand.fg" }}
             >
-              <LuChevronDown size={14} />
+              <Flex
+                align="center"
+                justify="center"
+                boxSize="20px"
+                borderRadius="sm"
+                bg="blackAlpha.500"
+                color="white"
+              >
+                <LuChevronDown size={14} />
+              </Flex>
             </Flex>
-          </Flex>
-        </ColorPickerPopover>
-      </Box>
+          </ColorPickerPopover>
+        </Box>
+      )}
     </Flex>
   )
 }

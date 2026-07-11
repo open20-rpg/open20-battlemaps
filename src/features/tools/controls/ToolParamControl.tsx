@@ -3,6 +3,7 @@ import { getParam, type ToolParamSpec, type ToolParamValues } from "../params"
 import { CustomColorControl } from "./CustomColorControl"
 import { LayerControl } from "./LayerControl"
 import { SortingControl } from "./SortingControl"
+import { SegmentedParamControl } from "./SegmentedParamControl"
 import { SwitchParamControl } from "./SwitchParamControl"
 import { ShapeControl } from "./ShapeControl"
 import { EditPointsControl } from "./EditPointsControl"
@@ -29,13 +30,28 @@ export function ToolParamControl({
 
   switch (spec.kind) {
     case "customColor":
-      return <CustomColorControl value={getParam(values, spec)} onChange={onChange} />
+      return (
+        <CustomColorControl
+          value={getParam(values, spec)}
+          labelKey={spec.labelKey}
+          onChange={onChange}
+        />
+      )
     case "layer":
       return (
         <LayerControl value={getParam(values, spec)} allowed={spec.allowed} onChange={onChange} />
       )
     case "sorting":
       return <SortingControl value={getParam(values, spec)} onChange={onChange} />
+    case "segmented":
+      return (
+        <SegmentedParamControl
+          value={getParam(values, spec)}
+          labelKey={spec.labelKey}
+          options={spec.options}
+          onChange={onChange}
+        />
+      )
     case "switch":
       return (
         <SwitchParamControl
@@ -76,7 +92,10 @@ export function ToolParamControl({
       )
     case "editPoints":
       return <EditPointsControl value={getParam(values, spec)} onChange={onChange} />
-    case "assetPicker":
+    case "assetPicker": {
+      const recolorColor = spec.recolorFromParam
+        ? (values[spec.recolorFromParam] as string)
+        : undefined
       return (
         <AssetPickerControl
           value={getParam(values, spec)}
@@ -85,8 +104,10 @@ export function ToolParamControl({
           category={spec.category}
           select={spec.select}
           allowNull={spec.allowNull}
+          recolorColor={recolorColor}
           onChange={onChange}
         />
       )
+    }
   }
 }
