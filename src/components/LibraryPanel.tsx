@@ -14,8 +14,7 @@ export function LibraryPanel({ category }: { category: string }) {
 
   // Colorable items are shown recolored with the active tool's custom color.
   const { activeToolId, getToolParams } = useTools()
-  const color =
-    (getToolParams(activeToolId ?? "").customColor as string) || DEFAULT_CUSTOM_COLOR
+  const color = (getToolParams(activeToolId ?? "").customColor as string) || DEFAULT_CUSTOM_COLOR
 
   return (
     <Flex

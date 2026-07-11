@@ -102,9 +102,7 @@ function GroupPanel({ group, expanded, selectedChildId, onSelect }: GroupPanelPr
 
   if (!expanded) {
     // Collapsed: just the icons, with the picked child highlighted.
-    return (
-      <IconBar nodes={group.children} selectedId={selectedChildId} onSelect={onSelect} />
-    )
+    return <IconBar nodes={group.children} selectedId={selectedChildId} onSelect={onSelect} />
   }
 
   return (
@@ -206,7 +204,9 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
         />
       )
     case "shape":
-      return <ShapeControl toolId={toolId} defaultValue={spec.default} allowBrush={spec.allowBrush} />
+      return (
+        <ShapeControl toolId={toolId} defaultValue={spec.default} allowBrush={spec.allowBrush} />
+      )
     case "brushSize":
       return (
         <BrushSizeControl
@@ -315,14 +315,7 @@ export function ToolsPanel() {
   const { path, selectTop, selectChild } = useTools()
 
   return (
-    <Flex
-      position="absolute"
-      left="0"
-      top="0"
-      bottom="0"
-      zIndex="docked"
-      maxW="80%"
-    >
+    <Flex position="absolute" left="0" top="0" bottom="0" zIndex="docked" maxW="80%">
       <IconBar nodes={TOOL_TREE} selectedId={path[0]?.id} onSelect={selectTop} />
       {path.map((node, i) => {
         if (node.type === "group") {

@@ -97,8 +97,14 @@ export function FloatingWindow({
     (e: React.PointerEvent) => {
       const s = resizeStart.current
       if (!s) return
-      const w = Math.max(minSize.w, Math.min(window.innerWidth - pos.x - 8, s.w + (e.clientX - s.x)))
-      const h = Math.max(minSize.h, Math.min(window.innerHeight - pos.y - 8, s.h + (e.clientY - s.y)))
+      const w = Math.max(
+        minSize.w,
+        Math.min(window.innerWidth - pos.x - 8, s.w + (e.clientX - s.x)),
+      )
+      const h = Math.max(
+        minSize.h,
+        Math.min(window.innerHeight - pos.y - 8, s.h + (e.clientY - s.y)),
+      )
       setSize({ w, h })
     },
     [minSize, pos],

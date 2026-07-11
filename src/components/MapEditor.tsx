@@ -8,14 +8,7 @@ import mapCover from "../assets/map-placeholder.png"
 export function MapEditor() {
   return (
     <Box position="absolute" inset="0" bg="app.bg">
-      <Image
-        src={mapCover}
-        alt=""
-        draggable={false}
-        w="100%"
-        h="100%"
-        objectFit="cover"
-      />
+      <Image src={mapCover} alt="" draggable={false} w="100%" h="100%" objectFit="cover" />
     </Box>
   )
 }

@@ -29,10 +29,7 @@ export function loadUserTemplates(): MapTemplate[] {
     return parsed
       .filter(
         (t) =>
-          t &&
-          typeof t.name === "string" &&
-          Number.isFinite(t.width) &&
-          Number.isFinite(t.height),
+          t && typeof t.name === "string" && Number.isFinite(t.width) && Number.isFinite(t.height),
       )
       .map((t) => ({
         id: String(t.id ?? `u_${t.name}`),

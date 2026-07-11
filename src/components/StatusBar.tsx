@@ -59,78 +59,73 @@ export function StatusBar() {
 
   return (
     <Portal>
-    <Flex
-      as="footer"
-      position="fixed"
-      bottom="0"
-      left="0"
-      right="0"
-      h={STATUS_BAR_HEIGHT}
-      // Above modal overlays/dialogs so the status bar is always visible.
-      zIndex="max"
-      flexShrink={0}
-      align="center"
-      px="3"
-      bg="menubar.bg"
-      borderTopWidth="1px"
-      borderColor="panel.border"
-      fontSize="xs"
-      color="menubar.fgMuted"
-    >
-      {/* App identity on the far left */}
-      <Text fontWeight="medium" color="menubar.fgMuted">
-        OpenDraft v{__APP_VERSION__}
-      </Text>
-
-      {/* Current tool (only when a map is open and a tool is picked) */}
-      {hasMap && activeTool && (
-        <>
-          <Sep />
-          <HStack gap="1.5" color="menubar.fg">
-            <Icon as={activeTool.icon} boxSize="3.5" color="brand.fg" />
-            <Text>{t(activeTool.nameKey)}</Text>
-          </HStack>
-        </>
-      )}
-
-      {/* Middle reserved for future status data (coords, zoom, etc.) */}
-      <Box flex="1" />
-
-      {/* Loading indicator — always right-aligned. Details show on hover only. */}
-      <Sep />
-      <Tooltip
-        content={<TaskDetails />}
-        disabled={!isLoading}
-        openDelay={100}
-        closeDelay={100}
-        positioning={{ placement: "top-end" }}
-        contentProps={{
-          color: "fg",
-          borderWidth: "1px",
-          borderColor: "panel.border",
-          zIndex: "max",
-          // The recipe derives the content bg AND the arrow fill/border from
-          // --tooltip-bg, so override that (not bg/--arrow-background).
-          css: { "--tooltip-bg": "#212126" },
-        }}
-        showArrow
+      <Flex
+        as="footer"
+        position="fixed"
+        bottom="0"
+        left="0"
+        right="0"
+        h={STATUS_BAR_HEIGHT}
+        // Above modal overlays/dialogs so the status bar is always visible.
+        zIndex="max"
+        flexShrink={0}
+        align="center"
+        px="3"
+        bg="menubar.bg"
+        borderTopWidth="1px"
+        borderColor="panel.border"
+        fontSize="xs"
+        color="menubar.fgMuted"
       >
-        <HStack
-          gap="1.5"
-          px="1.5"
-          h="full"
-          color={isLoading ? "menubar.fg" : "menubar.fgMuted"}
+        {/* App identity on the far left */}
+        <Text fontWeight="medium" color="menubar.fgMuted">
+          OpenDraft v{__APP_VERSION__}
+        </Text>
+
+        {/* Current tool (only when a map is open and a tool is picked) */}
+        {hasMap && activeTool && (
+          <>
+            <Sep />
+            <HStack gap="1.5" color="menubar.fg">
+              <Icon as={activeTool.icon} boxSize="3.5" color="brand.fg" />
+              <Text>{t(activeTool.nameKey)}</Text>
+            </HStack>
+          </>
+        )}
+
+        {/* Middle reserved for future status data (coords, zoom, etc.) */}
+        <Box flex="1" />
+
+        {/* Loading indicator — always right-aligned. Details show on hover only. */}
+        <Sep />
+        <Tooltip
+          content={<TaskDetails />}
+          disabled={!isLoading}
+          openDelay={100}
+          closeDelay={100}
+          positioning={{ placement: "top-end" }}
+          contentProps={{
+            color: "fg",
+            borderWidth: "1px",
+            borderColor: "panel.border",
+            zIndex: "max",
+            // The recipe derives the content bg AND the arrow fill/border from
+            // --tooltip-bg, so override that (not bg/--arrow-background).
+            css: { "--tooltip-bg": "#212126" },
+          }}
+          showArrow
         >
-          {isLoading ? (
-            <Spinner size="xs" color="brand.fg" borderWidth="1.5px" />
-          ) : (
-            <Icon as={LuCircleCheck} boxSize="3.5" color="green.400" />
-          )}
-          <Text>{label}</Text>
-          {overall !== null && <Text color="fg.muted">{overall}%</Text>}
-        </HStack>
-      </Tooltip>
-    </Flex>
+          <HStack gap="1.5" px="1.5" h="full" color={isLoading ? "menubar.fg" : "menubar.fgMuted"}>
+            {isLoading ? (
+              <Spinner size="xs" color="brand.fg" borderWidth="1.5px" />
+            ) : (
+              <Icon as={LuCircleCheck} boxSize="3.5" color="green.400" />
+            )}
+            <Text>{label}</Text>
+            {overall !== null && <Text color="fg.muted">{overall}%</Text>}
+          </HStack>
+        </Tooltip>
+      </Flex>
     </Portal>
   )
 }

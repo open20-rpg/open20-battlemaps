@@ -143,11 +143,7 @@ function PackRow({ pack, selected, focused, disabled, onToggle, onFocus }: PackR
         </Text>
       </Box>
 
-      <Badge
-        flexShrink={0}
-        colorPalette={pack.enabled ? "green" : "gray"}
-        variant="subtle"
-      >
+      <Badge flexShrink={0} colorPalette={pack.enabled ? "green" : "gray"} variant="subtle">
         {pack.enabled ? t("assets.active") : t("assets.inactive")}
       </Badge>
     </Flex>
@@ -256,11 +252,7 @@ function PackPreview({ pack }: { pack: InstalledPack | null }) {
           <Text fontWeight="bold" fontSize="md" wordBreak="break-word">
             {pack.name}
           </Text>
-          <Badge
-            mt="1"
-            colorPalette={pack.enabled ? "green" : "gray"}
-            variant="subtle"
-          >
+          <Badge mt="1" colorPalette={pack.enabled ? "green" : "gray"} variant="subtle">
             {pack.enabled ? t("assets.active") : t("assets.inactive")}
           </Badge>
         </Box>
@@ -352,8 +344,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   )
 
   const allSelected = packs.length > 0 && selected.size === packs.length
-  const toggleAll = () =>
-    setSelected(allSelected ? new Set() : new Set(packs.map((p) => p.id)))
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(packs.map((p) => p.id)))
 
   const handleInstall = async () => {
     const paths = await pickPackFiles()

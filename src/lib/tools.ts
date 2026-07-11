@@ -141,10 +141,7 @@ export type ToolParamValues = Record<string, unknown>
  * Use it to keep dependent params consistent (e.g. mutually-exclusive fields)
  * instead of reacting after the fact with an effect.
  */
-export type ParamNormalizer = (
-  merged: ToolParamValues,
-  patch: ToolParamValues,
-) => ToolParamValues
+export type ParamNormalizer = (merged: ToolParamValues, patch: ToolParamValues) => ToolParamValues
 
 /**
  * Exclusivity between `shape` and `editPoints`: exactly one is active. Turning
@@ -152,13 +149,15 @@ export type ParamNormalizer = (
  * turning edit-points off requires a shape, so it restores `defaultShape` when
  * none is selected.
  */
-export const shapeVsEditPoints = (defaultShape: Shape): ParamNormalizer => (merged, patch) => {
-  if (patch.editPoints === true) return { ...merged, shape: null }
-  if ("shape" in patch && patch.shape != null) return { ...merged, editPoints: false }
-  if (patch.editPoints === false && merged.shape == null)
-    return { ...merged, shape: defaultShape }
-  return merged
-}
+export const shapeVsEditPoints =
+  (defaultShape: Shape): ParamNormalizer =>
+  (merged, patch) => {
+    if (patch.editPoints === true) return { ...merged, shape: null }
+    if ("shape" in patch && patch.shape != null) return { ...merged, editPoints: false }
+    if (patch.editPoints === false && merged.shape == null)
+      return { ...merged, shape: defaultShape }
+    return merged
+  }
 
 /** A tool that opens a parameters panel (its declared params) when selected. */
 export interface ToolLeaf {
@@ -224,7 +223,14 @@ const toggleText = (
   falseLabelKey: string,
   icon: IconType,
   def: boolean,
-): ToolParamSpec => ({ kind: "toggleText", paramKey, trueLabelKey, falseLabelKey, icon, default: def })
+): ToolParamSpec => ({
+  kind: "toggleText",
+  paramKey,
+  trueLabelKey,
+  falseLabelKey,
+  icon,
+  default: def,
+})
 const sliderParam = (
   paramKey: string,
   labelKey: string,
@@ -270,12 +276,13 @@ const when = (
 export function paramGrows(spec: ToolParamSpec): boolean {
   return spec.kind === "assetPicker"
 }
-const brushSize = (
-  min: number,
-  max: number,
-  step: number,
-  def: number,
-): ToolParamSpec => ({ kind: "brushSize", min, max, step, default: def })
+const brushSize = (min: number, max: number, step: number, def: number): ToolParamSpec => ({
+  kind: "brushSize",
+  min,
+  max,
+  step,
+  default: def,
+})
 
 /** The top-level tool palette. Groups expand into their own panels. */
 export const TOOL_TREE: ToolNode[] = [
@@ -310,7 +317,10 @@ export const TOOL_TREE: ToolNode[] = [
           toggleText("anchored", "tools.anchored", "tools.freestanding", LuAnchor, true),
           // Anchored portals snap in 180° flips; freestanding ones rotate freely.
           when(switchParam("rotate180", "tools.rotate180", false), (p) => p.anchored !== false),
-          when(sliderParam("rotation", "tools.rotation", -180, 180, 1, 0), (p) => p.anchored === false),
+          when(
+            sliderParam("rotation", "tools.rotation", -180, 180, 1, 0),
+            (p) => p.anchored === false,
+          ),
           assetPicker("style", "tools.style", "portals", "single", "#ffffff", true),
         ],
       }),

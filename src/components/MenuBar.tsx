@@ -118,11 +118,7 @@ export function MenuBar(props: MenuBarProps) {
                 <LuFolderOpen />
                 <Text ml="2">{t("menu.recent")}</Text>
               </Menu.Item>
-              <Menu.Item
-                value="closeMap"
-                disabled={!props.mapOpen}
-                onClick={props.onCloseMap}
-              >
+              <Menu.Item value="closeMap" disabled={!props.mapOpen} onClick={props.onCloseMap}>
                 <LuSquareX />
                 <Text ml="2">{t("menu.closeMap")}</Text>
               </Menu.Item>

@@ -96,7 +96,16 @@ export function PacksProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<PacksContextValue>(
-    () => ({ packs, loading, loaded, ensureLoaded, refresh, addOrUpdate, applyEnabled, removePacks }),
+    () => ({
+      packs,
+      loading,
+      loaded,
+      ensureLoaded,
+      refresh,
+      addOrUpdate,
+      applyEnabled,
+      removePacks,
+    }),
     [packs, loading, loaded, ensureLoaded, refresh, addOrUpdate, applyEnabled, removePacks],
   )
 

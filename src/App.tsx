@@ -63,35 +63,35 @@ export default function App() {
       <Box flex="1" position="relative" overflow="hidden">
         {hasMap && <MapEditor />}
         {!hasMap && (
-        <Flex
-          direction="column"
-          align="center"
-          justify="center"
-          h="full"
-          color="fg.muted"
-          gap="4"
-          css={{
-            backgroundImage:
-              "linear-gradient(#1c1c20 1px, transparent 1px), linear-gradient(90deg, #1c1c20 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-        >
-          <Icon as={LuMap} boxSize="16" opacity={0.35} />
-          <Stack gap="1" align="center">
-            <Text fontSize="lg" fontWeight="medium">
-              {t("canvas.title")}
-            </Text>
-            <Text fontSize="sm">
-              <Trans i18nKey="canvas.subtitle">
-                Creá o abrí un mapa para empezar. Gestioná tus paquetes desde <b>Activos</b>.
-              </Trans>
-            </Text>
-          </Stack>
-          <Button variant="subtle" colorPalette="blue" onClick={() => setAssetsOpen(true)}>
-            <LuGem />
-            {t("canvas.openAssets")}
-          </Button>
-        </Flex>
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            h="full"
+            color="fg.muted"
+            gap="4"
+            css={{
+              backgroundImage:
+                "linear-gradient(#1c1c20 1px, transparent 1px), linear-gradient(90deg, #1c1c20 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+            }}
+          >
+            <Icon as={LuMap} boxSize="16" opacity={0.35} />
+            <Stack gap="1" align="center">
+              <Text fontSize="lg" fontWeight="medium">
+                {t("canvas.title")}
+              </Text>
+              <Text fontSize="sm">
+                <Trans i18nKey="canvas.subtitle">
+                  Creá o abrí un mapa para empezar. Gestioná tus paquetes desde <b>Activos</b>.
+                </Trans>
+              </Text>
+            </Stack>
+            <Button variant="subtle" colorPalette="blue" onClick={() => setAssetsOpen(true)}>
+              <LuGem />
+              {t("canvas.openAssets")}
+            </Button>
+          </Flex>
         )}
 
         {hasMap && <ToolsPanel />}

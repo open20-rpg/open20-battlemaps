@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react"
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react"
 import { TOOL_TREE, findToolPath, type ToolLeaf, type ToolNode } from "../lib/tools"
 
 /** Arbitrary per-tool parameter bag; shape is defined by each tool later. */
@@ -59,10 +52,7 @@ export function ToolsProvider({ children }: { children: ReactNode }) {
 
   const reset = useCallback(() => setPath([]), [])
 
-  const getToolParams = useCallback(
-    (toolId: string) => paramsByTool[toolId] ?? {},
-    [paramsByTool],
-  )
+  const getToolParams = useCallback((toolId: string) => paramsByTool[toolId] ?? {}, [paramsByTool])
 
   const setToolParams = useCallback((toolId: string, patch: ToolParams) => {
     setParamsByTool((prev) => {
@@ -72,9 +62,7 @@ export function ToolsProvider({ children }: { children: ReactNode }) {
       const found = findToolPath(TOOL_TREE, toolId)
       const node = found?.[found.length - 1]
       const resolved =
-        node?.type === "tool" && node.normalizeParams
-          ? node.normalizeParams(merged, patch)
-          : merged
+        node?.type === "tool" && node.normalizeParams ? node.normalizeParams(merged, patch) : merged
       return { ...prev, [toolId]: resolved }
     })
   }, [])

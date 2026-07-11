@@ -153,7 +153,12 @@ const ListCell = memo(function ListCell({
 // The "no asset" cell — rendered as display slot 0 when allowNull is set.
 function NullCell({ selected }: { selected: boolean }) {
   return (
-    <div className="od-thumb" data-null="" data-selected={selected ? "" : undefined} style={nullCellStyle}>
+    <div
+      className="od-thumb"
+      data-null=""
+      data-selected={selected ? "" : undefined}
+      style={nullCellStyle}
+    >
       <LuBan color="#8a8a90" size={18} />
     </div>
   )
@@ -435,56 +440,56 @@ export function AssetSelector({
     <Flex direction="column" flex="1" minH="0">
       <style>{THUMB_CSS}</style>
       {showSearch && (
-      <VStack align="stretch" gap="2.5" p="3" borderBottomWidth="1px" borderColor="panel.border">
-        <HStack gap="1.5">
-          <Input
-            size="sm"
-            value={queryInput}
-            placeholder={t("library.searchPlaceholder")}
-            onChange={(e) => setQueryInput(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void runSearch(queryInput)
-            }}
-          />
-          <IconButton
-            aria-label={t("library.clear")}
-            size="sm"
-            variant="subtle"
-            onClick={() => {
-              setQueryInput("")
-              void runSearch("")
-            }}
-          >
-            <LuX />
-          </IconButton>
-        </HStack>
-        <HStack gap="2.5" fontSize="2xs" color="fg.muted">
-          <Text flexShrink={0}>{t("library.fuzzy")}</Text>
-          <Slider.Root
-            flex="1"
-            size="sm"
-            colorPalette="blue"
-            min={0}
-            max={100}
-            step={1}
-            value={[Math.round(exactness * 100)]}
-            onValueChange={(e) => setExactness(e.value[0] / 100)}
-          >
-            <Slider.Control>
-              <Slider.Track>
-                <Slider.Range />
-              </Slider.Track>
-              <Slider.Thumb index={0}>
-                <Slider.HiddenInput />
-              </Slider.Thumb>
-            </Slider.Control>
-          </Slider.Root>
-          <Text flexShrink={0}>{t("library.exact")}</Text>
-        </HStack>
-        <Text fontSize="2xs" color="fg.muted">
-          {t("library.results", { count: total })}
-        </Text>
-      </VStack>
+        <VStack align="stretch" gap="2.5" p="3" borderBottomWidth="1px" borderColor="panel.border">
+          <HStack gap="1.5">
+            <Input
+              size="sm"
+              value={queryInput}
+              placeholder={t("library.searchPlaceholder")}
+              onChange={(e) => setQueryInput(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void runSearch(queryInput)
+              }}
+            />
+            <IconButton
+              aria-label={t("library.clear")}
+              size="sm"
+              variant="subtle"
+              onClick={() => {
+                setQueryInput("")
+                void runSearch("")
+              }}
+            >
+              <LuX />
+            </IconButton>
+          </HStack>
+          <HStack gap="2.5" fontSize="2xs" color="fg.muted">
+            <Text flexShrink={0}>{t("library.fuzzy")}</Text>
+            <Slider.Root
+              flex="1"
+              size="sm"
+              colorPalette="blue"
+              min={0}
+              max={100}
+              step={1}
+              value={[Math.round(exactness * 100)]}
+              onValueChange={(e) => setExactness(e.value[0] / 100)}
+            >
+              <Slider.Control>
+                <Slider.Track>
+                  <Slider.Range />
+                </Slider.Track>
+                <Slider.Thumb index={0}>
+                  <Slider.HiddenInput />
+                </Slider.Thumb>
+              </Slider.Control>
+            </Slider.Root>
+            <Text flexShrink={0}>{t("library.exact")}</Text>
+          </HStack>
+          <Text fontSize="2xs" color="fg.muted">
+            {t("library.results", { count: total })}
+          </Text>
+        </VStack>
       )}
 
       <Box

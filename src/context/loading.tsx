@@ -55,9 +55,7 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const update = useCallback((id: string, patch: LoadingPatch) => {
-    setTasks((prev) =>
-      prev.map((task) => (task.id === id ? { ...task, ...patch } : task)),
-    )
+    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, ...patch } : task)))
   }, [])
 
   const stop = useCallback((id: string) => {

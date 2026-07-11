@@ -78,9 +78,7 @@ export function loadPackThumbnail(id: string): Promise<LoadedImage | null> {
 }
 
 /** Subscribe to install progress events. Returns an unlisten function. */
-export function onInstallProgress(
-  cb: (p: InstallProgress) => void,
-): Promise<UnlistenFn> {
+export function onInstallProgress(cb: (p: InstallProgress) => void): Promise<UnlistenFn> {
   return listen<InstallProgress>("pack-install-progress", (e) => cb(e.payload))
 }
 

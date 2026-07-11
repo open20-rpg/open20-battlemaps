@@ -74,7 +74,11 @@ export function ShapeControl({
                 color={active ? "brand.fg" : "menubar.fg"}
                 bg={active ? "panel.rowSelected" : "transparent"}
                 _hover={{ bg: active ? "panel.rowSelected" : "panel.rowHover" }}
-                _focusVisible={{ outline: "2px solid", outlineColor: "brand.fg", outlineOffset: "-2px" }}
+                _focusVisible={{
+                  outline: "2px solid",
+                  outlineColor: "brand.fg",
+                  outlineOffset: "-2px",
+                }}
                 onClick={() => setToolParams(toolId, { shape: opt.value })}
                 role="radio"
                 aria-label={opt.label}

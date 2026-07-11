@@ -31,7 +31,13 @@ export function SortingControl({
       <Text mb="2" fontSize="xs" color="fg.muted">
         {t("tools.sorting")}
       </Text>
-      <Flex gap="0" borderWidth="1px" borderColor="panel.border" borderRadius="md" overflow="hidden">
+      <Flex
+        gap="0"
+        borderWidth="1px"
+        borderColor="panel.border"
+        borderRadius="md"
+        overflow="hidden"
+      >
         {options.map((opt, i) => {
           const active = current === opt.value
           return (
