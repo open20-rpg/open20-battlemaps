@@ -11,9 +11,9 @@ import {
 } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuGem, LuMinus, LuPlus } from "react-icons/lu"
-import { Modal } from "./Modal"
-import { useTemplates } from "../hooks/useTemplates"
-import { DEFAULT_TEMPLATES } from "../lib/templates"
+import { Modal } from "../../ui/Modal"
+import { useTemplates } from "./useTemplates"
+import { DEFAULT_TEMPLATES } from "../../lib/templates"
 
 interface NewMapDialogProps {
   open: boolean

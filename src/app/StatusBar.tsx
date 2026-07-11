@@ -1,10 +1,10 @@
 import { Box, Flex, HStack, Icon, Portal, Spinner, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuCircleCheck } from "react-icons/lu"
-import { Tooltip } from "./ui/tooltip"
-import { useLoading } from "../context/loading"
-import { useMap } from "../context/map"
-import { useTools } from "../context/tools"
+import { Tooltip } from "../ui/chakra/tooltip"
+import { useIsLoading, useLoadingStore } from "../stores/loadingStore"
+import { useHasMap } from "../stores/mapStore"
+import { useActiveTool } from "../stores/toolsStore"
 
 /** Height of the status bar; the app reserves this much space at the bottom. */
 export const STATUS_BAR_HEIGHT = "26px"
@@ -15,7 +15,7 @@ function Sep() {
 }
 
 function TaskDetails() {
-  const { tasks } = useLoading()
+  const tasks = useLoadingStore((s) => s.tasks)
   const { t } = useTranslation()
   return (
     <VStack align="stretch" gap="1.5" minW="180px" maxW="320px">
@@ -39,9 +39,10 @@ function TaskDetails() {
 }
 
 export function StatusBar() {
-  const { tasks, isLoading } = useLoading()
-  const { hasMap } = useMap()
-  const { activeTool } = useTools()
+  const tasks = useLoadingStore((s) => s.tasks)
+  const isLoading = useIsLoading()
+  const hasMap = useHasMap()
+  const activeTool = useActiveTool()
   const { t } = useTranslation()
 
   // Overall progress = average of tasks that report a percentage.

@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { type MapTemplate } from "../lib/templates"
+import { loadUserPresets } from "../lib/colors"
+import { loadUserTemplates, type MapTemplate } from "../lib/templates"
 
 /**
  * User preferences and user-created data, persisted under a single versioned
@@ -20,25 +21,21 @@ interface SettingsState {
   removeTemplate: (id: string) => void
 }
 
-/** Pre-store keys, imported once into the versioned store then left behind. */
-const LEGACY_KEYS = {
-  panelAlpha: "opendraft.panel-alpha",
-  colorPresets: "opendraft.colorPresets",
-  userTemplates: "opendraft.userTemplates",
-} as const
-
-function readLegacy(): Partial<Pick<SettingsState, "panelAlpha" | "colorPresets" | "userTemplates">> {
+/**
+ * Seed defaults from the pre-store localStorage keys (panel-alpha, color
+ * presets, user templates) so existing users keep their data. The persisted
+ * store value, when present, overrides these on rehydration.
+ */
+function readLegacy(): Partial<
+  Pick<SettingsState, "panelAlpha" | "colorPresets" | "userTemplates">
+> {
   const out: ReturnType<typeof readLegacy> = {}
-  try {
-    const alpha = Number(localStorage.getItem(LEGACY_KEYS.panelAlpha))
-    if (Number.isFinite(alpha) && alpha > 0) out.panelAlpha = alpha
-    const presets = JSON.parse(localStorage.getItem(LEGACY_KEYS.colorPresets) ?? "null")
-    if (Array.isArray(presets)) out.colorPresets = presets.filter((c) => typeof c === "string")
-    const templates = JSON.parse(localStorage.getItem(LEGACY_KEYS.userTemplates) ?? "null")
-    if (Array.isArray(templates)) out.userTemplates = templates
-  } catch {
-    // Corrupt legacy data: start fresh.
-  }
+  const alpha = Number(localStorage.getItem("opendraft.panel-alpha"))
+  if (Number.isFinite(alpha) && alpha > 0) out.panelAlpha = alpha
+  const presets = loadUserPresets()
+  if (presets.length > 0) out.colorPresets = presets
+  const templates = loadUserTemplates()
+  if (templates.length > 0) out.userTemplates = templates
   return out
 }
 

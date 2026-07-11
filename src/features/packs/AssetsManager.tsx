@@ -28,12 +28,11 @@ import {
   LuRefreshCw,
   LuTrash2,
 } from "react-icons/lu"
-import { FloatingWindow } from "./FloatingWindow"
-import { useLoading } from "../context/loading"
-import { usePacks } from "../context/packs"
-import { useMap } from "../context/map"
+import { FloatingWindow } from "../../ui/FloatingWindow"
+import { useLoadingStore, withLoading } from "../../stores/loadingStore"
+import { usePacksStore } from "../../stores/packsStore"
+import { useHasMap } from "../../stores/mapStore"
 import {
-  formatBytes,
   installPacks,
   loadPackThumbnail,
   onInstallProgress,
@@ -44,7 +43,8 @@ import {
   uninstallPack,
   type InstallProgress,
   type InstalledPack,
-} from "../lib/packs"
+} from "./api"
+import { formatBytes } from "../../lib/format"
 
 // -- one pack row --------------------------------------------------------------
 
@@ -290,10 +290,15 @@ function PackPreview({ pack }: { pack: InstalledPack | null }) {
 
 export function AssetsManager({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
-  const { start, update, stop, withLoading } = useLoading()
-  const { packs, loading, ensureLoaded, refresh, addOrUpdate, applyEnabled, removePacks } =
-    usePacks()
-  const { hasMap } = useMap()
+  const { start, update, stop } = useLoadingStore.getState()
+  const packs = usePacksStore((s) => s.packs)
+  const loading = usePacksStore((s) => s.loading)
+  const ensureLoaded = usePacksStore((s) => s.ensureLoaded)
+  const refresh = usePacksStore((s) => s.refresh)
+  const addOrUpdate = usePacksStore((s) => s.addOrUpdate)
+  const applyEnabled = usePacksStore((s) => s.applyEnabled)
+  const removePacks = usePacksStore((s) => s.removePacks)
+  const hasMap = useHasMap()
   // While a map is open, the pack selection is locked (read-only).
   const readOnly = hasMap
   const [selected, setSelected] = useState<Set<string>>(new Set())

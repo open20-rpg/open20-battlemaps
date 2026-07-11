@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from "react"
 import { Box, Flex, Heading, IconButton, Portal } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuX } from "react-icons/lu"
-import { useModalLayer } from "../context/modalStack"
+import { useModalLayer } from "../stores/modalStackStore"
 
 interface ModalLayerProps {
   open: boolean

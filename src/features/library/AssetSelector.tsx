@@ -14,15 +14,15 @@ import { Box, Flex, HStack, IconButton, Input, Slider, Text, VStack } from "@cha
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useTranslation } from "react-i18next"
 import { LuBan, LuImageOff, LuX } from "react-icons/lu"
-import { useLoading } from "../context/loading"
-import { usePreview } from "../context/preview"
+import { withLoading } from "../../stores/loadingStore"
+import { usePreviewStore } from "../../stores/previewStore"
 import {
   getLibraryItems,
   itemImageUrl,
   releaseLibrarySearch,
   searchLibrary,
   type LibItem,
-} from "../lib/library"
+} from "./api"
 
 const CELL = 64 // thumbnail size in px (matches the 64x64 thumbnails)
 const GAP = 8
@@ -198,8 +198,7 @@ export function AssetSelector({
   allowNull = false,
 }: AssetSelectorProps) {
   const { t } = useTranslation()
-  const { withLoading } = useLoading()
-
+  
   const [queryInput, setQueryInput] = useState("")
   const [exactness, setExactness] = useState(0.5)
   const exactnessRef = useRef(exactness)
@@ -229,7 +228,7 @@ export function AssetSelector({
   const colorRef = useRef(color)
   colorRef.current = color
 
-  const { setPreview } = usePreview()
+  const setPreview = usePreviewStore((s) => s.setPreview)
   const previewIdx = useRef<number | null>(null)
 
   const handlePointerOver = useCallback(
@@ -378,7 +377,7 @@ export function AssetSelector({
         }),
       )
     },
-    [browserKey, category, withLoading, t],
+    [browserKey, category, t],
   )
 
   // Fresh "all" search whenever the category changes (panel opens/switches).

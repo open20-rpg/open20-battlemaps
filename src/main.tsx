@@ -1,31 +1,14 @@
 import React from "react"
 import ReactDOM from "react-dom/client"
-import App from "./App"
-import { Provider } from "./components/ui/provider"
-import { LoadingProvider } from "./context/loading"
-import { PacksProvider } from "./context/packs"
-import { MapProvider } from "./context/map"
-import { ModalStackProvider } from "./context/modalStack"
-import { ToolsProvider } from "./context/tools"
-import { PreviewProvider } from "./context/preview"
+import App from "./app/App"
+import { Provider } from "./ui/chakra/provider"
 import "./i18n"
 
+// Global state lives in the zustand stores under src/stores — no providers.
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <Provider>
-      <ModalStackProvider>
-        <LoadingProvider>
-          <PacksProvider>
-            <MapProvider>
-              <ToolsProvider>
-                <PreviewProvider>
-                  <App />
-                </PreviewProvider>
-              </ToolsProvider>
-            </MapProvider>
-          </PacksProvider>
-        </LoadingProvider>
-      </ModalStackProvider>
+      <App />
     </Provider>
   </React.StrictMode>,
 )

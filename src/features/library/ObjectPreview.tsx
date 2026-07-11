@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Box, Text } from "@chakra-ui/react"
-import { usePreview } from "../context/preview"
+import { usePreviewStore } from "../../stores/previewStore"
 
 // Keep a very large preview from spilling off-screen while still honouring
 // "full size" for the common (small texture) case.
@@ -16,7 +16,7 @@ const imgMax = {
  * full image arrives — with the object name underneath. Sized to its content.
  */
 export function ObjectPreview() {
-  const { preview } = usePreview()
+  const preview = usePreviewStore((s) => s.preview)
   const [fullLoaded, setFullLoaded] = useState(false)
 
   // Preload the full image via a detached Image so load detection is reliable

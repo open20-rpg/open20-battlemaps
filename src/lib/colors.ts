@@ -18,18 +18,15 @@ export const BUILTIN_COLOR_PRESETS: string[] = [
   "#c9c9cf",
 ]
 
-const LS_KEY = "opendraft.colorPresets"
-
-/** User-added color presets, persisted in localStorage. */
+/**
+ * User presets from the pre-settings-store localStorage key. Only used to seed
+ * the settings store for existing users; new writes go through the store.
+ */
 export function loadUserPresets(): string[] {
   try {
-    const arr = JSON.parse(localStorage.getItem(LS_KEY) ?? "[]")
+    const arr = JSON.parse(localStorage.getItem("opendraft.colorPresets") ?? "[]")
     return Array.isArray(arr) ? arr.filter((c) => typeof c === "string") : []
   } catch {
     return []
   }
-}
-
-export function saveUserPresets(presets: string[]): void {
-  localStorage.setItem(LS_KEY, JSON.stringify(presets))
 }

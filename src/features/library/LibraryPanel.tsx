@@ -3,18 +3,22 @@ import { Flex, Icon, Tabs, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuLibrary } from "react-icons/lu"
 import { AssetSelector } from "./AssetSelector"
-import { useTools } from "../context/tools"
-import { DEFAULT_CUSTOM_COLOR } from "../lib/colors"
+import { selectActiveTool, useToolsStore } from "../../stores/toolsStore"
+import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
+import { type AssetCategory } from "../../lib/categories"
 
 // -- the sticky Library panel --------------------------------------------------
 
-export function LibraryPanel({ category }: { category: string }) {
+export function LibraryPanel({ category }: { category: AssetCategory }) {
   const { t } = useTranslation()
   const [tab, setTab] = useState("all")
 
   // Colorable items are shown recolored with the active tool's custom color.
-  const { activeToolId, getToolParams } = useTools()
-  const color = (getToolParams(activeToolId ?? "").customColor as string) || DEFAULT_CUSTOM_COLOR
+  const color = useToolsStore((s) => {
+    const tool = selectActiveTool(s)
+    const stored = tool ? s.paramsByTool[tool.id]?.customColor : undefined
+    return typeof stored === "string" ? stored : DEFAULT_CUSTOM_COLOR
+  })
 
   return (
     <Flex

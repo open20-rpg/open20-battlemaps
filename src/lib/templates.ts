@@ -19,7 +19,11 @@ export const DEFAULT_TEMPLATES: MapTemplate[] = [
 
 const STORAGE_KEY = "opendraft.userTemplates"
 
-/** Load user-defined templates from localStorage (tolerant of bad data). */
+/**
+ * User templates from the pre-settings-store localStorage key (tolerant of bad
+ * data). Only used to seed the settings store for existing users; new writes
+ * go through the store.
+ */
 export function loadUserTemplates(): MapTemplate[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -39,13 +43,5 @@ export function loadUserTemplates(): MapTemplate[] {
       }))
   } catch {
     return []
-  }
-}
-
-export function saveUserTemplates(list: MapTemplate[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
-  } catch {
-    // Ignore storage errors (quota / private mode).
   }
 }
