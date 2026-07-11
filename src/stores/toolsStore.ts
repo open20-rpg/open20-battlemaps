@@ -17,6 +17,12 @@ interface ToolsState {
    * values (never rely on controls to fill gaps at read time).
    */
   paramsByTool: Record<string, ToolParamValues>
+  /**
+   * Whether the active tool's params panel is hidden. The tool stays selected
+   * (library, cursor, …); only the params column is collapsed. Reset whenever
+   * a different tool is selected so a new tool always shows its params.
+   */
+  paramsCollapsed: boolean
   /** Select a top-level node (toggles off if it is already the current top). */
   selectTop: (node: ToolNode) => void
   /** Select a child of the group at `depth`, replacing anything deeper. */
@@ -25,6 +31,8 @@ interface ToolsState {
   selectToolById: (id: string) => void
   /** Clear the current selection. */
   reset: () => void
+  /** Show/hide the active tool's params panel. */
+  toggleParams: () => void
   /** Merge a patch into a tool's parameters (normalizer applied in the same update). */
   setToolParams: (toolId: string, patch: ToolParamValues) => void
 }
@@ -47,27 +55,34 @@ function withMaterialized(
 export const useToolsStore = create<ToolsState>()((set) => ({
   path: [],
   paramsByTool: {},
+  paramsCollapsed: false,
 
   selectTop: (node) =>
     set((s) => {
       const path = s.path[0]?.id === node.id ? [] : [node]
-      return { path, paramsByTool: withMaterialized(s.paramsByTool, path) }
+      return { path, paramsByTool: withMaterialized(s.paramsByTool, path), paramsCollapsed: false }
     }),
 
   selectChild: (depth, child) =>
     set((s) => {
       const path = [...s.path.slice(0, depth + 1), child]
-      return { path, paramsByTool: withMaterialized(s.paramsByTool, path) }
+      return { path, paramsByTool: withMaterialized(s.paramsByTool, path), paramsCollapsed: false }
     }),
 
   selectToolById: (id) =>
     set((s) => {
       const found = findToolPath(TOOL_TREE, id)
       if (!found) return s
-      return { path: found, paramsByTool: withMaterialized(s.paramsByTool, found) }
+      return {
+        path: found,
+        paramsByTool: withMaterialized(s.paramsByTool, found),
+        paramsCollapsed: false,
+      }
     }),
 
-  reset: () => set({ path: [] }),
+  reset: () => set({ path: [], paramsCollapsed: false }),
+
+  toggleParams: () => set((s) => ({ paramsCollapsed: !s.paramsCollapsed })),
 
   setToolParams: (toolId, patch) =>
     set((s) => {

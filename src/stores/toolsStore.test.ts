@@ -36,4 +36,22 @@ describe("toolsStore", () => {
     useToolsStore.getState().selectTop(top)
     expect(useToolsStore.getState().path).toEqual([])
   })
+
+  it("toggleParams flips the collapsed flag", () => {
+    const { toggleParams } = useToolsStore.getState()
+    expect(useToolsStore.getState().paramsCollapsed).toBe(false)
+    toggleParams()
+    expect(useToolsStore.getState().paramsCollapsed).toBe(true)
+    toggleParams()
+    expect(useToolsStore.getState().paramsCollapsed).toBe(false)
+  })
+
+  it("selecting a different tool re-shows a collapsed params panel", () => {
+    const { selectToolById, toggleParams } = useToolsStore.getState()
+    selectToolById("wall")
+    toggleParams()
+    expect(useToolsStore.getState().paramsCollapsed).toBe(true)
+    selectToolById("object")
+    expect(useToolsStore.getState().paramsCollapsed).toBe(false)
+  })
 })

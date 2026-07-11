@@ -123,6 +123,7 @@
     "prefabs": "Prefabricados",
     "select": "Seleccionar",
     "emptyParams": "Parámetros de la herramienta (próximamente).",
+    "hideParams": "Ocultar parámetros",
     "customColor": "Color personalizado",
     "pickCustomColor": "Elegir color personalizado",
     "addColorPreset": "Agregar color a la lista",

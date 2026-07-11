@@ -1,6 +1,8 @@
-import { Flex, Icon, Text, VStack } from "@chakra-ui/react"
+import { Flex, Icon, IconButton, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
+import { LuPanelLeftClose } from "react-icons/lu"
 import { useToolsStore } from "../../../stores/toolsStore"
+import { Tooltip } from "../../../ui/chakra/tooltip"
 import { type ToolLeaf } from "../definitions"
 import { paramGrows, resolveParams, type ToolParamSpec } from "../params"
 import { ToolParamControl } from "../controls/ToolParamControl"
@@ -11,7 +13,7 @@ function paramKeyOf(spec: ToolParamSpec): string {
 }
 
 /** The selected tool's parameters, each rendered by its matching control. */
-export function ParamsPanel({ tool }: { tool: ToolLeaf }) {
+export function ParamsPanel({ tool, onHide }: { tool: ToolLeaf; onHide: () => void }) {
   const { t } = useTranslation()
   // The bag is materialized on selection; resolveParams here only covers the
   // (unreachable in practice) case of rendering a never-selected tool.
@@ -43,9 +45,20 @@ export function ParamsPanel({ tool }: { tool: ToolLeaf }) {
         flexShrink={0}
       >
         <Icon as={tool.icon} color="brand.fg" boxSize="4" />
-        <Text fontWeight="bold" fontSize="sm" truncate>
+        <Text fontWeight="bold" fontSize="sm" truncate flex="1">
           {t(tool.nameKey)}
         </Text>
+        <Tooltip content={t("tools.hideParams")} positioning={{ placement: "right" }} showArrow>
+          <IconButton
+            aria-label={t("tools.hideParams")}
+            size="xs"
+            variant="ghost"
+            color="menubar.fg"
+            onClick={onHide}
+          >
+            <LuPanelLeftClose />
+          </IconButton>
+        </Tooltip>
       </Flex>
       {params.length > 0 ? (
         // When a param grows (e.g. an asset picker), the column must not scroll
