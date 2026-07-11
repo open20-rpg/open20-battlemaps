@@ -206,12 +206,11 @@ function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpe
         />
       )
     case "shape":
-      return <ShapeControl toolId={toolId} defaultValue={spec.default} />
+      return <ShapeControl toolId={toolId} defaultValue={spec.default} allowBrush={spec.allowBrush} />
     case "brushSize":
       return (
         <BrushSizeControl
           toolId={toolId}
-          ui={spec.ui}
           min={spec.min}
           max={spec.max}
           step={spec.step}

@@ -69,8 +69,8 @@ export const OBJECT_LAYER_VALUES = [-400, -100, 100, 200, 300, 400, 700, 900]
 /** Within a layer, whether the tool places new items on top or at the bottom. */
 export type Sorting = "over" | "under"
 
-/** The geometry a shape/area tool draws with. */
-export type Shape = "rectangle" | "ellipse" | "path"
+/** The geometry a shape/area tool draws with. `brush` free-paints with the brush size. */
+export type Shape = "rectangle" | "ellipse" | "path" | "brush"
 
 /** The parameter kinds, before the shared `visibleWhen` field is mixed in. */
 type ToolParamKind =
@@ -98,15 +98,15 @@ type ToolParamKind =
       step: number
       default: number
     }
-  | { kind: "shape"; default: Shape | null }
+  /** Shape selector. `allowBrush` adds a free-paint "brush" option (Water Brush). */
+  | { kind: "shape"; default: Shape | null; allowBrush: boolean }
+  /** Draggable size slider, always visible and never null. */
   | {
       kind: "brushSize"
-      /** "slider" = draggable slider; "buttons" = one growing-circle button per step. */
-      ui: "slider" | "buttons"
       min: number
       max: number
       step: number
-      default: number | null
+      default: number
     }
   | { kind: "editPoints"; default: boolean }
   | {
@@ -145,17 +145,6 @@ export type ParamNormalizer = (
   merged: ToolParamValues,
   patch: ToolParamValues,
 ) => ToolParamValues
-
-/**
- * When one of two params is set to a non-null value, clear the other. Reusable
- * building block for mutually-exclusive params (e.g. Water Brush's shape vs
- * brush size — picking one unsets the other).
- */
-export const mutuallyExclusiveNull = (a: string, b: string): ParamNormalizer => (merged, patch) => {
-  if (a in patch && merged[a] != null) return { ...merged, [b]: null }
-  if (b in patch && merged[b] != null) return { ...merged, [a]: null }
-  return merged
-}
 
 /**
  * Exclusivity between `shape` and `editPoints`: exactly one is active. Turning
@@ -244,7 +233,11 @@ const sliderParam = (
   step: number,
   def: number,
 ): ToolParamSpec => ({ kind: "slider", paramKey, labelKey, min, max, step, default: def })
-const shape = (def: Shape | null): ToolParamSpec => ({ kind: "shape", default: def })
+const shape = (def: Shape | null, allowBrush = false): ToolParamSpec => ({
+  kind: "shape",
+  default: def,
+  allowBrush,
+})
 const editPoints = (def: boolean): ToolParamSpec => ({ kind: "editPoints", default: def })
 const assetPicker = (
   paramKey: string,
@@ -277,18 +270,12 @@ const when = (
 export function paramGrows(spec: ToolParamSpec): boolean {
   return spec.kind === "assetPicker"
 }
-const brushSlider = (
+const brushSize = (
   min: number,
   max: number,
   step: number,
-  def: number | null,
-): ToolParamSpec => ({ kind: "brushSize", ui: "slider", min, max, step, default: def })
-const brushButtons = (
-  min: number,
-  max: number,
-  step: number,
-  def: number | null,
-): ToolParamSpec => ({ kind: "brushSize", ui: "buttons", min, max, step, default: def })
+  def: number,
+): ToolParamSpec => ({ kind: "brushSize", min, max, step, default: def })
 
 /** The top-level tool palette. Groups expand into their own panels. */
 export const TOOL_TREE: ToolNode[] = [
@@ -329,7 +316,7 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("cave", "tools.cave", LuMountainSnow, {
         library: "caves",
-        params: [customColor, brushButtons(0.5, 2.5, 0.5, 1)],
+        params: [customColor, brushSize(0.5, 2.5, 0.5, 1)],
       }),
       tool("pattern", "tools.pattern", LuGrid3X3, {
         library: "tilesets",
@@ -349,15 +336,14 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuMountain,
     children: [
       tool("terrainBrush", "tools.terrainBrush", LuBrush, {
-        params: [brushSlider(1, 25, 1, 8)],
+        params: [brushSize(1, 25, 1, 8)],
       }),
       tool("water", "tools.water", LuDroplets, {
-        params: [shape("rectangle"), brushButtons(0.5, 2.5, 0.5, null)],
-        // Shape and brush size are mutually exclusive: picking one clears the other.
-        normalizeParams: mutuallyExclusiveNull("brushSize", "shape"),
+        // Free-paint via the `brush` shape; the size slider is always visible.
+        params: [shape("brush", true), brushSize(0.5, 2.5, 0.5, 1)],
       }),
       tool("material", "tools.material", LuPaintBucket, {
-        params: [objectLayer(-400), brushButtons(1, 5, 1, 2)],
+        params: [objectLayer(-400), brushSize(1, 5, 1, 2)],
       }),
       tool("path", "tools.path", LuRoute, {
         library: "paths",
