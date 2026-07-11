@@ -94,8 +94,3 @@ export function getToolParams(toolId: string): ToolParamValues {
   const stored = useToolsStore.getState().paramsByTool[toolId]
   return stored ?? resolveParams(TOOL_BY_ID.get(toolId)?.params)
 }
-
-/** Reactive read of one param value; re-renders only when that value changes. */
-export function useToolParam<T>(toolId: string, paramKey: string): T {
-  return useToolsStore((s) => s.paramsByTool[toolId]?.[paramKey]) as T
-}
