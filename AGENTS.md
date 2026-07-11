@@ -100,6 +100,27 @@ ni accionable.
   (`Co-Authored-By` u otros).
 - Nunca trabajes en worktrees, siempre sobre la rama principal.
 
+## Release
+
+Sin CHANGELOG ni versionado semántico estricto (todo bump es de patch,
+`0.1.x`, mientras no se llegue a 1.0). Pasos, en orden:
+
+1. Incrementar la versión en los 5 lugares que la llevan: `package.json`,
+   `package-lock.json` (`version` de nivel superior y de `packages[""]`),
+   `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`
+   (entrada `name = "opendraft"`). Los 5 valores deben coincidir siempre.
+2. Verificar (`npm run typecheck` y `cargo check --manifest-path
+   src-tauri/Cargo.toml` alcanza; no hace falta correr la suite completa solo
+   para el bump).
+3. Commitear solo esos 5 archivos: `chore: bump version to X.Y.Z`.
+4. Taggear ese commit como `vX.Y.Z` y pushear la rama **y** el tag
+   (`git push origin main && git push origin vX.Y.Z`).
+5. El push del tag dispara `.github/workflows/release.yml`, que compila
+   Windows/Linux/macOS (Intel+ARM)/Android y crea la GitHub Release (siempre
+   `prerelease: true` mientras no haya versión 1.0 estable) con los
+   instaladores adjuntos — no hay paso manual de "crear la release en
+   GitHub", lo hace el workflow.
+
 ## Verificación
 
 - Cambios en tools/params: probá en `npm run tauri dev` — seleccionar la
