@@ -403,7 +403,15 @@ export const TOOL_TREE: ToolNode[] = [
     children: [
       tool("object", "tools.object", LuBox, {
         library: "objects",
-        params: [customColor(), objectLayer(100), sorting("over"), shadow(true)],
+        params: [
+          objectLayer(100),
+          sorting("over"),
+          sliderParam("rotation", "tools.rotation", -180, 180, 1, 0),
+          sliderParam("scale", "tools.scale", 0.1, 4, 0.01, 1),
+          shadow(true),
+          switchParam("blockLight", "tools.blockLight", false),
+          customColor(),
+        ],
       }),
       tool("scatter", "tools.scatter", LuSprayCan, {
         library: "objects",
