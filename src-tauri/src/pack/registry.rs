@@ -1,0 +1,187 @@
+//! On-disk layout & persistent registry of installed packs.
+//!
+//! `file_count`/`size_bytes` are cached at install time in `registry.json`
+//! so listing never has to walk a (possibly huge) pack tree.
+
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use serde::Serialize;
+use tauri::{AppHandle, Manager};
+
+use super::format::{split_keywords, Manifest};
+use super::{PackError, Result};
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledPack {
+    pub id: String,
+    pub name: String,
+    pub version: Option<String>,
+    pub author: Option<String>,
+    pub keywords: Vec<String>,
+    pub enabled: bool,
+    /// Absolute path of the unpacked pack folder.
+    pub path: String,
+    /// Number of extracted files.
+    pub file_count: usize,
+    /// Total size on disk in bytes.
+    pub size_bytes: u64,
+}
+
+pub(crate) fn packs_root(app: &AppHandle) -> Result<PathBuf> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| PackError::Other(e.to_string()))?
+        .join("packs");
+    fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+pub(crate) fn pack_dir(app: &AppHandle, id: &str) -> Result<PathBuf> {
+    // `id` comes from a manifest; guard against path traversal.
+    if id.is_empty() || id.contains('/') || id.contains('\\') || id.contains("..") {
+        return Err(PackError::UnsafePath);
+    }
+    Ok(packs_root(app)?.join(id))
+}
+
+fn registry_path(app: &AppHandle) -> Result<PathBuf> {
+    Ok(packs_root(app)?.join("registry.json"))
+}
+
+/// One registry.json entry. `file_count`/`size_bytes` are cached at install
+/// time so listing never has to walk a (possibly huge) pack tree.
+#[derive(Debug, Clone)]
+pub(crate) struct PackReg {
+    pub(crate) enabled: bool,
+    pub(crate) file_count: Option<usize>,
+    pub(crate) size_bytes: Option<u64>,
+}
+
+impl Default for PackReg {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            file_count: None,
+            size_bytes: None,
+        }
+    }
+}
+
+/// Read registry.json into a map. Backward compatible with the old format
+/// where each value was a plain bool (enabled) with no cached stats.
+pub(crate) fn read_registry(app: &AppHandle) -> HashMap<String, PackReg> {
+    let Ok(path) = registry_path(app) else {
+        return HashMap::new();
+    };
+    let Ok(text) = fs::read_to_string(path) else {
+        return HashMap::new();
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return HashMap::new();
+    };
+    let Some(obj) = value.as_object() else {
+        return HashMap::new();
+    };
+
+    let mut map = HashMap::new();
+    for (id, v) in obj {
+        let reg = match v {
+            serde_json::Value::Bool(b) => PackReg {
+                enabled: *b,
+                ..Default::default()
+            },
+            serde_json::Value::Object(o) => PackReg {
+                enabled: o.get("enabled").and_then(|x| x.as_bool()).unwrap_or(true),
+                file_count: o
+                    .get("fileCount")
+                    .and_then(|x| x.as_u64())
+                    .map(|n| n as usize),
+                size_bytes: o.get("sizeBytes").and_then(|x| x.as_u64()),
+            },
+            _ => PackReg::default(),
+        };
+        map.insert(id.clone(), reg);
+    }
+    map
+}
+
+pub(crate) fn write_registry(app: &AppHandle, reg: &HashMap<String, PackReg>) -> Result<()> {
+    let path = registry_path(app)?;
+    let mut obj = serde_json::Map::new();
+    for (id, r) in reg {
+        let mut e = serde_json::Map::new();
+        e.insert("enabled".into(), serde_json::json!(r.enabled));
+        if let Some(fc) = r.file_count {
+            e.insert("fileCount".into(), serde_json::json!(fc));
+        }
+        if let Some(sb) = r.size_bytes {
+            e.insert("sizeBytes".into(), serde_json::json!(sb));
+        }
+        obj.insert(id.clone(), serde_json::Value::Object(e));
+    }
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(&serde_json::Value::Object(obj))?,
+    )?;
+    Ok(())
+}
+
+/// Recursively sum size and count of files under `dir`.
+fn dir_stats(dir: &Path) -> (usize, u64) {
+    let mut count = 0usize;
+    let mut bytes = 0u64;
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = fs::read_dir(&d) else { continue };
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if let Ok(md) = entry.metadata() {
+                count += 1;
+                bytes += md.len();
+            }
+        }
+    }
+    (count, bytes)
+}
+
+fn read_installed_manifest(dir: &Path) -> Manifest {
+    fs::read_to_string(dir.join("pack.json"))
+        .ok()
+        .and_then(|s| {
+            serde_json::from_str(&s)
+                .or_else(|_| json5::from_str(&s))
+                .ok()
+        })
+        .unwrap_or_default()
+}
+
+pub(crate) fn build_installed(app: &AppHandle, id: &str, reg: &PackReg) -> Option<InstalledPack> {
+    let dir = pack_dir(app, id).ok()?;
+    if !dir.is_dir() {
+        return None;
+    }
+    let manifest = read_installed_manifest(&dir);
+    // Use cached stats when available; only walk the tree as a last resort
+    // (legacy packs installed before stats were cached).
+    let (file_count, size_bytes) = match (reg.file_count, reg.size_bytes) {
+        (Some(fc), Some(sb)) => (fc, sb),
+        _ => dir_stats(&dir),
+    };
+    Some(InstalledPack {
+        id: id.to_string(),
+        name: manifest.name.clone().unwrap_or_else(|| id.to_string()),
+        version: manifest.version.clone(),
+        author: manifest.author.clone(),
+        keywords: split_keywords(&manifest.keywords),
+        enabled: reg.enabled,
+        path: dir.to_string_lossy().into_owned(),
+        file_count,
+        size_bytes,
+    })
+}

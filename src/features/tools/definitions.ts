@@ -1,4 +1,4 @@
-import type { IconType } from "react-icons"
+import { type IconType } from "react-icons"
 import {
   LuAnchor,
   LuBox,
@@ -27,6 +27,16 @@ import {
   LuTriangle,
   LuType,
 } from "react-icons/lu"
+import { type AssetCategory } from "../../lib/categories"
+import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
+import {
+  shapeVsEditPoints,
+  type ParamNormalizer,
+  type Shape,
+  type Sorting,
+  type ToolParamSpec,
+  type ToolParamValues,
+} from "./params"
 
 /**
  * Map layers (Godot z-order buckets). The `value` is fixed and stored in tool
@@ -62,103 +72,6 @@ export const MAP_LAYERS: MapLayer[] = [
  */
 export const OBJECT_LAYER_VALUES = [-400, -100, 100, 200, 300, 400, 700, 900]
 
-/**
- * A reusable tool parameter. Controls are shared across tools (a color, a layer
- * selector, …); a tool just declares which params it exposes and their config.
- */
-/** Within a layer, whether the tool places new items on top or at the bottom. */
-export type Sorting = "over" | "under"
-
-/** The geometry a shape/area tool draws with. `brush` free-paints with the brush size. */
-export type Shape = "rectangle" | "ellipse" | "path" | "brush"
-
-/** The parameter kinds, before the shared `visibleWhen` field is mixed in. */
-type ToolParamKind =
-  | { kind: "customColor" }
-  | { kind: "layer"; allowed: number[]; default: number }
-  | { kind: "sorting"; default: Sorting }
-  /** On/off switch (Shadow, Bevel Corners, Rotate 180, …). */
-  | { kind: "switch"; paramKey: string; labelKey: string; default: boolean }
-  /** Single button whose label flips with its boolean value. */
-  | {
-      kind: "toggleText"
-      paramKey: string
-      trueLabelKey: string
-      falseLabelKey: string
-      icon: IconType
-      default: boolean
-    }
-  /** Plain numeric slider (Rotation, …). */
-  | {
-      kind: "slider"
-      paramKey: string
-      labelKey: string
-      min: number
-      max: number
-      step: number
-      default: number
-    }
-  /** Shape selector. `allowBrush` adds a free-paint "brush" option (Water Brush). */
-  | { kind: "shape"; default: Shape | null; allowBrush: boolean }
-  /** Draggable size slider, always visible and never null. */
-  | {
-      kind: "brushSize"
-      min: number
-      max: number
-      step: number
-      default: number
-    }
-  | { kind: "editPoints"; default: boolean }
-  | {
-      kind: "assetPicker"
-      /** Where the { assets, color } value is stored in the tool's params. */
-      paramKey: string
-      /** i18n label shown above the browser. */
-      labelKey: string
-      /** Asset category to browse (e.g. "tilesets", "walls"). */
-      category: string
-      select: "single" | "multi"
-      defaultColor: string
-      /** Show an empty first cell that selects "no asset" (null). */
-      allowNull: boolean
-    }
-
-/**
- * A reusable tool parameter. Any kind may carry `visibleWhen`: a predicate over
- * the tool's current params deciding whether the control is shown (e.g. Portal's
- * Rotate 180 vs Rotation, gated on `anchored`).
- */
-export type ToolParamSpec = ToolParamKind & {
-  visibleWhen?: (values: ToolParamValues) => boolean
-}
-
-/** A per-tool parameter bag; shape is defined by each tool's params. */
-export type ToolParamValues = Record<string, unknown>
-
-/**
- * Cross-field rule run right after a param change: given the already-merged
- * params and the patch that caused the change, it returns the params to store.
- * Use it to keep dependent params consistent (e.g. mutually-exclusive fields)
- * instead of reacting after the fact with an effect.
- */
-export type ParamNormalizer = (merged: ToolParamValues, patch: ToolParamValues) => ToolParamValues
-
-/**
- * Exclusivity between `shape` and `editPoints`: exactly one is active. Turning
- * edit-points on clears the shape; picking a shape turns edit-points off;
- * turning edit-points off requires a shape, so it restores `defaultShape` when
- * none is selected.
- */
-export const shapeVsEditPoints =
-  (defaultShape: Shape): ParamNormalizer =>
-  (merged, patch) => {
-    if (patch.editPoints === true) return { ...merged, shape: null }
-    if ("shape" in patch && patch.shape != null) return { ...merged, editPoints: false }
-    if (patch.editPoints === false && merged.shape == null)
-      return { ...merged, shape: defaultShape }
-    return merged
-  }
-
 /** A tool that opens a parameters panel (its declared params) when selected. */
 export interface ToolLeaf {
   type: "tool"
@@ -167,7 +80,7 @@ export interface ToolLeaf {
   nameKey: string
   icon: IconType
   /** If set, the Library panel opens on the right, filtered to this category. */
-  library?: string
+  library?: AssetCategory
   /** Parameter controls shown in this tool's panel, in order. */
   params?: ToolParamSpec[]
   /** Cross-field rule applied after any of this tool's params changes. */
@@ -189,7 +102,11 @@ const tool = (
   id: string,
   nameKey: string,
   icon: IconType,
-  opts?: { library?: string; params?: ToolParamSpec[]; normalizeParams?: ParamNormalizer },
+  opts?: {
+    library?: AssetCategory
+    params?: ToolParamSpec[]
+    normalizeParams?: ParamNormalizer
+  },
 ): ToolLeaf => ({
   type: "tool",
   id,
@@ -201,13 +118,23 @@ const tool = (
 })
 
 // Shared param specs, so tools reuse the same controls with minimal config.
-const customColor: ToolParamSpec = { kind: "customColor" }
+// Every spec carries an explicit paramKey; defaults live only in the spec.
+const customColor: ToolParamSpec = {
+  kind: "customColor",
+  paramKey: "customColor",
+  default: DEFAULT_CUSTOM_COLOR,
+}
 const objectLayer = (def: number): ToolParamSpec => ({
   kind: "layer",
+  paramKey: "layer",
   allowed: OBJECT_LAYER_VALUES,
   default: def,
 })
-const sorting = (def: Sorting): ToolParamSpec => ({ kind: "sorting", default: def })
+const sorting = (def: Sorting): ToolParamSpec => ({
+  kind: "sorting",
+  paramKey: "sorting",
+  default: def,
+})
 const switchParam = (paramKey: string, labelKey: string, def: boolean): ToolParamSpec => ({
   kind: "switch",
   paramKey,
@@ -241,14 +168,27 @@ const sliderParam = (
 ): ToolParamSpec => ({ kind: "slider", paramKey, labelKey, min, max, step, default: def })
 const shape = (def: Shape | null, allowBrush = false): ToolParamSpec => ({
   kind: "shape",
+  paramKey: "shape",
   default: def,
   allowBrush,
 })
-const editPoints = (def: boolean): ToolParamSpec => ({ kind: "editPoints", default: def })
+const editPoints = (def: boolean): ToolParamSpec => ({
+  kind: "editPoints",
+  paramKey: "editPoints",
+  default: def,
+})
+const brushSize = (min: number, max: number, step: number, def: number): ToolParamSpec => ({
+  kind: "brushSize",
+  paramKey: "brushSize",
+  min,
+  max,
+  step,
+  default: def,
+})
 const assetPicker = (
   paramKey: string,
   labelKey: string,
-  category: string,
+  category: AssetCategory,
   select: "single" | "multi",
   defaultColor: string,
   allowNull = false,
@@ -258,7 +198,7 @@ const assetPicker = (
   labelKey,
   category,
   select,
-  defaultColor,
+  default: { assets: [], color: defaultColor },
   allowNull,
 })
 
@@ -267,22 +207,6 @@ const when = (
   spec: ToolParamSpec,
   visibleWhen: (values: ToolParamValues) => boolean,
 ): ToolParamSpec => ({ ...spec, visibleWhen })
-
-/**
- * Whether a param control should flex-grow to fill leftover panel height (vs.
- * taking its natural height). Asset pickers grow (and split the space evenly
- * when several are present); everything else stays compact.
- */
-export function paramGrows(spec: ToolParamSpec): boolean {
-  return spec.kind === "assetPicker"
-}
-const brushSize = (min: number, max: number, step: number, def: number): ToolParamSpec => ({
-  kind: "brushSize",
-  min,
-  max,
-  step,
-  default: def,
-})
 
 /** The top-level tool palette. Groups expand into their own panels. */
 export const TOOL_TREE: ToolNode[] = [
@@ -419,3 +343,14 @@ export function findToolPath(
   }
   return null
 }
+
+const collectLeaves = (nodes: ToolNode[], into: Map<string, ToolLeaf>): Map<string, ToolLeaf> => {
+  for (const node of nodes) {
+    if (node.type === "tool") into.set(node.id, node)
+    else collectLeaves(node.children, into)
+  }
+  return into
+}
+
+/** Flat id → leaf index, built once (param updates hit this on every change). */
+export const TOOL_BY_ID: ReadonlyMap<string, ToolLeaf> = collectLeaves(TOOL_TREE, new Map())

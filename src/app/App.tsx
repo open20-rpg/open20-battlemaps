@@ -82,9 +82,7 @@ export default function App() {
                 {t("canvas.title")}
               </Text>
               <Text fontSize="sm">
-                <Trans i18nKey="canvas.subtitle">
-                  Creá o abrí un mapa para empezar. Gestioná tus paquetes desde <b>Activos</b>.
-                </Trans>
+                <Trans i18nKey="canvas.subtitle" components={{ b: <b /> }} />
               </Text>
             </Stack>
             <Button variant="subtle" colorPalette="blue" onClick={() => setAssetsOpen(true)}>
