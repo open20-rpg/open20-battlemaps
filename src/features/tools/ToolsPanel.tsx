@@ -5,6 +5,7 @@ import { TOOL_TREE, type ToolNode } from "./definitions"
 import { IconBar } from "./panels/IconBar"
 import { GroupPanel } from "./panels/GroupPanel"
 import { ParamsPanel } from "./panels/ParamsPanel"
+import { ViewControlsBar } from "../viewport/ViewControlsBar"
 
 /**
  * The sticky tools panel overlaid on the editor's left edge: the top-level
@@ -34,7 +35,12 @@ export function ToolsPanel() {
 
   return (
     <Flex position="absolute" left="0" top="0" bottom="0" zIndex="docked" maxW="80%">
-      <IconBar nodes={TOOL_TREE} selectedId={path[0]?.id} onSelect={selectTopOrToggle} />
+      <IconBar
+        nodes={TOOL_TREE}
+        selectedId={path[0]?.id}
+        onSelect={selectTopOrToggle}
+        footer={<ViewControlsBar />}
+      />
       {path.map((node, i) => {
         if (node.type === "group") {
           return (

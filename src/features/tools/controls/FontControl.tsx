@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
-import { Box, NativeSelect, Text } from "@chakra-ui/react"
+import { Box, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
+import { Select } from "../../../ui/Select"
 import { withLoading } from "../../../stores/loadingStore"
 import { listSystemFonts } from "../api"
 
@@ -40,28 +41,22 @@ export function FontControl({
     }
   }, [t])
 
+  const items = [
+    { value: "", label: t("tools.fontDefault") },
+    ...fonts.map((font) => ({ value: font, label: font, fontFamily: font })),
+  ]
+
   return (
     <Box px="3" py="1.5">
       <Text mb="2" fontSize="xs" color="fg.muted">
         {t(labelKey)}
       </Text>
-      <NativeSelect.Root size="sm">
-        <NativeSelect.Field
-          value={value}
-          bg="panel.solid"
-          borderColor="panel.border"
-          style={{ fontFamily: value || undefined }}
-          onChange={(e) => onChange(e.currentTarget.value)}
-        >
-          <option value="">{t("tools.fontDefault")}</option>
-          {fonts.map((font) => (
-            <option key={font} value={font} style={{ fontFamily: font }}>
-              {font}
-            </option>
-          ))}
-        </NativeSelect.Field>
-        <NativeSelect.Indicator />
-      </NativeSelect.Root>
+      <Select
+        value={value}
+        items={items}
+        onChange={onChange}
+        triggerStyle={{ fontFamily: value || undefined }}
+      />
     </Box>
   )
 }

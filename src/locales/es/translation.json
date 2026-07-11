@@ -96,6 +96,13 @@
     "status": "Estado",
     "noImage": "Sin imagen de vista previa"
   },
+  "view": {
+    "grid": "Cuadrícula",
+    "snap": "Ajuste",
+    "lighting": "Iluminación",
+    "shadows": "Sombras",
+    "zoom": "Zoom"
+  },
   "tools": {
     "design": "Diseño",
     "build": "Herramienta de construcción",

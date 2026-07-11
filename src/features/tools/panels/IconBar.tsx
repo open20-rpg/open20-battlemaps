@@ -1,3 +1,4 @@
+import { type ReactNode } from "react"
 import { Flex, Icon, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { Tooltip } from "../../../ui/chakra/tooltip"
@@ -45,30 +46,33 @@ interface IconBarProps {
   nodes: ToolNode[]
   selectedId?: string
   onSelect: (node: ToolNode) => void
+  /** Optional bar pinned to the bottom (the view controls on the top-level bar). */
+  footer?: ReactNode
 }
 
 /** Vertical icon-only bar; used for the top level and collapsed groups. */
-export function IconBar({ nodes, selectedId, onSelect }: IconBarProps) {
+export function IconBar({ nodes, selectedId, onSelect, footer }: IconBarProps) {
   return (
-    <VStack
+    <Flex
+      direction="column"
       w={BAR_W}
       h="full"
       flexShrink={0}
-      gap="1"
-      py="2"
       bg="panel.header"
       borderRightWidth="1px"
       borderColor="panel.border"
-      overflowY="auto"
     >
-      {nodes.map((node) => (
-        <ToolIcon
-          key={node.id}
-          node={node}
-          active={selectedId === node.id}
-          onClick={() => onSelect(node)}
-        />
-      ))}
-    </VStack>
+      <VStack gap="1" py="2" flex="1" minH="0" overflowY="auto" align="center">
+        {nodes.map((node) => (
+          <ToolIcon
+            key={node.id}
+            node={node}
+            active={selectedId === node.id}
+            onClick={() => onSelect(node)}
+          />
+        ))}
+      </VStack>
+      {footer}
+    </Flex>
   )
 }

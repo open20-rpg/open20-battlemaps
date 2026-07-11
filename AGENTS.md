@@ -3,7 +3,8 @@
 Clon de Dungeondraft: editor de mapas de rol de escritorio. Tauri v2 (Rust) +
 React 19 + TypeScript + Chakra UI v3 + Zustand. Compatible con packs
 `.dungeondraft_pack`. El editor de mapas real (canvas) todavía no existe; hoy
-hay gestión de packs, librería de assets y el sistema de herramientas/params.
+hay gestión de packs, librería de assets, el sistema de herramientas/params y
+los view controls (grid/snap/lighting/shadows/zoom) de la barra izquierda.
 
 ## Comandos
 
@@ -42,6 +43,20 @@ ni accionable.
   Todos los kinds llevan `paramKey` explícito; los defaults viven SOLO en el
   spec (`resolveParams` los materializa al seleccionar la herramienta — los
   controles reciben `value`/`onChange` y no tienen fallbacks propios).
+- **View controls data-driven** (`features/viewport/`): la fila de widgets
+  anclada al fondo de la barra izquierda (Grid/Snap/Lighting/Shadows como
+  toggles + selector de Zoom). No son herramientas: son controles a medida,
+  menos estandarizados, pero salen de una lista declarativa `VIEW_CONTROLS`
+  (`controls.ts`) igual que `TOOL_TREE`. Cada entrada declara su `kind`
+  (`"toggle"` | `"zoom"`), `icon`, `nameKey` y, en los toggles, la `key` del
+  store; `ViewControlsBar` mapea la lista a los widgets. Agregar/reordenar un
+  control = editar el array (y para un toggle nuevo, sumar su bool a
+  `ViewToggleKey` + `viewStore`) — NO agregar JSX ad-hoc. El estado de vista
+  (grid/snap/lighting/shadows/zoom) vive en `stores/viewStore.ts` (persistido,
+  fuera de undo/redo: es estado de presentación, no del documento). La barra se
+  inyecta como `footer` del `IconBar` top-level (solo ahí; los grupos no lo
+  llevan). Un `kind` nuevo = nueva variante en la union + su widget en
+  `ViewControlsBar`.
 - **El mapa se muta solo vía comandos** (`features/map/commands/`), nunca
   `setState` directo al mapStore: es lo que sostiene undo/redo (zundo).
 - **El futuro viewport no es React**: el documento (`features/map/model/`) se
@@ -63,7 +78,7 @@ ni accionable.
 ## Estructura
 
 - `src/app/` — shell: App, MenuBar, StatusBar, EmptyState, dialogs/.
-- `src/features/{map,tools,library,packs}/` — una carpeta por dominio.
+- `src/features/{map,tools,library,packs,viewport}/` — una carpeta por dominio.
 - `src/stores/` — estado global. `src/ui/` — genéricos sin dominio (Modal,
   FloatingWindow, ColorPickerPopover; `ui/chakra/` son snippets de Chakra,
   tratarlos como código vendored). `src/lib/` — utilidades puras sin React.

@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { Box, Button, Flex, Icon, NativeSelect, Switch, Text, VStack } from "@chakra-ui/react"
+import { Box, Button, Flex, Icon, Switch, Text, VStack } from "@chakra-ui/react"
+import { Select } from "../../../../ui/Select"
 import { useTranslation } from "react-i18next"
 import { LuLayoutGrid, LuPaintBucket } from "react-icons/lu"
 import { thumbUrl } from "../../../library/api"
@@ -47,21 +48,11 @@ export function BiomeControl({
         {t(labelKey)}
       </Text>
 
-      <NativeSelect.Root size="sm">
-        <NativeSelect.Field
-          value={value.biome}
-          bg="panel.solid"
-          borderColor="panel.border"
-          onChange={(e) => setBiome(e.currentTarget.value)}
-        >
-          {BIOMES.map((biome) => (
-            <option key={biome} value={biome}>
-              {t(`biomes.${biome}`)}
-            </option>
-          ))}
-        </NativeSelect.Field>
-        <NativeSelect.Indicator />
-      </NativeSelect.Root>
+      <Select
+        value={value.biome}
+        items={BIOMES.map((biome) => ({ value: biome, label: t(`biomes.${biome}`) }))}
+        onChange={setBiome}
+      />
 
       {/* Texture slots (scroll when they overflow). */}
       <VStack align="stretch" gap="1.5" flex="1" minH="0" overflowY="auto">

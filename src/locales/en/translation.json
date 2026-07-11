@@ -96,6 +96,13 @@
     "status": "Status",
     "noImage": "No preview image"
   },
+  "view": {
+    "grid": "Grid",
+    "snap": "Snap",
+    "lighting": "Lighting",
+    "shadows": "Shadows",
+    "zoom": "Zoom"
+  },
   "tools": {
     "design": "Design",
     "build": "Building Tool",
