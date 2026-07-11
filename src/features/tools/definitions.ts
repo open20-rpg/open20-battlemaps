@@ -179,6 +179,16 @@ const brushSize = (min: number, max: number, step: number, def: number): ToolPar
   step,
   default: def,
 })
+const biome = (paramKey: string, labelKey: string): ToolParamSpec => ({
+  kind: "biome",
+  paramKey,
+  labelKey,
+  default: {
+    biome: "barren",
+    slots: [null, null, null, null, null, null, null, null],
+    unlocked: false,
+  },
+})
 const assetPicker = (
   paramKey: string,
   labelKey: string,
@@ -335,7 +345,13 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuMountain,
     children: [
       tool("terrainBrush", "tools.terrainBrush", LuBrush, {
-        params: [brushSize(1, 25, 1, 8)],
+        params: [
+          switchParam("enable", "tools.enable", true),
+          brushSize(1, 25, 1, 8),
+          sliderParam("intensity", "tools.intensity", 0.2, 8, 0.1, 4),
+          biome("biome", "tools.biome"),
+          switchParam("smoothBlending", "tools.smoothBlending", false),
+        ],
       }),
       tool("water", "tools.water", LuDroplets, {
         // Free-paint via the `brush` shape; the size slider is always visible.

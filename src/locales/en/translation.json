@@ -165,7 +165,26 @@
     "dormer": "Dormer",
     "shade": "Shade",
     "sunDirection": "Sun Direction",
-    "shadeContrast": "Shade Contrast"
+    "shadeContrast": "Shade Contrast",
+    "enable": "Enable",
+    "intensity": "Intensity",
+    "smoothBlending": "Smooth Blending",
+    "biome": "Biome",
+    "fill": "Fill",
+    "unlockSlots": "Unlock 4 more slots",
+    "noTexture": "No texture",
+    "pickTexture": "Choose texture",
+    "terrainTextures": "Terrain Textures",
+    "noTerrainPacks": "No installed packs include terrain textures."
+  },
+  "biomes": {
+    "barren": "Barren",
+    "desert": "Desert",
+    "mountain": "Mountain",
+    "prairie": "Prairie",
+    "rainforest": "Rainforest",
+    "settlement": "Settlement",
+    "swamp": "Swamp"
   },
   "layers": {
     "terrain": "Terrain",

@@ -165,7 +165,26 @@
     "dormer": "Buhardilla",
     "shade": "Sombreado",
     "sunDirection": "Dirección del Sol",
-    "shadeContrast": "Contraste de Sombra"
+    "shadeContrast": "Contraste de Sombra",
+    "enable": "Habilitar",
+    "intensity": "Intensidad",
+    "smoothBlending": "Fundido Suave",
+    "biome": "Bioma",
+    "fill": "Rellenar",
+    "unlockSlots": "Desbloquear 4 slots más",
+    "noTexture": "Sin textura",
+    "pickTexture": "Elegir textura",
+    "terrainTextures": "Texturas de Terreno",
+    "noTerrainPacks": "Ningún pack instalado incluye texturas de terreno."
+  },
+  "biomes": {
+    "barren": "Yermo",
+    "desert": "Desierto",
+    "mountain": "Montaña",
+    "prairie": "Pradera",
+    "rainforest": "Selva",
+    "settlement": "Asentamiento",
+    "swamp": "Pantano"
   },
   "layers": {
     "terrain": "Terreno",

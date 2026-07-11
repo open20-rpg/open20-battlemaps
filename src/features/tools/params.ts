@@ -29,6 +29,25 @@ export interface SegmentedChoice {
   icon?: IconType
 }
 
+/** A terrain texture assigned to a biome slot (enough to render it standalone). */
+export interface BiomeTexture {
+  /** Library item id ("{packId}|{relPath}"). */
+  id: string
+  name: string
+  /** Thumbnail file path (render via thumbUrl). */
+  thumb: string
+}
+
+/** Value of a `biome` param: the picked biome plus its texture slots. */
+export interface BiomeSelection {
+  biome: string
+  /** Up to {@link BIOME_MAX_SLOTS} slots; the first 4 always show, 4 more when unlocked. */
+  slots: (BiomeTexture | null)[]
+  unlocked: boolean
+}
+
+export const BIOME_MAX_SLOTS = 8
+
 /**
  * The value type each param kind reads/writes. This is the single source of
  * truth tying a `kind` to its runtime value — controls and consumers narrow
@@ -45,6 +64,7 @@ export interface ParamValueByKind {
   brushSize: number
   editPoints: boolean
   assetPicker: AssetSelection
+  biome: BiomeSelection
 }
 
 export type ParamKind = keyof ParamValueByKind
@@ -92,6 +112,8 @@ export type ToolParamSpec =
       /** Grid color source (defaults to "own"). See {@link AssetRecolor}. */
       recolor?: AssetRecolor
     })
+  /** Biome selector + terrain texture slots (Terrain Brush). */
+  | (BaseSpec<"biome"> & { labelKey: string })
 
 /**
  * Cross-field rule run right after a param change: given the already-merged
@@ -130,7 +152,7 @@ export function getParam<K extends ParamKind>(
  * when several are present); everything else stays compact.
  */
 export function paramGrows(spec: ToolParamSpec): boolean {
-  return spec.kind === "assetPicker"
+  return spec.kind === "assetPicker" || spec.kind === "biome"
 }
 
 /**

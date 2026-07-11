@@ -9,6 +9,7 @@ import { ShapeControl } from "./ShapeControl"
 import { EditPointsControl } from "./EditPointsControl"
 import { SliderControl } from "./SliderControl"
 import { AssetPickerControl } from "./AssetPickerControl"
+import { BiomeControl } from "./biome/BiomeControl"
 
 /**
  * The single wiring point between param specs and the tools store: resolves
@@ -110,5 +111,9 @@ export function ToolParamControl({
         />
       )
     }
+    case "biome":
+      return (
+        <BiomeControl value={getParam(values, spec)} labelKey={spec.labelKey} onChange={onChange} />
+      )
   }
 }
