@@ -28,8 +28,11 @@ permissions:
 jobs:
   # ---------------------------------------------------------------------------
   # Desktop: Windows, Linux, macOS (arm64 + x86_64) via tauri-action.
+  # Temporarily disabled to save CI minutes — only Android builds for now.
+  # Re-enable by removing the `if: false` line below.
   # ---------------------------------------------------------------------------
   desktop:
+    if: false
     strategy:
       fail-fast: false
       matrix:
