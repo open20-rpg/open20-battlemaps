@@ -31,6 +31,8 @@ interface ToolsState {
   selectToolById: (id: string) => void
   /** Clear the current selection. */
   reset: () => void
+  /** Clear the selection and drop every tool's parameter bag (e.g. for a new map). */
+  resetAll: () => void
   /** Show/hide the active tool's params panel. */
   toggleParams: () => void
   /** Merge a patch into a tool's parameters (normalizer applied in the same update). */
@@ -81,6 +83,8 @@ export const useToolsStore = create<ToolsState>()((set) => ({
     }),
 
   reset: () => set({ path: [], paramsCollapsed: false }),
+
+  resetAll: () => set({ path: [], paramsCollapsed: false, paramsByTool: {} }),
 
   toggleParams: () => set((s) => ({ paramsCollapsed: !s.paramsCollapsed })),
 

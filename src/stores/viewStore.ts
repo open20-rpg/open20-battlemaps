@@ -19,18 +19,25 @@ interface ViewState {
   zoom: number
   toggle: (key: ViewToggleKey) => void
   setZoom: (zoom: number) => void
+  /** Restore the default view state (used when a fresh document is created). */
+  reset: () => void
+}
+
+const DEFAULT_VIEW_STATE = {
+  grid: true,
+  snap: true,
+  lighting: true,
+  shadows: true,
+  zoom: 100,
 }
 
 export const useViewStore = create<ViewState>()(
   persist(
     (set) => ({
-      grid: true,
-      snap: true,
-      lighting: true,
-      shadows: true,
-      zoom: 100,
+      ...DEFAULT_VIEW_STATE,
       toggle: (key) => set((s) => ({ [key]: !s[key] }) as Partial<ViewState>),
       setZoom: (zoom) => set({ zoom }),
+      reset: () => set(DEFAULT_VIEW_STATE),
     }),
     { name: "opendraft.view", version: 1 },
   ),

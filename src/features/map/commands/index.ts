@@ -1,5 +1,7 @@
 import { useMapStore } from "../../../stores/mapStore"
 import { useMapFileStore } from "../../../stores/mapFileStore"
+import { useToolsStore } from "../../../stores/toolsStore"
+import { useViewStore } from "../../../stores/viewStore"
 import { createDocument, type MapDocument, type MapEntity } from "../model/types"
 
 /**
@@ -17,6 +19,11 @@ export function createMap(width: number, height: number): void {
   // A fresh document starts with a clean history.
   useMapStore.temporal.getState().clear()
   useMapFileStore.getState().startNew()
+  // A new map is a blank slate: drop the previous map's tool selection/params
+  // (e.g. a terrain texture slot) and view overlays (zoom, grid, snap, …)
+  // rather than carrying them over.
+  useToolsStore.getState().resetAll()
+  useViewStore.getState().reset()
 }
 
 /** Replace the document with one loaded from disk (see features/map/io.ts). */
