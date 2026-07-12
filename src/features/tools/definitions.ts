@@ -481,7 +481,22 @@ export const TOOL_TREE: ToolNode[] = [
     nameKey: "tools.settings",
     icon: LuSettings2,
     children: [
-      tool("mapSettings", "tools.mapSettings", LuMap),
+      tool("mapSettings", "tools.mapSettings", LuMap, {
+        params: [
+          segmented(
+            "gridStyle",
+            "tools.gridStyle",
+            [
+              { value: "solid", labelKey: "tools.gridStyleSolid" },
+              { value: "dashed", labelKey: "tools.gridStyleDashed" },
+              { value: "dotted", labelKey: "tools.gridStyleDotted" },
+            ],
+            "solid",
+          ),
+          sliderParam("gridLineWidth", "tools.gridLineWidth", 1, 10, 1, 1),
+          customColor("gridLineColor", "tools.gridLineColor", "#00000080"),
+        ],
+      }),
       tool("levelSettings", "tools.levelSettings", LuLayers),
       tool("referenceImage", "tools.referenceImage", LuImage),
     ],

@@ -30,3 +30,14 @@ export function loadUserPresets(): string[] {
     return []
   }
 }
+
+/**
+ * Parse a `#RRGGBB`/`#RRGGBBAA` hex color into the `{ color, alpha }` shape
+ * PixiJS fill/stroke styles expect (a 24-bit color plus a separate 0-1 alpha).
+ */
+export function hexToPixiColor(hex: string): { color: number; alpha: number } {
+  const clean = hex.replace("#", "")
+  const color = parseInt(clean.slice(0, 6), 16)
+  const alpha = clean.length >= 8 ? parseInt(clean.slice(6, 8), 16) / 255 : 1
+  return { color, alpha }
+}
