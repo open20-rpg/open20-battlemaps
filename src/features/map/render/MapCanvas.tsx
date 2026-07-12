@@ -19,9 +19,12 @@ const MAP_BG = 0x2b2b2f
  *    just this container's transform, never a redraw.
  *  - `mapBg`: placeholder fill standing in for layer rendering (rebuilds only
  *    when the map's dimensions change).
- *  - `grid`: the tile grid, drawn on top of every layer (rebuilds only when
- *    its own params or the map's dimensions change — never on zoom, since its
- *    geometry lives in tile units and the world transform scales it for free).
+ *  - `grid`: the tile grid, drawn on top of every layer. Above 200% zoom every
+ *    style's on-screen size scales for free via the world transform, so it
+ *    only rebuilds on param/dimension changes there; at/below 200% each style
+ *    freezes at a fixed screen size (and dotted/dashes switch to a square-dot
+ *    look), which requires recomputing world-unit sizes from the current zoom
+ *    — so it also rebuilds on every zoom tick while in that range.
  */
 export function MapCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -126,13 +129,14 @@ export function MapCanvas() {
     mapBg.clear().rect(0, 0, mapWidth, mapHeight).fill({ color: MAP_BG })
   }, [ready, mapWidth, mapHeight])
 
-  // Rebuild the grid geometry only when its params or the map's dimensions
-  // change — zoom is handled for free by the world container's transform.
+  // Rebuild the grid geometry on param/dimension changes, and on zoom changes
+  // too — needed at/below the 200% floor threshold to keep each style's fixed
+  // screen size correct (see the component doc comment).
   useEffect(() => {
     const grid = gridRef.current
     if (!grid || mapWidth == null || mapHeight == null) return
-    drawGrid(grid, mapWidth, mapHeight, { style: gridStyle, color: gridLineColor })
-  }, [ready, mapWidth, mapHeight, gridStyle, gridLineColor])
+    drawGrid(grid, mapWidth, mapHeight, { style: gridStyle, color: gridLineColor }, zoom)
+  }, [ready, mapWidth, mapHeight, gridStyle, gridLineColor, zoom])
 
   // Toggling the overlay is just a visibility flip, no rebuild.
   useEffect(() => {
