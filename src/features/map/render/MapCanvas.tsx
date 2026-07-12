@@ -53,7 +53,6 @@ export function MapCanvas() {
   useToolsStore((s) => s.paramsByTool.mapSettings)
   const gridParams = getToolParams("mapSettings")
   const gridStyle = gridParams.gridStyle as GridStyle
-  const gridLineWidth = gridParams.gridLineWidth as number
   const gridLineColor = gridParams.gridLineColor as string
 
   useViewportGestures(containerRef)
@@ -132,12 +131,8 @@ export function MapCanvas() {
   useEffect(() => {
     const grid = gridRef.current
     if (!grid || mapWidth == null || mapHeight == null) return
-    drawGrid(grid, mapWidth, mapHeight, {
-      style: gridStyle,
-      lineWidth: gridLineWidth,
-      color: gridLineColor,
-    })
-  }, [ready, mapWidth, mapHeight, gridStyle, gridLineWidth, gridLineColor])
+    drawGrid(grid, mapWidth, mapHeight, { style: gridStyle, color: gridLineColor })
+  }, [ready, mapWidth, mapHeight, gridStyle, gridLineColor])
 
   // Toggling the overlay is just a visibility flip, no rebuild.
   useEffect(() => {
