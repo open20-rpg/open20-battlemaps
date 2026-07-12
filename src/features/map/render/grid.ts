@@ -51,8 +51,12 @@ function dotsAlong(
   const length = Math.hypot(dx, dy)
   const ux = dx / length
   const uy = dy / length
+  // regularPoly (not circle): circle()'s segment count is chosen from this
+  // tiny tile-unit radius, before the world container's ~64x scale is
+  // applied, so it renders as a visible diamond. An explicit 16-gon stays
+  // round at any zoom regardless of the local radius.
   for (let pos = 0; pos <= length; pos += spacing) {
-    g.circle(x1 + ux * pos, y1 + uy * pos, radius)
+    g.regularPoly(x1 + ux * pos, y1 + uy * pos, radius, 16)
   }
 }
 
