@@ -6,7 +6,7 @@ import { useViewStore } from "../../../stores/viewStore"
 import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
 import { drawGrid, type GridStyle } from "./grid"
 import { computeWorldTransform } from "./viewport"
-import { useZoomGestures } from "./useZoomGestures"
+import { useViewportGestures } from "./useViewportGestures"
 
 /** Fill color for the map rect until real layers render into it. */
 const MAP_BG = 0x2b2b2f
@@ -32,6 +32,9 @@ export function MapCanvas() {
   // Flips once the async Pixi init resolves, just to trigger the render that
   // lets the effects below see the now-populated refs.
   const [ready, setReady] = useState(false)
+  // Bumped on every renderer resize, just to force the world-transform effect
+  // (which reads app.screen.width/height) to recompute and re-clamp the pan.
+  const [, bumpResize] = useState(0)
 
   const map = useMapStore((s) => s.map)
   // Read as primitives so the rebuild effects below depend on the dimensions
@@ -40,6 +43,8 @@ export function MapCanvas() {
   const mapWidth = map?.width
   const mapHeight = map?.height
   const zoom = useViewStore((s) => s.zoom)
+  const panX = useViewStore((s) => s.panX)
+  const panY = useViewStore((s) => s.panY)
   const gridOn = useViewStore((s) => s.grid)
   // Grid params live on the Map Settings tool, not the view store, so they
   // read live regardless of which tool is currently active. Subscribing to
@@ -51,7 +56,7 @@ export function MapCanvas() {
   const gridLineWidth = gridParams.gridLineWidth as number
   const gridLineColor = gridParams.gridLineColor as string
 
-  useZoomGestures(containerRef)
+  useViewportGestures(containerRef)
 
   // Set up the Pixi application once.
   useEffect(() => {
@@ -83,6 +88,7 @@ export function MapCanvas() {
         worldRef.current = world
         mapBgRef.current = mapBg
         gridRef.current = grid
+        app.renderer.on("resize", () => bumpResize((n) => n + 1))
         setReady(true)
       })
 
@@ -96,14 +102,22 @@ export function MapCanvas() {
   }, [])
 
   // Position/scale the world container: cheap (no geometry rebuild) so this
-  // runs on every zoom tick and resize without any redraw cost.
+  // runs on every zoom/pan tick and resize without any redraw cost. Also
+  // corrects the stored pan if it's out of the clamped range (e.g. a resize
+  // shrunk the viewport), so the map can never end up panned fully off-screen.
   useEffect(() => {
     const app = appRef.current
     const world = worldRef.current
-    if (!app || !world || !map) return
-    const t = computeWorldTransform(app.screen.width, app.screen.height, map.width, map.height, zoom)
+    if (!app || !world || mapWidth == null || mapHeight == null) return
+    const t = computeWorldTransform(app.screen.width, app.screen.height, mapWidth, mapHeight, zoom, {
+      x: panX,
+      y: panY,
+    })
     world.position.set(t.x, t.y)
     world.scale.set(t.scaleX, t.scaleY)
+    if (t.pan.x !== panX || t.pan.y !== panY) {
+      useViewStore.getState().setPan(t.pan.x, t.pan.y)
+    }
   })
 
   // Rebuild the map-rect placeholder only when the map's own dimensions change.

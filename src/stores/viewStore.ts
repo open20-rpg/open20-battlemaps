@@ -17,8 +17,12 @@ interface ViewState {
   shadows: boolean
   /** Zoom as a whole percentage (one of ZOOM_LEVELS). */
   zoom: number
+  /** Pan offset in screen px, relative to the map centered in the viewport. */
+  panX: number
+  panY: number
   toggle: (key: ViewToggleKey) => void
   setZoom: (zoom: number) => void
+  setPan: (x: number, y: number) => void
   /** Restore the default view state (used when a fresh document is created). */
   reset: () => void
 }
@@ -29,6 +33,8 @@ const DEFAULT_VIEW_STATE = {
   lighting: true,
   shadows: true,
   zoom: 100,
+  panX: 0,
+  panY: 0,
 }
 
 export const useViewStore = create<ViewState>()(
@@ -37,6 +43,7 @@ export const useViewStore = create<ViewState>()(
       ...DEFAULT_VIEW_STATE,
       toggle: (key) => set((s) => ({ [key]: !s[key] }) as Partial<ViewState>),
       setZoom: (zoom) => set({ zoom }),
+      setPan: (x, y) => set({ panX: x, panY: y }),
       reset: () => set(DEFAULT_VIEW_STATE),
     }),
     { name: "opendraft.view", version: 1 },
