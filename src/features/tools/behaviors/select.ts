@@ -6,6 +6,7 @@ import {
   hitTest,
   rectFromCorners,
   rectsIntersect,
+  flipEntity,
   isSelectable,
   isStretchable,
   scaleEntity,
@@ -91,6 +92,19 @@ export function applyTransformDrag(
   return new Map(drag.originals.map((e) => [e.id, scaleEntity(e, anchor, sx, sy)]))
 }
 
+/**
+ * Mirror the selection across its own center (left↔right for `"x"`,
+ * top↔bottom for `"y"`): positions reflect, sprites flip in place.
+ */
+export function flipSelection(ctx: ToolCtx, axis: "x" | "y"): void {
+  const ids = new Set(useEditorStore.getState().selection)
+  const selected = ctx.entities.filter((e) => ids.has(e.id))
+  const box = selectionBounds(selected, ctx.sizeOf)
+  if (!box) return
+  const center = { x: box.x + box.w / 2, y: box.y + box.h / 2 }
+  updateEntities(new Map(selected.map((e) => [e.id, flipEntity(e, center, axis)])))
+}
+
 /** Entities whose bounds intersect the rubber band. */
 export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
   const band = rectFromCorners(a, b)
@@ -105,7 +119,8 @@ export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
  * rubber-band selects. The selection box's corner handles scale it uniformly
  * and its edge handles (selections with walls, paths, areas…) stretch it,
  * keeping the opposite corner/edge fixed; the top handle rotates it around
- * its center (Shift snaps to 15°). `[`/`]`
+ * its center (Shift snaps to 15°). H / V (or the panel buttons) mirror the
+ * selection left↔right / top↔bottom. `[`/`]`
  * rotate the selection too; Delete/Ctrl+C/V/X are the global shortcuts.
  */
 export function createSelectBehavior(): ToolBehavior {
@@ -171,7 +186,22 @@ export function createSelectBehavior(): ToolBehavior {
       }
       mode = null
     },
+    onAction: (ctx, action) => {
+      if (action === "flipH") flipSelection(ctx, "x")
+      if (action === "flipV") flipSelection(ctx, "y")
+    },
+    isActionDisabled: () => editor().selection.length === 0,
     onKeyDown: (ctx, e) => {
+      const key = e.key.toLowerCase()
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        (key === "h" || key === "v") &&
+        editor().selection.length > 0
+      ) {
+        flipSelection(ctx, key === "h" ? "x" : "y")
+        return true
+      }
       if (e.key !== "[" && e.key !== "]") return false
       const ids = new Set(editor().selection)
       if (ids.size === 0) return false

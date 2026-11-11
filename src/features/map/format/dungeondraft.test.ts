@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { bitAt, bitmapRuns, DungeondraftImportError, importDungeondraftMap } from "./dungeondraft"
+import {
+  bitAt,
+  bitmapRuns,
+  DungeondraftImportError,
+  importDungeondraftMap,
+  resToAssetId,
+  splatLayers,
+  spriteScale,
+} from "./dungeondraft"
 import miniMap from "./__fixtures__/mini.dungeondraft_map?raw"
 
 const PACK = "res://packs/abcd1234/textures"
@@ -150,14 +158,16 @@ describe("Dungeondraft import", () => {
     expect(run().warnings.looseTiles).toBe(1)
   })
 
-  it("converts objects (rotation in degrees, mirroring reported) and built-in assets", () => {
+  it("converts objects (rotation in degrees, mirroring kept as flips) and built-in assets", () => {
     const [chair, barrel] = byTool("object")
     expect(chair.position).toEqual({ x: 3.5, y: 0.5 })
     expect(chair.rotation).toBeCloseTo(90)
     expect(chair.scale).toBe(2)
+    expect(chair.flipX).toBe(true)
+    expect(chair.flipY).toBeUndefined()
     expect(chair.params.color).toBe("#ff0000")
     expect(barrel.params.asset).toBe("dungeondraft|textures/objects/barrel.png")
-    expect(run().warnings).toMatchObject({ mirroredObjects: 1, builtinAssets: 1 })
+    expect(run().warnings).toMatchObject({ builtinAssets: 1 })
   })
 
   it("converts paths, lights, roofs and texts", () => {
@@ -184,7 +194,7 @@ describe("Dungeondraft import", () => {
     expect(text.position.y).toBeGreaterThan(0)
   })
 
-  it("turns bitmaps and splats into strokes, and water trees into bodies", () => {
+  it("turns bitmaps into strokes, splats into weight layers, and water trees into bodies", () => {
     const [caveEntity] = byTool("cave")
     expect(caveEntity.strokes?.length).toBe(1)
     const terrain = byTool("terrainBrush")
@@ -193,7 +203,13 @@ describe("Dungeondraft import", () => {
       texture: "abcd1234|textures/terrain/grass.png",
     })
     expect(terrain[1].params.texture).toBe("abcd1234|textures/terrain/dirt.png")
-    expect(terrain[1].strokes).toHaveLength(1)
+    expect(terrain[1].strokes).toEqual([])
+    const splat = terrain[1].params.splat as { width: number; height: number; data: string }
+    expect([splat.width, splat.height]).toEqual([16, 12])
+    // Texel (0,0) is all dirt; the rest none.
+    const bytes = Uint8Array.from(atob(splat.data), (c) => c.charCodeAt(0))
+    expect(bytes[0]).toBe(255)
+    expect(bytes[1]).toBe(0)
     const [lake] = byTool("water")
     expect(lake.params).toMatchObject({ deepColor: "#112233", disableBorder: true })
     expect(run().warnings.waterHoles).toBe(1)
@@ -224,5 +240,43 @@ describe("bitmaps", () => {
       [0, 1, 2],
       [2, 2, 2],
     ])
+  })
+})
+
+describe("terrain and sprites", () => {
+  it("normalizes splat weights into stacked layer opacities", () => {
+    // Texel: 50% base, 25% / 25% for textures 2 and 3.
+    const [l2, l3] = splatLayers([Uint8Array.of(128), Uint8Array.of(64), Uint8Array.of(64)], 1)
+    // Layer 2 over base: 64/192 ≈ 1/3; layer 3 over both: 64/256 = 1/4.
+    expect(l2[0]).toBe(85)
+    expect(l3[0]).toBe(64)
+    expect(splatLayers([Uint8Array.of(0), Uint8Array.of(0)], 1)[0][0]).toBe(0)
+  })
+
+  it("reads the terrain brush setup of the opening level", () => {
+    const r = run()
+    expect(r.terrain).toBeUndefined() // the map opens on level 1, which has no terrain
+    const level0 = importDungeondraftMap(
+      JSON.stringify({ ...MAP, header: { ...MAP.header, editor_state: { current_level: 0 } } }),
+    )
+    expect(level0.terrain).toEqual({
+      slots: [
+        "abcd1234|textures/terrain/grass.png",
+        "abcd1234|textures/terrain/dirt.png",
+        null,
+        null,
+      ],
+      expanded: false,
+      smoothBlending: false,
+      enabled: true,
+    })
+  })
+
+  it("maps Godot scales to uniform scale plus flips", () => {
+    expect(spriteScale({ x: 1, y: -1 })).toEqual({ scale: 1, flipY: true })
+    expect(spriteScale({ x: -2, y: 2 })).toEqual({ scale: 2, flipX: true })
+    expect(spriteScale({ x: 0.943732, y: 0.943314 }).scale).toBeCloseTo(0.9435)
+    expect(resToAssetId("res://packs/P1/textures/a.png")).toBe("P1|textures/a.png")
+    expect(resToAssetId("res://textures/b.png")).toBe("dungeondraft|textures/b.png")
   })
 })

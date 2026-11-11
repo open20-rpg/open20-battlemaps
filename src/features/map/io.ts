@@ -2,18 +2,23 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import { useMapStore } from "../../stores/mapStore"
 import { useMapFileStore } from "../../stores/mapFileStore"
 import { useViewStore } from "../../stores/viewStore"
-import { useToolsStore } from "../../stores/toolsStore"
+import { getToolParams, useToolsStore } from "../../stores/toolsStore"
 import { usePacksStore } from "../../stores/packsStore"
 import { useSettingsStore } from "../../stores/settingsStore"
 import { setPackEnabled } from "../packs/api"
 import { TOOL_BY_ID } from "../tools/definitions"
-import { resolveParams, type ToolParamValues } from "../tools/params"
+import {
+  resolveParams,
+  type BiomeSelection,
+  type BiomeTexture,
+  type ToolParamValues,
+} from "../tools/params"
 import i18n from "../../i18n"
 import { withLoading } from "../../stores/loadingStore"
-import { loadMapFile, saveBinaryFile, saveMapFile } from "./api"
+import { loadMapFile, resolveAssets, saveBytes, saveMapFile } from "./api"
 import { renderMapPng, type ExportOptions } from "./render/exportMap"
 import { loadMap } from "./commands"
-import { importDungeondraftMap, type ImportResult } from "./format/dungeondraft"
+import { importDungeondraftMap, type ImportResult, type TerrainSetup } from "./format/dungeondraft"
 import { useEditorStore } from "../../stores/editorStore"
 import { getUsedPackIds } from "./packUsage"
 import type { MapDocument } from "./model/types"
@@ -212,7 +217,37 @@ async function applyImport(result: ImportResult): Promise<string[]> {
   }
   useMapFileStore.getState().startNew()
   useMapFileStore.getState().markDirty()
-  return enableMapPacks(result.packs)
+  const missing = await enableMapPacks(result.packs)
+  if (result.terrain) await applyTerrainSetup(result.terrain)
+  return missing
+}
+
+/** File name without folder or extension ("…/Grass_G_04.webp" → "Grass_G_04"). */
+const stemOf = (path: string) => path.replace(/^.*[\\/|]/, "").replace(/\.[^.]+$/, "")
+
+/**
+ * Load an imported map's terrain setup into the Terrain Brush: its textures
+ * fill the current biome's slots (with thumbnails resolved from the packs),
+ * plus the extra-slots, smooth-blending and enabled switches.
+ */
+async function applyTerrainSetup(setup: TerrainSetup): Promise<void> {
+  const ids = setup.slots.filter((id): id is string => !!id)
+  const resolved = await withLoading(i18n.t("loading.loadingAssets"), () => resolveAssets(ids))
+  const pathOf = new Map(resolved.map((r) => [r.id, r.path]))
+  const slots: (BiomeTexture | null)[] = setup.slots.map((id) =>
+    id ? { id, name: stemOf(id), thumb: pathOf.get(id) ?? "" } : null,
+  )
+  const current = getToolParams("terrainBrush").biome as BiomeSelection
+  useToolsStore.getState().setToolParams("terrainBrush", {
+    biome: {
+      ...current,
+      slotsByBiome: { ...current.slotsByBiome, [current.biome]: slots },
+      unlocked: setup.expanded,
+      selectedSlot: 0,
+    },
+    smoothBlending: setup.smoothBlending,
+    enable: setup.enabled,
+  })
 }
 
 /**
@@ -251,8 +286,8 @@ export async function exportPngFlow(opts: ExportOptions): Promise<boolean> {
   const path = await saveDialog({ filters: PNG_FILTERS, defaultPath: "map.png" })
   if (!path) return false
   await withLoading(i18n.t("loading.exporting"), async () => {
-    const data = await renderMapPng(opts)
-    await saveBinaryFile(path, data)
+    const bytes = await renderMapPng(opts)
+    await saveBytes(path, bytes)
   })
   return true
 }

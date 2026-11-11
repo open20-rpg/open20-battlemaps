@@ -413,4 +413,23 @@ describe("effects, text, select, prefabs", () => {
     up("select", 4.2, 4.5)
     expect(entities()[0].rotation % 15).toBeCloseTo(0)
   })
+
+  it("Select mirrors the selection with H/V and the panel buttons", () => {
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"], mirror: true })
+    down("object", 2, 2)
+    expect(entities()[0].flipX).toBe(true)
+    down("object", 4, 2)
+    useToolsStore.getState().selectToolById("select")
+    expect(isToolActionDisabled("select", "flipH")).toBe(true)
+    useEditorStore.getState().select(entities().map((e) => e.id))
+    act("select", (b, c) => b.onKeyDown?.(c, { key: "h" } as KeyboardEvent))
+    // Positions swap across the group's center; flips toggle.
+    expect(entities().map((e) => e.position.x)).toEqual([4, 2])
+    // Both were placed mirrored (the param stays on); flipping un-mirrors them.
+    expect(entities().map((e) => !!e.flipX)).toEqual([false, false])
+    runToolAction("select", "flipV")
+    expect(entities().every((e) => e.flipY)).toBe(true)
+    undo()
+    expect(entities().every((e) => !e.flipY)).toBe(true)
+  })
 })
