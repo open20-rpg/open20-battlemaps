@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { type MapEntity } from "../map/model/types"
-import { SELECT_KINDS, idsOfKind } from "./selectKinds"
+import { SELECT_FILTER_DEFAULT, SELECT_KINDS, idsOfKind, selectableBy } from "./selectKinds"
 
 const e = (id: string, toolId: string, extra: Partial<MapEntity> = {}): MapEntity => ({
   id,
@@ -46,5 +46,19 @@ describe("select by kind", () => {
 
   it("declares each kind once", () => {
     expect(new Set(SELECT_KINDS.map((k) => k.id)).size).toBe(SELECT_KINDS.length)
+  })
+
+  it("filters what Select can pick by kind; paint only when its kind is on", () => {
+    const pick = selectableBy(SELECT_FILTER_DEFAULT)
+    expect(pick(e("o", "object"))).toBe(true)
+    expect(pick(e("l", "light"))).toBe(false)
+    const stroke = { points: [{ x: 0, y: 0 }], radius: 1 }
+    expect(pick(e("t", "terrainBrush", { strokes: [stroke] }))).toBe(false)
+    const withTerrain = selectableBy([...SELECT_FILTER_DEFAULT, "terrain"])
+    expect(withTerrain(e("t", "terrainBrush", { strokes: [stroke] }))).toBe(true)
+    // A Terrain Fill has no shape: never pickable.
+    expect(withTerrain(e("f", "terrainBrush", { strokes: [] }))).toBe(false)
+    // Kinds not listed are always pickable.
+    expect(selectableBy([])(e("x", "somethingElse"))).toBe(true)
   })
 })

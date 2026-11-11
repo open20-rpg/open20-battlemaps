@@ -41,6 +41,7 @@ import { type Shortcut } from "../../lib/shortcuts"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import { DEFAULT_POST_PROCESS, POST_FILTERS } from "../../lib/postProcess"
 import { DEFAULT_SHADOW_STYLE } from "../../stores/settingsStore"
+import { SELECT_FILTER_DEFAULT, SELECT_KINDS } from "./selectKinds"
 import {
   shapeVsEditPoints,
   type AssetRecolor,
@@ -655,6 +656,13 @@ export const TOOL_TREE: ToolNode[] = [
   tool("select", "tools.select", LuMousePointer2, {
     shortcut: { key: "s" },
     params: [
+      {
+        kind: "iconToggles",
+        paramKey: "filter",
+        labelKey: "tools.elementFilter",
+        options: SELECT_KINDS.map((k) => ({ value: k.id, labelKey: k.nameKey, icon: k.icon })),
+        default: SELECT_FILTER_DEFAULT,
+      },
       button("flipH", "tools.flipHorizontal", LuFlipHorizontal2),
       button("flipV", "tools.flipVertical", LuFlipVertical2),
       button("group", "tools.group", LuGroup),

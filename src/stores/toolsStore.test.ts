@@ -18,6 +18,19 @@ describe("toolsStore", () => {
     // A tool with params materializes all of them; a param-less tool is empty.
     expect(getToolParams("light")).toMatchObject({ shadow: true, widgets: true, range: 5 })
     expect(getToolParams("select")).toEqual({
+      // Lights, floors and terrain brushes start filtered out.
+      filter: [
+        "objects",
+        "walls",
+        "portals",
+        "paths",
+        "patterns",
+        "roofs",
+        "water",
+        "texts",
+        "caves",
+        "materials",
+      ],
       flipH: null,
       flipV: null,
       group: null,
