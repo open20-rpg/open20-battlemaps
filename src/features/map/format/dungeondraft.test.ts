@@ -5,6 +5,8 @@ import {
   bitmapRuns,
   DungeondraftImportError,
   importDungeondraftMap,
+  PATH_WIDTH_TILES,
+  pathWidthMultipliers,
   resToAssetId,
   spriteScale,
 } from "./dungeondraft"
@@ -187,7 +189,17 @@ describe("Dungeondraft import", () => {
       { x: 3, y: 1 },
       { x: 2, y: 1 },
     ])
-    expect(path.params).toMatchObject({ width: 0.5, transitionIn: "fade", transitionOut: "growth" })
+    expect(path.params).toMatchObject({
+      [PATH_WIDTH_TILES]: 0.5,
+      transitionIn: "fade",
+      transitionOut: "growth",
+    })
+    // 128 px wide over a 128 px (half-tile) tall texture: Width 1.
+    const [converted] = pathWidthMultipliers([path], () => 0.5)
+    expect(converted.params.width).toBe(1)
+    expect(converted.params[PATH_WIDTH_TILES]).toBeUndefined()
+    // Texture unknown (pack missing): counted as one tile tall.
+    expect(pathWidthMultipliers([path], () => undefined)[0].params.width).toBe(0.5)
     const [light] = byTool("light")
     expect(light.params).toMatchObject({
       range: 3,

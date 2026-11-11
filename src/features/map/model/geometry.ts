@@ -184,9 +184,19 @@ function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
 }
 
 /** Half-width of a stroked line entity (walls, paths) in tiles. */
-export function lineHalfWidth(entity: MapEntity): number {
-  const width = entity.params.width
-  return typeof width === "number" ? width / 2 : 0.15
+export function lineHalfWidth(entity: MapEntity, sizeOf: AssetSizeOf): number {
+  return entity.toolId === "path" ? pathWidth(entity, sizeOf) / 2 : 0.15
+}
+
+/**
+ * A path's width in tiles: its Width param is a multiplier of its
+ * texture's height, as in Dungeondraft (1 = as wide as the texture is
+ * tall; a tile until the texture's size is known).
+ */
+export function pathWidth(entity: MapEntity, sizeOf: AssetSizeOf): number {
+  const k = typeof entity.params.width === "number" ? entity.params.width : 1
+  const asset = typeof entity.params.asset === "string" ? entity.params.asset : undefined
+  return k * ((asset && sizeOf(asset)?.h) || 1)
 }
 
 /**
@@ -219,7 +229,7 @@ export function entityBounds(entity: MapEntity, sizeOf: AssetSizeOf): Rect {
     return inflate(boundsOf(pts), r)
   }
   if (entity.points && entity.points.length > 0) {
-    return inflate(boundsOf(entity.points), entity.closed ? 0 : lineHalfWidth(entity))
+    return inflate(boundsOf(entity.points), entity.closed ? 0 : lineHalfWidth(entity, sizeOf))
   }
   return boundsOf(spriteCorners(entity, sizeOf))
 }
@@ -244,7 +254,9 @@ export function entityHit(
   if (entity.points && entity.points.length > 0) {
     const area = entity.closed && entity.points.length > 2 && !OUTLINE_ONLY_TOOLS.has(entity.toolId)
     if (area && pointInPolygon(p, entity.points)) return true
-    return distToPolyline(p, entity.points, entity.closed) <= lineHalfWidth(entity) + tolerance
+    return (
+      distToPolyline(p, entity.points, entity.closed) <= lineHalfWidth(entity, sizeOf) + tolerance
+    )
   }
   if (entity.toolId === "light") return dist(p, entity.position) <= LIGHT_PICK_RADIUS
   return pointInPolygon(p, spriteCorners(entity, sizeOf))

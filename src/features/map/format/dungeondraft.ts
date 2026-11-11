@@ -356,7 +356,9 @@ function paths(im: Importer, level: string, raw: Json): MapEntity[] {
           position: pts[0],
           params: {
             asset: im.asset(pa.texture),
-            width: num(pa.width, PX) / PX,
+            // Tiles for now: the Width multiplier needs the texture's
+            // height (see pathWidthMultipliers).
+            [PATH_WIDTH_TILES]: num(pa.width, PX) / PX,
             smoothness: num(pa.smoothness, 0),
             blockLight: bool(pa.block_light, false),
             transitionIn: transition(pa.fade_in, pa.grow),
@@ -365,6 +367,29 @@ function paths(im: Importer, level: string, raw: Json): MapEntity[] {
         }),
       ]
     })
+}
+
+/** Param an imported path carries its width in tiles in, until pathWidthMultipliers converts it. */
+export const PATH_WIDTH_TILES = "importedWidthTiles"
+
+/**
+ * Imported paths' widths as Width multipliers: Dungeondraft files store a
+ * path's width in pixels, Open20 Battle Maps the multiplier of the
+ * texture's height (as Dungeondraft's own Width setting), so it needs the
+ * textures' heights in tiles (`heightOf`; a missing texture counts as 1).
+ */
+export function pathWidthMultipliers(
+  entities: readonly MapEntity[],
+  heightOf: (assetId: string) => number | undefined,
+): MapEntity[] {
+  return entities.map((e) => {
+    const tiles = e.params[PATH_WIDTH_TILES]
+    if (typeof tiles !== "number") return e
+    const asset = typeof e.params.asset === "string" ? e.params.asset : ""
+    const params: Record<string, unknown> = { ...e.params, width: tiles / (heightOf(asset) || 1) }
+    delete params[PATH_WIDTH_TILES]
+    return { ...e, params }
+  })
 }
 
 function lights(im: Importer, level: string, raw: Json): MapEntity[] {

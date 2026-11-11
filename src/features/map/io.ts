@@ -27,7 +27,14 @@ import {
 import { estimateBytes, FORMAT_EXTENSION } from "./exportFormat"
 import { renderExportSample, renderMapRows, type ExportOptions } from "./render/exportMap"
 import { loadMap } from "./commands"
-import { importDungeondraftMap, type ImportResult, type TerrainSetup } from "./format/dungeondraft"
+import {
+  importDungeondraftMap,
+  PATH_WIDTH_TILES,
+  pathWidthMultipliers,
+  type ImportResult,
+  type TerrainSetup,
+} from "./format/dungeondraft"
+import { assetCache } from "./render/assets"
 import { useEditorStore } from "../../stores/editorStore"
 import { getUsedPackIds } from "./packUsage"
 import type { MapDocument } from "./model/types"
@@ -218,7 +225,17 @@ export async function saveMap(): Promise<boolean> {
  * the original `.dungeondraft_map` is never overwritten.
  */
 async function applyImport(result: ImportResult): Promise<string[]> {
-  loadMap(result.doc)
+  // The map's packs first: path widths need their textures' sizes.
+  const missing = await enableMapPacks(result.packs)
+  const pathAssets = result.doc.entities.flatMap((e) =>
+    e.params[PATH_WIDTH_TILES] !== undefined && typeof e.params.asset === "string"
+      ? [e.params.asset]
+      : [],
+  )
+  if (pathAssets.length > 0)
+    await withLoading(i18n.t("loading.loadingAssets"), () => assetCache.whenLoaded(pathAssets))
+  const entities = pathWidthMultipliers(result.doc.entities, (id) => assetCache.size(id)?.h)
+  loadMap({ ...result.doc, entities })
   useEditorStore.getState().setActiveLevel(result.doc.levels[result.currentLevel]?.id ?? null)
   useViewStore.getState().reset()
   if (result.gridColor) {
@@ -226,7 +243,6 @@ async function applyImport(result: ImportResult): Promise<string[]> {
   }
   useMapFileStore.getState().startNew()
   useMapFileStore.getState().markDirty()
-  const missing = await enableMapPacks(result.packs)
   if (result.terrain) await applyTerrainSetup(result.terrain)
   return missing
 }

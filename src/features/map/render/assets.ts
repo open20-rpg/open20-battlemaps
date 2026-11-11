@@ -75,6 +75,26 @@ export class AssetCache {
       : undefined
   }
 
+  /**
+   * Resolves once every id's main texture has loaded or is known to be
+   * unavailable (or after `timeoutMs`, so a stuck load never blocks).
+   */
+  whenLoaded(ids: readonly string[], timeoutMs = 15000): Promise<void> {
+    const settled = () => ids.every((id) => this.texture(id) || this.isUnavailable(id))
+    return new Promise((resolve) => {
+      if (settled()) return resolve()
+      const finish = () => {
+        clearTimeout(timer)
+        unsubscribe()
+        resolve()
+      }
+      const timer = setTimeout(finish, timeoutMs)
+      const unsubscribe = this.subscribe(() => {
+        if (settled()) finish()
+      })
+    })
+  }
+
   /** Whether an id is known to be missing (pack/file not installed). */
   isMissing(id: string): boolean {
     return this.resolved.get(id) === null
@@ -144,6 +164,7 @@ export class AssetCache {
     }
     img.onerror = () => {
       this.textures.set(url, "error")
+      this.notify()
     }
     img.src = url
   }

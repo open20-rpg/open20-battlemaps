@@ -270,7 +270,8 @@ const wallRenderer: EntityRenderer = (e, env) => {
 }
 
 /**
- * Paths, as Dungeondraft builds them: the edit points smoothed (Chaikin,
+ * Paths, as Dungeondraft builds them: as wide as the texture is tall times
+ * Width, the edit points smoothed (Chaikin,
  * Smoothness), a 5-vertex section per point (lineGeometry.ts), the texture
  * repeated at the path's base width. Growth/shrink ease the width from 0
  * over a third of the points; fades ramp the opacity over the first/last
@@ -278,7 +279,8 @@ const wallRenderer: EntityRenderer = (e, env) => {
  */
 const pathRenderer: EntityRenderer = (e, env) => {
   const texture = env.tex(str(e.params.asset, ""))
-  const width = num(e.params.width, 1)
+  // Width is a multiplier of the texture's height (Dungeondraft's Width).
+  const width = num(e.params.width, 1) * (texture ? texture.height / TEXTURE_PX_PER_TILE : 1)
   const pts = smoothPath(e.points ?? [], num(e.params.smoothness, 0), !!e.closed)
   const tIn = e.params.transitionIn
   const tOut = e.params.transitionOut
