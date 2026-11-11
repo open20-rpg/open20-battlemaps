@@ -191,11 +191,14 @@ export function lineHalfWidth(entity: MapEntity): number {
 
 /**
  * Whether an entity can be picked/selected. Brush paint (terrain, cave,
- * material, water strokes, and Terrain's Fill) is part of the ground, as in
- * Dungeondraft: it's edited by painting over it, not selected.
+ * material, water strokes) is part of the ground and only selectable when
+ * `allowPaint` (the Select tool's element filter decides); a Terrain Fill
+ * has no shape and never is.
  */
-export function isSelectable(entity: MapEntity): boolean {
-  return !(entity.strokes && !entity.points)
+export function isSelectable(entity: MapEntity, allowPaint = false): boolean {
+  if (!entity.strokes || entity.points) return true
+  // Paint is pickable only by its strokes (a Fill has none), and only when asked.
+  return allowPaint && entity.strokes.length > 0
 }
 
 /**
@@ -221,7 +224,6 @@ export function entityBounds(entity: MapEntity, sizeOf: AssetSizeOf): Rect {
   return boundsOf(spriteCorners(entity, sizeOf))
 }
 
-/** Whether `p` falls on the entity (hit test used by the Select tool). */
 /**
  * Entities picked only along their outline, never by their interior: a
  * closed wall encloses a room, and clicking inside the room must reach what
@@ -229,6 +231,7 @@ export function entityBounds(entity: MapEntity, sizeOf: AssetSizeOf): Rect {
  */
 const OUTLINE_ONLY_TOOLS = new Set(["wall"])
 
+/** Whether `p` falls on the entity (hit test used by the Select tool). */
 export function entityHit(
   entity: MapEntity,
   p: Vec2,

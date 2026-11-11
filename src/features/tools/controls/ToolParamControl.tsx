@@ -25,6 +25,7 @@ import { ButtonControl } from "./ButtonControl"
 import { FontControl } from "./FontControl"
 import { PrefabsControl } from "./PrefabsControl"
 import { SelectionPropertiesControl } from "./SelectionPropertiesControl"
+import { IconTogglesControl } from "./IconTogglesControl"
 
 interface RenderArgs<K extends ParamKind> {
   toolId: string
@@ -132,6 +133,14 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
   levels: () => <LevelsPanel />,
   prefabs: ({ spec, value, onChange }) => (
     <PrefabsControl value={value} labelKey={spec.labelKey} onChange={onChange} />
+  ),
+  iconToggles: ({ spec, value, onChange }) => (
+    <IconTogglesControl
+      value={value}
+      labelKey={spec.labelKey}
+      options={spec.options}
+      onChange={onChange}
+    />
   ),
   // Each property reuses its kind's control, so it's rendered through here too.
   properties: ({ toolId }) => (

@@ -1,12 +1,13 @@
 import { matchesShortcut } from "../../lib/shortcuts"
 import { useEditorStore } from "../../stores/editorStore"
 import { useMapStore } from "../../stores/mapStore"
-import { useToolsStore } from "../../stores/toolsStore"
+import { getToolParams, useToolsStore } from "../../stores/toolsStore"
 import { useViewStore } from "../../stores/viewStore"
 import { TOOL_BY_ID } from "../tools/definitions"
+import { elementFilter, selectableBy } from "../tools/selectKinds"
 import { VIEW_CONTROLS, ZOOM_LEVELS } from "../viewport/controls"
 import { addEntities, redo, removeEntities, undo } from "./commands"
-import { isSelectable, newId, translateEntity } from "./model/geometry"
+import { newId, translateEntity } from "./model/geometry"
 import { regroup } from "./model/groups"
 
 /** Pasted copies land offset by this much (tiles) so they don't hide the originals. */
@@ -61,7 +62,7 @@ export function runShortcut(e: KeyboardEvent): boolean {
   else if (mod && key === "a") {
     useEditorStore.getState().select(
       levelEntities()
-        .filter(isSelectable)
+        .filter(selectableBy(elementFilter(getToolParams("select"))))
         .map((x) => x.id),
     )
   } else if (!mod && (e.key === "Delete" || e.key === "Backspace")) deleteSelection()

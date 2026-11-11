@@ -10,7 +10,6 @@ import {
   rectFromCorners,
   rectsIntersect,
   flipEntity,
-  isSelectable,
   isStretchable,
   newId,
   scaleEntity,
@@ -21,6 +20,7 @@ import {
   type ScaleHandle,
 } from "../../map/model/geometry"
 import { expandGroups, hasGroups } from "../../map/model/groups"
+import { elementFilter, selectableBy } from "../selectKinds"
 import { screenAngle } from "./structures"
 import { screenTiles } from "./shared"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
@@ -176,11 +176,14 @@ export function ungroupSelection(ctx: ToolCtx): void {
   updateEntities(new Map(grouped.map((e) => [e.id, { group: undefined }])))
 }
 
+/** What clicks and rubber bands may pick: the Select tool's element filter. */
+const pickable = (ctx: ToolCtx) => selectableBy(elementFilter(ctx.params))
+
 /** Entities whose bounds intersect the rubber band. */
 export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
   const band = rectFromCorners(a, b)
   return ctx.entities.filter(
-    (e) => isSelectable(e) && rectsIntersect(entityBounds(e, ctx.sizeOf), band),
+    (e) => pickable(ctx)(e) && rectsIntersect(entityBounds(e, ctx.sizeOf), band),
   )
 }
 
@@ -224,7 +227,7 @@ export function createSelectBehavior(): ToolBehavior {
         mode = { kind: "transform", drag }
         return
       }
-      const hit = hitTest(ctx.entities, e, ctx.sizeOf, isSelectable)
+      const hit = hitTest(ctx.entities, e, ctx.sizeOf, pickable(ctx))
       const { selection } = editor()
       if (hit) {
         // A group member picks the whole group.

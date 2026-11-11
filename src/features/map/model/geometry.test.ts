@@ -359,6 +359,10 @@ describe("selectability", () => {
     expect(
       isSelectable({ ...obj("s", 0, 0), strokes: [{ points: [{ x: 0, y: 0 }], radius: 1 }] }),
     ).toBe(false)
+    expect(
+      isSelectable({ ...obj("s", 0, 0), strokes: [{ points: [{ x: 0, y: 0 }], radius: 1 }] }, true),
+    ).toBe(true)
+    expect(isSelectable({ ...obj("f", 0, 0), strokes: [] }, true)).toBe(false)
     expect(isSelectable(obj("o", 0, 0))).toBe(true)
   })
 })

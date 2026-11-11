@@ -82,6 +82,8 @@ export interface ParamValueByKind {
   prefabs: string | null
   /** The selected entities' own properties (Select tool); edits the document, holds no value. */
   properties: null
+  /** Ids of the options switched on. */
+  iconToggles: string[]
 }
 
 export type ParamKind = keyof ParamValueByKind
@@ -152,6 +154,11 @@ export type ToolParamSpec =
   | (BaseSpec<"prefabs"> & { labelKey: string })
   /** Properties of the selected entities (Select tool), edited in place. */
   | BaseSpec<"properties">
+  /** Square on/off icon buttons in rows, under a title (Select's element filter). */
+  | (BaseSpec<"iconToggles"> & {
+      labelKey: string
+      options: readonly { value: string; labelKey: string; icon: IconType }[]
+    })
 
 /**
  * Cross-field rule run right after a param change: given the already-merged
