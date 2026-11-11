@@ -47,6 +47,8 @@ const normal = (d: Vec2): Vec2 => ({ x: -d.y, y: d.x })
 interface Corner {
   /** How far each adjoining segment is cut back from the corner point. */
   trim: number
+  /** The trim a clean miter needs; larger than `trim` when a segment was too short. */
+  ideal: number
   /** +1 when the outer side of the bend is the left side, −1 when right. */
   outer: 1 | -1
 }
@@ -95,7 +97,8 @@ export function stripTriangles(
       lens[(i - 1 + segCount) % segCount] / 2,
       lens[i % segCount] / 2,
     )
-    return { trim: Math.min(half * Math.tan(turn / 2), limit), outer }
+    const ideal = Math.min(half * Math.tan(turn / 2), half * MAX_TRIM)
+    return { trim: Math.min(ideal, limit), ideal, outer }
   })
 
   const tris: StripTriangle[] = []
@@ -135,6 +138,25 @@ export function stripTriangles(
     const miter = along(o1, d, 2 * m)
     const o2 = along(along(pts[i1], dNext, m), nNext, half * corner.outer)
     const ca = al(i1)
+    if (corner.trim < corner.ideal - 1e-9) {
+      // A neighbouring segment is too short for a clean miter: the trimmed
+      // rectangles no longer meet at one inner point. Fan the outer side
+      // around the corner vertex up to the true miter instead (the inner
+      // sides overlap, so they leave no gap); the texture holds still here.
+      const c = pts[i1]
+      const trueMiter = along(along(c, d, corner.ideal), nrm, half * corner.outer)
+      const bCenter = along(c, d, -m)
+      const aCenter = along(c, dNext, m)
+      const v = (p: Vec2, side: number) => vtx(p, u, side)
+      tris.push(
+        { a: v(bCenter, 0.5), b: v(o1, vOut), c: v(c, 0.5), alpha: ca },
+        { a: v(c, 0.5), b: v(o1, vOut), c: v(trueMiter, vOut), alpha: ca },
+        { a: v(c, 0.5), b: v(trueMiter, vOut), c: v(o2, vOut), alpha: ca },
+        { a: v(c, 0.5), b: v(o2, vOut), c: v(aCenter, 0.5), alpha: ca },
+      )
+      u += 2 * m
+      continue
+    }
     tris.push(
       { a: vtx(o1, u, vOut), b: vtx(miter, u + m, vOut), c: vtx(inner, u, vIn), alpha: ca },
       {

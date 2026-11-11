@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { roofShade, shadeColor, smoothPolyline } from "./entities"
-import { exportPxPerTile } from "./exportMap"
+import { glowStrength, roofShade, shadeColor, smoothPolyline } from "./entities"
+import { exportPxPerTile, exportTiles } from "./exportMap"
 import { maskResolution, paintedLayer, terrainStrength } from "./painted"
 import { mapToScreen, screenToMap } from "./viewport"
 
@@ -24,9 +24,24 @@ describe("export", () => {
     expect(exportPxPerTile(256, 20, 10)).toBe(256)
     expect(exportPxPerTile(256, 100, 40)).toBe(81)
   })
+
+  it("splits the export into blocks covering the image exactly", () => {
+    const tiles = exportTiles(5000, 2100, 2048)
+    expect(tiles).toHaveLength(3 * 2)
+    expect(tiles[2]).toEqual([4096, 0, 904, 2048])
+    expect(tiles[5]).toEqual([4096, 2048, 904, 52])
+    const area = tiles.reduce((a, [, , w, h]) => a + w * h, 0)
+    expect(area).toBe(5000 * 2100)
+  })
 })
 
 describe("renderers", () => {
+  it("fades the light glow out as the ambient darkens", () => {
+    expect(glowStrength("#ffffff")).toBeCloseTo(1)
+    expect(glowStrength("#000000")).toBe(0)
+    expect(glowStrength("#808080")).toBeLessThan(0.15)
+  })
+
   it("shades roof faces by their angle to the sun", () => {
     expect(roofShade(45, 45, 0.4)).toBeCloseTo(1)
     expect(roofShade(225, 45, 0.4)).toBeCloseTo(0.6)
