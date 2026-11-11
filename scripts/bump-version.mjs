@@ -19,7 +19,7 @@ export function bumpCargoToml(text, version) {
 }
 
 /** Cargo.lock with the version of the `name = "<crate>"` entry replaced. */
-export function bumpCargoLock(text, version, crate = "opendraft") {
+export function bumpCargoLock(text, version, crate = "open20-battle-maps") {
   const re = new RegExp(`(\\[\\[package\\]\\]\\nname = "${crate}"\\nversion = ")[^"]*(")`)
   return text.replace(re, `$1${version}$2`)
 }

@@ -1,4 +1,4 @@
-package com.opendraft.app
+package app.open20.battlemaps
 
 import android.os.Bundle
 import androidx.core.view.WindowCompat

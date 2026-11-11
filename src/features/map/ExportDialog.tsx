@@ -39,7 +39,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
           <Button variant="ghost" onClick={onClose}>
             {t("export.cancel")}
           </Button>
-          <Button colorPalette="blue" onClick={() => void run()} disabled={!map}>
+          <Button colorPalette="brand" onClick={() => void run()} disabled={!map}>
             {t("export.export")}
           </Button>
         </>

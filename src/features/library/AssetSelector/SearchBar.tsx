@@ -50,7 +50,7 @@ export function SearchBar({
         <Slider.Root
           flex="1"
           size="sm"
-          colorPalette="blue"
+          colorPalette="brand"
           min={0}
           max={100}
           step={1}

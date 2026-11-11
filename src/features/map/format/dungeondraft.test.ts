@@ -232,7 +232,7 @@ describe("Dungeondraft import", () => {
 
   it("rejects files that aren't Dungeondraft maps", () => {
     expect(() => importDungeondraftMap("{")).toThrow(DungeondraftImportError)
-    expect(() => importDungeondraftMap('{"format":"opendraft-map"}')).toThrow(
+    expect(() => importDungeondraftMap('{"format":"open20-battle-maps"}')).toThrow(
       DungeondraftImportError,
     )
   })

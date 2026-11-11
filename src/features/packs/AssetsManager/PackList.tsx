@@ -81,7 +81,7 @@ function PackRow({ pack, selected, focused, disabled, onToggle, onFocus }: PackR
           checked={selected}
           disabled={disabled}
           onCheckedChange={() => onToggle(pack.id)}
-          colorPalette="blue"
+          colorPalette="brand"
         >
           <Checkbox.HiddenInput />
           <Checkbox.Control />
@@ -173,7 +173,7 @@ export function PackList({
           <Checkbox.Root
             checked={allSelected ? true : selected.size > 0 ? "indeterminate" : false}
             onCheckedChange={onToggleAll}
-            colorPalette="blue"
+            colorPalette="brand"
             size="sm"
           >
             <Checkbox.HiddenInput />
@@ -197,7 +197,7 @@ export function PackList({
               total: progress.total,
             })}
           </Text>
-          <Progress.Root value={progress.percent} size="xs" colorPalette="blue">
+          <Progress.Root value={progress.percent} size="xs" colorPalette="brand">
             <Progress.Track>
               <Progress.Range />
             </Progress.Track>

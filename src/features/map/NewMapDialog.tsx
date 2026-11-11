@@ -101,7 +101,7 @@ function NewMapDialogContent({ open, onOpenChange, onCreate, onOpenAssets }: New
             <Button variant="subtle" onClick={() => onOpenChange(false)}>
               {t("newMap.cancel")}
             </Button>
-            <Button colorPalette="blue" onClick={handleOk}>
+            <Button colorPalette="brand" onClick={handleOk}>
               {t("newMap.ok")}
             </Button>
           </>
@@ -193,7 +193,7 @@ function NewMapDialogContent({ open, onOpenChange, onCreate, onOpenAssets }: New
             <Button variant="subtle" onClick={() => setTplOpen(false)}>
               {t("newTemplate.cancel")}
             </Button>
-            <Button colorPalette="blue" disabled={!tplName.trim()} onClick={confirmNewTemplate}>
+            <Button colorPalette="brand" disabled={!tplName.trim()} onClick={confirmNewTemplate}>
               {t("newTemplate.accept")}
             </Button>
           </>

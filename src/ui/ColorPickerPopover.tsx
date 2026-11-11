@@ -99,7 +99,7 @@ export function ColorPickerPopover({
             {onAdd && (
               <Button
                 size="md"
-                colorPalette="blue"
+                colorPalette="brand"
                 onClick={() => {
                   onAdd(color.toString("hexa"))
                   setOpen(false)

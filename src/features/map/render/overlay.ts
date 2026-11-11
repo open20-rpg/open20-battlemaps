@@ -12,7 +12,8 @@ import { type MapEntity } from "../model/types"
 import { ENTITY_RENDERERS, type RenderEnv } from "./entities"
 import { tileSizeForZoom } from "./viewport"
 
-const ACCENT = 0x5aa9ff
+/** Selection/draft accent: Open20 crimson, lightened to read over any map. */
+const ACCENT = 0xe0534e
 
 /**
  * Editor-only drawing on top of the map: the active tool's drafts and the

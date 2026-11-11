@@ -15,7 +15,7 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
         </Button>
       }
     >
-      <Stack gap="2" color="fg.muted" fontSize="sm">
+      <Stack gap="3" color="fg.muted" fontSize="sm">
         <Text color="fg" fontWeight="semibold">
           {t("about.version", { version: __APP_VERSION__ })}
         </Text>

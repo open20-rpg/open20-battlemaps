@@ -85,7 +85,7 @@ export function StatusBar() {
       >
         {/* App identity on the far left */}
         <Text fontWeight="medium" color="menubar.fgMuted">
-          OpenDraft v{__APP_VERSION__}
+          {t("about.version", { version: __APP_VERSION__ })}
         </Text>
 
         {/* Current file (only when a map is open) */}

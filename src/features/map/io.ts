@@ -24,29 +24,29 @@ import { getUsedPackIds } from "./packUsage"
 import type { MapDocument } from "./model/types"
 
 /**
- * `.opdr` save format — a plain JSON envelope around the map document plus
+ * `.otbm` save format — a plain JSON envelope around the map document plus
  * enough editor state to restore the session: view toggles/zoom, any tool
  * params that differ from their defaults (kept as deltas so the file stays
  * small and forward-compatible as new tools/params are added), and the pack
  * ids the map depends on (re-enabled on open if the user has them off).
  */
-export const OPDR_FORMAT = "opendraft-map"
-export const OPDR_FORMAT_VERSION = 1
-export const OPDR_EXTENSION = "opdr"
+export const MAP_FORMAT = "open20-battle-maps"
+export const MAP_FORMAT_VERSION = 1
+export const MAP_EXTENSION = "otbm"
 
-const OPDR_FILTERS = [{ name: "OpenDraft Map", extensions: [OPDR_EXTENSION] }]
+const MAP_FILTERS = [{ name: "Open20 Battle Maps", extensions: [MAP_EXTENSION] }]
 
-/** Dungeondraft maps open through the importer (read-only: saving writes `.opdr`). */
+/** Dungeondraft maps open through the importer (read-only: saving writes `.otbm`). */
 export const DUNGEONDRAFT_EXTENSION = "dungeondraft_map"
 
 /** What "Open" accepts: both formats together first, then each on its own. */
 const OPEN_FILTERS = [
-  { name: "Maps", extensions: [OPDR_EXTENSION, DUNGEONDRAFT_EXTENSION] },
-  ...OPDR_FILTERS,
+  { name: "Maps", extensions: [MAP_EXTENSION, DUNGEONDRAFT_EXTENSION] },
+  ...MAP_FILTERS,
   { name: "Dungeondraft Map", extensions: [DUNGEONDRAFT_EXTENSION] },
 ]
 
-export interface OpdrMeta {
+export interface MapFileMeta {
   /** App version the map was originally created with. */
   appVersion: string
   /** App version that produced this specific save. */
@@ -55,7 +55,7 @@ export interface OpdrMeta {
   modifiedAt: string
 }
 
-export interface OpdrView {
+export interface MapFileView {
   grid: boolean
   snap: boolean
   lighting: boolean
@@ -63,12 +63,12 @@ export interface OpdrView {
   zoom: number
 }
 
-export interface OpdrFile {
-  format: typeof OPDR_FORMAT
+export interface MapFile {
+  format: typeof MAP_FORMAT
   formatVersion: number
-  meta: OpdrMeta
+  meta: MapFileMeta
   map: MapDocument
-  view: OpdrView
+  view: MapFileView
   /** Per-tool param deltas — only params that differ from their spec default. */
   tools: Record<string, ToolParamValues>
   /** Pack ids referenced by the map (assets picked in tools/entities). */
@@ -83,7 +83,7 @@ export interface OpenMapResult {
   imported?: ImportResult["warnings"]
 }
 
-export class OpdrParseError extends Error {}
+export class MapParseError extends Error {}
 
 /** Params that differ from their tool's spec defaults, per tool id (skips untouched tools). */
 function diffToolParams(
@@ -102,7 +102,7 @@ function diffToolParams(
 }
 
 /** Snapshot the current session (map + view + tool deltas + used packs) into a save envelope. */
-function buildSaveFile(): OpdrFile {
+function buildSaveFile(): MapFile {
   const map = useMapStore.getState().map
   if (!map) throw new Error("No map is open")
   const { createdAt, appVersion } = useMapFileStore.getState()
@@ -110,8 +110,8 @@ function buildSaveFile(): OpdrFile {
   const { paramsByTool } = useToolsStore.getState()
   const now = new Date().toISOString()
   return {
-    format: OPDR_FORMAT,
-    formatVersion: OPDR_FORMAT_VERSION,
+    format: MAP_FORMAT,
+    formatVersion: MAP_FORMAT_VERSION,
     meta: {
       appVersion: appVersion ?? __APP_VERSION__,
       savedWith: __APP_VERSION__,
@@ -126,21 +126,21 @@ function buildSaveFile(): OpdrFile {
 }
 
 /** Parse and shallow-validate a save file's raw JSON text. */
-function parseSaveFile(raw: string): OpdrFile {
+function parseSaveFile(raw: string): MapFile {
   let data: unknown
   try {
     data = JSON.parse(raw)
   } catch {
-    throw new OpdrParseError("Invalid JSON")
+    throw new MapParseError("Invalid JSON")
   }
-  const file = data as Partial<OpdrFile> | null
-  if (!file || typeof file !== "object" || file.format !== OPDR_FORMAT) {
-    throw new OpdrParseError("Not an OpenDraft map file")
+  const file = data as Partial<MapFile> | null
+  if (!file || typeof file !== "object" || file.format !== MAP_FORMAT) {
+    throw new MapParseError("Not an Open20 Battle Maps map file")
   }
-  if (typeof file.formatVersion !== "number" || file.formatVersion > OPDR_FORMAT_VERSION) {
-    throw new OpdrParseError("Unsupported map file version")
+  if (typeof file.formatVersion !== "number" || file.formatVersion > MAP_FORMAT_VERSION) {
+    throw new MapParseError("Unsupported map file version")
   }
-  return file as OpdrFile
+  return file as MapFile
 }
 
 /**
@@ -169,7 +169,7 @@ async function enableMapPacks(packIds: string[]): Promise<string[]> {
 }
 
 /** Apply a parsed save file to the live stores, replacing the current session. */
-async function applySaveFile(file: OpdrFile): Promise<string[]> {
+async function applySaveFile(file: MapFile): Promise<string[]> {
   loadMap(file.map)
   useViewStore.setState({ ...file.view })
   for (const [toolId, delta] of Object.entries(file.tools)) {
@@ -187,7 +187,7 @@ async function writeMapTo(path: string): Promise<void> {
 
 /** Prompt for a destination and write the current map there. False if cancelled. */
 export async function saveMapAs(): Promise<boolean> {
-  const path = await saveDialog({ filters: OPDR_FILTERS, defaultPath: `map.${OPDR_EXTENSION}` })
+  const path = await saveDialog({ filters: MAP_FILTERS, defaultPath: `map.${MAP_EXTENSION}` })
   if (!path) return false
   await writeMapTo(path)
   return true
@@ -205,7 +205,7 @@ export async function saveMap(): Promise<boolean> {
 
 /**
  * Bring an imported Dungeondraft map into the session. It becomes a new,
- * unsaved document (no path), so Save asks where to write the `.opdr` and
+ * unsaved document (no path), so Save asks where to write the `.otbm` and
  * the original `.dungeondraft_map` is never overwritten.
  */
 async function applyImport(result: ImportResult): Promise<string[]> {
@@ -252,7 +252,7 @@ async function applyTerrainSetup(setup: TerrainSetup): Promise<void> {
 
 /**
  * Open a map, replacing the current session: `path` when given (a recent
- * map), otherwise whatever the user picks in the open dialog. `.opdr` files
+ * map), otherwise whatever the user picks in the open dialog. `.otbm` files
  * load as-is; `.dungeondraft_map` files go through the importer.
  */
 export async function openMapFlow(path?: string): Promise<OpenMapResult> {

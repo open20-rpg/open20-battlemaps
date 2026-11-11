@@ -457,7 +457,7 @@ mod tests {
 
     #[test]
     fn locates_textures_across_extensions_and_case() {
-        let dir = std::env::temp_dir().join(format!("opendraft-locate-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("battle-maps-locate-{}", std::process::id()));
         let sub = dir.join("textures").join("Terrain");
         fs::create_dir_all(&sub).unwrap();
         fs::write(sub.join("Grass.webp"), b"x").unwrap();

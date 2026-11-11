@@ -49,6 +49,6 @@ export const useViewStore = create<ViewState>()(
       setPan: (x, y) => set({ panX: x, panY: y }),
       reset: () => set(DEFAULT_VIEW_STATE),
     }),
-    { name: "opendraft.view", version: 1 },
+    { name: "open20-battle-maps.view", version: 1 },
   ),
 )

@@ -19,7 +19,7 @@ export const ThumbCell = memo(function ThumbCell({
   const [errored, setErrored] = useState(false)
   return (
     <div
-      className="od-thumb"
+      className="bm-thumb"
       data-name={item?.name}
       data-idx={item ? idx : undefined}
       data-selected={selected ? "" : undefined}
@@ -58,7 +58,7 @@ export const ListCell = memo(function ListCell({
   const [errored, setErrored] = useState(false)
   return (
     <div
-      className="od-thumb"
+      className="bm-thumb"
       data-name={item?.name}
       data-idx={item ? idx : undefined}
       data-selected={selected ? "" : undefined}
@@ -85,7 +85,7 @@ export const ListCell = memo(function ListCell({
 export function NullCell({ selected }: { selected: boolean }) {
   return (
     <div
-      className="od-thumb"
+      className="bm-thumb"
       data-null=""
       data-selected={selected ? "" : undefined}
       style={nullCellStyle}

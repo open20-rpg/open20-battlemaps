@@ -33,7 +33,7 @@ export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: (
             <Button
               size="sm"
               variant={i18n.language.startsWith("es") ? "solid" : "outline"}
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => i18n.changeLanguage("es")}
             >
               Español
@@ -41,7 +41,7 @@ export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: (
             <Button
               size="sm"
               variant={i18n.language.startsWith("en") ? "solid" : "outline"}
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => i18n.changeLanguage("en")}
             >
               English
@@ -56,7 +56,7 @@ export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: (
             <Slider.Root
               flex="1"
               size="sm"
-              colorPalette="blue"
+              colorPalette="brand"
               min={30}
               max={100}
               step={1}

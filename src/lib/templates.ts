@@ -16,38 +16,3 @@ export const DEFAULT_TEMPLATES: MapTemplate[] = [
   { id: "a4", name: "A4 Paper", width: 11, height: 8, builtin: true },
   { id: "a3", name: "A3 Paper", width: 16, height: 11, builtin: true },
 ]
-
-const STORAGE_KEY = "opendraft.userTemplates"
-
-/**
- * User templates from the pre-settings-store localStorage key (tolerant of bad
- * data). Only used to seed the settings store for existing users; new writes
- * go through the store.
- */
-export function loadUserTemplates(): MapTemplate[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    const out: MapTemplate[] = []
-    for (const t of parsed) {
-      if (
-        !t ||
-        typeof t.name !== "string" ||
-        !Number.isFinite(t.width) ||
-        !Number.isFinite(t.height)
-      )
-        continue
-      out.push({
-        id: String(t.id ?? `u_${t.name}`),
-        name: String(t.name),
-        width: Math.max(1, Math.round(t.width)),
-        height: Math.max(1, Math.round(t.height)),
-      })
-    }
-    return out
-  } catch {
-    return []
-  }
-}

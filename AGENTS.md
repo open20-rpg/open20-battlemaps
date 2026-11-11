@@ -1,4 +1,9 @@
-# OpenDraft
+# Open20 Battle Maps
+
+Una de las apps de **Open20**, la suite de herramientas para juegos de rol.
+Identidad visual de la suite: chrome oscuro con acento carmesí `#A70909`
+(tokens `brand.*` en `theme.ts`; usá `colorPalette="brand"`, nunca colores
+crudos). Los mapas se guardan como `.otbm` (Open Twenty Battle Maps).
 
 Clon de Dungeondraft: editor de mapas de rol de escritorio. Tauri v2 (Rust) +
 React 19 + TypeScript + Chakra UI v3 + Zustand. Compatible con packs
@@ -87,7 +92,7 @@ ni accionable.
 - **Mapas de Dungeondraft**: "Abrir" importa `.dungeondraft_map`
   (`features/map/format/dungeondraft.ts`, formato documentado en
   `docs/dungeondraft-map-format.md`). Es solo importación: el mapa queda como
-  documento nuevo sin guardar y "Guardar" escribe un `.opdr`. Lo que no tiene
+  documento nuevo sin guardar y "Guardar" escribe un `.otbm`. Lo que no tiene
   equivalente se reporta como aviso (nunca se descarta en silencio).
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
@@ -95,7 +100,7 @@ ni accionable.
   que aparezca en la StatusBar y no bloquee percibidamente la UI. Nunca hagas un
   `await invoke(...)` "pelado" en un flujo que el usuario dispara.
 - `localStorage` solo a través de `useSettingsStore` (clave versionada
-  `opendraft.settings`).
+  `open20-battle-maps.settings`).
 - Rust: la lógica vive en `src-tauri/src/pack/{format,registry,install,library,recolor}.rs`;
   los `#[tauri::command]` en `commands.rs` son finos y delegan. Los nombres de
   comandos y los shapes serde camelCase son API del frontend — no cambiarlos

@@ -1,11 +1,11 @@
 import { invoke } from "@tauri-apps/api/core"
 
-/** Write a `.opdr` map file (plain JSON text). */
+/** Write a `.otbm` map file (plain JSON text). */
 export function saveMapFile(path: string, contents: string): Promise<void> {
   return invoke("save_map", { path, contents })
 }
 
-/** Read a `.opdr` map file's raw JSON text. */
+/** Read a `.otbm` map file's raw JSON text. */
 export function loadMapFile(path: string): Promise<string> {
   return invoke("load_map", { path })
 }
