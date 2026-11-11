@@ -10,9 +10,13 @@ export function loadMapFile(path: string): Promise<string> {
   return invoke("load_map", { path })
 }
 
-/** Write binary data (base64, optionally as a data URL) to `path` (PNG export). */
-export function saveBinaryFile(path: string, data: string): Promise<void> {
-  return invoke("save_binary", { path, data })
+/**
+ * Write binary data to `path` (PNG export). The bytes travel as the raw IPC
+ * body — no base64/JSON round trip for multi-megabyte files — with the path
+ * in a header (percent-encoded: header values must be ASCII).
+ */
+export function saveBytes(path: string, bytes: Uint8Array): Promise<void> {
+  return invoke("save_bytes", bytes, { headers: { "x-path": encodeURIComponent(path) } })
 }
 
 /** Read an arbitrary image from disk as a data URL (Reference Image tool). */
