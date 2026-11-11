@@ -1,6 +1,6 @@
 [package]
 name = "opendraft"
-version = "0.1.16"
+version = "0.1.17"
 description = "OpenDraft - open source RPG map designer"
 authors = ["Pablo"]
 edition = "2021"
