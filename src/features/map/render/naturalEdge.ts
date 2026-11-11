@@ -59,7 +59,9 @@ void main(void) {
   // Remap the noise into the middle of the coverage range so full coverage
   // always wins and zero always loses; only the falloff band breaks up.
   float threshold = mix(0.15, 0.85, n);
-  float a = smoothstep(threshold - 0.04, threshold + 0.04, coverage);
+  // A soft band (not a hard cut): Dungeondraft's patches fade into each
+  // other over a fraction of a tile instead of switching abruptly.
+  float a = smoothstep(threshold - 0.15, threshold + 0.15, coverage);
   finalColor = vec4(a);
 }
 `
