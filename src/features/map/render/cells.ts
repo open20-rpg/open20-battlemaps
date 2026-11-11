@@ -46,17 +46,35 @@ function stampOffsets(n: number): [number, number][] {
   return out
 }
 
-/** A w × h grid of cells (row-major), cell (i, j) spanning tiles [i/4, (i+1)/4). */
+/**
+ * A w × h grid of cells (row-major) starting at cell (ox, oy) of the map's
+ * grid: its cell (i, j) spans tiles [(ox + i)/4, (ox + i + 1)/4).
+ */
 export interface CellGrid {
   w: number
   h: number
+  ox: number
+  oy: number
   cells: Uint8Array
 }
 
+/** A grid over the whole map. */
 export const emptyGrid = (wTiles: number, hTiles: number): CellGrid => {
   const w = Math.max(1, Math.ceil(wTiles * CELLS_PER_TILE))
   const h = Math.max(1, Math.ceil(hTiles * CELLS_PER_TILE))
-  return { w, h, cells: new Uint8Array(w * h) }
+  return { w, h, ox: 0, oy: 0, cells: new Uint8Array(w * h) }
+}
+
+/** A grid just covering a stroke (and its stamps), with a cell of margin. */
+export function strokeGrid(stroke: BrushStroke): CellGrid {
+  const r = stroke.radius * CELLS_PER_TILE + 2
+  const xs = stroke.points.map((p) => p.x * CELLS_PER_TILE)
+  const ys = stroke.points.map((p) => p.y * CELLS_PER_TILE)
+  const ox = Math.floor(Math.min(...xs) - r)
+  const oy = Math.floor(Math.min(...ys) - r)
+  const w = Math.ceil(Math.max(...xs) + r) - ox + 1
+  const h = Math.ceil(Math.max(...ys) + r) - oy + 1
+  return { w, h, ox, oy, cells: new Uint8Array(w * h) }
 }
 
 /** Stamp an `n`-cell stamp at map point `p`, setting its cells to `value`. */
@@ -67,8 +85,8 @@ export function stamp(grid: CellGrid, p: Vec2, n: number, value: number): void {
   const cx = n % 2 === 1 ? Math.floor(fx + 1e-6) + 0.5 : Math.round(fx)
   const cy = n % 2 === 1 ? Math.floor(fy + 1e-6) + 0.5 : Math.round(fy)
   for (const [dx, dy] of stampOffsets(n)) {
-    const i = Math.floor(cx + dx)
-    const j = Math.floor(cy + dy)
+    const i = Math.floor(cx + dx) - grid.ox
+    const j = Math.floor(cy + dy) - grid.oy
     if (i >= 0 && j >= 0 && i < grid.w && j < grid.h) grid.cells[j * grid.w + i] = value
   }
 }
@@ -94,10 +112,15 @@ export function stampStroke(grid: CellGrid, stroke: BrushStroke, value: number):
 export const gridField = (grid: CellGrid): Float32Array => Float32Array.from(grid.cells)
 
 /**
- * A contour from isoContours over a grid (cell units, samples at cell
- * centers) in map tiles.
+ * A point of a contour from isoContours over `grid` (its cells, samples at
+ * cell centers) in map tiles — jittered (caveJitter-style functions take
+ * map-grid cell coordinates, so shared edges jitter alike).
  */
-export const cellsToMap = (p: Vec2): Vec2 => ({
-  x: p.x / CELLS_PER_TILE,
-  y: p.y / CELLS_PER_TILE,
-})
+export const cellsToMap = (
+  grid: Pick<CellGrid, "ox" | "oy">,
+  p: Vec2,
+  jitter: (q: Vec2) => Vec2 = (q) => q,
+): Vec2 => {
+  const q = jitter({ x: p.x + grid.ox, y: p.y + grid.oy })
+  return { x: q.x / CELLS_PER_TILE, y: q.y / CELLS_PER_TILE }
+}

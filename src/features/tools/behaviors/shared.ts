@@ -20,6 +20,7 @@ import {
   tangentArc,
 } from "../../map/model/geometry"
 import { insertVertexPatches, vertexPatches } from "../../map/model/links"
+import { ellipseSides } from "../../map/render/waterGeometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { newId } from "../../map/model/geometry"
 import { tileSizeForZoom } from "../../map/render/viewport"
@@ -205,7 +206,9 @@ export function polylineController(
 
 /** Polygon for a dragged shape (rectangle/ellipse) between two corners. */
 export function shapePolygon(shape: Shape | null, a: Vec2, b: Vec2): Vec2[] {
-  return shape === "ellipse" ? ellipsePolygon(a, b) : rectPolygon(a, b)
+  // Ellipses get Dungeondraft's number of sides for their size.
+  const sides = ellipseSides(Math.abs(b.x - a.x), Math.abs(b.y - a.y))
+  return shape === "ellipse" ? ellipsePolygon(a, b, sides) : rectPolygon(a, b)
 }
 
 /**

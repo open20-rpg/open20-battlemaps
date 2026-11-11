@@ -33,6 +33,7 @@ import {
 } from "./fields"
 import { wallTriangles } from "./lineGeometry"
 import { WaterFilter } from "./waterFilter"
+import { waterPolygons } from "./waterGeometry"
 import waterBorderUrl from "../../../assets/water/border.png"
 import waterRippleUrl from "../../../assets/water/ripple.png"
 import { softBrushTexture } from "./generated"
@@ -115,45 +116,6 @@ class MapMask {
   }
 }
 
-/**
- * Pixi picks how many segments a circle, round cap or round join gets from
- * its size in the Graphics' own units — tiles here, tiny numbers — so they
- * came out as visible polygons. Shapes are built this many times larger and
- * scaled back down.
- */
-const CURVE_SCALE = 64
-
-/** A Graphics drawn at CURVE_SCALE (pass coordinates/widths × CURVE_SCALE). */
-function curveGraphics(): Graphics {
-  const g = new Graphics()
-  g.scale.set(1 / CURVE_SCALE)
-  return g
-}
-
-/** Hard-edged stroke shape (round caps/joins) in content space. */
-function strokeShape(stroke: BrushStroke, extraRadius = 0, color = 0xffffff): Graphics {
-  const g = curveGraphics()
-  const k = CURVE_SCALE
-  const r = Math.max(0.01, stroke.radius + extraRadius)
-  const [first] = stroke.points
-  if (!first) return g
-  if (stroke.points.length === 1) {
-    g.circle(-first.x * k, first.y * k, r * k).fill({ color })
-  } else {
-    g.poly(
-      stroke.points.flatMap((p) => [-p.x * k, p.y * k]),
-      false,
-    ).stroke({
-      width: r * 2 * k,
-      color,
-      cap: "round",
-      join: "round",
-    })
-  }
-  if (stroke.erase) g.blendMode = "erase"
-  return g
-}
-
 /** Soft-edged stamps along a stroke (terrain/material blending). */
 function softStroke(stroke: BrushStroke, alpha: number): Container {
   const c = new Container()
@@ -217,42 +179,6 @@ function masked(fill: Container, mask: Sprite): Container {
   return c
 }
 
-/**
- * Every painted shape of the entities, in order: brush strokes plus closed
- * polygons (Water's rectangle/ellipse/polygon bodies; `params.erase` ones —
- * Alt-drawn — cut instead). `grow` widens each shape (negative shrinks),
- * with erasing strokes growing the opposite way so a grown area stays
- * consistent; erasing polygons keep their size.
- */
-function shapesOf(entities: readonly MapEntity[], grow = 0): Graphics[] {
-  const out: Graphics[] = []
-  for (const e of entities) {
-    for (const s of e.strokes ?? []) out.push(strokeShape(s, s.erase ? -grow : grow))
-    if (e.closed && e.points && e.points.length > 2) {
-      const flat = e.points.flatMap((p) => [-p.x, p.y])
-      const body = new Graphics().poly(flat, true).fill({ color: 0xffffff })
-      if (e.params.erase === true) {
-        body.blendMode = "erase"
-        out.push(body)
-        continue
-      }
-      out.push(body)
-      if (grow !== 0) {
-        // Growing a polygon adds a band along its edge; shrinking erases one.
-        const k = CURVE_SCALE
-        const band = curveGraphics()
-          .poly(
-            flat.map((v) => v * k),
-            true,
-          )
-          .stroke({ width: Math.abs(grow) * 2 * k, color: 0xffffff, join: "round" })
-        if (grow < 0) band.blendMode = "erase"
-        out.push(band)
-      }
-    }
-  }
-  return out
-}
 const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback)
 const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v : fallback)
 
@@ -298,7 +224,7 @@ function caveComposite(
   /** Outlines of a grid: marching squares cut at half edges, every vertex jittered. */
   const outlines = (grid: CellGrid) =>
     isoContours(gridField(grid), grid.w, grid.h, 0.5).map((loop) =>
-      loop.map((p) => cellsToMap(caveJitter(p))),
+      loop.map((p) => cellsToMap(grid, p, caveJitter)),
     )
   const loops = outlines(dug)
   if (loops.length === 0) return composite(view, [])
@@ -432,15 +358,17 @@ function rgbOf(hex: string): [number, number, number] {
 
 /**
  * Water, as Dungeondraft draws it (its WaterMesh and Water.shader): the
- * painted area colored from shallow at the shore to deep by inner rings
- * (0.333, 0.75, 1.5, 2, 4 tiles, up to Blend Distance — see waterRamp),
- * the dark parts of what's beneath showing through (waterFilter.ts); unless
- * the border is off, a thin border line on the shore and a ripple line
- * 0.375 tiles inside it.
+ * water's polygons (waterGeometry.ts) filled from shallow at the shore to
+ * deep by inner rings (0.333, 0.75, 1.5, 2, 4 tiles, up to Blend Distance —
+ * waterRamp), the dark parts of what's beneath showing through
+ * (waterFilter.ts); unless the border is off, a thin border line on every
+ * outline (holes too) and a ripple line 0.375 tiles inside, both with
+ * round corners.
  *
- * Built from the area's mask: its distance field gives each pixel its ring
- * color (Euclidean, where Dungeondraft offsets with square joins), and its
- * iso-lines give the shore and ripple outlines.
+ * The ring colors come from a distance field over the polygons' raster —
+ * Euclidean where Dungeondraft offsets with square joins — clipped to the
+ * exact polygons; the ripple runs along that field's iso-line (a round
+ * inward offset).
  */
 function waterComposite(
   entities: MapEntity[],
@@ -453,11 +381,30 @@ function waterComposite(
   const shallow = rgbOf(str(last.params.shallowColor, "#8bceb0"))
   const ramp = waterRamp(num(last.params.blendDistance, 1.5))
   const view = new Container()
+  const polys = waterPolygons(entities)
+  if (polys.length === 0) return composite(view, [])
 
+  /** The polygons as a filled shape, holes cut out (content space). */
+  const filled = () => {
+    const g = new Graphics()
+    for (const { outer, holes } of polys) {
+      g.poly(
+        outer.flatMap((p) => [-p.x, p.y]),
+        true,
+      ).fill({ color: 0xffffff })
+      for (const hole of holes)
+        g.poly(
+          hole.flatMap((p) => [-p.x, p.y]),
+          true,
+        ).cut()
+    }
+    return g
+  }
   const area = new MapMask(renderer, map)
-  area.draw(shapesOf(entities), true)
+  area.draw([filled()], true)
   const res = area.res
   const { pixels, width: W, height: H } = renderer.extract.pixels({ target: area.rt })
+  area.destroy()
   // Work only where the water is (plus a margin for the outlines).
   let x0 = W
   let y0 = H
@@ -473,34 +420,29 @@ function waterComposite(
       }
     }
   }
-  if (x1 < 0) return composite(view, [area])
+  if (x1 < 0) return composite(view, [])
   x0 = Math.max(0, x0 - 2)
   y0 = Math.max(0, y0 - 2)
   x1 = Math.min(W - 1, x1 + 2)
   y1 = Math.min(H - 1, y1 + 2)
   const w = x1 - x0 + 1
   const h = y1 - y0 + 1
-  const alpha = new Float32Array(w * h)
   const inside = new Uint8Array(w * h)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const a = pixels[((y + y0) * W + x + x0) * 4 + 3] / 255
-      alpha[y * w + x] = a
-      inside[y * w + x] = a >= 0.5 ? 1 : 0
+      inside[y * w + x] = pixels[((y + y0) * W + x + x0) * 4 + 3] > 0 ? 1 : 0
     }
   }
   const dist = distanceField(inside, w, h)
 
-  // The body: each pixel its ring color, edges antialiased by the mask.
+  // The body: each pixel its ring color, clipped to the exact polygons.
   const body = new Uint8Array(w * h * 4)
   for (let k = 0; k < w * h; k++) {
-    const a = alpha[k]
-    if (a <= 0) continue
+    if (!inside[k]) continue
     const t = rampAt(ramp, dist[k] / res)
-    for (let c = 0; c < 3; c++) {
-      body[k * 4 + c] = Math.round((shallow[c] + (deep[c] - shallow[c]) * t) * a)
-    }
-    body[k * 4 + 3] = Math.round(a * 255)
+    for (let c = 0; c < 3; c++)
+      body[k * 4 + c] = Math.round(shallow[c] + (deep[c] - shallow[c]) * t)
+    body[k * 4 + 3] = 255
   }
   const texture = new Texture({
     source: new BufferImageSource({
@@ -516,30 +458,41 @@ function waterComposite(
   sprite.scale.set(1 / res)
   const filter = new WaterFilter()
   sprite.filters = [filter]
-  view.addChild(sprite)
+  const clip = filled()
+  sprite.mask = clip
+  view.addChild(sprite, clip)
 
   if (last.params.disableBorder !== true) {
-    /** A pixel-space contour as map-space points. */
-    const toMap = (loop: Vec2[]) =>
-      simplifyLoop(loop, 0.35).map((p) => ({
-        x: map.width - (p.x + x0) / res,
-        y: (p.y + y0) / res,
-      }))
     const line = (loops: Vec2[][], url: string, width: number) => {
       const tex = env.image(url)
       if (!tex) return
       tex.source.style.addressMode = "repeat"
       for (const loop of loops) {
-        const pts = toMap(loop)
-        if (pts.length < 3) continue
-        const tris = wallTriangles(pts, true, width, { bevel: true, normalizeUv: false })
+        if (loop.length < 3) continue
+        const tris = wallTriangles(loop, true, width, {
+          bevel: true,
+          normalizeUv: false,
+          round: true,
+        })
         view.addChild(lineMesh(tris, width * (tex.width / tex.height), tex, 0xffffff))
       }
     }
-    line(isoContours(dist, w, h, WATER_RIPPLE_INSET * res), WATER_RIPPLE_URL, WATER_RIPPLE_WIDTH)
-    line(isoContours(alpha, w, h, 0.5), WATER_BORDER_URL, WATER_BORDER_WIDTH)
+    // The ripple: the shore offset inward with round corners (the distance
+    // field's iso-line), in map space.
+    const ripple = isoContours(dist, w, h, WATER_RIPPLE_INSET * res).map((loop) =>
+      simplifyLoop(loop, 0.35).map((p) => ({
+        x: map.width - (p.x + x0) / res,
+        y: (p.y + y0) / res,
+      })),
+    )
+    line(ripple, WATER_RIPPLE_URL, WATER_RIPPLE_WIDTH)
+    line(
+      polys.flatMap((p) => [p.outer, ...p.holes]),
+      WATER_BORDER_URL,
+      WATER_BORDER_WIDTH,
+    )
   }
-  const comp = composite(view, [area])
+  const comp = composite(view, [])
   return {
     ...comp,
     dispose: () => {

@@ -97,7 +97,15 @@ export interface WallLineOptions {
    * corner over ±half-width of u instead of one stretched column.
    */
   normalizeUv: boolean
+  /**
+   * Round corners (Godot's LINE_JOINT_ROUND, as water's lines use): the
+   * outer side is a fan of triangles around the corner, 8 per half turn.
+   */
+  round?: boolean
 }
+
+/** Godot Line2D's round_precision: segments per half turn of a round corner. */
+const ROUND_PRECISION = 8
 
 /**
  * Triangles of a wall of `width` along `points` (a closed wall is opened at
@@ -173,7 +181,28 @@ export function wallTriangles(
     quad(current, k0, out)
     const vtx = (q: Vec2, side: number): LineVertex => ({ x: q.x, y: q.y, u, v: side })
     const innerV = s === 1 ? 0 : 1
-    out.push({ a: vtx(inner, innerV), b: vtx(o0, 1 - innerV), c: vtx(o1, 1 - innerV), alpha: 1 })
+    if (opts.round) {
+      // The outer side sweeps around p from o0 to o1.
+      const a0 = Math.atan2(o0.y - p.y, o0.x - p.x)
+      let sweep = Math.atan2(o1.y - p.y, o1.x - p.x) - a0
+      if (sweep > Math.PI) sweep -= 2 * Math.PI
+      if (sweep < -Math.PI) sweep += 2 * Math.PI
+      const steps = Math.max(1, Math.ceil((Math.abs(sweep) / Math.PI) * ROUND_PRECISION))
+      let prev = o0
+      for (let k = 1; k <= steps; k++) {
+        const a = a0 + (sweep * k) / steps
+        const q = k === steps ? o1 : { x: p.x + Math.cos(a) * hw, y: p.y + Math.sin(a) * hw }
+        out.push({
+          a: vtx(inner, innerV),
+          b: vtx(prev, 1 - innerV),
+          c: vtx(q, 1 - innerV),
+          alpha: 1,
+        })
+        prev = q
+      }
+    } else {
+      out.push({ a: vtx(inner, innerV), b: vtx(o0, 1 - innerV), c: vtx(o1, 1 - innerV), alpha: 1 })
+    }
     current = k1
   }
   u += lens[lens.length - 1]

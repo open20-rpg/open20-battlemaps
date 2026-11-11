@@ -63,6 +63,20 @@ describe("wall geometry (Dungeondraft's Line2D)", () => {
     expect(at(mitered, 4.25, -0.25).map((v) => v.u)).toContain(4)
   })
 
+  it("round corners fan the outer side, 8 steps per half turn", () => {
+    const tris = wallTriangles(L, false, 0.5, { bevel: true, normalizeUv: false, round: true })
+    // Quad, a 90° fan (4 triangles), quad.
+    expect(tris).toHaveLength(2 + 4 + 2)
+    const fan = verts(tris.slice(2, 6))
+    // Every fan point is on the circle of half-width around the corner, or the inner point.
+    for (const v of fan) {
+      const d = Math.hypot(v.x - 4, v.y)
+      expect(
+        d < 0.26 || Math.abs(d - 0.25) < 1e-9 || Math.abs(d - Math.hypot(0.25, 0.25)) < 1e-9,
+      ).toBe(true)
+    }
+  })
+
   it("closed walls open at their closing segment's midpoint", () => {
     const square = [
       { x: 0, y: 0 },
