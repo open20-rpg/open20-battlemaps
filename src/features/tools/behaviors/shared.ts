@@ -15,6 +15,7 @@ import {
   ellipsePolygon,
   nearestVertex,
   rectPolygon,
+  tangentArc,
 } from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { newId } from "../../map/model/geometry"
@@ -62,6 +63,14 @@ export function dedupe(points: Vec2[]): Vec2[] {
 
 // -- polyline ----------------------------------------------------------------
 
+/** Modifiers held when a polyline was finished. */
+export interface FinishMods {
+  ctrlKey: boolean
+}
+
+/** Arc pieces of a Shift+click (the wheel changes it while drawing one). */
+export const ARC_SEGMENTS = { default: 8, min: 2, max: 32 } as const
+
 export interface PolylineOptions {
   /** Minimum vertices for a valid result (2 for lines, 3 for polygons). */
   minPoints: number
@@ -69,7 +78,8 @@ export interface PolylineOptions {
   closed: boolean
   /** Snap step in tiles (grid corners by default). */
   step?: number
-  commit: (ctx: ToolCtx, points: Vec2[]) => void
+  /** `mods.ctrlKey`: Ctrl was held when finishing (Wall joins existing walls). */
+  commit: (ctx: ToolCtx, points: Vec2[], mods: FinishMods) => void
   /**
    * The entities that `commit` would create from these points, drawn
    * semi-transparent by their real renderers while the shape is still being
@@ -93,20 +103,31 @@ function ghosts(
 /**
  * Click to add vertices; double-click, Enter or right-click finishes
  * (clicking the first vertex also closes a polygon); Backspace removes the
- * last vertex; Escape cancels.
+ * last vertex; Escape cancels. Shift+click adds an arc tangent to the last
+ * segment (Shift+wheel: more/fewer pieces), as in Dungeondraft; Shift+click
+ * on the first vertex closes a polygon with one.
  */
 export function polylineController(
   opts: PolylineOptions,
 ): Required<
   Pick<
     ToolBehavior,
-    "onPointerDown" | "onPointerMove" | "onDoubleClick" | "onKeyDown" | "onDeactivate"
+    "onPointerDown" | "onPointerMove" | "onDoubleClick" | "onKeyDown" | "onDeactivate" | "onWheel"
   >
 > {
   let points: Vec2[] = []
+  /** How many points each click added (an arc adds several): what Backspace undoes. */
+  let added: number[] = []
   let hover: Vec2 | null = null
+  let arcHover = false
+  let arcSegments: number = ARC_SEGMENTS.default
+  /** The points a click at `p` adds: `p`, or (arc) the arc to it. */
+  const toward = (p: Vec2, arc: boolean): Vec2[] =>
+    arc && points.length > 0
+      ? tangentArc(points.at(-2), points[points.length - 1], p, arcSegments)
+      : [p]
   const show = (ctx: ToolCtx) => {
-    const pts = hover ? [...points, hover] : points
+    const pts = hover ? [...points, ...toward(hover, arcHover)] : points
     setDraft(
       points.length > 0
         ? [
@@ -116,43 +137,57 @@ export function polylineController(
         : [],
     )
   }
-  const finish = (ctx: ToolCtx) => {
-    const pts = dedupe(points)
-    points = []
-    hover = null
-    setDraft([])
-    if (pts.length >= opts.minPoints) opts.commit(ctx, pts)
-  }
   const cancel = () => {
     points = []
+    added = []
     hover = null
     setDraft([])
+  }
+  const finish = (ctx: ToolCtx, mods: FinishMods = { ctrlKey: false }) => {
+    const pts = dedupe(points)
+    cancel()
+    if (pts.length >= opts.minPoints) opts.commit(ctx, pts, mods)
+  }
+  const push = (pts: Vec2[]) => {
+    points = [...points, ...pts]
+    added = [...added, pts.length]
   }
   return {
     onPointerDown: (ctx, e) => {
       if (e.button === 2) {
-        finish(ctx)
+        finish(ctx, e)
         return
       }
       const p = ctx.snap(e, opts.step ?? 1)
       if (opts.closed && points.length >= opts.minPoints && dist(p, points[0]) < screenTiles(10)) {
-        finish(ctx)
+        // The closing arc ends on the first vertex, which is already there.
+        if (e.shiftKey) push(toward(points[0], true).slice(0, -1))
+        finish(ctx, e)
         return
       }
-      points = [...points, p]
+      push(toward(p, e.shiftKey))
       show(ctx)
     },
     onPointerMove: (ctx, e) => {
       hover = ctx.snap(e, opts.step ?? 1)
+      arcHover = e.shiftKey
       if (points.length > 0) show(ctx)
     },
-    onDoubleClick: (ctx) => finish(ctx),
+    onWheel: (ctx, e) => {
+      if (!e.shiftKey || points.length === 0) return false
+      arcSegments = Math.min(ARC_SEGMENTS.max, Math.max(ARC_SEGMENTS.min, arcSegments + e.dir))
+      arcHover = true
+      show(ctx)
+      return true
+    },
+    onDoubleClick: (ctx, e) => finish(ctx, e),
     onKeyDown: (ctx, e) => {
       if (points.length === 0) return false
-      if (e.key === "Enter") finish(ctx)
+      if (e.key === "Enter") finish(ctx, e)
       else if (e.key === "Escape") cancel()
       else if (e.key === "Backspace" || e.key === "Delete") {
-        points = points.slice(0, -1)
+        points = points.slice(0, points.length - (added.at(-1) ?? 1))
+        added = added.slice(0, -1)
         show(ctx)
       } else return false
       return true
@@ -185,6 +220,7 @@ export function shapeController(
     | "onDoubleClick"
     | "onKeyDown"
     | "onDeactivate"
+    | "onWheel"
   >
 > {
   const poly = polylineController({ minPoints: 3, closed: true, commit, preview })
@@ -227,6 +263,7 @@ export function shapeController(
     onDoubleClick: (ctx, e) => {
       if (shapeOf(ctx) === "path") poly.onDoubleClick(ctx, e)
     },
+    onWheel: (ctx, e) => shapeOf(ctx) === "path" && poly.onWheel(ctx, e),
     onKeyDown: (ctx, e) => {
       if (shapeOf(ctx) === "path") return poly.onKeyDown(ctx, e)
       if (e.key === "Escape" && start) {

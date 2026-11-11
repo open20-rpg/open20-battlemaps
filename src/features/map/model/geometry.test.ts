@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
+  joinPolylines,
+  tangentArc,
   appendSample,
   boundsOf,
   closestOnSegment,
@@ -444,5 +446,40 @@ describe("thinning", () => {
     const pts = [0, 0.1, 0.2, 0.5, 0.9, 1].map((x) => ({ x, y: 0 }))
     expect(thinPolyline(pts, 0.4).map((p) => p.x)).toEqual([0, 0.5, 1])
     expect(thinPolyline(pts.slice(0, 2), 5)).toHaveLength(2)
+  })
+})
+
+describe("arcs and joins", () => {
+  it("tangentArc continues the previous segment on a circle through the end", () => {
+    // Heading +x at (0,0), ending at (1,1): a quarter circle around (0,1).
+    const pts = tangentArc({ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 1 }, 4)
+    expect(pts).toHaveLength(4)
+    expect(pts.at(-1)).toEqual({ x: 1, y: 1 })
+    for (const p of pts) expect(Math.hypot(p.x, p.y - 1)).toBeCloseTo(1)
+    // Leaves along +x: the first point is ahead of the start.
+    expect(pts[0].x).toBeGreaterThan(0)
+    // No direction to follow, or straight ahead: a plain segment.
+    expect(tangentArc(undefined, { x: 0, y: 0 }, { x: 1, y: 1 }, 4)).toEqual([{ x: 1, y: 1 }])
+    expect(tangentArc({ x: -1, y: 0 }, { x: 0, y: 0 }, { x: 3, y: 0 }, 4)).toEqual([{ x: 3, y: 0 }])
+  })
+
+  it("joinPolylines meets at any pair of ends", () => {
+    const a = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+    ]
+    const b = [
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ]
+    expect(joinPolylines(a, b)).toEqual([...a, { x: 1, y: 1 }])
+    expect(joinPolylines(a, [...b].reverse())).toEqual([...a, { x: 1, y: 1 }])
+    expect(joinPolylines(b, a)).toEqual([...a, { x: 1, y: 1 }])
+    expect(
+      joinPolylines(a, [
+        { x: 5, y: 5 },
+        { x: 6, y: 6 },
+      ]),
+    ).toBeNull()
   })
 })

@@ -72,6 +72,7 @@ export function createWaterBehavior(): ToolBehavior {
     onPointerUp: (ctx, e) => pick(ctx).onPointerUp?.(ctx, e),
     onDoubleClick: (ctx, e) => pick(ctx).onDoubleClick?.(ctx, e),
     onKeyDown: (ctx, e) => pick(ctx).onKeyDown?.(ctx, e) ?? false,
+    onWheel: (ctx, e) => pick(ctx).onWheel?.(ctx, e) ?? false,
     onDeactivate: (ctx) => {
       brush.onDeactivate(ctx)
       shape.onDeactivate(ctx)

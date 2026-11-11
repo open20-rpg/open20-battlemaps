@@ -193,6 +193,61 @@ describe("walls, build, portals", () => {
     expect(useEditorStore.getState().draft).toEqual([])
   })
 
+  it("Shift+click adds an arc tangent to the last segment; the wheel sets its pieces", () => {
+    useToolsStore.getState().selectToolById("wall")
+    down("wall", 0, 0)
+    down("wall", 2, 0)
+    move("wall", 4, 2, { buttons: 0, shiftKey: true })
+    wheel("wall", -1, { shiftKey: true })
+    wheel("wall", -1, { shiftKey: true })
+    down("wall", 4, 2, { shiftKey: true })
+    // Default 8 pieces, minus two notches: the arc adds 6 points.
+    const key = (k: string) =>
+      act("wall", (b, c) => b.onKeyDown?.(c, { key: k, ctrlKey: false } as KeyboardEvent))
+    key("Backspace")
+    down("wall", 4, 2, { shiftKey: true })
+    key("Enter")
+    const [wall] = entities()
+    expect(wall.points).toHaveLength(2 + 6)
+    expect(wall.points?.at(-1)).toEqual({ x: 4, y: 2 })
+    // Every arc point is 2 tiles from the arc's center (2, 2).
+    for (const p of wall.points?.slice(2) ?? []) expect(Math.hypot(p.x - 2, p.y - 2)).toBeCloseTo(2)
+  })
+
+  it("Ctrl when finishing joins the wall to the walls it meets", () => {
+    useToolsStore.getState().selectToolById("wall")
+    const draw = (pts: [number, number][], ctrlKey = false) => {
+      for (const [x, y] of pts) down("wall", x, y)
+      const [x, y] = pts[pts.length - 1]
+      act("wall", (b, c) => b.onDoubleClick?.(c, at(x, y, { ctrlKey })))
+    }
+    draw([
+      [0, 0],
+      [4, 0],
+    ])
+    draw([
+      [8, 0],
+      [8, 4],
+    ])
+    // Bridges both: one wall from (0,0) through (8,4).
+    draw(
+      [
+        [4, 0],
+        [8, 0],
+      ],
+      true,
+    )
+    expect(entities()).toHaveLength(1)
+    expect(entities()[0].points).toEqual([
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 8, y: 0 },
+      { x: 8, y: 4 },
+    ])
+    undo()
+    expect(entities()).toHaveLength(2)
+  })
+
   it("previews the real wall and room while they're being drawn", () => {
     useToolsStore.getState().selectToolById("wall")
     down("wall", 0, 0)

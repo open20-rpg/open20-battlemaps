@@ -606,3 +606,55 @@ export function thinPolyline(points: readonly Vec2[], minDist: number): Vec2[] {
   out.push(last)
   return out
 }
+
+/**
+ * The points of a circular arc from `start` to `end` that leaves `start`
+ * along the direction `prev → start` (tangent to the previous segment), in
+ * `segments` pieces — `start` itself excluded, `end` included. A straight
+ * segment when there's no direction to follow or `end` lies straight ahead.
+ */
+export function tangentArc(
+  prev: Vec2 | undefined,
+  start: Vec2,
+  end: Vec2,
+  segments: number,
+): Vec2[] {
+  const len = prev ? dist(prev, start) : 0
+  const d = sub(end, start)
+  if (!prev || len < 1e-9) return [end]
+  const t = { x: (start.x - prev.x) / len, y: (start.y - prev.y) / len }
+  const n = { x: -t.y, y: t.x }
+  const along = d.x * t.x + d.y * t.y
+  const across = d.x * n.x + d.y * n.y
+  if (Math.abs(across) < 1e-9) return [end]
+  // The circle tangent to t at start through end; the chord–tangent angle
+  // is half the arc's sweep.
+  const r = (d.x * d.x + d.y * d.y) / (2 * across)
+  const center = { x: start.x + n.x * r, y: start.y + n.y * r }
+  const sweep = 2 * Math.atan2(across, along)
+  const v = sub(start, center)
+  const out: Vec2[] = []
+  for (let k = 1; k < segments; k++) {
+    const a = (sweep * k) / segments
+    const c = Math.cos(a)
+    const s = Math.sin(a)
+    out.push({ x: center.x + v.x * c - v.y * s, y: center.y + v.x * s + v.y * c })
+  }
+  out.push(end)
+  return out
+}
+
+/**
+ * `a` and `b` joined into one polyline where an end of one meets an end of
+ * the other (within `tol`), the shared point kept once; null if no ends meet.
+ */
+export function joinPolylines(a: readonly Vec2[], b: readonly Vec2[], tol = 1e-6): Vec2[] | null {
+  if (a.length === 0 || b.length === 0) return null
+  const meet = (p: Vec2, q: Vec2) => dist(p, q) <= tol
+  const rb = [...b].reverse()
+  if (meet(a[a.length - 1], b[0])) return [...a, ...b.slice(1)]
+  if (meet(a[a.length - 1], rb[0])) return [...a, ...rb.slice(1)]
+  if (meet(a[0], b[b.length - 1])) return [...b, ...a.slice(1)]
+  if (meet(a[0], rb[rb.length - 1])) return [...rb, ...a.slice(1)]
+  return null
+}

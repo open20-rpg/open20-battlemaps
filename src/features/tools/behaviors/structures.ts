@@ -1,7 +1,19 @@
 import { useEditorStore } from "../../../stores/editorStore"
 import { useToolsStore } from "../../../stores/toolsStore"
-import { addEntities } from "../../map/commands"
-import { closestOnSegment, dist, normalizeDegrees, segmentsOf } from "../../map/model/geometry"
+import {
+  addEntities,
+  beginGesture,
+  endGesture,
+  removeEntities,
+  updateEntities,
+} from "../../map/commands"
+import {
+  closestOnSegment,
+  dist,
+  joinPolylines,
+  normalizeDegrees,
+  segmentsOf,
+} from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type AssetSelection } from "../params"
 import {
@@ -33,6 +45,7 @@ function withEditPoints(draw: ToolBehavior, editToolIds: string[]): ToolBehavior
     onPointerUp: (ctx, e) => pick(ctx).onPointerUp?.(ctx, e),
     onDoubleClick: (ctx, e) => pick(ctx).onDoubleClick?.(ctx, e),
     onKeyDown: (ctx, e) => pick(ctx).onKeyDown?.(ctx, e) ?? false,
+    onWheel: (ctx, e) => pick(ctx).onWheel?.(ctx, e) ?? false,
     onDeactivate: (ctx) => {
       draw.onDeactivate?.(ctx)
       edit.onDeactivate(ctx)
@@ -80,14 +93,57 @@ const wallEntities = (ctx: ToolCtx, points: Vec2[]) => [
   wallEntity(ctx, points, false, selection(ctx.params.wall)),
 ]
 
-/** Wall: click out a wall run (double-click/Enter/right-click to finish). */
+/**
+ * Join a new wall run to the open walls of the level that it meets end to
+ * end (Ctrl when finishing, as in Dungeondraft): the first one it touches
+ * takes the new points, and one touching the other end is merged in too.
+ * Returns false when nothing meets it.
+ */
+export function joinWall(ctx: ToolCtx, points: Vec2[]): boolean {
+  const open = ctx.entities.filter((e) => e.toolId === "wall" && !e.closed && e.points?.length)
+  const tol = 1e-3
+  let target: MapEntity | undefined
+  let merged: Vec2[] | null = null
+  for (const w of open) {
+    merged = joinPolylines(w.points ?? [], points, tol)
+    if (merged) {
+      target = w
+      break
+    }
+  }
+  if (!target || !merged) return false
+  let joined = merged
+  const absorbed: string[] = []
+  for (const w of open) {
+    if (w.id === target.id) continue
+    const more = joinPolylines(joined, w.points ?? [], tol)
+    if (more) {
+      joined = more
+      absorbed.push(w.id)
+      break
+    }
+  }
+  beginGesture()
+  updateEntities(new Map([[target.id, { points: joined, position: joined[0] }]]))
+  if (absorbed.length) removeEntities(absorbed)
+  endGesture()
+  return true
+}
+
+/**
+ * Wall: click out a wall run (double-click/Enter/right-click to finish;
+ * with Ctrl, it joins the walls it meets end to end).
+ */
 export function createWallBehavior(): ToolBehavior {
   return withEditPoints(
     polylineController({
       minPoints: 2,
       closed: false,
       preview: wallEntities,
-      commit: (ctx, points) => addEntities(wallEntities(ctx, points), under(ctx)),
+      commit: (ctx, points, mods) => {
+        if (mods.ctrlKey && joinWall(ctx, points)) return
+        addEntities(wallEntities(ctx, points), under(ctx))
+      },
     }),
     ["wall"],
   )
@@ -203,6 +259,7 @@ export function createRoofBehavior(): ToolBehavior {
     onPointerUp: (ctx, e) => pick(ctx).onPointerUp?.(ctx, e),
     onDoubleClick: (ctx, e) => pick(ctx).onDoubleClick?.(ctx, e),
     onKeyDown: (ctx, e) => pick(ctx).onKeyDown?.(ctx, e) ?? false,
+    onWheel: (ctx, e) => pick(ctx).onWheel?.(ctx, e) ?? false,
     onDeactivate: (ctx) => {
       quick.onDeactivate(ctx)
       manual.onDeactivate(ctx)
