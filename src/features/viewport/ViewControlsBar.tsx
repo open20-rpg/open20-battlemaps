@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Box, Flex, Icon, Menu, Portal, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
+import { withShortcut } from "../../lib/shortcuts"
 import { Tooltip } from "../../ui/chakra/tooltip"
 import { useViewStore } from "../../stores/viewStore"
 import { VIEW_CONTROLS, ZOOM_LEVELS, type ToggleControl, type ZoomControl } from "./controls"
@@ -16,7 +17,12 @@ function ToggleButton({ control }: { control: ToggleControl }) {
   const label = t(control.nameKey)
 
   return (
-    <Tooltip content={label} positioning={{ placement: "right" }} openDelay={200} showArrow>
+    <Tooltip
+      content={withShortcut(label, control.shortcut)}
+      positioning={{ placement: "right" }}
+      openDelay={200}
+      showArrow
+    >
       <Flex
         as="button"
         align="center"

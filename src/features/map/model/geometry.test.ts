@@ -354,11 +354,11 @@ describe("transform handles", () => {
 })
 
 describe("selectability", () => {
-  it("excludes stroke-less painted entities (terrain fill)", () => {
+  it("excludes brush paint (strokes and terrain fill)", () => {
     expect(isSelectable({ ...obj("f", 0, 0), strokes: [] })).toBe(false)
     expect(
       isSelectable({ ...obj("s", 0, 0), strokes: [{ points: [{ x: 0, y: 0 }], radius: 1 }] }),
-    ).toBe(true)
+    ).toBe(false)
     expect(isSelectable(obj("o", 0, 0))).toBe(true)
   })
 })
