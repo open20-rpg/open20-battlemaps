@@ -28,6 +28,7 @@ export function AssetPickerControl({
   allowNull = false,
   showColorSwatch = true,
   recolorColor,
+  onDefaultColor,
   onChange,
 }: {
   value: AssetSelection
@@ -41,6 +42,8 @@ export function AssetPickerControl({
   showColorSwatch?: boolean
   /** Externally-driven recolor used when `showColorSwatch` is false. */
   recolorColor?: string
+  /** When colored externally: receives a picked asset's default color. */
+  onDefaultColor?: (color: string) => void
   onChange: (value: AssetSelection) => void
 }) {
   const { t } = useTranslation()
@@ -60,10 +63,12 @@ export function AssetPickerControl({
         select={select}
         selectedIds={value.assets}
         onSelectionChange={(ids, picked) => {
-          // As in Dungeondraft, a wall or tileset brings its own default color.
-          const def = showColorSwatch ? (picked?.defaultColor ?? undefined) : undefined
+          // As in Dungeondraft, a wall or tileset brings its own default color
+          // (into the swatch, or into the param that colors this browser).
+          const def = picked?.defaultColor ?? undefined
+          if (def && !showColorSwatch) onDefaultColor?.(def)
           onChange(
-            def
+            def && showColorSwatch
               ? { ...value, assets: ids, color: def, defaultColor: def }
               : { ...value, assets: ids },
           )

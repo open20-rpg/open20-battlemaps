@@ -30,6 +30,8 @@ interface RenderArgs<K extends ParamKind> {
   value: ParamValueByKind[K]
   /** Asset pickers recolored by a sibling param: that param's color. */
   recolorColor?: string
+  /** Sets that sibling param (a picked asset brings its default color into it). */
+  onRecolor?: (color: string) => void
   onChange: (value: unknown) => void
 }
 
@@ -98,7 +100,7 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
   editPoints: ({ spec, value, onChange }) => (
     <EditPointsControl value={value} labelKey={spec.labelKey} onChange={onChange} />
   ),
-  assetPicker: ({ toolId, spec, value, recolorColor, onChange }) => {
+  assetPicker: ({ toolId, spec, value, recolorColor, onRecolor, onChange }) => {
     const recolor = spec.recolor ?? "own"
     return (
       <AssetPickerControl
@@ -110,6 +112,7 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
         allowNull={spec.allowNull}
         showColorSwatch={recolor === "own"}
         recolorColor={recolorColor}
+        onDefaultColor={onRecolor}
         onChange={onChange}
       />
     )
@@ -206,8 +209,7 @@ export function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolP
       ? (s.paramsByTool[toolId]?.[recolor.fromParam] as string)
       : undefined,
   )
-  const onChange = (next: unknown) => {
-    const patch = { [spec.paramKey]: next }
+  const set = (patch: Record<string, unknown>) => {
     setToolParams(toolId, patch)
     notifyParamsChange(toolId, patch)
   }
@@ -216,6 +218,7 @@ export function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolP
     spec,
     value: value as ParamValueByKind[ParamKind],
     recolorColor,
-    onChange,
+    onRecolor: typeof recolor === "object" ? (c) => set({ [recolor.fromParam]: c }) : undefined,
+    onChange: (next) => set({ [spec.paramKey]: next }),
   })
 }
