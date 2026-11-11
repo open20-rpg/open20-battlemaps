@@ -1,4 +1,5 @@
 import { linkRooms } from "../model/links"
+import { stampRadius } from "../render/cells"
 import { newId, pointInPolygon, rotateAround, textSize } from "../model/geometry"
 import {
   TERRAIN_SLOTS,
@@ -159,12 +160,17 @@ export function bitmapRuns(bytes: Uint8Array, w: number, h: number): [number, nu
  * Strokes covering a marching-squares bitmap (caves: 64 px cells, materials:
  * 128 px). Grid size and the one-sample edge buffer follow the format notes.
  */
-function bitmapStrokes(im: Importer, literal: unknown, cellPx: number): BrushStroke[] {
+function bitmapStrokes(
+  im: Importer,
+  literal: unknown,
+  cellPx: number,
+  /** Stroke radius in tiles (default: soft strokes covering each cell). */
+  radius = (cellPx / PX) * 0.75,
+): BrushStroke[] {
   const bytes = tryParse(parsePoolBytes, literal)
   if (!bytes) return []
   const gridW = Math.round((im.width * PX) / cellPx) + 3
   const gridH = Math.round((im.height * PX) / cellPx) + 3
-  const radius = (cellPx / PX) * 0.75
   return bitmapRuns(bytes, gridW, gridH).map(([y, x0, x1]) => ({
     points: [
       im.p({ x: (x0 - 1) * cellPx, y: (y - 1) * cellPx }),
@@ -512,9 +518,12 @@ function texts(im: Importer, level: string, raw: Json): MapEntity[] {
 
 function cave(im: Importer, level: string, raw: Json, cellPx: number): MapEntity[] {
   const c = obj(raw.cave)
+  // One-cell stamps on Dungeondraft's own grid; the entrance bitmap is the
+  // blasted-open area, kept apart from the dug one.
+  const cell = stampRadius(1)
   const strokes = [
-    ...bitmapStrokes(im, c.bitmap, cellPx),
-    ...bitmapStrokes(im, c.entrance_bitmap, cellPx),
+    ...bitmapStrokes(im, c.bitmap, cellPx, cell),
+    ...bitmapStrokes(im, c.entrance_bitmap, cellPx, cell).map((s) => ({ ...s, blast: true })),
   ]
   if (strokes.length === 0) return []
   return [

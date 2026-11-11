@@ -37,6 +37,7 @@ function sceneState(): SceneState | null {
     textVisible: getToolParams("text").visible !== false,
     terrainEnabled: getToolParams("terrainBrush").enable !== false,
     terrainSmooth: getToolParams("terrainBrush").smoothBlending === true,
+    showCaveBlast: getToolParams("cave").showBlast === true,
     draft: editor.draft,
     guide: editor.guide,
     ruler: editor.ruler,

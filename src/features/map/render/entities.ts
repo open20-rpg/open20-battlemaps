@@ -55,6 +55,8 @@ export interface RenderEnv {
    * "custom_color" tilesets) rather than tinted by its color.
    */
   colorable: (id: string | undefined) => boolean
+  /** Cave tool's "Show blast opened area": draw the blasted area (editor only). */
+  showCaveBlast: boolean
   /** An image bundled with the app (by URL), once loaded (remembers misses like `tex`). */
   image: (url: string) => Texture | undefined
   /** The map's building wear texture (buildingWear.ts): none, or once loaded (remembers misses like `tex`). */

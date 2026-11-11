@@ -292,8 +292,14 @@ export function shapeController(
 export interface BrushOptions {
   /** Brush radius in tiles for the current params. */
   radius: (ctx: ToolCtx) => number
-  /** Whether this stroke removes area (e.g. Cave "Blast Open" or right-drag). */
+  /** Whether this stroke removes area (Alt or right-drag). */
   erase?: (ctx: ToolCtx, e: PointerInfo) => boolean
+  /** Whether this stroke paints the cave's blasted area (Cave "Blast Open"). */
+  blast?: (ctx: ToolCtx) => boolean
+  /** The cursor circle's radius, if not the brush's own (cell-stamp brushes). */
+  cursorRadius?: (ctx: ToolCtx) => number
+  /** Least distance (tiles) between stroke points; default a quarter of the radius. */
+  spacing?: number
   /** Snapshot of params stored on the stroke entity. */
   params: (ctx: ToolCtx) => Record<string, unknown>
   layer: (ctx: ToolCtx) => number
@@ -310,7 +316,7 @@ export function brushController(
   let strokeId: string | null = null
   let points: Vec2[] = []
   const cursor = (ctx: ToolCtx, p: Vec2) =>
-    setDraft([{ kind: "circle", center: p, radius: opts.radius(ctx) }])
+    setDraft([{ kind: "circle", center: p, radius: (opts.cursorRadius ?? opts.radius)(ctx) }])
   const end = () => {
     if (strokeId) endGesture()
     strokeId = null
@@ -325,7 +331,12 @@ export function brushController(
         layer: opts.layer(ctx),
         position: p,
         strokes: [
-          { points: [p], radius: opts.radius(ctx), erase: opts.erase?.(ctx, e) || undefined },
+          {
+            points: [p],
+            radius: opts.radius(ctx),
+            erase: opts.erase?.(ctx, e) || undefined,
+            blast: opts.blast?.(ctx) || undefined,
+          },
         ],
         params: opts.params(ctx),
       })
@@ -338,7 +349,7 @@ export function brushController(
       cursor(ctx, p)
       if (!strokeId || !e.buttons) return
       const radius = opts.radius(ctx)
-      const next = appendSample(points, p, Math.max(0.05, radius * 0.25))
+      const next = appendSample(points, p, opts.spacing ?? Math.max(0.05, radius * 0.25))
       if (next === points) return
       points = next
       const entity = ctx.map.entities.find((x) => x.id === strokeId)

@@ -438,7 +438,7 @@ describe("walls, build, portals", () => {
 })
 
 describe("painting", () => {
-  it("Cave strokes are one entity per drag; Blast Open erases", () => {
+  it("Cave strokes are one entity per drag; Blast Open paints the blasted area", () => {
     useToolsStore.getState().selectToolById("cave")
     down("cave", 2, 2)
     move("cave", 4, 2)
@@ -449,7 +449,11 @@ describe("painting", () => {
     const [dig, blast] = entities()
     expect(dig.strokes?.[0].points.length).toBeGreaterThan(1)
     expect(dig.strokes?.[0].erase).toBeUndefined()
-    expect(blast.strokes?.[0].erase).toBe(true)
+    // Blasting doesn't un-dig (that's Alt): it paints its own area.
+    expect(blast.strokes?.[0]).toMatchObject({ blast: true })
+    expect(blast.strokes?.[0].erase).toBeUndefined()
+    // Dungeondraft's default brush: a 4-cell stamp, a tile across.
+    expect(dig.strokes?.[0].radius).toBe(0.5)
   })
 
   it("Water rectangles become closed polygon bodies", () => {

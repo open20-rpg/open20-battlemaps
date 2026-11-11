@@ -23,8 +23,14 @@ export interface BrushStroke {
   points: Vec2[]
   /** Brush radius in tiles. */
   radius: number
-  /** Removes previously painted area instead of adding to it (Cave "Blast Open"). */
+  /** Removes previously painted area instead of adding to it (Alt). */
   erase?: boolean
+  /**
+   * Cave "Blast Open": paints the cave's blasted area (Dungeondraft's
+   * entrance bitmap) instead of digging — the floor fades out there and the
+   * walls open. With `erase`, un-blasts.
+   */
+  blast?: boolean
 }
 
 /**

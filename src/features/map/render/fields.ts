@@ -292,3 +292,67 @@ export function holeLoops(loops: readonly Vec2[][]): boolean[] {
     return depth % 2 === 1
   })
 }
+
+/** Where segment ab crosses segment cd, as a fraction along ab (null if they don't). */
+function crossAt(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number | null {
+  const r = { x: b.x - a.x, y: b.y - a.y }
+  const s = { x: d.x - c.x, y: d.y - c.y }
+  const den = r.x * s.y - r.y * s.x
+  if (Math.abs(den) < 1e-12) return null
+  const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / den
+  const u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / den
+  return t > 0 && t < 1 && u >= 0 && u <= 1 ? t : null
+}
+
+/**
+ * The parts of a line (`closed`: a loop) outside every area of `areas`
+ * (closed loops, even-odd), as open polylines — Clipper's difference of an
+ * open path, as Dungeondraft cuts cave walls where the cave is blasted open.
+ */
+export function clipOutside(
+  line: readonly Vec2[],
+  closed: boolean,
+  areas: readonly Vec2[][],
+): Vec2[][] {
+  if (areas.length === 0) return [closed ? [...line, line[0]] : [...line]]
+  const outside = (p: Vec2) => !areas.some((a) => inside(p, a))
+  const segs = closed ? line.length : line.length - 1
+  const runs: Vec2[][] = []
+  let run: Vec2[] | null = null
+  for (let k = 0; k < segs; k++) {
+    const a = line[k]
+    const b = line[(k + 1) % line.length]
+    const ts = [0, 1]
+    for (const area of areas) {
+      for (let i = 0; i < area.length; i++) {
+        const t = crossAt(a, b, area[i], area[(i + 1) % area.length])
+        if (t !== null) ts.push(t)
+      }
+    }
+    ts.sort((x, y) => x - y)
+    for (let i = 0; i + 1 < ts.length; i++) {
+      const t0 = ts[i]
+      const t1 = ts[i + 1]
+      if (t1 - t0 < 1e-9) continue
+      const p = (t: number) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
+      if (outside(p((t0 + t1) / 2))) {
+        if (!run) {
+          run = [p(t0)]
+          runs.push(run)
+        }
+        run.push(p(t1))
+      } else run = null
+    }
+  }
+  // A loop's run that wraps around its start joins the one it continues.
+  if (closed && runs.length > 1) {
+    const first = runs[0]
+    const last = runs[runs.length - 1]
+    const end = last[last.length - 1]
+    if (Math.hypot(end.x - first[0].x, end.y - first[0].y) < 1e-9) {
+      runs.pop()
+      runs[0] = [...last, ...first.slice(1)]
+    }
+  }
+  return runs.filter((r) => r.length > 1)
+}

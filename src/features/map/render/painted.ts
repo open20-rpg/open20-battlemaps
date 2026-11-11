@@ -14,7 +14,16 @@ import { type BrushStroke, type MapEntity, type Vec2 } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
 import { lineMesh, type RenderEnv, selectionAsset } from "./entities"
 import {
+  CELLS_PER_TILE,
+  cellsToMap,
+  emptyGrid,
+  gridField,
+  stampStroke,
+  type CellGrid,
+} from "./cells"
+import {
   caveJitter,
+  clipOutside,
   distanceField,
   holeLoops,
   isoContours,
@@ -247,8 +256,6 @@ function shapesOf(entities: readonly MapEntity[], grow = 0): Graphics[] {
 const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback)
 const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v : fallback)
 
-/** Dungeondraft's cave cells: a quarter tile (64 px). */
-const CAVE_CELLS_PER_TILE = 4
 /** Cave ground and wall color when none is set (Dungeondraft's 7f7e71). */
 const CAVE_DEFAULT_COLOR = "#7f7e71"
 
@@ -281,24 +288,24 @@ function caveComposite(
   const wallColor = str(last.params.wallColor, CAVE_DEFAULT_COLOR)
   const view = new Container()
 
-  // Dungeondraft's cave bitmap: cells of a quarter tile, dug or not.
-  const grid = new MapMask(renderer, map, CAVE_CELLS_PER_TILE)
-  grid.draw(shapesOf(entities), true)
-  const { pixels, width: w, height: h } = renderer.extract.pixels({ target: grid.rt })
-  grid.destroy()
-  const field = new Float32Array(w * h)
-  for (let k = 0; k < w * h; k++) field[k] = pixels[k * 4 + 3] >= 128 ? 1 : 0
-  // Marching squares cut at half edges, every vertex jittered (caveJitter):
-  // the outline in cells, then in map space.
-  const loops = isoContours(field, w, h, 0.5).map((loop) =>
-    loop.map((p) => {
-      const q = caveJitter(p)
-      return { x: map.width - q.x / CAVE_CELLS_PER_TILE, y: q.y / CAVE_CELLS_PER_TILE }
-    }),
-  )
+  // Dungeondraft's two cave bitmaps (quarter-tile cells): dug, and blasted
+  // open (its entrance bitmap), each painted stroke by stroke in order.
+  const dug = emptyGrid(map.width, map.height)
+  const blasted = emptyGrid(map.width, map.height)
+  for (const e of entities) {
+    for (const s of e.strokes ?? []) stampStroke(s.blast ? blasted : dug, s, s.erase ? 0 : 1)
+  }
+  /** Outlines of a grid: marching squares cut at half edges, every vertex jittered. */
+  const outlines = (grid: CellGrid) =>
+    isoContours(gridField(grid), grid.w, grid.h, 0.5).map((loop) =>
+      loop.map((p) => cellsToMap(caveJitter(p))),
+    )
+  const loops = outlines(dug)
   if (loops.length === 0) return composite(view, [])
+  const blastLoops = outlines(blasted)
 
-  // The floor: outlines filled, holes cut out.
+  // The floor: outlines filled, holes cut out; where blasted, faded out
+  // (Dungeondraft lowers the floor's vertex alpha by 0.25 per blasted corner).
   const holes = holeLoops(loops)
   const shape = (loop: Vec2[], hole: boolean) => {
     const g = new Graphics()
@@ -310,14 +317,17 @@ function caveComposite(
     if (hole) g.blendMode = "erase"
     return g
   }
+  const fade = blastFade(blasted)
   const floor = new MapMask(renderer, map)
   floor.draw(
     [
-      ...loops.map((l, i) => (holes[i] ? null : shape(l, false))),
-      ...loops.map((l, i) => (holes[i] ? shape(l, true) : null)),
-    ].filter((g): g is Graphics => g !== null),
+      ...loops.flatMap((l, i) => (holes[i] ? [] : [shape(l, false)])),
+      ...loops.flatMap((l, i) => (holes[i] ? [shape(l, true)] : [])),
+      ...(fade ? [fade.sprite] : []),
+    ],
     true,
   )
+  fade?.texture.destroy(true)
 
   // The map's building wear multiplies over the cave's floor (and walls).
   const wear = env.buildingWear()
@@ -336,28 +346,76 @@ function caveComposite(
 
   // The walls: Dungeondraft's cave walls are wall lines along the outline —
   // the style's wall texture as wide as it's tall, sharp corners, no
-  // normalize_uv or end caps — in the wall color, with the wear.
+  // normalize_uv or end caps — in the wall color, with the wear; cut open
+  // (left as open lines) where the cave is blasted.
+  const runs = loops.flatMap((loop) => clipOutside(loop, true, blastLoops))
   const wallTex = env.tex(id, { part: "wall" })
   if (wallTex) {
     const width = wallTex.height / TEXTURE_PX_PER_TILE
     const tint = hexToPixiColor(wallColor).color
-    for (const loop of loops) {
-      const tris = wallTriangles(loop, true, width, { bevel: false, normalizeUv: false })
+    for (const run of runs) {
+      const tris = wallTriangles(run, false, width, { bevel: false, normalizeUv: false })
       view.addChild(
         lineMesh(tris, width * (wallTex.width / wallTex.height), wallTex, 0, tint, wear),
       )
     }
   } else {
     const g = new Graphics()
-    for (const loop of loops)
+    for (const run of runs)
       g.poly(
-        loop.flatMap((p) => [-p.x, p.y]),
-        true,
+        run.flatMap((p) => [-p.x, p.y]),
+        false,
       )
     g.stroke({ width: 0.3, color: hexToPixiColor(wallColor).color, join: "miter" })
     view.addChild(g)
   }
+  // "Show blast opened area": the blasted area over the cave, editor only.
+  if (env.showCaveBlast && blastLoops.length > 0) {
+    const g = new Graphics()
+    const blastHoles = holeLoops(blastLoops)
+    blastLoops.forEach((l, i) => {
+      g.poly(
+        l.flatMap((p) => [-p.x, p.y]),
+        true,
+      )
+      if (blastHoles[i]) g.cut()
+      else g.fill({ color: BLAST_OVERLAY_COLOR, alpha: 0.35 })
+    })
+    view.addChild(g)
+  }
   return composite(view, [floor])
+}
+
+/** The blasted area's overlay color (Show blast opened area). */
+const BLAST_OVERLAY_COLOR = 0xe0534e
+
+/**
+ * How much of the cave floor each cell loses where it's blasted: a cell-grid
+ * texture (alpha 1 where blasted), linearly filtered so the floor fades
+ * across a cell at the blast's edge, drawn erasing the floor mask.
+ */
+function blastFade(blasted: CellGrid): { sprite: Sprite; texture: Texture } | null {
+  if (!blasted.cells.some((v) => v !== 0)) return null
+  const rgba = new Uint8Array(blasted.w * blasted.h * 4)
+  blasted.cells.forEach((v, k) => {
+    const a = v ? 255 : 0
+    rgba.set([a, a, a, a], k * 4)
+  })
+  const texture = new Texture({
+    source: new BufferImageSource({
+      resource: rgba,
+      width: blasted.w,
+      height: blasted.h,
+      alphaMode: "premultiplied-alpha",
+      scaleMode: "linear",
+    }),
+  })
+  const sprite = new Sprite(texture)
+  // Cell grid → content space (x mirrored): the grid's right edge at x = 0.
+  sprite.scale.set(-1 / CELLS_PER_TILE, 1 / CELLS_PER_TILE)
+  sprite.position.set(0, 0)
+  sprite.blendMode = "erase"
+  return { sprite, texture }
 }
 
 /** Border and ripple lines' widths, in tiles (their textures' heights at 256 px per tile). */

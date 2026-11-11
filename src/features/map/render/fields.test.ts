@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   caveJitter,
+  clipOutside,
   distanceField,
   holeLoops,
   isoContours,
@@ -85,5 +86,27 @@ describe("raster fields", () => {
       { x: o, y: o + s },
     ]
     expect(holeLoops([sq(0, 10), sq(3, 4), sq(20, 2)])).toEqual([false, true, false])
+  })
+
+  it("cuts a loop where it runs through an area, leaving open lines", () => {
+    const room = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 4 },
+      { x: 0, y: 4 },
+    ]
+    // A blast across the right side.
+    const blast = [
+      { x: 3, y: 1 },
+      { x: 5, y: 1 },
+      { x: 5, y: 3 },
+      { x: 3, y: 3 },
+    ]
+    const runs = clipOutside(room, true, [blast])
+    expect(runs).toHaveLength(1)
+    const run = runs[0]
+    expect(run[0]).toEqual({ x: 4, y: 3 })
+    expect(run[run.length - 1]).toEqual({ x: 4, y: 1 })
+    expect(clipOutside(room, true, [])).toHaveLength(1)
   })
 })

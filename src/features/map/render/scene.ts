@@ -46,6 +46,8 @@ export interface SceneState {
   showOutside: boolean
   /** Terrain Brush "Smooth Blending": how every terrain stroke blends (global). */
   terrainSmooth: boolean
+  /** Cave tool's "Show blast opened area" (editor only: off in exports). */
+  showCaveBlast: boolean
   draft: readonly DraftShape[]
   /** Pinned guide point and the ruler's measure (editor session). */
   guide: Vec2 | null
@@ -225,6 +227,7 @@ export class MapScene {
       textVisible: state.textVisible,
       lighting: state.lighting,
       terrainSmooth: state.terrainSmooth,
+      showCaveBlast: state.showCaveBlast,
       portals,
     }
   }
@@ -245,6 +248,7 @@ export class MapScene {
       postProcess: look.postProcess ? state.postProcess : DEFAULT_POST_PROCESS,
       showOutside: false,
       compareLevel: null,
+      showCaveBlast: false,
     }
   }
 
@@ -454,6 +458,7 @@ export class MapScene {
         state.map.width,
         state.map.height,
         state.terrainSmooth,
+        state.showCaveBlast,
         state.map.buildingWear,
         ...mine,
       ]

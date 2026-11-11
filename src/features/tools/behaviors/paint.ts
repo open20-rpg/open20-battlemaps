@@ -13,6 +13,7 @@ import {
   type TerrainData,
 } from "../../map/model/terrain"
 import { isHeld } from "../../shortcuts/held"
+import { brushCursorRadius, brushRadius, STAMP_SPACING } from "../../map/render/cells"
 import { beginLiveTerrain, endLiveTerrain, touchLiveTerrain } from "../../map/terrainLive"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type BiomeSelection, type Shape } from "../params"
@@ -22,12 +23,24 @@ import { type PointerInfo, type ToolBehavior, type ToolCtx } from "./types"
 /** A brush erases while the invert shortcut (Alt) is held, or when dragged with the right button. */
 const inverted = (_ctx: ToolCtx, e: PointerInfo) => e.button === 2 || isHeld("invert")
 
-/** Cave: dig (or blast open) cave floor; walls form around the dug area. */
+/** Dungeondraft's cell-stamp brush (cave, water): its size, cursor and stamp spacing. */
+const stampBrush = {
+  radius: (ctx: ToolCtx) => brushRadius(paramNum(ctx.params.brushSize, 1)),
+  cursorRadius: (ctx: ToolCtx) => brushCursorRadius(paramNum(ctx.params.brushSize, 1)),
+  spacing: STAMP_SPACING,
+}
+
+/**
+ * Cave, as Dungeondraft's: dig cave floor (walls form around it), or Blast
+ * Open — paint the blasted area, where the floor fades out and the walls
+ * open; Alt (or right-drag) undoes either.
+ */
 export function createCaveBehavior(): ToolBehavior {
   return {
     ...brushController({
-      radius: (ctx) => paramNum(ctx.params.brushSize, 1),
-      erase: (ctx, e) => ctx.params.brushMode === "blast" || inverted(ctx, e),
+      ...stampBrush,
+      erase: inverted,
+      blast: (ctx) => ctx.params.brushMode === "blast",
       layer: () => -300,
       params: (ctx) => ({
         groundColor: ctx.params.groundColor,
@@ -51,7 +64,7 @@ export function createWaterBehavior(): ToolBehavior {
     disableBorder: ctx.params.disableBorder === true,
   })
   const brush = brushController({
-    radius: (ctx) => paramNum(ctx.params.brushSize, 1),
+    ...stampBrush,
     erase: inverted,
     layer: () => 0,
     params,

@@ -110,7 +110,11 @@ const MAP = {
           roofs: [{ points: "PoolVector2Array( 0, 128, 512, 128 )", width: 128, type: 1 }],
         },
         texts: [{ text: "Hi", position: "Vector2( 0, 0 )", font_size: 64, font_color: "ff000000" }],
-        cave: { bitmap: "PoolByteArray( 255, 0 )", ground_color: "ff7f7e71" },
+        cave: {
+          bitmap: "PoolByteArray( 255, 0 )",
+          entrance_bitmap: "PoolByteArray( 0, 1 )",
+          ground_color: "ff7f7e71",
+        },
         terrain: {
           texture_1: `${PACK}/terrain/grass.png`,
           texture_2: `${PACK}/terrain/dirt.png`,
@@ -236,7 +240,11 @@ describe("Dungeondraft import", () => {
 
   it("turns bitmaps into strokes, the splat into the level's terrain, water trees into bodies", () => {
     const [caveEntity] = byTool("cave")
-    expect(caveEntity.strokes?.length).toBe(1)
+    // The dug cells, and the blasted-open ones kept apart (entrance bitmap).
+    expect(caveEntity.strokes?.length).toBe(2)
+    expect(caveEntity.strokes?.[0].blast).toBeUndefined()
+    expect(caveEntity.strokes?.[1].blast).toBe(true)
+    expect(caveEntity.strokes?.[0].radius).toBe(1 / 8)
     const terrain = byTool("terrainBrush")
     expect(terrain).toHaveLength(1)
     const data = terrain[0].params.terrain as TerrainData

@@ -326,7 +326,8 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("cave", "tools.cave", LuMountainSnow, {
         params: [
-          brushSize(0.5, 2.5, 0.5, 1),
+          // Dungeondraft's five stamp sizes (cells.ts).
+          brushSize(0, 4, 1, 1),
           // Dungeondraft's defaults for both.
           customColor("groundColor", "tools.groundColor", "#7f7e71"),
           customColor("wallColor", "tools.wallColor", "#7f7e71"),
@@ -427,7 +428,8 @@ export const TOOL_TREE: ToolNode[] = [
         // Free-paint via the `brush` shape; the size slider is always visible.
         params: [
           shape("brush", true),
-          brushSize(0.5, 2.5, 0.5, 1),
+          // Dungeondraft's five stamp sizes (cells.ts).
+          brushSize(0, 4, 1, 1),
           customColor("deepColor", "tools.deepColor", "#3aa19a", WATER_PRESETS),
           customColor("shallowColor", "tools.shallowColor", "#8bceb0", WATER_PRESETS),
           sliderParam("blendDistance", "tools.blendDistance", 0.5, 4, 0.1, 1.5),
