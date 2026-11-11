@@ -95,16 +95,20 @@ export interface ThumbColoring {
 const isWhite = (color: string) => /^#?f{6}(ff)?$/i.test(color)
 
 /**
- * The URL to display for a library item: recolored if colorable, multiplied
- * by the color when the browser tints, as is otherwise.
+ * The URL to display for a library item. In tinted browsers (walls,
+ * tilesets) each thumbnail shows in its own default color, as Dungeondraft's
+ * panel does — never the color being picked — and "custom_color" ones as
+ * they are. Elsewhere colorable ones are recolored by `color`.
  */
 export function itemImageUrl(
+  item: Pick<LibItem, "colorable" | "defaultColor">,
   path: string,
-  colorable: boolean,
   color?: string,
   coloring: ThumbColoring = { tint: false, recolorMode: "object" },
 ): string {
-  if (!color) return thumbUrl(path)
-  if (colorable) return recolorUrl(path, color, coloring.recolorMode)
-  return coloring.tint && !isWhite(color) ? recolorUrl(path, color, "tint") : thumbUrl(path)
+  if (coloring.tint) {
+    const own = item.defaultColor
+    return !item.colorable && own && !isWhite(own) ? recolorUrl(path, own, "tint") : thumbUrl(path)
+  }
+  return item.colorable && color ? recolorUrl(path, color, coloring.recolorMode) : thumbUrl(path)
 }

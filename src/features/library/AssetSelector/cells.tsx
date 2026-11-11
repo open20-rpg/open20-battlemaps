@@ -29,7 +29,7 @@ export const ThumbCell = memo(function ThumbCell({
     >
       {item && !errored ? (
         <img
-          src={itemImageUrl(item.thumb, item.colorable, color, coloring)}
+          src={itemImageUrl(item, item.thumb, color, coloring)}
           alt=""
           draggable={false}
           decoding="async"
@@ -70,7 +70,7 @@ export const ListCell = memo(function ListCell({
     >
       {item && !errored ? (
         <img
-          src={itemImageUrl(item.thumb, item.colorable, color, coloring)}
+          src={itemImageUrl(item, item.thumb, color, coloring)}
           alt=""
           draggable={false}
           decoding="async"

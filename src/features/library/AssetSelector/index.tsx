@@ -154,8 +154,8 @@ export function AssetSelector({
           item
             ? {
                 name: item.name,
-                thumbUrl: itemImageUrl(item.thumb, item.colorable, color, coloring),
-                fullUrl: itemImageUrl(item.full, item.colorable, color, coloring),
+                thumbUrl: itemImageUrl(item, item.thumb, color, coloring),
+                fullUrl: itemImageUrl(item, item.full, color, coloring),
               }
             : null,
         )

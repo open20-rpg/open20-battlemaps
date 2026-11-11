@@ -24,8 +24,24 @@ pub(crate) struct AssetDef {
     pub custom_color: bool,
 }
 
-/// Texture rel-path (inside the pack) → its definition.
+/// Texture key (see [`def_key`]) → its definition.
 pub(crate) type AssetDefs = HashMap<String, AssetDef>;
+
+/// How definitions are matched to textures: the path inside the pack,
+/// lowercased and without its extension — a definition naming `x.png` still
+/// finds a texture re-encoded as `x.webp` (as `library::locate` tolerates).
+pub(crate) fn def_key(rel_path: &str) -> String {
+    let lower = rel_path.to_ascii_lowercase();
+    match lower.rsplit_once('.') {
+        Some((stem, ext)) if !ext.contains('/') => stem.to_string(),
+        _ => lower,
+    }
+}
+
+/// The definition of the texture at `rel_path`, if the pack has one.
+pub(crate) fn def_for(defs: &AssetDefs, rel_path: &str) -> AssetDef {
+    defs.get(&def_key(rel_path)).cloned().unwrap_or_default()
+}
 
 #[derive(Deserialize)]
 struct DefFile {
@@ -132,6 +148,24 @@ pub(crate) fn pack_asset_defs(app: &AppHandle, pack_id: &str) -> Arc<AssetDefs> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn matches_definitions_across_extension_and_case() {
+        let mut defs = AssetDefs::new();
+        defs.insert(
+            def_key("textures/tilesets/Wood.png"),
+            AssetDef {
+                default_color: Some("#b08850".into()),
+                custom_color: false,
+            },
+        );
+        let found = def_for(&defs, "textures/tilesets/wood.webp");
+        assert_eq!(found.default_color.as_deref(), Some("#b08850"));
+        assert_eq!(
+            def_for(&defs, "textures/tilesets/other.png"),
+            AssetDef::default()
+        );
+    }
 
     #[test]
     fn reads_godot_colors() {

@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
-use super::assetdefs::pack_asset_defs;
+use super::assetdefs::{def_for, pack_asset_defs};
 use super::recolor::{pack_colorable_set, ColorCfg};
 use super::registry::{pack_dir, read_registry};
 use super::Result;
@@ -103,10 +103,7 @@ pub(crate) fn clear_library(app: &AppHandle) {
 /// pack's definitions, and whether it's recolored by its red regions (a
 /// Colorable-tagged object, or a "custom_color" tileset) rather than tinted.
 fn color_info(app: &AppHandle, pack_id: &str, rel: &str) -> (bool, Option<String>) {
-    let def = pack_asset_defs(app, pack_id)
-        .get(rel)
-        .cloned()
-        .unwrap_or_default();
+    let def = def_for(&pack_asset_defs(app, pack_id), rel);
     let colorable = def.custom_color || pack_colorable_set(app, pack_id).contains(rel);
     (colorable, def.default_color)
 }

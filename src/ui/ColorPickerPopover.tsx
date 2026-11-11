@@ -58,7 +58,9 @@ export function ColorPickerPopover({
               <ColorPicker.AreaBackground />
               <ColorPicker.AreaThumb boxSize="18px" />
             </ColorPicker.Area>
-            <ColorPicker.ChannelSlider channel="hue" h="22px">
+            {/* flex="none": in the content's flex column the slider's own
+                flex (1 1 0%) would size it to 0 px, hiding the track. */}
+            <ColorPicker.ChannelSlider channel="hue" h="22px" flex="none">
               {/* Static rainbow fallback: Chakra's hue gradient uses modern CSS
                   color interpolation the Android WebView can't render. */}
               <Box
@@ -73,7 +75,7 @@ export function ColorPickerPopover({
                 <ColorPicker.ChannelSliderThumb boxSize="22px" />
               </ColorPicker.ChannelSliderTrack>
             </ColorPicker.ChannelSlider>
-            <ColorPicker.ChannelSlider channel="alpha" h="22px">
+            <ColorPicker.ChannelSlider channel="alpha" h="22px" flex="none">
               <Box
                 position="absolute"
                 inset="0"
