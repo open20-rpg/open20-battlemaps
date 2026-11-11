@@ -149,7 +149,7 @@ const customColor = (
 const WATER_PRESETS = ["#3aa19a", "#8bceb0", "#ffcc55", "#3c8ab8"]
 
 /** Light color swatches offered by the Light Tool color picker. */
-const LIGHT_PRESETS = ["#eccd8b", "#eaefca", "#80beff", "#ffad58", "#4dd569"]
+export const LIGHT_PRESETS = ["#eccd8b", "#eaefca", "#80beff", "#ffad58", "#4dd569"]
 const objectLayer = (def: number): ToolParamSpec => ({
   kind: "layer",
   paramKey: "layer",
@@ -218,7 +218,7 @@ const editPoints = (def: boolean, labelKey = "tools.editPoints"): ToolParamSpec 
 })
 
 /** Path in/out transition styles (a segmented choice). */
-const PATH_TRANSITIONS: SegmentedChoice[] = [
+export const PATH_TRANSITIONS: SegmentedChoice[] = [
   { value: "none", labelKey: "tools.transNone" },
   { value: "fade", labelKey: "tools.transFade" },
   { value: "growth", labelKey: "tools.transGrowth" },
@@ -558,6 +558,7 @@ export const TOOL_TREE: ToolNode[] = [
     params: [
       button("flipH", "tools.flipHorizontal", LuFlipHorizontal2),
       button("flipV", "tools.flipVertical", LuFlipVertical2),
+      { kind: "properties", paramKey: "properties", default: null },
     ],
   }),
 ]

@@ -80,6 +80,8 @@ export interface ParamValueByKind {
   levels: null
   /** Selected prefab id (null = none). */
   prefabs: string | null
+  /** The selected entities' own properties (Select tool); edits the document, holds no value. */
+  properties: null
 }
 
 export type ParamKind = keyof ParamValueByKind
@@ -148,6 +150,8 @@ export type ToolParamSpec =
   | BaseSpec<"levels">
   /** Saved prefabs list; picks the one the Prefabs tool stamps. */
   | (BaseSpec<"prefabs"> & { labelKey: string })
+  /** Properties of the selected entities (Select tool), edited in place. */
+  | BaseSpec<"properties">
 
 /**
  * Cross-field rule run right after a param change: given the already-merged

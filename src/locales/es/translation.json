@@ -244,7 +244,13 @@
     "savePrefab": "Guardar selección como prefab",
     "mirror": "Espejar",
     "flipHorizontal": "Espejar horizontal (H)",
-    "flipVertical": "Espejar vertical (V)"
+    "flipVertical": "Espejar vertical (V)",
+    "mirrorHorizontal": "Espejar horizontal",
+    "mirrorVertical": "Espejar vertical",
+    "selectHint": "Seleccioná un elemento del mapa para ver y editar sus propiedades.",
+    "selectedCount_one": "{{count}} elemento",
+    "selectedCount_other": "{{count}} elementos",
+    "noProperties": "Estos elementos no tienen propiedades editables."
   },
   "biomes": {
     "barren": "Yermo",

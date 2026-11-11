@@ -244,7 +244,13 @@
     "savePrefab": "Save selection as prefab",
     "mirror": "Mirror",
     "flipHorizontal": "Mirror horizontally (H)",
-    "flipVertical": "Mirror vertically (V)"
+    "flipVertical": "Mirror vertically (V)",
+    "mirrorHorizontal": "Mirror horizontally",
+    "mirrorVertical": "Mirror vertically",
+    "selectHint": "Select something on the map to view and edit its properties.",
+    "selectedCount_one": "{{count}} item",
+    "selectedCount_other": "{{count}} items",
+    "noProperties": "These items have no editable properties."
   },
   "biomes": {
     "barren": "Barren",

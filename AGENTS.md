@@ -45,6 +45,10 @@ ni accionable.
   especiales en los panels. Las herramientas que usan la Library (Object,
   Scatter, Path) declaran `library` + `librarySelect` y guardan la elección en
   el param reservado `LIBRARY_PARAM`.
+  Las propiedades editables de lo ya colocado (panel de Seleccionar) también
+  son datos: `ENTITY_PROPERTIES` (`features/tools/properties.ts`) declara por
+  tool id qué se muestra (reusando los kinds de `ToolParamSpec`) y cómo se
+  lee/escribe en la entidad; se aplican vía `updateEntities`.
 - Un nuevo tipo de parámetro = nuevo kind en `ToolParamSpec`
   (`features/tools/params.ts`, con su tipo de valor en `ParamValueByKind`) +
   control presentacional en `tools/controls/` + entrada en `RENDERERS` de

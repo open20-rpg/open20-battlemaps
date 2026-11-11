@@ -24,6 +24,7 @@ import { BiomeControl } from "./biome/BiomeControl"
 import { ButtonControl } from "./ButtonControl"
 import { FontControl } from "./FontControl"
 import { PrefabsControl } from "./PrefabsControl"
+import { SelectionPropertiesControl } from "./SelectionPropertiesControl"
 
 interface RenderArgs<K extends ParamKind> {
   toolId: string
@@ -131,6 +132,20 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
   levels: () => <LevelsPanel />,
   prefabs: ({ spec, value, onChange }) => (
     <PrefabsControl value={value} labelKey={spec.labelKey} onChange={onChange} />
+  ),
+  // Each property reuses its kind's control, so it's rendered through here too.
+  properties: ({ toolId }) => (
+    <SelectionPropertiesControl
+      renderControl={(spec, value, onChange) =>
+        renderParam({
+          toolId,
+          spec,
+          value: value as ParamValueByKind[ParamKind],
+          values: {},
+          onChange,
+        })
+      }
+    />
   ),
 }
 
