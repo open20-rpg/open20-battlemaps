@@ -1,62 +1,29 @@
 /**
- * Imported Dungeondraft terrain splats: one weight plane per texture (4
- * texels per tile), blended by drawing each texture over the ones below with
- * opacity w_k / (w_1 + … + w_k).
- *
- * That ratio must be taken AFTER interpolating the weights, not before:
- * interpolating ratios turns a stray weight of 1/255 next to an unrelated
- * texel into a 50% patch of that texture (gray specks in the water). So the
- * weights are upsampled bilinearly first and the ratios computed per output
- * pixel; what's left to the GPU's filtering is a fraction of a tile.
+ * Terrain blending, as Dungeondraft does it (its Terrain.shader): the
+ * terrain has up to 8 texture slots, each with a weight per point (imported
+ * splats: 4 texels per tile, bilinearly filtered). The GPU version lives in
+ * terrainFilter.ts; this is the same formula in TS, for tests and as its
+ * reference.
  */
 
-/** Output pixels per splat texel. */
-export const SPLAT_UPSAMPLE = 4
+/** Texture slots of the terrain (Dungeondraft: 4, or 8 with expanded slots). */
+export const TERRAIN_SLOTS = 8
+
+/** Height margin within which slots mix (Dungeondraft's `blend_step`). */
+export const TERRAIN_BLEND_STEP = 0.04
 
 /**
- * Bilinear upsample of a `w`×`h` weight plane by `f`, sampling at texel
- * centers (edges clamp), so output pixel j lies over texel (j + 0.5) / f − 0.5.
+ * Each slot's share of the color at one point with Smooth Blending off.
+ * `heights` are texture alpha × weight (0..1): the highest slot wins and
+ * only those within TERRAIN_BLEND_STEP of it mix in, by how far above the
+ * cut they are.
  */
-export function upsampleWeights(plane: Uint8Array, w: number, h: number, f: number): Float32Array {
-  const ow = w * f
-  const oh = h * f
-  const out = new Float32Array(ow * oh)
-  const at = (x: number, y: number) => plane[y * w + x] ?? 0
-  for (let j = 0; j < oh; j++) {
-    const v = Math.min(h - 1, Math.max(0, (j + 0.5) / f - 0.5))
-    const y0 = Math.floor(v)
-    const y1 = Math.min(h - 1, y0 + 1)
-    const fy = v - y0
-    for (let i = 0; i < ow; i++) {
-      const u = Math.min(w - 1, Math.max(0, (i + 0.5) / f - 0.5))
-      const x0 = Math.floor(u)
-      const x1 = Math.min(w - 1, x0 + 1)
-      const fx = u - x0
-      const top = at(x0, y0) * (1 - fx) + at(x1, y0) * fx
-      const bottom = at(x0, y1) * (1 - fx) + at(x1, y1) * fx
-      out[j * ow + i] = top * (1 - fy) + bottom * fy
-    }
-  }
-  return out
-}
-
-/**
- * Running sum of the weights stacked so far. `push` adds a texture's
- * (upsampled) weights and returns its layer opacity (0..255) per pixel.
- */
-export class SplatStack {
-  private sum: Float32Array | null = null
-
-  push(weights: Float32Array): Uint8Array {
-    this.sum ??= new Float32Array(weights.length)
-    const sum = this.sum
-    const out = new Uint8Array(weights.length)
-    for (let i = 0; i < weights.length; i++) {
-      sum[i] += weights[i]
-      out[i] = sum[i] > 0 ? Math.round((weights[i] / sum[i]) * 255) : 0
-    }
-    return out
-  }
+export function heightBlend(heights: readonly number[]): number[] {
+  const top = Math.max(0, ...heights)
+  const start = top - TERRAIN_BLEND_STEP
+  const s = heights.map((h) => Math.max(h - start, 0))
+  const sum = s.reduce((a, b) => a + b, 0)
+  return s.map((v) => (sum > 0 ? v / sum : 0))
 }
 
 export function decodeBase64(data: string): Uint8Array {

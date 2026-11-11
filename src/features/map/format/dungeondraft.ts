@@ -503,11 +503,11 @@ export interface SplatLayer {
   width: number
   height: number
   /**
-   * Base64 of one byte per texel: the texture's raw splat weight. The
-   * renderer normalizes the weights stacked so far (render/splat.ts).
+   * Base64 of one byte per texel: the texture's raw splat weight, blended
+   * by the renderer with Dungeondraft's own formula (render/terrainFilter.ts).
    */
   weights?: string
-  /** Legacy (pre-0.1.14 saves): precomputed layer opacity per texel. */
+  /** Legacy (pre-0.1.14 saves): per-texel layer opacity, used as the weight. */
   data?: string
 }
 

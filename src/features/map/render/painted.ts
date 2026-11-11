@@ -15,9 +15,9 @@ import { TEXTURE_PX_PER_TILE } from "./assets"
 import { type RenderEnv, selectionAsset } from "./entities"
 import { softBrushTexture } from "./generated"
 import { LayerMaskFilter } from "./layerFilter"
-import { opaqueFilter } from "./opaque"
 import { type SplatLayer } from "../format/dungeondraft"
-import { SPLAT_UPSAMPLE, SplatStack, decodeBase64, upsampleWeights } from "./splat"
+import { TERRAIN_SLOTS, decodeBase64 } from "./splat"
+import { TerrainFilter } from "./terrainFilter"
 
 /**
  * Painted layers (Cave, Water, Terrain Brush, Material): every stroke of a
@@ -66,7 +66,8 @@ class MapMask {
     const stage = new Container()
     stage.scale.set(this.res)
     stage.position.set(this.map.width * this.res, 0)
-    stage.addChild(...children)
+    // addChild() with no arguments throws: clearing passes an empty list.
+    if (children.length > 0) stage.addChild(...children)
     this.renderer.render({ container: stage, target: this.rt, clear })
     stage.destroy({ children: true })
   }
@@ -157,15 +158,14 @@ function mapFill(map: MapBox, texture: Texture | undefined, tint: string | undef
 
 /**
  * `fill` showing only where `mask` (a coverage sprite) covers, in one
- * screen-clipped filter pass (see layerFilter.ts); `opaque` also drops the
- * fill's own alpha (terrain).
+ * screen-clipped filter pass (see layerFilter.ts).
  */
-function masked(fill: Container, mask: Sprite, opaque = false, heightBlend?: MapBox): Container {
+function masked(fill: Container, mask: Sprite): Container {
   const c = new Container()
   // The mask sprite only needs its transform (the filter samples its texture).
   mask.renderable = false
   c.addChild(fill, mask)
-  const filter = new LayerMaskFilter(mask, opaque, heightBlend)
+  const filter = new LayerMaskFilter(mask)
   fill.filters = [filter]
   c.once("destroyed", () => filter.destroy())
   return c
@@ -217,13 +217,6 @@ function composite(view: Container, masks: Iterable<MapMask>): Composite {
 }
 
 /** A texture fill, or the flat `color` while the texture is loading/unset. */
-/** The terrain's base texture over the whole map, opaque whatever its alpha (see opaque.ts). */
-function terrainBase(map: MapBox, texture: Texture | undefined, color: string): Container {
-  const fill = textureOrColor(map, texture, color)
-  if (texture) fill.filters = [opaqueFilter()]
-  return fill
-}
-
 function textureOrColor(map: MapBox, texture: Texture | undefined, color: string): Container {
   return mapFill(map, texture, texture ? undefined : color)
 }
@@ -288,69 +281,46 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
 }
 
 /**
- * An imported splat layer as a sprite over the map (content space). Splat
- * texel t's center sits at Dungeondraft world t × 64 px = t/4 cells, and
- * Dungeondraft x grows rightward like content space, so no flip is needed:
- * the layer just spans the map, offset by half a texel. Linear filtering
- * keeps the blend smooth between texels.
+ * An imported splat layer's raw weights as a sprite over the map (content
+ * space, premultiplied white with the weight as alpha). Splat UVs are the
+ * map's own (texel t centered at (t + 0.5) / 4 tiles, as in Dungeondraft),
+ * and Dungeondraft x grows rightward like content space, so it just spans
+ * the map; linear filtering is the GPU's bilinear interpolation, as there.
  */
-function splatSprite(opacity: Uint8Array, splat: SplatLayer, scale: number, map: MapBox): Sprite {
-  // Premultiplied white with the coverage as alpha.
-  const rgba = new Uint8Array(opacity.length * 4)
-  opacity.forEach((v, i) => rgba.fill(v, i * 4, i * 4 + 4))
+function weightSprite(splat: SplatLayer, map: MapBox): Sprite | null {
+  const data = splat.weights ?? splat.data
+  if (!data) return null
+  const weights = decodeBase64(data)
+  const rgba = new Uint8Array(weights.length * 4)
+  weights.forEach((v, i) => rgba.fill(v, i * 4, i * 4 + 4))
   const source = new BufferImageSource({
     resource: rgba,
-    width: splat.width * scale,
-    height: splat.height * scale,
+    width: splat.width,
+    height: splat.height,
     scaleMode: "linear",
   })
   const sprite = new Sprite(new Texture({ source }))
-  sprite.position.set(-map.width - 0.125, -0.125)
+  sprite.position.set(-map.width, 0)
   sprite.width = splat.width / 4
   sprite.height = splat.height / 4
   return sprite
 }
 
-interface SplatOpacity {
-  opacity: Uint8Array
-  /** Opacity pixels per splat texel. */
-  scale: number
+/** Full weight over the whole map (a Fill without imported weights). */
+function fullWeight(map: MapBox): Sprite {
+  const s = new Sprite(Texture.WHITE)
+  s.position.set(-map.width, 0)
+  s.width = map.width
+  s.height = map.height
+  return s
 }
 
-/**
- * Each imported splat layer's opacity over the ones below. Layers after one
- * Fill (the imported base and its layers) blend together: their weights are
- * upsampled, then stacked. Legacy saves carry precomputed opacities.
- */
-function splatOpacities(entities: MapEntity[]): Map<MapEntity, SplatOpacity> {
-  const out = new Map<MapEntity, SplatOpacity>()
-  let run: { e: MapEntity; weights: Float32Array }[] = []
-  const flush = () => {
-    const stack = new SplatStack()
-    for (const r of run) {
-      const opacity = stack.push(r.weights)
-      if (r.e.params.fill !== true) out.set(r.e, { opacity, scale: SPLAT_UPSAMPLE })
-    }
-    run = []
-  }
-  for (const e of entities) {
-    if (e.params.fill === true) flush()
-    const splat = e.params.splat as SplatLayer | undefined
-    if (!splat) continue
-    if (splat.weights) {
-      const weights = upsampleWeights(
-        decodeBase64(splat.weights),
-        splat.width,
-        splat.height,
-        SPLAT_UPSAMPLE,
-      )
-      run.push({ e, weights })
-    } else if (splat.data) {
-      out.set(e, { opacity: decodeBase64(splat.data), scale: 1 })
-    }
-  }
-  flush()
-  return out
+/** Draw `sprite` into `mask`, then free the sprite's own texture if it has one. */
+function drawWeight(mask: MapMask, sprite: Sprite | null, clear: boolean): void {
+  if (!sprite) return
+  const texture = sprite.texture
+  mask.draw([sprite], clear)
+  if (texture !== Texture.WHITE) texture.destroy(true)
 }
 
 /**
@@ -375,11 +345,13 @@ function strokeCoverage(stroke: BrushStroke, scratch: MapMask): Sprite {
 }
 
 /**
- * Terrain splat: the base (slot 0 as painted, or the last Fill) covers the
- * map; every other texture is masked by its own coverage. Painting a texture
- * adds its stroke coverage (scaled by Intensity) to its mask and removes the
- * same coverage from every other mask, so the latest paint shows on top and
- * textures blend by coverage — no stacked semi-transparent layers.
+ * Terrain: up to 8 texture slots, each with a weight over the map, blended
+ * in one pass by Dungeondraft's formula (terrainFilter.ts). Weights are
+ * built per slot: a Fill sets its texture to full weight (or to the imported
+ * base's weights) and clears the rest; an imported splat layer sets its
+ * slot's weights; a brush stroke adds its coverage (scaled by Intensity) to
+ * its slot and removes it from every other one. The slots are then packed
+ * three per RGB render texture, which is all the filter keeps.
  */
 function terrainComposite(
   entities: MapEntity[],
@@ -388,33 +360,38 @@ function terrainComposite(
   env: RenderEnv,
 ): Composite {
   const masks = new Map<string, MapMask>()
+  const slotOf = (texId: string): MapMask | undefined => {
+    if (!masks.has(texId) && masks.size < TERRAIN_SLOTS) {
+      masks.set(texId, new MapMask(renderer, map))
+    }
+    return masks.get(texId)
+  }
   const scratch = new MapMask(renderer, map)
-  let base: string | undefined
-  const imported = splatOpacities(entities)
+  let started = false
   for (const e of entities) {
     const texId = str(e.params.texture, "")
     if (!texId) continue
-    // Until a Fill sets it, the base is slot 0 as it was when painting.
-    if (!base && typeof e.params.base === "string") base = e.params.base
+    // Until a Fill, the base is slot 0 as it was when painting, at full weight.
+    if (!started && typeof e.params.base === "string" && e.params.fill !== true) {
+      const base = slotOf(e.params.base)
+      if (base) drawWeight(base, fullWeight(map), true)
+    }
+    started = true
     const splat = e.params.splat as SplatLayer | undefined
     if (e.params.fill === true) {
-      base = texId
       for (const m of masks.values()) m.draw([], true)
+      const m = slotOf(texId)
+      if (m) drawWeight(m, splat ? weightSprite(splat, map) : fullWeight(map), true)
       continue
     }
-    const opacity = imported.get(e)
-    if (splat && opacity) {
-      // An imported Dungeondraft splat layer: exact per-texel coverage.
-      if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
-      const layer = splatSprite(opacity.opacity, splat, opacity.scale, map)
-      const texture = layer.texture
-      masks.get(texId)?.draw([layer], false)
-      texture.destroy(true)
+    if (splat) {
+      const m = slotOf(texId)
+      if (m) drawWeight(m, weightSprite(splat, map), false)
       continue
     }
     const strength = terrainStrength(num(e.params.intensity, 4))
     for (const stroke of e.strokes ?? []) {
-      if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
+      const own = slotOf(texId)
       const paint = (target: MapMask, erase: boolean) => {
         const coverage = strokeCoverage(stroke, scratch)
         coverage.alpha = strength
@@ -425,20 +402,39 @@ function terrainComposite(
         // Right-drag erases the texture itself; painting erases the others.
         if (stroke.erase ? other === texId : other !== texId) paint(m, true)
       }
-      if (!stroke.erase) paint(masks.get(texId) as MapMask, false)
+      if (own && !stroke.erase) paint(own, false)
     }
   }
   scratch.destroy()
+
+  // Pack: slot i goes to channel i % 3 of render texture ⌊i / 3⌋.
+  const slots = [...masks.keys()]
+  const channel = [0xff0000, 0x00ff00, 0x0000ff]
+  const packed = [0, 1, 2].map((r) => {
+    const out = new MapMask(renderer, map)
+    const parts = slots.slice(r * 3, r * 3 + 3).map((id, c) => {
+      const sprite = (masks.get(id) as MapMask).sprite()
+      sprite.tint = channel[c]
+      sprite.blendMode = "add"
+      return sprite
+    })
+    out.draw(parts, true)
+    return out
+  })
+  for (const m of masks.values()) m.destroy()
+
+  const area = fullWeight(map)
+  const filter = new TerrainFilter(area, {
+    textures: slots.map((id) => env.tex(id)),
+    weights: [packed[0].rt, packed[1].rt, packed[2].rt],
+    smooth: env.terrainSmooth,
+    map,
+  })
+  area.filters = [filter]
+  area.once("destroyed", () => filter.destroy())
   const view = new Container()
-  if (base) view.addChild(terrainBase(map, env.tex(base), "#6b7a4a"))
-  // Smooth Blending is one switch for the whole terrain, as in Dungeondraft:
-  // off, layers height-blend (see layerFilter.ts).
-  const height = env.terrainSmooth ? undefined : map
-  for (const [texId, m] of masks) {
-    const fill = textureOrColor(map, env.tex(texId), "#9a8a6a")
-    view.addChild(masked(fill, m.sprite(), true, height))
-  }
-  return composite(view, masks.values())
+  view.addChild(area)
+  return composite(view, packed)
 }
 
 /** Material brush: one soft mask per painted material texture. */
