@@ -373,10 +373,11 @@
     "estimatingSize": "Estimating the export size"
   },
   "mapFile": {
-    "discardTitle": "Discard unsaved changes?",
-    "discardBody": "This map has unsaved changes. Continuing will discard them.",
-    "discardConfirm": "Discard",
-    "discardCancel": "Cancel"
+    "unsavedTitle": "Save your changes?",
+    "unsavedBody": "This map has unsaved changes. Do you want to save them before going on?",
+    "save": "Save",
+    "dontSave": "Don't save",
+    "cancel": "Cancel"
   },
   "export": {
     "title": "Export image",

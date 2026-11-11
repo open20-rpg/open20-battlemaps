@@ -373,10 +373,11 @@
     "estimatingSize": "Estimando el tamaño de la exportación"
   },
   "mapFile": {
-    "discardTitle": "¿Descartar los cambios sin guardar?",
-    "discardBody": "Este mapa tiene cambios sin guardar. Si continúas, se perderán.",
-    "discardConfirm": "Descartar",
-    "discardCancel": "Cancelar"
+    "unsavedTitle": "¿Guardar los cambios?",
+    "unsavedBody": "Este mapa tiene cambios sin guardar. ¿Querés guardarlos antes de continuar?",
+    "save": "Guardar",
+    "dontSave": "No guardar",
+    "cancel": "Cancelar"
   },
   "export": {
     "title": "Exportar imagen",

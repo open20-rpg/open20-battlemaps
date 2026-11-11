@@ -24,6 +24,7 @@ import { useSettingsStore } from "../stores/settingsStore"
 import { useMapStore } from "../stores/mapStore"
 import { useModalStackStore } from "../stores/modalStackStore"
 import { registerAppActions } from "../features/shortcuts/appActions"
+import { onAppCloseRequested } from "../features/shortcuts/api"
 import { actionForKey, currentBindings } from "../features/shortcuts/bindings"
 import { pressKey, releaseAll, releaseKey } from "../features/shortcuts/held"
 import { runAction } from "../features/map/shortcuts"
@@ -56,7 +57,26 @@ export default function App() {
   const canUndo = useCanUndo()
   const canRedo = useCanRedo()
 
-  const { handleSave, handleSaveAs, handleOpen, handleOpenPath, guarded } = useMapFile()
+  const { handleSave, handleSaveAs, handleOpen, handleOpenPath, guarded, settleUnsaved } =
+    useMapFile()
+
+  // Closing the app with unsaved changes asks to save them first.
+  const confirmClose = useEffectEvent(() => settleUnsaved())
+  useEffect(() => {
+    let disposed = false
+    let unsubscribe: (() => void) | undefined
+    onAppCloseRequested(() => confirmClose())
+      .then((off) => {
+        if (disposed) off()
+        else unsubscribe = off
+      })
+      // Outside the desktop app (plain browser), there's no window to watch.
+      .catch(() => undefined)
+    return () => {
+      disposed = true
+      unsubscribe?.()
+    }
+  }, [])
 
   // File shortcuts (new, open, save, export) run the shell's own handlers.
   const runFile = useEffectEvent((id: "newMap" | "open" | "save" | "saveAs" | "export") => {
