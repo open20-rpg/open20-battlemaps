@@ -17,6 +17,7 @@ import { type RenderEnv, selectionAsset } from "./entities"
 import { softBrushTexture } from "./generated"
 import { naturalEdgeFilter } from "./naturalEdge"
 import { type SplatLayer } from "../format/dungeondraft"
+import { SPLAT_UPSAMPLE, SplatStack, decodeBase64, upsampleWeights } from "./splat"
 
 /**
  * Painted layers (Cave, Water, Terrain Brush, Material): every stroke of a
@@ -274,15 +275,14 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
  * the layer just spans the map, offset by half a texel. Linear filtering
  * keeps the blend smooth between texels.
  */
-function splatSprite(splat: SplatLayer, map: MapBox): Sprite {
-  const bytes = Uint8Array.from(atob(splat.data), (c) => c.charCodeAt(0))
+function splatSprite(opacity: Uint8Array, splat: SplatLayer, scale: number, map: MapBox): Sprite {
   // Premultiplied white with the coverage as alpha.
-  const rgba = new Uint8Array(bytes.length * 4)
-  bytes.forEach((v, i) => rgba.fill(v, i * 4, i * 4 + 4))
+  const rgba = new Uint8Array(opacity.length * 4)
+  opacity.forEach((v, i) => rgba.fill(v, i * 4, i * 4 + 4))
   const source = new BufferImageSource({
     resource: rgba,
-    width: splat.width,
-    height: splat.height,
+    width: splat.width * scale,
+    height: splat.height * scale,
     scaleMode: "linear",
   })
   const sprite = new Sprite(new Texture({ source }))
@@ -290,6 +290,19 @@ function splatSprite(splat: SplatLayer, map: MapBox): Sprite {
   sprite.width = splat.width / 4
   sprite.height = splat.height / 4
   return sprite
+}
+
+/** A splat layer's opacity: normalized against the stack, or legacy precomputed. */
+function splatOpacity(
+  splat: SplatLayer,
+  stack: SplatStack,
+): { opacity: Uint8Array; scale: number } | null {
+  if (splat.weights) {
+    const weights = decodeBase64(splat.weights)
+    const up = upsampleWeights(weights, splat.width, splat.height, SPLAT_UPSAMPLE)
+    return { opacity: stack.push(up), scale: SPLAT_UPSAMPLE }
+  }
+  return splat.data ? { opacity: decodeBase64(splat.data), scale: 1 } : null
 }
 
 /**
@@ -331,22 +344,28 @@ function terrainComposite(
   const scratch = new MapMask(renderer, map)
   const natural = naturalEdgeFilter(scratch.res)
   let base: string | undefined
+  // Weights of the imported splat layers stacked so far (from the last Fill).
+  let stack = new SplatStack()
   for (const e of entities) {
     const texId = str(e.params.texture, "")
     if (!texId) continue
     // Until a Fill sets it, the base is slot 0 as it was when painting.
     if (!base && typeof e.params.base === "string") base = e.params.base
+    const splat = e.params.splat as SplatLayer | undefined
     if (e.params.fill === true) {
       base = texId
       for (const m of masks.values()) m.draw([], true)
+      stack = new SplatStack()
+      // An imported base carries its weights: they count in the blend.
+      if (splat) splatOpacity(splat, stack)
       continue
     }
     const smooth = e.params.smoothBlending === true
-    const splat = e.params.splat as SplatLayer | undefined
-    if (splat) {
+    const opacity = splat && splatOpacity(splat, stack)
+    if (opacity) {
       // An imported Dungeondraft splat layer: exact per-texel coverage.
       if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
-      const layer = splatSprite(splat, map)
+      const layer = splatSprite(opacity.opacity, splat, opacity.scale, map)
       if (!smooth) layer.filters = [natural]
       const texture = layer.texture
       masks.get(texId)?.draw([layer], false)

@@ -485,8 +485,13 @@ export interface SplatLayer {
   /** Texels per axis (4 per cell). */
   width: number
   height: number
-  /** Base64 of one byte per texel: this layer's opacity over the ones below. */
-  data: string
+  /**
+   * Base64 of one byte per texel: the texture's raw splat weight. The
+   * renderer normalizes the weights stacked so far (render/splat.ts).
+   */
+  weights?: string
+  /** Legacy (pre-0.1.14 saves): precomputed layer opacity per texel. */
+  data?: string
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -498,28 +503,11 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Per-texture layer opacities from splat weights, for drawing the textures
- * stacked bottom-up over the base: layer k's opacity is w_k / (w_1+…+w_k),
- * which reproduces the weighted mix exactly once the layers are composited.
- */
-export function splatLayers(weights: Uint8Array[], texels: number): Uint8Array[] {
-  const out = weights.slice(1).map(() => new Uint8Array(texels))
-  for (let t = 0; t < texels; t++) {
-    let sum = weights[0][t] ?? 0
-    for (let k = 1; k < weights.length; k++) {
-      const wk = weights[k][t] ?? 0
-      sum += wk
-      out[k - 1][t] = sum > 0 ? Math.round((wk / sum) * 255) : 0
-    }
-  }
-  return out
-}
-
-/**
  * Terrain splat (RGBA weights, 4 texels per cell, up to 8 textures with
  * `splat2`): texture 1 is the base (a Fill); every other texture becomes a
- * coverage layer carrying the exact (normalized) weights, so blends look as
- * in Dungeondraft instead of being rounded to the dominant texture.
+ * coverage layer carrying its exact weights (the base keeps its own too, as
+ * they take part in the normalization), so blends look as in Dungeondraft
+ * instead of being rounded to the dominant texture.
  */
 function terrain(im: Importer, level: string, raw: Json): MapEntity[] {
   const t = obj(raw.terrain)
@@ -528,14 +516,13 @@ function terrain(im: Importer, level: string, raw: Json): MapEntity[] {
   )
   const base = ids[0]
   if (!base) return []
-  const out: MapEntity[] = [
-    entity(level, {
-      toolId: "terrainBrush",
-      layer: -500,
-      strokes: [],
-      params: { texture: base, base, fill: true },
-    }),
-  ]
+  const fill = entity(level, {
+    toolId: "terrainBrush",
+    layer: -500,
+    strokes: [],
+    params: { texture: base, base, fill: true },
+  })
+  const out: MapEntity[] = [fill]
   const w = im.width * 4
   const h = im.height * 4
   const texels = w * h
@@ -556,15 +543,20 @@ function terrain(im: Importer, level: string, raw: Json): MapEntity[] {
   })
   if (weights.length < 2) return out
   const smooth = bool(t.smooth_blending, false)
-  splatLayers(weights, texels).forEach((layer, k) => {
-    if (!layer.some((v) => v > 0)) return
-    const splat: SplatLayer = { width: w, height: h, data: toBase64(layer) }
+  const layer = (plane: Uint8Array): SplatLayer => ({
+    width: w,
+    height: h,
+    weights: toBase64(plane),
+  })
+  fill.params.splat = layer(weights[0])
+  weights.forEach((plane, k) => {
+    if (k === 0 || !plane.some((v) => v > 0)) return
     out.push(
       entity(level, {
         toolId: "terrainBrush",
         layer: -500,
         strokes: [],
-        params: { texture: ids[slots[k + 1]], base, splat, smoothBlending: smooth },
+        params: { texture: ids[slots[k]], base, splat: layer(plane), smoothBlending: smooth },
       }),
     )
   })
