@@ -2,6 +2,7 @@ import { type Container, Graphics } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import {
   entityBounds,
+  isStretchable,
   selectionBounds,
   transformHandles,
   type AssetSizeOf,
@@ -90,7 +91,11 @@ export function drawOverlay(
 
   const box = handles ? selectionBounds(selected, sizeOf) : null
   if (box) {
-    const h = transformHandles(box, px)
+    // Several items: one box around them all, so the handles read as the group's.
+    if (selected.length > 1) {
+      g.rect(-(box.x + box.w), box.y, box.w, box.h).stroke({ ...line, width: 1 * px, alpha: 0.7 })
+    }
+    const h = transformHandles(box, px, isStretchable(selected))
     const topCenter = { x: box.x + box.w / 2, y: box.y }
     g.moveTo(-topCenter.x, topCenter.y).lineTo(-h.rotate.x, h.rotate.y).stroke(line)
     // regularPoly, not circle: circle() picks its segment count from the tiny
@@ -98,8 +103,8 @@ export function drawOverlay(
     g.regularPoly(-h.rotate.x, h.rotate.y, 5 * px, 16)
       .fill({ color: 0xffffff })
       .stroke(line)
-    for (const c of h.corners) {
-      g.rect(-c.x - 4 * px, c.y - 4 * px, 8 * px, 8 * px)
+    for (const s of h.scale) {
+      g.rect(-s.at.x - 4 * px, s.at.y - 4 * px, 8 * px, 8 * px)
         .fill({ color: 0xffffff })
         .stroke(line)
     }

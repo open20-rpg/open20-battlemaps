@@ -39,6 +39,7 @@ export function lightingComposite(
     const sprite = new Sprite(env.tex(id) ?? lightFalloffTexture())
     sprite.anchor.set(0.5)
     sprite.position.set(-light.position.x, light.position.y)
+    sprite.rotation = (light.rotation * Math.PI) / 180
     sprite.width = sprite.height = range * 2
     sprite.tint = hexToPixiColor(
       typeof light.params.color === "string" ? light.params.color : "#eccd8b",

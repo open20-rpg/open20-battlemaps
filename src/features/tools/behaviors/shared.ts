@@ -68,6 +68,24 @@ export interface PolylineOptions {
   /** Snap step in tiles (grid corners by default). */
   step?: number
   commit: (ctx: ToolCtx, points: Vec2[]) => void
+  /**
+   * The entities that `commit` would create from these points, drawn
+   * semi-transparent by their real renderers while the shape is still being
+   * drawn (pending points plus the hovered one).
+   */
+  preview?: (ctx: ToolCtx, points: Vec2[]) => MapEntity[]
+}
+
+/** Draft ghosts for a preview function, when there are enough points to build anything. */
+function ghosts(
+  ctx: ToolCtx,
+  points: Vec2[],
+  minPoints: number,
+  preview?: (ctx: ToolCtx, points: Vec2[]) => MapEntity[],
+): DraftShape[] {
+  const pts = dedupe(points)
+  if (!preview || pts.length < minPoints) return []
+  return preview(ctx, pts).map((entity) => ({ kind: "ghost" as const, entity }))
 }
 
 /**
@@ -85,11 +103,14 @@ export function polylineController(
 > {
   let points: Vec2[] = []
   let hover: Vec2 | null = null
-  const show = () => {
+  const show = (ctx: ToolCtx) => {
     const pts = hover ? [...points, hover] : points
     setDraft(
       points.length > 0
-        ? [{ kind: "polyline", points: pts, closed: opts.closed && pts.length > 2 }]
+        ? [
+            ...ghosts(ctx, pts, opts.minPoints, opts.preview),
+            { kind: "polyline", points: pts, closed: opts.closed && pts.length > 2 },
+          ]
         : [],
     )
   }
@@ -117,11 +138,11 @@ export function polylineController(
         return
       }
       points = [...points, p]
-      show()
+      show(ctx)
     },
     onPointerMove: (ctx, e) => {
       hover = ctx.snap(e, opts.step ?? 1)
-      if (points.length > 0) show()
+      if (points.length > 0) show(ctx)
     },
     onDoubleClick: (ctx) => finish(ctx),
     onKeyDown: (ctx, e) => {
@@ -130,7 +151,7 @@ export function polylineController(
       else if (e.key === "Escape") cancel()
       else if (e.key === "Backspace") {
         points = points.slice(0, -1)
-        show()
+        show(ctx)
       } else return false
       return true
     },
@@ -151,6 +172,8 @@ export function shapePolygon(shape: Shape | null, a: Vec2, b: Vec2): Vec2[] {
  */
 export function shapeController(
   commit: (ctx: ToolCtx, polygon: Vec2[]) => void,
+  /** Entities `commit` would create from the polygon (live preview while dragging). */
+  preview?: (ctx: ToolCtx, polygon: Vec2[]) => MapEntity[],
 ): Required<
   Pick<
     ToolBehavior,
@@ -162,13 +185,18 @@ export function shapeController(
     | "onDeactivate"
   >
 > {
-  const poly = polylineController({ minPoints: 3, closed: true, commit })
+  const poly = polylineController({ minPoints: 3, closed: true, commit, preview })
   let start: Vec2 | null = null
   let current: Vec2 | null = null
   const shapeOf = (ctx: ToolCtx) => (ctx.params.shape as Shape | null) ?? "rectangle"
   const show = (ctx: ToolCtx) => {
     if (!start || !current) return setDraft([])
-    setDraft([{ kind: "polygon", points: shapePolygon(shapeOf(ctx), start, current) }])
+    const polygon = shapePolygon(shapeOf(ctx), start, current)
+    const degenerate = Math.abs(start.x - current.x) < 1e-6 || Math.abs(start.y - current.y) < 1e-6
+    setDraft([
+      ...(degenerate ? [] : ghosts(ctx, polygon, 3, preview)),
+      { kind: "polygon", points: polygon },
+    ])
   }
   return {
     onPointerDown: (ctx, e) => {
@@ -299,8 +327,19 @@ export function editPointsController(
   const tools = new Set(toolIds)
   const editable = (ctx: ToolCtx) =>
     ctx.entities.filter((e) => tools.has(e.toolId) && e.points && e.points.length > 0)
-  const showHandles = (ctx: ToolCtx) =>
-    setDraft([{ kind: "handles", points: editable(ctx).flatMap((e) => e.points ?? []) }])
+  // The control line joining each entity's points (a path's raw edit points,
+  // before smoothing), then the draggable handles on top.
+  const showHandles = (ctx: ToolCtx) => {
+    const entities = editable(ctx)
+    setDraft([
+      ...entities.map((e) => ({
+        kind: "polyline" as const,
+        points: e.points ?? [],
+        closed: !!e.closed,
+      })),
+      { kind: "handles", points: entities.flatMap((e) => e.points ?? []) },
+    ])
+  }
   return {
     show: showHandles,
     onPointerDown: (ctx, e) => {

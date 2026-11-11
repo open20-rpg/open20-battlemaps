@@ -153,8 +153,19 @@ export function textSize(entity: MapEntity): { w: number; h: number } {
 }
 
 /** On-map footprint size of a sprite-like entity (object/portal/light/text), in tiles. */
+/** A light's radius in tiles (its Range param). */
+export function lightRange(entity: MapEntity): number {
+  return typeof entity.params.range === "number" ? entity.params.range : 5
+}
+
+/** Clicks pick a light only this close (tiles) to its center, not anywhere it shines. */
+const LIGHT_PICK_RADIUS = 0.35
+
 export function spriteSize(entity: MapEntity, sizeOf: AssetSizeOf): { w: number; h: number } {
   if (entity.toolId === "text") return textSize(entity)
+  // A light's footprint is its reach: the selection box (and its handles)
+  // frames the area it lights.
+  if (entity.toolId === "light") return { w: lightRange(entity) * 2, h: lightRange(entity) * 2 }
   const id = entityAssetId(entity)
   const base = (id && sizeOf(id)) || { w: 1, h: 1 }
   const s = entity.scale ?? 1
@@ -176,6 +187,14 @@ function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
 export function lineHalfWidth(entity: MapEntity): number {
   const width = entity.params.width
   return typeof width === "number" ? width / 2 : 0.15
+}
+
+/**
+ * Whether an entity can be picked/selected. A painted entity with no strokes
+ * (Terrain's Fill: a map-wide base texture) has no shape of its own.
+ */
+export function isSelectable(entity: MapEntity): boolean {
+  return !(entity.strokes && entity.strokes.length === 0 && !entity.points)
 }
 
 /** Axis-aligned bounds of an entity, for selection boxes and rubber-band selection. */
@@ -213,6 +232,7 @@ export function entityHit(
     if (area && pointInPolygon(p, entity.points)) return true
     return distToPolyline(p, entity.points, entity.closed) <= lineHalfWidth(entity) + tolerance
   }
+  if (entity.toolId === "light") return dist(p, entity.position) <= LIGHT_PICK_RADIUS
   return pointInPolygon(p, spriteCorners(entity, sizeOf))
 }
 
@@ -372,55 +392,6 @@ export function wallRuns(
   return runs.map((r) => ({ points: r, closed: false }))
 }
 
-/** Longest miter, in half-widths, before a very sharp corner is clamped. */
-const MITER_LIMIT = 4
-
-/**
- * Left/right outline vertices of a strip of `width` along `points`, with
- * mitered joins (clamped at sharp angles) — the geometry of a wall run.
- * Returned per input point (closed runs join the last point to the first).
- */
-export function stripOutline(
-  points: readonly Vec2[],
-  closed: boolean,
-  width: number,
-): { left: Vec2; right: Vec2 }[] {
-  const n = points.length
-  const half = width / 2
-  const dirOf = (a: Vec2, b: Vec2): Vec2 => {
-    const len = dist(a, b) || 1
-    return { x: (b.x - a.x) / len, y: (b.y - a.y) / len }
-  }
-  return points.map((p, i) => {
-    const prev = i > 0 ? points[i - 1] : closed ? points[n - 1] : undefined
-    const next = i < n - 1 ? points[i + 1] : closed ? points[0] : undefined
-    const dIn = prev ? dirOf(prev, p) : undefined
-    const dOut = next ? dirOf(p, next) : undefined
-    const d1 = dIn ?? dOut ?? { x: 1, y: 0 }
-    const d2 = dOut ?? dIn ?? { x: 1, y: 0 }
-    // Normals (rotate 90°), averaged into the miter direction.
-    const n1 = { x: -d1.y, y: d1.x }
-    const n2 = { x: -d2.y, y: d2.x }
-    let mx = n1.x + n2.x
-    let my = n1.y + n2.y
-    const mlen = Math.hypot(mx, my)
-    if (mlen < 1e-9) {
-      // A full U-turn: no miter exists; use the incoming normal.
-      mx = n1.x
-      my = n1.y
-    } else {
-      mx /= mlen
-      my /= mlen
-    }
-    const cos = mx * n1.x + my * n1.y
-    const len = Math.min(half / Math.max(cos, 1e-6), half * MITER_LIMIT)
-    return {
-      left: { x: p.x + mx * len, y: p.y + my * len },
-      right: { x: p.x - mx * len, y: p.y - my * len },
-    }
-  })
-}
-
 /** Union of the entities' bounds (selection box), or null for none. */
 export function selectionBounds(entities: readonly MapEntity[], sizeOf: AssetSizeOf): Rect | null {
   if (entities.length === 0) return null
@@ -437,15 +408,84 @@ export function selectionBounds(entities: readonly MapEntity[], sizeOf: AssetSiz
 /** Screen px between the selection box's top edge and its rotate handle. */
 const ROTATE_HANDLE_GAP_PX = 24
 
+/** A resize handle: where it sits, the point that stays fixed, and which axes it scales. */
+export interface ScaleHandle {
+  at: Vec2
+  anchor: Vec2
+  axis: "both" | "x" | "y"
+}
+
+/** Whether a selection can be stretched on one axis (sprites only scale uniformly). */
+export function isStretchable(entities: readonly MapEntity[]): boolean {
+  return entities.some((e) => !!e.points || !!e.strokes)
+}
+
 /**
- * Where the selection's transform handles sit: the box corners (uniform
- * scale) and a rotate handle above the box's top-center. `tile` is the size
- * of one screen pixel in tiles, so the gap stays constant on screen.
+ * The selection's transform handles: corners (uniform scale anchored at the
+ * opposite corner), edge midpoints when `stretchable` (one-axis stretch
+ * anchored at the opposite edge), and a rotate handle above the box's
+ * top-center. `pxInTiles` is one screen pixel in tiles, so the rotate
+ * handle's gap stays constant on screen.
  */
-export function transformHandles(box: Rect, pxInTiles: number): { corners: Vec2[]; rotate: Vec2 } {
+export function transformHandles(
+  box: Rect,
+  pxInTiles: number,
+  stretchable = false,
+): { scale: ScaleHandle[]; rotate: Vec2 } {
+  const x0 = box.x
+  const x1 = box.x + box.w
+  const y0 = box.y
+  const y1 = box.y + box.h
+  const cx = (x0 + x1) / 2
+  const cy = (y0 + y1) / 2
+  const corners = rectPolygon({ x: x0, y: y0 }, { x: x1, y: y1 })
+  const scale: ScaleHandle[] = corners.map((at, i) => ({
+    at,
+    anchor: corners[(i + 2) % 4],
+    axis: "both" as const,
+  }))
+  if (stretchable) {
+    scale.push(
+      { at: { x: cx, y: y0 }, anchor: { x: cx, y: y1 }, axis: "y" },
+      { at: { x: cx, y: y1 }, anchor: { x: cx, y: y0 }, axis: "y" },
+      { at: { x: x0, y: cy }, anchor: { x: x1, y: cy }, axis: "x" },
+      { at: { x: x1, y: cy }, anchor: { x: x0, y: cy }, axis: "x" },
+    )
+  }
+  return { scale, rotate: { x: cx, y: y0 - ROTATE_HANDLE_GAP_PX * pxInTiles } }
+}
+
+/**
+ * Scale an entity away from a fixed `anchor` by `sx`/`sy` (map axes). Every
+ * coordinate moves; sprite-like entities grow only on a uniform scale
+ * (`sx === sy`) since they can't stretch on one axis; brush strokes widen by
+ * the smaller factor.
+ */
+export function scaleEntity(entity: MapEntity, anchor: Vec2, sx: number, sy: number): MapEntity {
+  const move = (p: Vec2): Vec2 => ({
+    x: anchor.x + (p.x - anchor.x) * sx,
+    y: anchor.y + (p.y - anchor.y) * sy,
+  })
+  const sprite = !entity.points && !entity.strokes
+  // A light's size is its Range, not a sprite scale.
+  if (entity.toolId === "light") {
+    const factor = sx === sy ? sx : 1
+    return {
+      ...entity,
+      position: move(entity.position),
+      params: { ...entity.params, range: lightRange(entity) * factor },
+    }
+  }
   return {
-    corners: rectPolygon({ x: box.x, y: box.y }, { x: box.x + box.w, y: box.y + box.h }),
-    rotate: { x: box.x + box.w / 2, y: box.y - ROTATE_HANDLE_GAP_PX * pxInTiles },
+    ...entity,
+    position: move(entity.position),
+    scale: sprite && sx === sy ? (entity.scale ?? 1) * sx : entity.scale,
+    points: entity.points?.map(move),
+    strokes: entity.strokes?.map((s) => ({
+      ...s,
+      radius: s.radius * Math.min(sx, sy),
+      points: s.points.map(move),
+    })),
   }
 }
 
@@ -484,4 +524,31 @@ export function transformEntity(
 export function normalizeDegrees(deg: number): number {
   const d = ((((deg + 180) % 360) + 360) % 360) - 180
   return d === -180 ? 180 : d
+}
+
+/**
+ * Subdivide a polyline so no segment is longer than `maxStep` (tiles), so
+ * per-vertex effects along it (path tapers and fades) change gradually.
+ */
+export function resamplePolyline(points: readonly Vec2[], maxStep: number): Vec2[] {
+  if (points.length < 2) return [...points]
+  const out: Vec2[] = [points[0]]
+  for (let i = 0; i + 1 < points.length; i++) {
+    const a = points[i]
+    const b = points[i + 1]
+    const steps = Math.max(1, Math.ceil(dist(a, b) / maxStep))
+    for (let k = 1; k <= steps; k++) {
+      out.push({ x: a.x + ((b.x - a.x) * k) / steps, y: a.y + ((b.y - a.y) * k) / steps })
+    }
+  }
+  return out
+}
+
+/** Fraction (0..1) of the polyline's length at each point. */
+export function lengthFractions(points: readonly Vec2[]): number[] {
+  const cumulative = [0]
+  for (let i = 1; i < points.length; i++)
+    cumulative.push(cumulative[i - 1] + dist(points[i - 1], points[i]))
+  const total = cumulative[cumulative.length - 1] || 1
+  return cumulative.map((c) => c / total)
 }

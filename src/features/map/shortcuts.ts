@@ -1,7 +1,7 @@
 import { useEditorStore } from "../../stores/editorStore"
 import { useMapStore } from "../../stores/mapStore"
 import { addEntities, redo, removeEntities, undo } from "./commands"
-import { newId, translateEntity } from "./model/geometry"
+import { isSelectable, newId, translateEntity } from "./model/geometry"
 
 /** Pasted copies land offset by this much (tiles) so they don't hide the originals. */
 const PASTE_OFFSET = 1
@@ -52,8 +52,13 @@ export function runShortcut(e: KeyboardEvent): boolean {
     copySelection()
     deleteSelection()
   } else if (mod && key === "v") pasteClipboard()
-  else if (mod && key === "a") useEditorStore.getState().select(levelEntities().map((x) => x.id))
-  else if (!mod && (e.key === "Delete" || e.key === "Backspace")) deleteSelection()
+  else if (mod && key === "a") {
+    useEditorStore.getState().select(
+      levelEntities()
+        .filter(isSelectable)
+        .map((x) => x.id),
+    )
+  } else if (!mod && (e.key === "Delete" || e.key === "Backspace")) deleteSelection()
   else if (e.key === "Escape") useEditorStore.getState().select([])
   else return false
   return true

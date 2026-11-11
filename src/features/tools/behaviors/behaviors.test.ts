@@ -123,6 +123,28 @@ describe("walls, build, portals", () => {
     expect(useEditorStore.getState().draft).toEqual([])
   })
 
+  it("previews the real wall and room while they're being drawn", () => {
+    useToolsStore.getState().selectToolById("wall")
+    down("wall", 0, 0)
+    move("wall", 3, 0, { buttons: 0 })
+    const ghosts = () =>
+      useEditorStore.getState().draft.flatMap((d) => (d.kind === "ghost" ? [d.entity] : []))
+    expect(ghosts().map((e) => e.toolId)).toEqual(["wall"])
+    expect(ghosts()[0].points).toEqual([
+      { x: 0, y: 0 },
+      { x: 3, y: 0 },
+    ])
+    act("wall", (b, c) => b.onKeyDown?.(c, { key: "Escape" } as KeyboardEvent))
+    useToolsStore.getState().selectToolById("build")
+    down("build", 1, 1)
+    move("build", 4, 3)
+    expect(ghosts().map((e) => e.toolId)).toEqual(["build", "wall"])
+    up("build", 4, 3)
+    expect(ghosts()).toEqual([])
+    // The preview never touched the document: only the committed room exists.
+    expect(entities().map((e) => e.toolId)).toEqual(["build", "wall"])
+  })
+
   it("Escape cancels an unfinished wall", () => {
     useToolsStore.getState().selectToolById("wall")
     down("wall", 0, 0)
@@ -151,6 +173,9 @@ describe("walls, build, portals", () => {
     down("wall", 4, 0)
     dbl("wall", 4, 0)
     setParams("wall", { editPoints: true })
+    act("wall", (b, c) => b.onActivate?.(c))
+    // Edit mode shows the line joining the points under the handles.
+    expect(useEditorStore.getState().draft.map((d) => d.kind)).toEqual(["polyline", "handles"])
     down("wall", 4, 0)
     move("wall", 6, 2)
     up("wall", 6, 2)
@@ -330,29 +355,51 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()[1].position).toEqual({ x: 8, y: 8 })
   })
 
-  it("Select's corner handle scales and the top handle rotates (one undo step each)", () => {
+  it("Select's corner handle scales from the opposite corner; the top handle rotates", () => {
     useViewStore.setState({ zoom: 100 })
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
     down("object", 5, 5)
     useToolsStore.getState().selectToolById("select")
     useEditorStore.getState().select([entities()[0].id])
-    // Corner (5.5, 5.5) dragged twice as far from the center → scale ×2.
+    // Box 4.5..5.5: drag the (5.5, 5.5) corner to (6.5, 6.5) → ×2, (4.5, 4.5) fixed.
     down("select", 5.5, 5.5)
-    move("select", 6, 6)
-    up("select", 6, 6)
+    move("select", 6.5, 6.5)
+    up("select", 6.5, 6.5)
     expect(entities()[0].scale).toBeCloseTo(2)
-    // Rotate handle sits 24 screen px (24/64 tiles at 100%) above the box top.
-    // The box is now 2×2 around (5,5): top at y=4.
-    down("select", 5, 4 - 24 / 64)
+    expect(entities()[0].position.x).toBeCloseTo(5.5)
+    expect(entities()[0].position.y).toBeCloseTo(5.5)
+    // Box is now 4.5..6.5; the rotate handle is 24 px (24/64 tiles) above its top.
+    down("select", 5.5, 4.5 - 24 / 64)
     // Pointer to screen-right of the center (map x decreases): +90° clockwise.
-    move("select", 3, 5)
-    up("select", 3, 5)
+    move("select", 3, 5.5)
+    up("select", 3, 5.5)
     expect(entities()[0].rotation).toBeCloseTo(90)
-    expect(entities()[0].position).toEqual({ x: 5, y: 5 })
     undo()
     expect(entities()[0].rotation).toBe(0)
     undo()
     expect(entities()[0].scale ?? 1).toBe(1)
+    expect(entities()[0].position).toEqual({ x: 5, y: 5 })
+  })
+
+  it("an edge handle stretches a wall on one axis, keeping the opposite edge", () => {
+    useViewStore.setState({ zoom: 100 })
+    useToolsStore.getState().selectToolById("wall")
+    down("wall", 2, 2)
+    down("wall", 6, 2)
+    dbl("wall", 6, 2)
+    useToolsStore.getState().selectToolById("select")
+    useEditorStore.getState().select([entities()[0].id])
+    // The box includes the wall's thickness (0.15 each side): x 1.85..6.15,
+    // so the x-edge handle is at (6.15, 2) and the anchor at x = 1.85.
+    down("select", 6.15, 2)
+    move("select", 8.15, 2)
+    up("select", 8.15, 2)
+    const [a, b] = entities()[0].points ?? []
+    // The far end follows the pointer; the near end barely moves; y is untouched.
+    expect(b.x).toBeCloseTo(7.93, 1)
+    expect(a.x).toBeCloseTo(2.07, 1)
+    expect(a.y).toBe(2)
+    expect(b.y).toBe(2)
   })
 
   it("Shift snaps handle rotation to 15° steps", () => {

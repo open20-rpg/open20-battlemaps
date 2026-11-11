@@ -6,9 +6,13 @@ import {
   hitTest,
   rectFromCorners,
   rectsIntersect,
+  isSelectable,
+  isStretchable,
+  scaleEntity,
   selectionBounds,
   transformEntity,
   transformHandles,
+  type ScaleHandle,
 } from "../../map/model/geometry"
 import { screenAngle } from "./structures"
 import { screenTiles } from "./shared"
@@ -22,13 +26,12 @@ const ROTATE_STEP = 15
 const HANDLE_GRAB_PX = 9
 
 /** A scale/rotate drag of the selection's handles. */
-interface TransformDrag {
-  kind: "scale" | "rotate"
-  center: Vec2
-  start: Vec2
-  /** The selected entities as they were when the drag began. */
-  originals: MapEntity[]
-}
+type TransformDrag =
+  | { kind: "rotate"; center: Vec2; start: Vec2; originals: MapEntity[] }
+  | { kind: "scale"; handle: ScaleHandle; start: Vec2; originals: MapEntity[] }
+
+/** Smallest scale factor a drag can reach (no collapsing or flipping). */
+const MIN_FACTOR = 0.05
 
 /** Which transform handle (if any) is under `p` for the current selection. */
 export function handleAt(
@@ -38,48 +41,71 @@ export function handleAt(
 ): TransformDrag | null {
   const box = selectionBounds(selected, ctx.sizeOf)
   if (!box) return null
-  const h = transformHandles(box, screenTiles(1))
+  const h = transformHandles(box, screenTiles(1), isStretchable(selected))
   const grab = screenTiles(HANDLE_GRAB_PX)
-  const center = { x: box.x + box.w / 2, y: box.y + box.h / 2 }
-  const base = { center, start: { x: p.x, y: p.y }, originals: [...selected] }
-  if (dist(p, h.rotate) <= grab) return { kind: "rotate", ...base }
-  if (h.corners.some((c) => dist(p, c) <= grab)) return { kind: "scale", ...base }
-  return null
+  const start = { x: p.x, y: p.y }
+  const originals = [...selected]
+  if (dist(p, h.rotate) <= grab) {
+    const center = { x: box.x + box.w / 2, y: box.y + box.h / 2 }
+    return { kind: "rotate", center, start, originals }
+  }
+  const handle = h.scale.find((s) => dist(p, s.at) <= grab)
+  return handle ? { kind: "scale", handle, start: handle.at, originals } : null
 }
 
-/** Apply a handle drag at pointer `p` (Shift snaps rotation), from the drag's originals. */
+/** Scale factor along one axis: how far the pointer is from the anchor vs. where the handle began. */
+const axisFactor = (p: number, start: number, anchor: number) =>
+  start === anchor ? 1 : Math.min(10, Math.max(MIN_FACTOR, (p - anchor) / (start - anchor)))
+
+/**
+ * Apply a handle drag at pointer `p`, from the drag's originals. Rotation
+ * turns around the selection's center (Shift snaps to 15°); scaling keeps
+ * the opposite corner/edge fixed, so the selection grows toward the pointer.
+ */
 export function applyTransformDrag(
   drag: TransformDrag,
   p: Vec2,
   snap: boolean,
 ): Map<string, MapEntity> {
-  let degrees = 0
-  let factor = 1
   if (drag.kind === "rotate") {
     const from = screenAngle({ x: drag.start.x - drag.center.x, y: drag.start.y - drag.center.y })
     const to = screenAngle({ x: p.x - drag.center.x, y: p.y - drag.center.y })
-    degrees = to - from
+    let degrees = to - from
     if (snap) degrees = Math.round(degrees / ROTATE_STEP) * ROTATE_STEP
-  } else {
-    const d0 = dist(drag.start, drag.center)
-    factor = d0 > 0 ? Math.min(10, Math.max(0.1, dist(p, drag.center) / d0)) : 1
+    return new Map(drag.originals.map((e) => [e.id, transformEntity(e, drag.center, degrees, 1)]))
   }
-  return new Map(
-    drag.originals.map((e) => [e.id, transformEntity(e, drag.center, degrees, factor)]),
-  )
+  const { anchor, axis } = drag.handle
+  let sx = 1
+  let sy = 1
+  if (axis === "both") {
+    // Corners scale uniformly: project the pointer on the anchor→corner diagonal.
+    const d = { x: drag.start.x - anchor.x, y: drag.start.y - anchor.y }
+    const len2 = d.x * d.x + d.y * d.y
+    const t = len2 > 0 ? ((p.x - anchor.x) * d.x + (p.y - anchor.y) * d.y) / len2 : 1
+    sx = sy = Math.min(10, Math.max(MIN_FACTOR, t))
+  } else if (axis === "x") {
+    sx = axisFactor(p.x, drag.start.x, anchor.x)
+  } else {
+    sy = axisFactor(p.y, drag.start.y, anchor.y)
+  }
+  return new Map(drag.originals.map((e) => [e.id, scaleEntity(e, anchor, sx, sy)]))
 }
 
 /** Entities whose bounds intersect the rubber band. */
 export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
   const band = rectFromCorners(a, b)
-  return ctx.entities.filter((e) => rectsIntersect(entityBounds(e, ctx.sizeOf), band))
+  return ctx.entities.filter(
+    (e) => isSelectable(e) && rectsIntersect(entityBounds(e, ctx.sizeOf), band),
+  )
 }
 
 /**
  * Select: click picks the topmost entity (Shift adds/toggles), dragging a
  * selected entity moves the selection (one undo step), dragging empty space
- * rubber-band selects. The selection box's corner handles scale it and the
- * top handle rotates it (Shift snaps to 15°), around its center. `[`/`]`
+ * rubber-band selects. The selection box's corner handles scale it uniformly
+ * and its edge handles (selections with walls, paths, areas…) stretch it,
+ * keeping the opposite corner/edge fixed; the top handle rotates it around
+ * its center (Shift snaps to 15°). `[`/`]`
  * rotate the selection too; Delete/Ctrl+C/V/X are the global shortcuts.
  */
 export function createSelectBehavior(): ToolBehavior {

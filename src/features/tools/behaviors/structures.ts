@@ -71,62 +71,89 @@ export function wallEntity(
   })
 }
 
+/**
+ * Each tool builds its entities in one place, used both to commit the shape
+ * and to preview it (drawn by the real renderers) while it's being drawn.
+ */
+const wallEntities = (ctx: ToolCtx, points: Vec2[]) => [
+  wallEntity(ctx, points, false, selection(ctx.params.wall)),
+]
+
 /** Wall: click out a wall run (double-click/Enter/right-click to finish). */
 export function createWallBehavior(): ToolBehavior {
   return withEditPoints(
     polylineController({
       minPoints: 2,
       closed: false,
-      commit: (ctx, points) =>
-        addEntities([wallEntity(ctx, points, false, selection(ctx.params.wall))], under(ctx)),
+      preview: wallEntities,
+      commit: (ctx, points) => addEntities(wallEntities(ctx, points), under(ctx)),
     }),
     ["wall"],
   )
 }
 
+/** A room: the floor polygon plus the wall around it. */
+const buildEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
+  makeEntity(ctx, {
+    toolId: "build",
+    layer: LAYER.floor,
+    points: polygon,
+    closed: true,
+    position: polygon[0],
+    params: {
+      floor: selection(ctx.params.floor),
+      bevelCorners: ctx.params.bevelCorners !== false,
+    },
+  }),
+  wallEntity(ctx, polygon, true, selection(ctx.params.wall)),
+]
+
 /** Build: a room — a floor polygon plus the wall around it, in one undo step. */
 export function createBuildBehavior(): ToolBehavior {
   return withEditPoints(
-    shapeController((ctx, polygon) => {
-      const floor = makeEntity(ctx, {
-        toolId: "build",
-        layer: LAYER.floor,
-        points: polygon,
-        closed: true,
-        position: polygon[0],
-        params: {
-          floor: selection(ctx.params.floor),
-          bevelCorners: ctx.params.bevelCorners !== false,
-        },
-      })
-      addEntities([floor, wallEntity(ctx, polygon, true, selection(ctx.params.wall))])
-    }),
+    shapeController((ctx, polygon) => addEntities(buildEntities(ctx, polygon)), buildEntities),
     ["build", "wall"],
   )
 }
 
+const patternEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
+  makeEntity(ctx, {
+    layer: paramNum(ctx.params.layer, 100),
+    points: polygon,
+    closed: true,
+    position: polygon[0],
+    params: {
+      pattern: selection(ctx.params.pattern),
+      customColor: ctx.params.customColor,
+      rotation: paramNum(ctx.params.rotation, 0),
+      outline: ctx.params.outline === true,
+    },
+  }),
+]
+
 /** Pattern: a polygon filled with a tiling texture, tinted by Color. */
 export function createPatternBehavior(): ToolBehavior {
   return withEditPoints(
-    shapeController((ctx, polygon) => {
-      addEntities([
-        makeEntity(ctx, {
-          layer: paramNum(ctx.params.layer, 100),
-          points: polygon,
-          closed: true,
-          position: polygon[0],
-          params: {
-            pattern: selection(ctx.params.pattern),
-            customColor: ctx.params.customColor,
-            rotation: paramNum(ctx.params.rotation, 0),
-            outline: ctx.params.outline === true,
-          },
-        }),
-      ])
-    }),
+    shapeController((ctx, polygon) => addEntities(patternEntities(ctx, polygon)), patternEntities),
     ["pattern"],
   )
 }
+
+const pathEntities = (ctx: ToolCtx, points: Vec2[]) => [
+  makeEntity(ctx, {
+    layer: paramNum(ctx.params.layer, 100),
+    points,
+    position: points[0],
+    params: {
+      asset: ctx.libraryAssets[0] ?? "",
+      width: paramNum(ctx.params.width, 1),
+      smoothness: paramNum(ctx.params.smoothness, 1),
+      blockLight: ctx.params.blockLight === true,
+      transitionIn: ctx.params.transitionIn,
+      transitionOut: ctx.params.transitionOut,
+    },
+  }),
+]
 
 /** Path: click out a textured path using the asset picked in the Library. */
 export function createPathBehavior(): ToolBehavior {
@@ -135,26 +162,8 @@ export function createPathBehavior(): ToolBehavior {
       minPoints: 2,
       closed: false,
       step: 0.5,
-      commit: (ctx, points) => {
-        addEntities(
-          [
-            makeEntity(ctx, {
-              layer: paramNum(ctx.params.layer, 100),
-              points,
-              position: points[0],
-              params: {
-                asset: ctx.libraryAssets[0] ?? "",
-                width: paramNum(ctx.params.width, 1),
-                smoothness: paramNum(ctx.params.smoothness, 1),
-                blockLight: ctx.params.blockLight === true,
-                transitionIn: ctx.params.transitionIn,
-                transitionOut: ctx.params.transitionOut,
-              },
-            }),
-          ],
-          under(ctx),
-        )
-      },
+      preview: pathEntities,
+      commit: (ctx, points) => addEntities(pathEntities(ctx, points), under(ctx)),
     }),
     ["path"],
   )
@@ -178,10 +187,10 @@ function roofEntity(ctx: ToolCtx, polygon: Vec2[]): MapEntity {
 
 /** Roof: Quickbox drags a rectangle; Manual clicks out the outline. */
 export function createRoofBehavior(): ToolBehavior {
-  const commit = (ctx: ToolCtx, polygon: Vec2[]) =>
-    addEntities([roofEntity(ctx, polygon)], under(ctx))
-  const quick = shapeController(commit)
-  const manual = polylineController({ minPoints: 3, closed: true, commit })
+  const preview = (ctx: ToolCtx, polygon: Vec2[]) => [roofEntity(ctx, polygon)]
+  const commit = (ctx: ToolCtx, polygon: Vec2[]) => addEntities(preview(ctx, polygon), under(ctx))
+  const quick = shapeController(commit, preview)
+  const manual = polylineController({ minPoints: 3, closed: true, commit, preview })
   const pick = (ctx: ToolCtx): ToolBehavior => (ctx.params.mode === "manual" ? manual : quick)
   return {
     onPointerDown: (ctx, e) => pick(ctx).onPointerDown?.(ctx, e),

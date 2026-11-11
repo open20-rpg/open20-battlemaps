@@ -10,7 +10,15 @@ import {
   TilingSprite,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
-import { boundsOf, dist, stripOutline, sub, wallRuns, type WallOpening } from "../model/geometry"
+import {
+  boundsOf,
+  lengthFractions,
+  resamplePolyline,
+  sub,
+  wallRuns,
+  type WallOpening,
+} from "../model/geometry"
+import { stripTriangles, type StripTriangle } from "./stripGeometry"
 import { type MapEntity, type Vec2 } from "../model/types"
 import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
 import { lightFalloffTexture } from "./generated"
@@ -122,80 +130,61 @@ export function smoothPolyline(points: Vec2[], iterations: number): Vec2[] {
 }
 
 /**
- * A strip of `width` tiles along a polyline (walls, paths) with mitered
- * corners. Textured strips run the texture along the line, repeating it at
- * its own aspect ratio (one repeat = width × texture aspect), so it's never
- * stretched; untextured ones fill the outline with `color`.
+ * A strip along a polyline (walls, paths): see stripGeometry.ts for how
+ * corners keep the texture continuous. Textured strips repeat the texture at
+ * its own aspect ratio (one repeat = `width` × texture aspect), so it's never
+ * stretched; untextured ones fill with `color`. Per-point `widths`/`alphas`
+ * drive path tapers and fades (triangles are grouped by opacity, one mesh
+ * per group).
  */
 export function strip(
   points: Vec2[],
   closed: boolean,
-  width: number,
+  width: number | readonly number[],
   texture: Texture | undefined,
   color: number,
   /** Tint over the texture/color (e.g. black for a shadow). */
   tint?: number,
+  alphas?: readonly number[],
 ): Container {
   const root = new Container()
-  if (points.length < 2) return root
-  const outline = stripOutline(points, closed, width)
-  // A closed strip repeats its first point at the end so the texture wraps.
-  const centers = closed ? [...points, points[0]] : points
-  const sides = closed ? [...outline, outline[0]] : outline
-  if (!texture) {
-    const ring = [...sides.map((s) => s.left), ...sides.map((s) => s.right).reverse()]
-    root.addChild(
-      new Graphics()
-        .poly(
-          ring.flatMap((p) => [-p.x, p.y]),
-          true,
-        )
-        .fill({ color: tint ?? color }),
-    )
-    return root
+  const tris = stripTriangles(points, closed, width, alphas)
+  if (tris.length === 0) return root
+  const groups = new Map<number, StripTriangle[]>()
+  for (const t of tris) {
+    const key = Math.round(t.alpha * 20) / 20
+    if (key <= 0) continue
+    groups.set(key, [...(groups.get(key) ?? []), t])
   }
-  texture.source.style.addressMode = "repeat"
-  const repeat = width * (texture.width / texture.height)
-  const positions: number[] = []
-  const uvs: number[] = []
-  const indices: number[] = []
-  // One quad per segment (corner vertices shared in position, not in UV):
-  // each vertex's u is its projection on that segment's direction, so the
-  // texture runs straight along every segment and only the miter seam is
-  // diagonal — a shared u at a mitered corner would skew the whole side.
-  let along = 0
-  for (let k = 0; k + 1 < centers.length; k++) {
-    const c0 = centers[k]
-    const c1 = centers[k + 1]
-    const len = dist(c0, c1)
-    if (len === 0) continue
-    const d = { x: (c1.x - c0.x) / len, y: (c1.y - c0.y) / len }
-    const u = (v: Vec2) => (along + (v.x - c0.x) * d.x + (v.y - c0.y) * d.y) / repeat
-    const base = positions.length / 2
-    for (const v of [sides[k].left, sides[k].right, sides[k + 1].left, sides[k + 1].right]) {
-      positions.push(-v.x, v.y)
+  const baseWidth = typeof width === "number" ? width : Math.max(...width)
+  if (texture) texture.source.style.addressMode = "repeat"
+  const repeat = texture ? baseWidth * (texture.width / texture.height) : 1
+  for (const [alpha, group] of groups) {
+    if (!texture) {
+      const g = new Graphics()
+      for (const t of group) g.poly([-t.a.x, t.a.y, -t.b.x, t.b.y, -t.c.x, t.c.y], true)
+      g.fill({ color: tint ?? color, alpha })
+      root.addChild(g)
+      continue
     }
-    uvs.push(
-      u(sides[k].left),
-      0,
-      u(sides[k].right),
-      1,
-      u(sides[k + 1].left),
-      0,
-      u(sides[k + 1].right),
-      1,
-    )
-    indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2)
-    along += len
+    const positions: number[] = []
+    const uvs: number[] = []
+    for (const t of group) {
+      for (const v of [t.a, t.b, t.c]) {
+        positions.push(-v.x, v.y)
+        uvs.push(v.u / repeat, v.v)
+      }
+    }
+    const geometry = new MeshGeometry({
+      positions: new Float32Array(positions),
+      uvs: new Float32Array(uvs),
+      indices: Uint32Array.from({ length: positions.length / 2 }, (_, k) => k),
+    })
+    const mesh = new Mesh({ geometry, texture })
+    mesh.alpha = alpha
+    if (tint !== undefined) mesh.tint = tint
+    root.addChild(mesh)
   }
-  const geometry = new MeshGeometry({
-    positions: new Float32Array(positions),
-    uvs: new Float32Array(uvs),
-    indices: new Uint32Array(indices),
-  })
-  const mesh = new Mesh({ geometry, texture })
-  if (tint !== undefined) mesh.tint = tint
-  root.addChild(mesh)
   return root
 }
 
@@ -256,11 +245,33 @@ const wallRenderer: EntityRenderer = (e, env) => {
   return root
 }
 
+/** Fraction of a path's length its in/out transitions span. */
+const PATH_TRANSITION = 0.1
+
+/** A transition's ramp (0 at the path's end, 1 once `PATH_TRANSITION` in). */
+const ramp = (t: number) => Math.min(1, Math.max(0, t / PATH_TRANSITION))
+
+/**
+ * Paths: the edit points smoothed (Smoothness), resampled so tapers and
+ * fades are gradual, then drawn as a strip. Transitions follow Dungeondraft:
+ * "fade" ramps opacity and "growth" ramps width over the first/last 10%.
+ */
 const pathRenderer: EntityRenderer = (e, env) => {
   const texture = env.tex(str(e.params.asset, ""))
   const smooth = Math.round(num(e.params.smoothness, 0) * 3)
-  const pts = smoothPolyline(e.points ?? [], smooth)
-  return strip(pts, false, num(e.params.width, 1), texture, 0x7a6a52)
+  const pts = resamplePolyline(smoothPolyline(e.points ?? [], smooth), 0.2)
+  const t = lengthFractions(pts)
+  const width = num(e.params.width, 1)
+  const tIn = e.params.transitionIn
+  const tOut = e.params.transitionOut
+  const widths = t.map(
+    (f) =>
+      width *
+      Math.max(0.02, tIn === "growth" ? ramp(f) : 1) *
+      Math.max(0.02, tOut === "growth" ? ramp(1 - f) : 1),
+  )
+  const alphas = t.map((f) => (tIn === "fade" ? ramp(f) : 1) * (tOut === "fade" ? ramp(1 - f) : 1))
+  return strip(pts, false, widths, texture, 0x7a6a52, undefined, alphas)
 }
 
 /**
@@ -463,6 +474,7 @@ const lightRenderer: EntityRenderer = (e, env) => {
   const glow = new Sprite(env.tex(id) ?? lightFalloffTexture())
   glow.anchor.set(0.5)
   glow.position.copyFrom(toContent(e.position))
+  glow.rotation = rad(e.rotation)
   const range = num(e.params.range, 5)
   glow.width = glow.height = range * 2
   glow.tint = hexToPixiColor(str(e.params.color, "#eccd8b")).color

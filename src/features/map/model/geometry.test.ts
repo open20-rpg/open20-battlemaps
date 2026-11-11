@@ -19,10 +19,13 @@ import {
   wallRuns,
   selectionBounds,
   transformHandles,
+  scaleEntity,
+  isStretchable,
+  isSelectable,
   transformEntity,
   normalizeDegrees,
-  stripOutline,
-  dist,
+  resamplePolyline,
+  lengthFractions,
 } from "./geometry"
 import { createDocument, normalizeDocument, type MapEntity } from "./types"
 
@@ -245,28 +248,6 @@ describe("wall runs & strip outline", () => {
     expect(runs[0].points[0]).toEqual({ x: 1.5, y: 4 })
     expect(runs[0].points[runs[0].points.length - 1]).toEqual({ x: 2.5, y: 4 })
   })
-
-  it("miters corners so both sides meet", () => {
-    const out = stripOutline(L, false, 0.5)
-    // Straight ends: offset by half the width.
-    expect(out[0].left.y).toBeCloseTo(0.25)
-    expect(out[0].right.y).toBeCloseTo(-0.25)
-    // The 90° corner's miter reaches the outer corner diagonally.
-    expect(out[1].left.x).toBeCloseTo(3.75)
-    expect(out[1].left.y).toBeCloseTo(0.25)
-    expect(out[1].right.x).toBeCloseTo(4.25)
-    expect(out[1].right.y).toBeCloseTo(-0.25)
-  })
-
-  it("clamps the miter of very sharp corners", () => {
-    const sharp = [
-      { x: 0, y: 0 },
-      { x: 10, y: 0 },
-      { x: 0, y: 0.1 },
-    ]
-    const out = stripOutline(sharp, false, 1)
-    expect(dist(out[1].left, sharp[1])).toBeLessThanOrEqual(2 + 1e-9)
-  })
 })
 
 describe("wall picking", () => {
@@ -296,13 +277,46 @@ describe("wall picking", () => {
 })
 
 describe("transform handles", () => {
-  it("bounds a selection and places corner/rotate handles", () => {
+  it("bounds a selection and places scale/rotate handles anchored on the opposite side", () => {
     const box = selectionBounds([obj("a", 0, 0), obj("b", 4, 2)], noSize)
     expect(box).toEqual({ x: -0.5, y: -0.5, w: 5, h: 3 })
     const h = transformHandles(box!, 0.01)
-    expect(h.corners).toHaveLength(4)
+    expect(h.scale).toHaveLength(4)
+    expect(h.scale[0]).toEqual({
+      at: { x: -0.5, y: -0.5 },
+      anchor: { x: 4.5, y: 2.5 },
+      axis: "both",
+    })
     expect(h.rotate).toEqual({ x: 2, y: -0.74 })
+    const stretch = transformHandles(box!, 0.01, true)
+    expect(stretch.scale).toHaveLength(8)
+    expect(stretch.scale.find((s) => s.axis === "x" && s.at.x === -0.5)?.anchor).toEqual({
+      x: 4.5,
+      y: 1,
+    })
     expect(selectionBounds([], noSize)).toBeNull()
+  })
+
+  it("scales away from a fixed anchor (one axis stretches only points)", () => {
+    const wall: MapEntity = {
+      ...obj("w", 0, 0),
+      points: [
+        { x: 0, y: 0 },
+        { x: 2, y: 1 },
+      ],
+    }
+    const t = scaleEntity(wall, { x: 0, y: 0 }, 2, 1)
+    expect(t.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 4, y: 1 },
+    ])
+    const chair = { ...obj("c", 2, 2), scale: 1 }
+    expect(scaleEntity(chair, { x: 0, y: 0 }, 2, 1).scale).toBe(1)
+    const grown = scaleEntity(chair, { x: 0, y: 0 }, 1.5, 1.5)
+    expect(grown.scale).toBe(1.5)
+    expect(grown.position).toEqual({ x: 3, y: 3 })
+    expect(isStretchable([chair])).toBe(false)
+    expect(isStretchable([chair, wall])).toBe(true)
   })
 
   it("rotates and scales sprites around a center", () => {
@@ -334,5 +348,52 @@ describe("transform handles", () => {
     expect(normalizeDegrees(190)).toBe(-170)
     expect(normalizeDegrees(-180)).toBe(180)
     expect(normalizeDegrees(45)).toBe(45)
+  })
+})
+
+describe("selectability", () => {
+  it("excludes stroke-less painted entities (terrain fill)", () => {
+    expect(isSelectable({ ...obj("f", 0, 0), strokes: [] })).toBe(false)
+    expect(
+      isSelectable({ ...obj("s", 0, 0), strokes: [{ points: [{ x: 0, y: 0 }], radius: 1 }] }),
+    ).toBe(true)
+    expect(isSelectable(obj("o", 0, 0))).toBe(true)
+  })
+})
+
+describe("lights", () => {
+  const light: MapEntity = { ...obj("l", 5, 5), toolId: "light", params: { range: 3 } }
+
+  it("frame their reach but are picked only near the center", () => {
+    expect(entityBounds(light, noSize)).toEqual({ x: 2, y: 2, w: 6, h: 6 })
+    expect(entityHit(light, { x: 5.2, y: 5 }, noSize)).toBe(true)
+    expect(entityHit(light, { x: 7, y: 5 }, noSize)).toBe(false)
+  })
+
+  it("scale by changing their range", () => {
+    const grown = scaleEntity(light, { x: 2, y: 2 }, 2, 2)
+    expect(grown.params.range).toBe(6)
+    expect(grown.position).toEqual({ x: 8, y: 8 })
+    expect(grown.scale).toBeUndefined()
+    expect(transformEntity(light, { x: 5, y: 5 }, 30, 1).rotation).toBe(30)
+  })
+})
+
+describe("polyline sampling", () => {
+  it("subdivides long segments and measures length fractions", () => {
+    const pts = resamplePolyline(
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ],
+      0.25,
+    )
+    expect(pts).toHaveLength(9)
+    expect(pts[4]).toEqual({ x: 1, y: 0 })
+    const f = lengthFractions(pts)
+    expect(f[0]).toBe(0)
+    expect(f[4]).toBeCloseTo(0.5)
+    expect(f[8]).toBe(1)
   })
 })
