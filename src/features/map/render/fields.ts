@@ -249,3 +249,46 @@ export function rampAt(stops: readonly { d: number; t: number }[], distance: num
   }
   return stops[stops.length - 1].t
 }
+
+/**
+ * Dungeondraft's cave vertex jitter: every point of the marching-squares
+ * mesh (corners and half-edge cuts, so indexed at half-cell steps) moves by
+ * a fixed pseudo-random offset of up to `max` cells in x and y — the same
+ * offset wherever that point appears, so shared vertices stay shared.
+ * Dungeondraft draws its table from .NET's Random(seed); this is our own
+ * stable hash, the same look rather than the same edges.
+ */
+export function caveJitter(p: Vec2, max = 0.2): Vec2 {
+  const ix = Math.round(p.x * 2)
+  const iy = Math.round(p.y * 2)
+  const hash = (n: number) => {
+    let h = Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(n, 2246822519)
+    h = Math.imul(h ^ (h >>> 13), 1274126177)
+    h ^= h >>> 16
+    return (h >>> 0) / 4294967295
+  }
+  return { x: p.x + (hash(1) * 2 - 1) * max, y: p.y + (hash(2) * 2 - 1) * max }
+}
+
+/** Whether `p` lies inside the closed polygon `poly` (even-odd). */
+function inside(p: Vec2, poly: readonly Vec2[]): boolean {
+  let hit = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]
+    const b = poly[j]
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) hit = !hit
+  }
+  return hit
+}
+
+/** Which loops are holes: those nested inside an odd number of the others. */
+export function holeLoops(loops: readonly Vec2[][]): boolean[] {
+  return loops.map((loop, i) => {
+    const p = loop[0]
+    let depth = 0
+    loops.forEach((other, j) => {
+      if (j !== i && inside(p, other)) depth++
+    })
+    return depth % 2 === 1
+  })
+}

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { distanceField, isoContours, rampAt, simplifyLoop, waterRamp } from "./fields"
+import {
+  caveJitter,
+  distanceField,
+  holeLoops,
+  isoContours,
+  rampAt,
+  simplifyLoop,
+  waterRamp,
+} from "./fields"
 
 /** A w × h mask with a filled rectangle [x0, x1) × [y0, y1). */
 function rect(w: number, h: number, x0: number, y0: number, x1: number, y1: number): Uint8Array {
@@ -58,5 +66,24 @@ describe("raster fields", () => {
       { d: 0, t: 0 },
       { d: 0.2, t: 1 },
     ])
+  })
+
+  it("jitters cave vertices stably, within ±0.2 cells", () => {
+    const p = { x: 3.5, y: 7 }
+    const a = caveJitter(p)
+    expect(caveJitter({ ...p })).toEqual(a)
+    expect(Math.abs(a.x - p.x)).toBeLessThanOrEqual(0.2)
+    expect(Math.abs(a.y - p.y)).toBeLessThanOrEqual(0.2)
+    expect(caveJitter({ x: 4, y: 7 })).not.toEqual(a)
+  })
+
+  it("tells holes from outlines by nesting", () => {
+    const sq = (o: number, s: number) => [
+      { x: o, y: o },
+      { x: o + s, y: o },
+      { x: o + s, y: o + s },
+      { x: o, y: o + s },
+    ]
+    expect(holeLoops([sq(0, 10), sq(3, 4), sq(20, 2)])).toEqual([false, true, false])
   })
 })

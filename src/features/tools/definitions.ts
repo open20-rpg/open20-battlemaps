@@ -327,8 +327,9 @@ export const TOOL_TREE: ToolNode[] = [
       tool("cave", "tools.cave", LuMountainSnow, {
         params: [
           brushSize(0.5, 2.5, 0.5, 1),
-          customColor("groundColor", "tools.groundColor"),
-          customColor("wallColor", "tools.wallColor"),
+          // Dungeondraft's defaults for both.
+          customColor("groundColor", "tools.groundColor", "#7f7e71"),
+          customColor("wallColor", "tools.wallColor", "#7f7e71"),
           segmented(
             "brushMode",
             "tools.brushMode",

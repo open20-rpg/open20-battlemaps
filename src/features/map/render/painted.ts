@@ -13,7 +13,15 @@ import { hexToPixiColor } from "../../../lib/colors"
 import { type BrushStroke, type MapEntity, type Vec2 } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
 import { lineMesh, type RenderEnv, selectionAsset } from "./entities"
-import { distanceField, isoContours, rampAt, simplifyLoop, waterRamp } from "./fields"
+import {
+  caveJitter,
+  distanceField,
+  holeLoops,
+  isoContours,
+  rampAt,
+  simplifyLoop,
+  waterRamp,
+} from "./fields"
 import { wallTriangles } from "./lineGeometry"
 import { WaterFilter } from "./waterFilter"
 import waterBorderUrl from "../../../assets/water/border.png"
@@ -67,8 +75,10 @@ class MapMask {
   constructor(
     private renderer: Renderer,
     private map: MapBox,
+    /** Px per tile (default: as fine as the map's size allows, maskResolution). */
+    res?: number,
   ) {
-    this.res = maskResolution(map)
+    this.res = res ?? maskResolution(map)
     this.rt = RenderTexture.create({ width: map.width * this.res, height: map.height * this.res })
   }
 
@@ -237,8 +247,10 @@ function shapesOf(entities: readonly MapEntity[], grow = 0): Graphics[] {
 const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback)
 const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v : fallback)
 
-/** Cave wall thickness in tiles (the rim drawn around dug floor). */
-const CAVE_WALL = 0.3
+/** Dungeondraft's cave cells: a quarter tile (64 px). */
+const CAVE_CELLS_PER_TILE = 4
+/** Cave ground and wall color when none is set (Dungeondraft's 7f7e71). */
+const CAVE_DEFAULT_COLOR = "#7f7e71"
 
 /** Bundle a composite's view with the masks it owns, freeing both together. */
 function composite(view: Container, masks: Iterable<MapMask>): Composite {
@@ -265,15 +277,49 @@ function caveComposite(
 ): Composite {
   const last = entities[entities.length - 1]
   const { id } = selectionAsset(last.params.style)
-  const ground = str(last.params.groundColor, "#6b3834")
-  const wallColor = str(last.params.wallColor, "#6b3834")
-  const floor = new MapMask(renderer, map)
-  floor.draw(shapesOf(entities), true)
-  // The rim is the dug area grown by the wall thickness (blasts shrink it).
-  const rim = new MapMask(renderer, map)
-  rim.draw(shapesOf(entities, CAVE_WALL), true)
+  const ground = str(last.params.groundColor, CAVE_DEFAULT_COLOR)
+  const wallColor = str(last.params.wallColor, CAVE_DEFAULT_COLOR)
+  const view = new Container()
 
-  // The map's building wear multiplies over the cave's ground and walls.
+  // Dungeondraft's cave bitmap: cells of a quarter tile, dug or not.
+  const grid = new MapMask(renderer, map, CAVE_CELLS_PER_TILE)
+  grid.draw(shapesOf(entities), true)
+  const { pixels, width: w, height: h } = renderer.extract.pixels({ target: grid.rt })
+  grid.destroy()
+  const field = new Float32Array(w * h)
+  for (let k = 0; k < w * h; k++) field[k] = pixels[k * 4 + 3] >= 128 ? 1 : 0
+  // Marching squares cut at half edges, every vertex jittered (caveJitter):
+  // the outline in cells, then in map space.
+  const loops = isoContours(field, w, h, 0.5).map((loop) =>
+    loop.map((p) => {
+      const q = caveJitter(p)
+      return { x: map.width - q.x / CAVE_CELLS_PER_TILE, y: q.y / CAVE_CELLS_PER_TILE }
+    }),
+  )
+  if (loops.length === 0) return composite(view, [])
+
+  // The floor: outlines filled, holes cut out.
+  const holes = holeLoops(loops)
+  const shape = (loop: Vec2[], hole: boolean) => {
+    const g = new Graphics()
+      .poly(
+        loop.flatMap((p) => [-p.x, p.y]),
+        true,
+      )
+      .fill({ color: 0xffffff })
+    if (hole) g.blendMode = "erase"
+    return g
+  }
+  const floor = new MapMask(renderer, map)
+  floor.draw(
+    [
+      ...loops.map((l, i) => (holes[i] ? null : shape(l, false))),
+      ...loops.map((l, i) => (holes[i] ? shape(l, true) : null)),
+    ].filter((g): g is Graphics => g !== null),
+    true,
+  )
+
+  // The map's building wear multiplies over the cave's floor (and walls).
   const wear = env.buildingWear()
   const worn = (fill: Container): Container => {
     if (!wear) return fill
@@ -281,17 +327,37 @@ function caveComposite(
     c.addChild(fill, wearOverlay(wear, -map.width, 0, map.width, map.height))
     return c
   }
-  const view = new Container()
-  view.addChild(
-    masked(
-      worn(textureOrColor(map, env.tex(id, { part: "wall", color: wallColor }), wallColor)),
-      rim.sprite(),
-    ),
-  )
-  view.addChild(
-    masked(worn(textureOrColor(map, env.tex(id, { color: ground }), ground)), floor.sprite()),
-  )
-  return composite(view, [floor, rim])
+  // The floor texture, 1:1 in px, multiplied by the ground color when the
+  // style is colorable (Dungeondraft's Cave shader); flat color without one.
+  const floorTex = env.tex(id)
+  const fill = textureOrColor(map, floorTex, ground)
+  if (floorTex && env.colorable(id)) fill.tint = hexToPixiColor(ground).color
+  view.addChild(masked(worn(fill), floor.sprite()))
+
+  // The walls: Dungeondraft's cave walls are wall lines along the outline —
+  // the style's wall texture as wide as it's tall, sharp corners, no
+  // normalize_uv or end caps — in the wall color, with the wear.
+  const wallTex = env.tex(id, { part: "wall" })
+  if (wallTex) {
+    const width = wallTex.height / TEXTURE_PX_PER_TILE
+    const tint = hexToPixiColor(wallColor).color
+    for (const loop of loops) {
+      const tris = wallTriangles(loop, true, width, { bevel: false, normalizeUv: false })
+      view.addChild(
+        lineMesh(tris, width * (wallTex.width / wallTex.height), wallTex, 0, tint, wear),
+      )
+    }
+  } else {
+    const g = new Graphics()
+    for (const loop of loops)
+      g.poly(
+        loop.flatMap((p) => [-p.x, p.y]),
+        true,
+      )
+    g.stroke({ width: 0.3, color: hexToPixiColor(wallColor).color, join: "miter" })
+    view.addChild(g)
+  }
+  return composite(view, [floor])
 }
 
 /** Border and ripple lines' widths, in tiles (their textures' heights at 256 px per tile). */
