@@ -123,7 +123,7 @@ fn collect(dir: &Path, out: &mut AssetDefs) {
             .as_deref()
             .and_then(parse_def)
         {
-            out.insert(rel, def);
+            out.insert(def_key(&rel), def);
         }
     }
 }
@@ -148,6 +148,24 @@ pub(crate) fn pack_asset_defs(app: &AppHandle, pack_id: &str) -> Arc<AssetDefs> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn collects_definition_files_and_finds_them_by_texture() {
+        // A real pack layout on disk: the path through collect() and def_for().
+        let root = std::env::temp_dir().join(format!("o20-defs-{}", std::process::id()));
+        let walls = root.join("data/walls");
+        fs::create_dir_all(&walls).unwrap();
+        fs::write(
+            walls.join("x.dungeondraft_wall"),
+            r#"{"path": "textures/walls/X.png", "color": "605f58"}"#,
+        )
+        .unwrap();
+        let mut defs = AssetDefs::new();
+        collect(&root.join("data"), &mut defs);
+        fs::remove_dir_all(&root).unwrap();
+        let found = def_for(&defs, "textures/walls/x.webp");
+        assert_eq!(found.default_color.as_deref(), Some("#605f58"));
+    }
 
     #[test]
     fn matches_definitions_across_extension_and_case() {
