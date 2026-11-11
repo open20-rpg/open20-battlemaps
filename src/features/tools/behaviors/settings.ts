@@ -1,6 +1,6 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog"
 import { useEditorStore } from "../../../stores/editorStore"
-import { useSettingsStore, type Prefab } from "../../../stores/settingsStore"
+import { useSettingsStore, type Prefab, type ShadowStyle } from "../../../stores/settingsStore"
 import { useToolsStore } from "../../../stores/toolsStore"
 import {
   addEntities,
@@ -168,5 +168,29 @@ export function createPrefabsBehavior(): ToolBehavior {
       action === "save" && useEditorStore.getState().selection.length === 0,
     onDeactivate: () => useEditorStore.getState().setDraft([]),
     cursor: () => "crosshair",
+  }
+}
+
+/**
+ * Shadows: how drop shadows look (softness, offset, opacity). An app setting,
+ * not part of the map; the tool's params mirror it.
+ */
+export function createShadowSettingsBehavior(): ToolBehavior {
+  const mirror = (toolId: string) =>
+    useToolsStore.getState().setToolParams(toolId, { ...useSettingsStore.getState().shadowStyle })
+  return {
+    onActivate: (ctx) => mirror(ctx.toolId),
+    onParamsChange: (_ctx, patch) => {
+      const next: Partial<ShadowStyle> = {}
+      for (const key of ["blur", "offsetX", "offsetY", "opacity"] as const) {
+        if (typeof patch[key] === "number") next[key] = patch[key]
+      }
+      if (Object.keys(next).length > 0) useSettingsStore.getState().setShadowStyle(next)
+    },
+    onAction: (ctx, action) => {
+      if (action !== "reset") return
+      useSettingsStore.getState().resetShadowStyle()
+      mirror(ctx.toolId)
+    },
   }
 }

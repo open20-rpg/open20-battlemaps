@@ -38,13 +38,7 @@
     "theme": "Theme: Dark (fixed)",
     "language": "Language",
     "panelOpacity": "Panel opacity",
-    "close": "Close",
-    "shadows": "Shadows",
-    "shadowBlur": "Softness (tiles)",
-    "shadowOffsetX": "Offset X (tiles)",
-    "shadowOffsetY": "Offset Y (tiles)",
-    "shadowOpacity": "Opacity",
-    "reset": "Reset"
+    "close": "Close"
   },
   "about": {
     "title": "About OpenDraft",
@@ -251,7 +245,13 @@
     "selectHint": "Select something on the map to view and edit its properties.",
     "selectedCount_one": "{{count}} item",
     "selectedCount_other": "{{count}} items",
-    "noProperties": "These items have no editable properties."
+    "noProperties": "These items have no editable properties.",
+    "shadowSettings": "Shadows",
+    "shadowBlur": "Softness (tiles)",
+    "shadowOffsetX": "Offset X (tiles)",
+    "shadowOffsetY": "Offset Y (tiles)",
+    "shadowOpacity": "Opacity",
+    "resetShadows": "Reset"
   },
   "biomes": {
     "barren": "Barren",

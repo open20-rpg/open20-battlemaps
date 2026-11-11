@@ -38,13 +38,7 @@
     "theme": "Tema: Oscuro (fijo)",
     "language": "Idioma",
     "panelOpacity": "Opacidad de paneles",
-    "close": "Cerrar",
-    "shadows": "Sombras",
-    "shadowBlur": "Suavizado (casillas)",
-    "shadowOffsetX": "Desplazamiento X (casillas)",
-    "shadowOffsetY": "Desplazamiento Y (casillas)",
-    "shadowOpacity": "Opacidad",
-    "reset": "Restablecer"
+    "close": "Cerrar"
   },
   "about": {
     "title": "Acerca de OpenDraft",
@@ -251,7 +245,13 @@
     "selectHint": "Seleccioná un elemento del mapa para ver y editar sus propiedades.",
     "selectedCount_one": "{{count}} elemento",
     "selectedCount_other": "{{count}} elementos",
-    "noProperties": "Estos elementos no tienen propiedades editables."
+    "noProperties": "Estos elementos no tienen propiedades editables.",
+    "shadowSettings": "Sombras",
+    "shadowBlur": "Suavizado (casillas)",
+    "shadowOffsetX": "Desplazamiento X (casillas)",
+    "shadowOffsetY": "Desplazamiento Y (casillas)",
+    "shadowOpacity": "Opacidad",
+    "resetShadows": "Restablecer"
   },
   "biomes": {
     "barren": "Yermo",

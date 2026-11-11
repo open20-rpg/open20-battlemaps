@@ -8,6 +8,7 @@ import {
   LuDoorOpen,
   LuDraftingCompass,
   LuDroplets,
+  LuEclipse,
   LuFlipHorizontal2,
   LuFlipVertical2,
   LuGrid3X3,
@@ -21,6 +22,7 @@ import {
   LuMountainSnow,
   LuMousePointer2,
   LuPaintBucket,
+  LuRotateCcw,
   LuRoute,
   LuSave,
   LuSettings2,
@@ -34,6 +36,7 @@ import {
 import { type AssetCategory } from "../../lib/categories"
 import { type Shortcut } from "../../lib/shortcuts"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
+import { DEFAULT_SHADOW_STYLE } from "../../stores/settingsStore"
 import {
   shapeVsEditPoints,
   type AssetRecolor,
@@ -528,6 +531,31 @@ export const TOOL_TREE: ToolNode[] = [
             "narrow",
           ),
           customColor("gridLineColor", "tools.gridLineColor", "#00000080"),
+        ],
+      }),
+      // How drop shadows look in OpenDraft (not part of Dungeondraft's format):
+      // app settings, mirrored by the tool's params (behaviors/settings.ts).
+      tool("shadowSettings", "tools.shadowSettings", LuEclipse, {
+        params: [
+          sliderParam("blur", "tools.shadowBlur", 0, 0.5, 0.01, DEFAULT_SHADOW_STYLE.blur),
+          sliderParam(
+            "offsetX",
+            "tools.shadowOffsetX",
+            -0.5,
+            0.5,
+            0.01,
+            DEFAULT_SHADOW_STYLE.offsetX,
+          ),
+          sliderParam(
+            "offsetY",
+            "tools.shadowOffsetY",
+            -0.5,
+            0.5,
+            0.01,
+            DEFAULT_SHADOW_STYLE.offsetY,
+          ),
+          sliderParam("opacity", "tools.shadowOpacity", 0, 1, 0.05, DEFAULT_SHADOW_STYLE.opacity),
+          button("reset", "tools.resetShadows", LuRotateCcw),
         ],
       }),
       tool("levelSettings", "tools.levelSettings", LuLayers, {
