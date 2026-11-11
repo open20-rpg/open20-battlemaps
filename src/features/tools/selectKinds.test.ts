@@ -40,7 +40,6 @@ describe("select by kind", () => {
   })
 
   it("skips what can't be selected and kinds with nothing on the map", () => {
-    expect(idsOfKind(kind("water"), all)).toEqual([])
     expect(idsOfKind(kind("lights"), all)).toEqual([])
   })
 
@@ -57,6 +56,10 @@ describe("select by kind", () => {
     expect(selectableBy([])(e("c", "cave", { strokes: [stroke] }))).toBe(false)
     // The terrain (a blend map, no shapes) is never pickable.
     expect(pick(e("t", "terrainBrush", { strokes: [] }))).toBe(false)
+    // Water never is, shape or stroke, whatever the filter.
+    const water = e("wa", "water", { points: [{ x: 0, y: 0 }], closed: true })
+    expect(selectableBy(SELECT_KINDS.map((k) => k.id))(water)).toBe(false)
+    expect(SELECT_KINDS.some((k) => k.toolIds.includes("water"))).toBe(false)
     // Kinds not listed are always pickable.
     expect(selectableBy([])(e("x", "somethingElse"))).toBe(true)
   })

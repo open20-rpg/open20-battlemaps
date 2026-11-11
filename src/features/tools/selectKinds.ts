@@ -3,7 +3,6 @@ import {
   LuBox,
   LuBrickWall,
   LuDoorOpen,
-  LuDroplets,
   LuGrid3X3,
   LuHouse,
   LuLightbulb,
@@ -63,7 +62,6 @@ export const SELECT_KINDS: SelectKind[] = [
   kind("paths", LuRoute, ["path"]),
   kind("patterns", LuGrid3X3, ["pattern"]),
   kind("roofs", LuTriangle, ["roof"]),
-  kind("water", LuDroplets, ["water"]),
   kind("lights", LuLightbulb, ["light"], false),
   kind("texts", LuType, ["text"]),
   kind("caves", LuMountainSnow, ["cave"], true, true),
@@ -72,6 +70,13 @@ export const SELECT_KINDS: SelectKind[] = [
 
 /** The element filter's default: the kinds pickable out of the box. */
 export const SELECT_FILTER_DEFAULT = SELECT_KINDS.filter((k) => k.filterDefault).map((k) => k.id)
+
+/**
+ * Tools whose elements the Select tool never picks: water is one merged body
+ * (its shapes and strokes are only added to or cut from it), as in
+ * Dungeondraft, so it's edited by painting, not by selecting pieces.
+ */
+const NEVER_SELECTED = new Set(["water"])
 
 const KIND_OF_TOOL = new Map(SELECT_KINDS.flatMap((k) => k.toolIds.map((t) => [t, k] as const)))
 
@@ -93,7 +98,7 @@ export function selectableBy(
   const walled = new Set(entities.flatMap((w) => (w.toolId === "wall" && w.link ? [w.link] : [])))
   const wallless = (e: MapEntity) => e.toolId === "build" && !(e.link && walled.has(e.link))
   return (e) => {
-    if (!!e.locked !== locked) return false
+    if (!!e.locked !== locked || NEVER_SELECTED.has(e.toolId)) return false
     const k = KIND_OF_TOOL.get(e.toolId)
     if (!k) return isSelectable(e)
     return (on.has(k.id) || wallless(e)) && isSelectable(e, k.paint === true)
