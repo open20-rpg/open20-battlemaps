@@ -33,6 +33,30 @@ function edt1d(f: Float64Array, n: number, d: Float64Array, v: Int32Array, z: Fl
 }
 
 /**
+ * In place, every cell of `grid` (w × h, row-major: 0 at the sources, a
+ * squared distance where there's a head start, INF elsewhere) becomes its
+ * squared Euclidean distance to the nearest source (Felzenszwalb–
+ * Huttenlocher, one pass per axis).
+ */
+export function squaredEdt(grid: Float64Array, w: number, h: number): void {
+  const n = Math.max(w, h)
+  const f = new Float64Array(n)
+  const d = new Float64Array(n)
+  const v = new Int32Array(n)
+  const z = new Float64Array(n + 1)
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) f[y] = grid[y * w + x]
+    edt1d(f, h, d, v, z)
+    for (let y = 0; y < h; y++) grid[y * w + x] = d[y]
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) f[x] = grid[y * w + x]
+    edt1d(f, w, d, v, z)
+    for (let x = 0; x < w; x++) grid[y * w + x] = d[x]
+  }
+}
+
+/**
  * For every inside cell of `inside` (w × h, row-major), its Euclidean
  * distance (in cells) to the nearest outside cell; 0 outside. Cells past the
  * grid's border count as outside.
@@ -50,21 +74,7 @@ export function distanceField(inside: Uint8Array, w: number, h: number): Float32
       grid[y * W + x] = isIn ? INF : 0
     }
   }
-  const n = Math.max(W, H)
-  const f = new Float64Array(n)
-  const d = new Float64Array(n)
-  const v = new Int32Array(n)
-  const z = new Float64Array(n + 1)
-  for (let x = 0; x < W; x++) {
-    for (let y = 0; y < H; y++) f[y] = grid[y * W + x]
-    edt1d(f, H, d, v, z)
-    for (let y = 0; y < H; y++) grid[y * W + x] = d[y]
-  }
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) f[x] = grid[y * W + x]
-    edt1d(f, W, d, v, z)
-    for (let x = 0; x < W; x++) grid[y * W + x] = d[x]
-  }
+  squaredEdt(grid, W, H)
   const out = new Float32Array(w * h)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) out[y * w + x] = Math.sqrt(grid[(y + 1) * W + x + 1])

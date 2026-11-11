@@ -1,6 +1,6 @@
 import { linkRooms } from "../model/links"
 import { stampRadius } from "../render/cells"
-import { newId, pointInPolygon, rotateAround, textSize } from "../model/geometry"
+import { newId, pointInPolygon, rotateAround } from "../model/geometry"
 import {
   TERRAIN_SLOTS,
   TEXELS_PER_TILE,
@@ -46,6 +46,8 @@ export type ImportWarningKey =
   | "looseTiles"
   | "levelAmbient"
   | "traceImageSize"
+  /** Text fonts not in the Google Fonts catalog (set once fonts are resolved, in io.ts). */
+  | "unknownFonts"
 
 export interface ImportResult {
   doc: MapDocument
@@ -491,29 +493,36 @@ function roofs(im: Importer, level: string, raw: Json): MapEntity[] {
     })
 }
 
-/** Texts: Dungeondraft anchors the top-left corner; Open20 Battle Maps the center. */
+/** Dungeondraft's box_shape: 0 none, 1 rectangle, 2 pill. */
+const BOX_SHAPES = ["none", "rectangle", "pill"] as const
+
+/**
+ * Texts: one line from its top-left corner, as in Open20 Battle Maps. The
+ * font_name stays as Dungeondraft wrote it ("Libre Baskerville Bold"): it's
+ * resolved against the fonts catalog once the map is in (fonts/resolve.ts).
+ */
 function texts(im: Importer, level: string, raw: Json): MapEntity[] {
   return arr(raw.texts)
     .map(obj)
-    .map((t) => {
-      const e = entity(level, {
+    .map((t) =>
+      entity(level, {
         ...grouped(t),
         toolId: "text",
         layer: 900,
-        text: str(t.text) ?? "",
+        // Screen-left is the larger map x (mirrored): the corner maps as is.
+        position: im.p(vec(t.position)),
+        text: (str(t.text) ?? "").replace(/\s*\n\s*/g, " "),
         params: {
           font: str(t.font_name) ?? "",
           fontSize: num(t.font_size, 32),
           fontColor: argbToHex(t.font_color, "#000000"),
-          sharpenFonts: true,
-          textBox: num(t.box_shape, 0) !== 0,
+          boxShape: BOX_SHAPES[num(t.box_shape, 0)] ?? "none",
+          boxBorderWidth: num(t.box_border_width, 2),
+          boxColor: argbToHex(t.box_background_color, "#ffffff"),
+          boxBorderColor: argbToHex(t.box_border_color, "#000000"),
         },
-      })
-      const size = textSize(e)
-      // Screen-left is the larger map x (mirrored).
-      const topLeft = im.p(vec(t.position))
-      return { ...e, position: { x: topLeft.x - size.w / 2, y: topLeft.y + size.h / 2 } }
-    })
+      }),
+    )
 }
 
 function cave(im: Importer, level: string, raw: Json, cellPx: number): MapEntity[] {

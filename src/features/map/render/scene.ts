@@ -19,6 +19,8 @@ import { BUILDING_WEAR_URLS } from "./buildingWear"
 import { drawOverlay } from "./overlay"
 import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
 import { tileSizeForZoom } from "./viewport"
+import { fontStatus, subscribeFonts } from "../../fonts/registry"
+import { clearMeasures } from "../../fonts/metrics"
 
 /** What an exported image includes (the rest of the export look is fixed: no editor overlays). */
 export interface ExportLook {
@@ -41,6 +43,8 @@ export interface SceneState {
   /** Color adjustments over the whole map (on screen and in exports). */
   postProcess: PostProcess
   textVisible: boolean
+  /** The label open in the inline editor: hidden while the editor shows it. */
+  editingText?: string | null
   terrainEnabled: boolean
   /** Draw what lies past the map's edges (else the map clips its content). */
   showOutside: boolean
@@ -88,6 +92,21 @@ interface CompositeView {
 
 const sameInputs = (a: readonly unknown[], b: readonly unknown[]) =>
   a.length === b.length && a.every((v, i) => v === b[i])
+
+/** Whether `b` is `a` with only its position changed (all else the same values). */
+function onlyMoved(a: MapEntity, b: MapEntity): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof MapEntity>
+  for (const k of keys) if (k !== "position" && a[k] !== b[k]) return false
+  return true
+}
+
+/** Move a drawn entity by (dx, dy) map tiles: content space mirrors x. */
+function shiftView(entry: EntityView, dx: number, dy: number): void {
+  for (const c of [entry.view, ...entry.shadows]) {
+    c.position.x -= dx
+    c.position.y += dy
+  }
+}
 
 /** Draw order: layer bucket first, then document order within it. */
 const zFor = (layer: number, index: number) => (layer + 1000) * 100000 + index
@@ -177,11 +196,22 @@ export class MapScene {
     this.compare.zIndex = -Number.MAX_VALUE / 2
     this.content.addChild(this.base, this.clip, this.compare)
     this.overlay.scale.x = -1
-    this.unsubscribe = assets.subscribe(() => {
+    const retry = () => {
       if (!this.last) return
       this.update(this.last, true)
       this.dirty()
+    }
+    const unsubAssets = assets.subscribe(retry)
+    // A font that finished loading: labels measured and drawn with the
+    // fallback meanwhile are redone.
+    const unsubFonts = subscribeFonts(() => {
+      clearMeasures()
+      retry()
     })
+    this.unsubscribe = () => {
+      unsubAssets()
+      unsubFonts()
+    }
   }
 
   /** A render env that records texture misses into `track.complete`. */
@@ -223,6 +253,11 @@ export class MapScene {
         if (!shadows) return shadow.destroy({ children: true })
         shadows.push(shadow)
         this.shadowKinds[kind].addChild(shadow)
+      },
+      font: (font) => {
+        const { ready, pending } = fontStatus(font)
+        if (pending) track.complete = false
+        return ready
       },
       textVisible: state.textVisible,
       lighting: state.lighting,
@@ -405,14 +440,23 @@ export class MapScene {
       seen.add(entity.id)
       const deps = entity.toolId === "wall" ? portals : []
       const current = this.entities.get(entity.id)
-      const stale =
-        !current ||
-        current.entity !== entity ||
-        !sameInputs(current.deps, deps) ||
-        current.textVisible !== state.textVisible ||
-        current.lighting !== state.lighting ||
-        current.wear !== state.map.buildingWear ||
-        (assetsChanged && !current.complete)
+      const inputsSame =
+        !!current &&
+        sameInputs(current.deps, deps) &&
+        current.textVisible === state.textVisible &&
+        current.lighting === state.lighting &&
+        current.wear === state.map.buildingWear &&
+        !(assetsChanged && !current.complete)
+      // Only moved (dragging an object, a label, a light): shift what's drawn.
+      if (current && inputsSame && current.entity !== entity && onlyMoved(current.entity, entity)) {
+        shiftView(
+          current,
+          entity.position.x - current.entity.position.x,
+          entity.position.y - current.entity.position.y,
+        )
+        current.entity = entity
+      }
+      const stale = !current || !inputsSame || current.entity !== entity
       if (stale) {
         if (current) destroyView(current)
         const track = { complete: true }
@@ -434,6 +478,9 @@ export class MapScene {
       if (!entry) return
       entry.view.zIndex = zFor(entity.layer, index)
       if (entity.toolId === "light") entry.view.alpha = glow
+      if (entity.toolId === "text") {
+        entry.view.visible = state.textVisible && entity.id !== state.editingText
+      }
     })
     for (const [id, entry] of this.entities) {
       if (seen.has(id)) continue

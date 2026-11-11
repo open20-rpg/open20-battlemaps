@@ -4,8 +4,8 @@ import {
   Mesh,
   MeshGeometry,
   Point,
+  BitmapText,
   Sprite,
-  Text,
   type Texture,
   TilingSprite,
 } from "pixi.js"
@@ -23,6 +23,15 @@ import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
 import { lightFalloffTexture } from "./generated"
 import { quickboxRoof, roofFaceShade, roofGeometry, slopeUv, type RoofType } from "./roofGeometry"
 import { wearOverlay, wornMesh } from "./buildingWear"
+import { type FontChoice } from "../../fonts/catalog"
+import {
+  borderOf,
+  FONT_PX_PER_TILE,
+  layoutTextBox,
+  measureText,
+  textStyle,
+} from "../../fonts/metrics"
+import { sdfFont } from "./sdfFont"
 
 /**
  * Per-entity renderers, keyed by the tool that created the entity. They draw
@@ -59,6 +68,11 @@ export interface RenderEnv {
   showCaveBlast: boolean
   /** An image bundled with the app (by URL), once loaded (remembers misses like `tex`). */
   image: (url: string) => Texture | undefined
+  /**
+   * Whether `font` can be drawn now (else labels use the fallback); one still
+   * loading from the cache is remembered like a texture miss.
+   */
+  font: (font: FontChoice) => boolean
   /** The map's building wear texture (buildingWear.ts): none, or once loaded (remembers misses like `tex`). */
   buildingWear: () => Texture | undefined
 }
@@ -519,35 +533,49 @@ const roofRenderer: EntityRenderer = (e, env) => {
   return root
 }
 
-/** Text resolution multiplier: rendered at 4x (or 2x without sharpening) then scaled down. */
-const TEXT_SUPERSAMPLE = 4
-
+/**
+ * A text label as Dungeondraft draws it: one line in a distance-field
+ * bitmap font (sdfFont.ts) inside its optional box, laid out in font px from
+ * the top-left corner (fonts/metrics) and scaled to tiles (64 font px per
+ * tile). Moving it only moves this container (see the scene).
+ */
 const textRenderer: EntityRenderer = (e, env) => {
   const root = new Container()
   root.visible = env.textVisible
-  const p = toContent(e.position)
-  root.position.copyFrom(p)
-  root.rotation = rad(e.rotation)
-  const size = num(e.params.fontSize, 32)
-  const sharpen = e.params.sharpenFonts !== false
-  const color = hexToPixiColor(str(e.params.fontColor, "#000000"))
-  const text = new Text({
-    text: e.text ?? "",
-    resolution: sharpen ? 2 : 1,
-    style: {
-      fontFamily: str(e.params.font, "") || "sans-serif",
-      fontSize: size * TEXT_SUPERSAMPLE,
-      fill: color.color,
-      align: "center",
-      wordWrap: e.params.textBox === true,
-      wordWrapWidth: 6 * 64 * TEXT_SUPERSAMPLE,
-    },
-  })
-  text.alpha = color.alpha
-  text.anchor.set(0.5)
-  // `fontSize` px at 100% zoom (64 px per tile) → tiles.
-  text.scale.set(1 / (64 * TEXT_SUPERSAMPLE))
-  root.addChild(text)
+  root.position.copyFrom(toContent(e.position))
+  root.scale.set(1 / FONT_PX_PER_TILE)
+  const text = (e.text ?? "").replace(/\s*\n\s*/g, " ")
+  const style = textStyle(e.params)
+  const ready = env.font(style.font)
+  const box = layoutTextBox(measureText(style.font, style.size, text), borderOf(style))
+  if (style.box !== "none") {
+    const bw = style.borderWidth
+    const r = style.box === "pill" ? Math.min(box.w, box.h) / 2 : 0
+    const bg = hexToPixiColor(style.background)
+    const border = hexToPixiColor(style.borderColor)
+    const g = new Graphics()
+    if (bw > 0) {
+      g.roundRect(0, 0, box.w, box.h, r).fill({ color: border.color, alpha: border.alpha })
+      g.roundRect(bw, bw, box.w - 2 * bw, box.h - 2 * bw, Math.max(0, r - bw)).cut()
+    }
+    g.roundRect(bw, bw, box.w - 2 * bw, box.h - 2 * bw, Math.max(0, r - bw)).fill({
+      color: bg.color,
+      alpha: bg.alpha,
+    })
+    root.addChild(g)
+  }
+  if (text) {
+    const color = hexToPixiColor(style.color)
+    const label = new BitmapText({
+      text,
+      style: { fontFamily: sdfFont(style.font, ready, text), fontSize: style.size, fill: 0xffffff },
+    })
+    label.tint = color.color
+    label.alpha = color.alpha
+    // The atlas's line top: the baseline lands `ascent` below it.
+    label.position.set(box.textX, borderOf(style))
+    root.addChild(label)
+  }
   return root
 }
 

@@ -1,3 +1,4 @@
+import { DEFAULT_FONT } from "../fonts/catalog"
 import { BUILDING_WEARS, DEFAULT_BUILDING_WEAR } from "../map/model/types"
 import { type IconType } from "react-icons"
 import {
@@ -216,7 +217,7 @@ const font = (paramKey: string, labelKey: string): ToolParamSpec => ({
   kind: "font",
   paramKey,
   labelKey,
-  default: "",
+  default: DEFAULT_FONT,
 })
 const shape = (def: Shape | null, allowBrush = false): ToolParamSpec => ({
   kind: "shape",
@@ -281,6 +282,20 @@ const when = (
   spec: ToolParamSpec,
   visibleWhen: (values: ToolParamValues) => boolean,
 ): ToolParamSpec => ({ ...spec, visibleWhen })
+
+/** A label's box, as Dungeondraft's (none, rectangle or pill; border inside it). */
+export const TEXT_BOX_SHAPES: SegmentedChoice[] = [
+  { value: "none", labelKey: "tools.boxNone" },
+  { value: "rectangle", labelKey: "tools.boxRectangle" },
+  { value: "pill", labelKey: "tools.boxPill" },
+]
+const hasBox = (p: ToolParamValues) => p.boxShape !== "none"
+const TEXT_BOX_PARAMS: ToolParamSpec[] = [
+  segmented("boxShape", "tools.boxShape", TEXT_BOX_SHAPES, "none"),
+  when(sliderParam("boxBorderWidth", "tools.boxBorderWidth", 0, 32, 1, 2), hasBox),
+  when(customColor("boxColor", "tools.boxColor", "#ffffff"), hasBox),
+  when(customColor("boxBorderColor", "tools.boxBorderColor", "#000000"), hasBox),
+]
 
 /** The top-level tool palette. Groups expand into their own panels. */
 export const TOOL_TREE: ToolNode[] = [
@@ -630,7 +645,6 @@ export const TOOL_TREE: ToolNode[] = [
   tool("text", "tools.text", LuType, {
     params: [
       switchParam("visible", "tools.visible", true),
-      switchParam("sharpenFonts", "tools.sharpenFonts", true),
       segmented(
         "mode",
         "tools.mode",
@@ -644,7 +658,7 @@ export const TOOL_TREE: ToolNode[] = [
       font("font", "tools.font"),
       sliderParam("fontSize", "tools.fontSize", 8, 256, 1, 32),
       customColor("fontColor", "tools.fontColor", "#000000"),
-      switchParam("textBox", "tools.textBox", false),
+      ...TEXT_BOX_PARAMS,
     ],
   }),
   tool("prefabs", "tools.prefabs", LuBoxes, {

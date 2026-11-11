@@ -1,3 +1,4 @@
+import { FONT_PX_PER_TILE, textLayout } from "../../fonts/metrics"
 import { type MapEntity, type Vec2 } from "./types"
 
 /**
@@ -141,15 +142,21 @@ export function entityAssetId(entity: MapEntity): string | undefined {
 }
 
 /**
- * Rough on-map footprint of a text label (the canvas measures the real one;
- * this only needs to be close enough for clicking and selection boxes).
+ * A text label's box in tiles (its font measured as Dungeondraft lays it
+ * out: see fonts/metrics). Its position is the box's top-left corner.
  */
 export function textSize(entity: MapEntity): { w: number; h: number } {
-  const fontSize = typeof entity.params.fontSize === "number" ? entity.params.fontSize : 32
-  const size = fontSize / 64
-  const lines = (entity.text ?? "").split("\n")
-  const longest = Math.max(1, ...lines.map((l) => l.length))
-  return { w: longest * size * 0.6, h: lines.length * size * 1.2 }
+  const box = textLayout(entity.params, entity.text ?? "")
+  return { w: box.w / FONT_PX_PER_TILE, h: box.h / FONT_PX_PER_TILE }
+}
+
+/**
+ * The center of a sprite-like entity's footprint: its position, except a
+ * text's, which is its top-left corner (screen-right is the smaller map x).
+ */
+export function spriteCenter(entity: MapEntity, size: { w: number; h: number }): Vec2 {
+  const p = entity.position
+  return entity.toolId === "text" ? { x: p.x - size.w / 2, y: p.y + size.h / 2 } : p
 }
 
 /** On-map footprint size of a sprite-like entity (object/portal/light/text), in tiles. */
@@ -174,8 +181,9 @@ export function spriteSize(entity: MapEntity, sizeOf: AssetSizeOf): { w: number;
 
 /** Corners of a sprite-like entity's rotated footprint. */
 function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
-  const { w, h } = spriteSize(entity, sizeOf)
-  const c = entity.position
+  const size = spriteSize(entity, sizeOf)
+  const { w, h } = size
+  const c = spriteCenter(entity, size)
   // Rotation is clockwise on screen; map x is mirrored, so in map space the
   // same turn is counter-clockwise.
   return rectPolygon({ x: c.x - w / 2, y: c.y - h / 2 }, { x: c.x + w / 2, y: c.y + h / 2 }).map(

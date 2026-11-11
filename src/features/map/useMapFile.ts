@@ -1,8 +1,12 @@
-import { message } from "@tauri-apps/plugin-dialog"
+import { ask, message } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 import { toaster } from "../../ui/chakra/toaster-instance"
 import { useMapDirty } from "../../stores/mapFileStore"
+import { useMapStore } from "../../stores/mapStore"
 import { openMapFlow, saveMap, saveMapAs } from "./io"
+import { asFont } from "../fonts/metrics"
+import { ensureFont, missingFonts } from "../fonts/registry"
+import { styleName } from "../fonts/catalog"
 
 /**
  * Save/Open handlers for the menu bar: wraps `features/map/io` with user
@@ -84,8 +88,37 @@ export function useMapFile() {
           type: "warning",
         })
       }
+      if (opened) await offerMissingFonts()
     } catch (err) {
       toaster.create({ title: t("toast.mapOpenError", { error: String(err) }), type: "error" })
+    }
+  }
+
+  /**
+   * The map's labels use Google fonts that aren't downloaded: offer to fetch
+   * them (nothing is downloaded unasked). Declined or failed, those labels
+   * show in the default font.
+   */
+  const offerMissingFonts = async (): Promise<void> => {
+    const entities = useMapStore.getState().map?.entities ?? []
+    const used = entities.filter((e) => e.toolId === "text").map((e) => asFont(e.params.font))
+    const missing = await missingFonts(used)
+    if (missing.length === 0) return
+    const names = missing.map((f) => `${f.family} ${styleName(f.weight, f.italic)}`)
+    const download = await ask(
+      t("fonts.missingBody", { count: missing.length, fonts: names.join(", ") }),
+      {
+        title: t("fonts.missingTitle"),
+        kind: "info",
+        okLabel: t("fonts.download"),
+        cancelLabel: t("fonts.notNow"),
+      },
+    )
+    if (!download) return
+    const results = await Promise.allSettled(missing.map((f) => ensureFont(f, true)))
+    const failed = results.filter((r) => r.status === "rejected").length
+    if (failed > 0) {
+      toaster.create({ title: t("toast.fontsNotDownloaded", { count: failed }), type: "warning" })
     }
   }
 

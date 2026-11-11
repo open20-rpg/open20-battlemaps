@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/fonts-catalog.mjs && tsc && vite build",
+    "fonts:catalog": "node scripts/fonts-catalog.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint .",

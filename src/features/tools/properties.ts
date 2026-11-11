@@ -1,3 +1,4 @@
+import { DEFAULT_FONT } from "../fonts/catalog"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import { type AssetCategory } from "../../lib/categories"
 import { normalizeDegrees } from "../map/model/geometry"
@@ -7,6 +8,7 @@ import {
   OBJECT_LAYER_VALUES,
   PATH_TRANSITIONS,
   ROOF_TYPES,
+  TEXT_BOX_SHAPES,
   WATER_PRESETS,
 } from "./definitions"
 import { type AssetRecolor, type AssetSelection, type ToolParamSpec } from "./params"
@@ -216,15 +218,19 @@ export const ENTITY_PROPERTIES: Record<string, EntityProperty[]> = {
   ],
   material: [levelWide(layer), assetSelection("material", "tools.materialAsset", "tilesets")],
   text: [
-    param({ kind: "font", paramKey: "font", labelKey: "tools.font", default: "" }),
+    param({ kind: "font", paramKey: "font", labelKey: "tools.font", default: DEFAULT_FONT }),
     param(slider("fontSize", "tools.fontSize", 8, 256, 1)),
+    color("fontColor", "tools.fontColor", "#000000"),
     param({
-      kind: "customColor",
-      paramKey: "fontColor",
-      labelKey: "tools.fontColor",
-      default: "#000000",
+      kind: "segmented",
+      paramKey: "boxShape",
+      labelKey: "tools.boxShape",
+      options: TEXT_BOX_SHAPES,
+      default: "none",
     }),
-    param(toggle("textBox", "tools.textBox")),
+    param(slider("boxBorderWidth", "tools.boxBorderWidth", 0, 32, 1)),
+    color("boxColor", "tools.boxColor", "#ffffff"),
+    color("boxBorderColor", "tools.boxBorderColor", "#000000"),
   ],
 }
 

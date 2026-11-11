@@ -1,3 +1,4 @@
+import { type FontChoice } from "../fonts/catalog"
 import { type IconType } from "react-icons"
 import { type AssetCategory } from "../../lib/categories"
 
@@ -79,8 +80,8 @@ export interface ParamValueByKind {
   biome: BiomeSelection
   /** Command buttons hold no value — they only dispatch an action. */
   button: null
-  /** Selected font family ("" = default). */
-  font: string
+  /** Selected font: family ("" = default) and style. */
+  font: FontChoice
   /** The Levels list edits the document directly; it holds no tool value. */
   levels: null
   /** Selected prefab id (null = none). */
@@ -151,7 +152,7 @@ export type ToolParamSpec =
       colorPalette?: string
       disabled?: boolean
     })
-  /** OS font-family selector (Text tool). */
+  /** Font selector: Google Fonts and the system's, with their styles (Text tool). */
   | (BaseSpec<"font"> & { labelKey: string })
   /** The map's level (floor) list: add, rename, reorder, delete, pick the active one. */
   | BaseSpec<"levels">

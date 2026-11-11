@@ -79,14 +79,19 @@ describe("geometry", () => {
     expect(entityBounds(obj("b", 0, 0), noSize)).toEqual({ x: -0.5, y: -0.5, w: 1, h: 1 })
   })
 
-  it("estimates text footprints from the font size", () => {
+  it("frames a text from its top-left corner (screen-left is the larger map x)", () => {
     const t: MapEntity = {
-      ...obj("t", 0, 0),
+      ...obj("t", 10, 10),
       toolId: "text",
       text: "abcd",
       params: { fontSize: 64 },
     }
-    expect(textSize(t)).toEqual({ w: 2.4, h: 1.2 })
+    // Measured without a canvas: 0.55 em per letter, a quarter-em space.
+    const { w, h } = textSize(t)
+    expect(w).toBeCloseTo((4 * 64 * 0.55 + 16) / 64)
+    expect(h).toBeCloseTo(1)
+    expect(hitTest([t], { x: 10 - w / 2, y: 10.5 }, noSize)?.id).toBe("t")
+    expect(hitTest([t], { x: 10 + 0.2, y: 10.5 }, noSize)).toBeUndefined()
   })
 
   it("hit-tests the topmost entity (layer, then draw order)", () => {

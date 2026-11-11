@@ -94,6 +94,15 @@ ni accionable.
   `docs/dungeondraft-map-format.md`). Es solo importación: el mapa queda como
   documento nuevo sin guardar y "Guardar" escribe un `.otbm`. Lo que no tiene
   equivalente se reporta como aviso (nunca se descarta en silencio).
+- **Texto y fuentes** (`features/fonts/`): el catálogo de Google Fonts
+  (`catalog.json`) lo genera `scripts/fonts-catalog.mjs` en cada build desde
+  google/fonts (sin red conserva el commiteado). Las fuentes se bajan solo
+  cuando el usuario lo pide (elegirla, o aceptar al abrir un mapa) y quedan
+  cacheadas en `<app data>/fonts/`; `registry.ts` las registra como FontFace.
+  Los textos se dibujan con BitmapText sobre atlas SDF (`render/sdfFont.ts`,
+  shader con `fwidth` en `render/sdfShader.ts`); el cuadro sigue
+  `fonts/metrics.ts`. Un texto es una línea y su `position` es la esquina
+  superior izquierda.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para
@@ -109,7 +118,7 @@ ni accionable.
 ## Estructura
 
 - `src/app/` — shell: App, MenuBar, StatusBar, EmptyState, dialogs/.
-- `src/features/{map,tools,library,packs,viewport}/` — una carpeta por dominio.
+- `src/features/{map,tools,library,packs,viewport,fonts}/` — una carpeta por dominio.
 - `src/stores/` — estado global. `src/ui/` — genéricos sin dominio (Modal,
   FloatingWindow, ColorPickerPopover; `ui/chakra/` son snippets de Chakra,
   tratarlos como código vendored). `src/lib/` — utilidades puras sin React.

@@ -11,27 +11,32 @@ import {
 } from "../../map/commands"
 import { entityHit, newId } from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
-import { paramNum } from "./shared"
 import { type ToolBehavior, type ToolCtx } from "./types"
 
 const hitText = (ctx: ToolCtx, p: Vec2) =>
   [...ctx.entities].reverse().find((e) => e.toolId === "text" && entityHit(e, p, ctx.sizeOf))
 
-const textParams = (params: Record<string, unknown>) => ({
-  font: params.font,
-  fontSize: paramNum(params.fontSize, 32),
-  fontColor: params.fontColor,
-  sharpenFonts: params.sharpenFonts !== false,
-  textBox: params.textBox === true,
-})
+/** What a label takes from the tool: its font and its box. */
+const TEXT_KEYS = [
+  "font",
+  "fontSize",
+  "fontColor",
+  "boxShape",
+  "boxBorderWidth",
+  "boxColor",
+  "boxBorderColor",
+] as const
 
-/** Apply the open inline editor: create/update the text entity (empty text deletes it). */
+const textParams = (params: Record<string, unknown>) =>
+  Object.fromEntries(TEXT_KEYS.map((k) => [k, params[k]]))
+
+/** Apply the open inline editor: create/update the label (one line; empty deletes it). */
 export function commitTextEdit(): void {
   const editor = useEditorStore.getState()
   const edit = editor.textEdit
   if (!edit) return
   editor.setTextEdit(null)
-  const value = edit.value.trim() ? edit.value : ""
+  const value = edit.value.replace(/\s*\n\s*/g, " ").trim()
   if (edit.entityId) {
     if (value) updateEntity(edit.entityId, { text: value })
     else removeEntities([edit.entityId])
@@ -60,7 +65,8 @@ export function cancelTextEdit(): void {
 }
 
 /**
- * Text: in Edit mode, click empty map to type a new label or click a label
+ * Text: in Edit mode, click empty map to type a new label there (the click is
+ * its top-left corner) or click a label
  * to edit it; in Move mode, drag labels around. The clicked label is
  * selected, which is what the Delete button removes. Font params apply to
  * the selected label as they change.
@@ -105,8 +111,7 @@ export function createTextBehavior(): ToolBehavior {
     },
     onParamsChange: (ctx, patch) => {
       // Font params edit the selected label (like Dungeondraft's text panel).
-      const keys = ["font", "fontSize", "fontColor", "sharpenFonts", "textBox"]
-      if (!keys.some((k) => k in patch)) return
+      if (!TEXT_KEYS.some((k) => k in patch)) return
       const ids = new Set(useEditorStore.getState().selection)
       for (const e of ctx.entities) {
         if (e.toolId === "text" && ids.has(e.id))

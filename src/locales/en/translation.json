@@ -32,7 +32,10 @@
     "missingPacks": "{{count}} pack(s) used by this map aren't installed",
     "exported": "Image exported",
     "exportError": "Could not export: {{error}}",
-    "importedDungeondraft": "Dungeondraft map imported. Saving creates a new .otbm file (the original is left untouched)."
+    "importedDungeondraft": "Dungeondraft map imported. Saving creates a new .otbm file (the original is left untouched).",
+    "fontDownloadError": "Couldn't download {{font}}: {{error}}",
+    "fontsNotDownloaded_one": "Couldn't download {{count}} font: those labels use the default one",
+    "fontsNotDownloaded_other": "Couldn't download {{count}} fonts: those labels use the default one"
   },
   "prefs": {
     "title": "Preferences",
@@ -205,7 +208,6 @@
     "range": "Range",
     "widgets": "Widgets",
     "visible": "Visible",
-    "sharpenFonts": "Sharpen Fonts",
     "modeEdit": "Edit",
     "modeMove": "Move",
     "delete": "Delete",
@@ -213,7 +215,6 @@
     "fontDefault": "Default",
     "fontSize": "Font Size",
     "fontColor": "Font Color",
-    "textBox": "Text Box",
     "width": "Width",
     "smoothness": "Smoothness",
     "transitionIn": "Transition In",
@@ -309,7 +310,18 @@
     "wear_scratched": "Scratched",
     "assetProperty": "Asset",
     "restoreColor": "Restore the default color",
-    "roofWidth": "Width (tiles from the ridge)"
+    "roofWidth": "Width (tiles from the ridge)",
+    "fontSearch": "Search fonts…",
+    "fontStyle": "Style",
+    "fontGoogle": "Google",
+    "fontSystem": "System",
+    "boxShape": "Box",
+    "boxNone": "None",
+    "boxRectangle": "Rectangle",
+    "boxPill": "Pill",
+    "boxBorderWidth": "Border Width",
+    "boxColor": "Background Color",
+    "boxBorderColor": "Border Color"
   },
   "biomes": {
     "barren": "Barren",
@@ -369,7 +381,8 @@
     "loadingFonts": "Loading fonts",
     "exporting": "Exporting image",
     "openingMap": "Opening map",
-    "estimatingSize": "Estimating the export size"
+    "estimatingSize": "Estimating the export size",
+    "downloadingFont": "Downloading the {{font}} font"
   },
   "mapFile": {
     "unsavedTitle": "Save your changes?",
@@ -427,7 +440,9 @@
     "levelAmbient_one": "{{count}} level's ambient light was unified with the first level's",
     "levelAmbient_other": "{{count}} levels' ambient light was unified with the first level's",
     "traceImageSize_one": "check the reference image size",
-    "traceImageSize_other": "check the reference image size"
+    "traceImageSize_other": "check the reference image size",
+    "unknownFonts_one": "{{count}} label uses a font that isn't on Google Fonts: it shows in the default one",
+    "unknownFonts_other": "{{count}} labels use fonts that aren't on Google Fonts: they show in the default one"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -481,5 +496,12 @@
     "action_selectTool": "Go to Select / back",
     "action_lock": "Lock selection",
     "action_unlock": "Unlock selection"
+  },
+  "fonts": {
+    "missingTitle": "Fonts not downloaded",
+    "missingBody_one": "The map's labels use {{count}} Google Fonts font that isn't downloaded: {{fonts}}. Download it? Otherwise they show in the default font.",
+    "missingBody_other": "The map's labels use {{count}} Google Fonts fonts that aren't downloaded: {{fonts}}. Download them? Otherwise they show in the default font.",
+    "download": "Download",
+    "notNow": "Not now"
   }
 }

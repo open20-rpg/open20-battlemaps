@@ -109,7 +109,19 @@ const MAP = {
           shade_contrast: 0.4,
           roofs: [{ points: "PoolVector2Array( 0, 128, 512, 128 )", width: 128, type: 1 }],
         },
-        texts: [{ text: "Hi", position: "Vector2( 0, 0 )", font_size: 64, font_color: "ff000000" }],
+        texts: [
+          {
+            text: "Hi",
+            position: "Vector2( 0, 0 )",
+            font_size: 64,
+            font_color: "ff000000",
+            font_name: "Libre Baskerville Bold",
+            box_shape: 2,
+            box_border_width: 3,
+            box_background_color: "ffffffff",
+            box_border_color: "ff102030",
+          },
+        ],
         cave: {
           bitmap: "PoolByteArray( 255, 0 )",
           entrance_bitmap: "PoolByteArray( 0, 1 )",
@@ -233,9 +245,15 @@ describe("Dungeondraft import", () => {
     expect(roof.params.width).toBe(0.5)
     const [text] = byTool("text")
     expect(text.text).toBe("Hi")
-    // Top-left (4, 0) → center inside the map, left of the right edge.
-    expect(text.position.x).toBeLessThan(4)
-    expect(text.position.y).toBeGreaterThan(0)
+    // Its top-left corner, the map's top-left (x mirrored), as is.
+    expect(text.position).toEqual({ x: 4, y: 0 })
+    expect(text.params).toMatchObject({
+      font: "Libre Baskerville Bold",
+      boxShape: "pill",
+      boxBorderWidth: 3,
+      boxColor: "#ffffff",
+      boxBorderColor: "#102030",
+    })
   })
 
   it("turns bitmaps into strokes, the splat into the level's terrain, water trees into bodies", () => {

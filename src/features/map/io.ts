@@ -27,6 +27,9 @@ import {
 import { estimateBytes, FORMAT_EXTENSION } from "./exportFormat"
 import { renderExportSample, renderMapRows, type ExportOptions } from "./render/exportMap"
 import { loadMap } from "./commands"
+import { migrateMap } from "./migrate"
+import { loadCatalog } from "../fonts/catalog"
+import { resolveFontNames } from "../fonts/resolve"
 import {
   importDungeondraftMap,
   PATH_WIDTH_TILES,
@@ -47,7 +50,8 @@ import type { MapDocument } from "./model/types"
  * ids the map depends on (re-enabled on open if the user has them off).
  */
 export const MAP_FORMAT = "open20-battle-maps"
-export const MAP_FORMAT_VERSION = 1
+/** 2: labels are one line anchored at their top-left corner, fonts carry their style (migrate.ts). */
+export const MAP_FORMAT_VERSION = 2
 export const MAP_EXTENSION = "otbm"
 
 const MAP_FILTERS = [{ name: "Open20 Battle Maps", extensions: [MAP_EXTENSION] }]
@@ -186,9 +190,10 @@ async function enableMapPacks(packIds: string[]): Promise<string[]> {
 
 /** Apply a parsed save file to the live stores, replacing the current session. */
 async function applySaveFile(file: MapFile): Promise<string[]> {
-  loadMap(file.map)
+  const { map, tools } = migrateMap(file.formatVersion, file.map, file.tools)
+  loadMap(map)
   useViewStore.setState({ ...file.view })
-  for (const [toolId, delta] of Object.entries(file.tools)) {
+  for (const [toolId, delta] of Object.entries(tools)) {
     useToolsStore.getState().setToolParams(toolId, delta)
   }
   return enableMapPacks(file.packs ?? [])
@@ -234,8 +239,10 @@ async function applyImport(result: ImportResult): Promise<string[]> {
   )
   if (pathAssets.length > 0)
     await withLoading(i18n.t("loading.loadingAssets"), () => assetCache.whenLoaded(pathAssets))
-  const entities = pathWidthMultipliers(result.doc.entities, (id) => assetCache.size(id)?.h)
-  loadMap({ ...result.doc, entities })
+  const widths = pathWidthMultipliers(result.doc.entities, (id) => assetCache.size(id)?.h)
+  const fonts = resolveFontNames(widths, await loadCatalog())
+  if (fonts.unknown > 0) result.warnings.unknownFonts = fonts.unknown
+  loadMap({ ...result.doc, entities: fonts.entities })
   useEditorStore.getState().setActiveLevel(result.doc.levels[result.currentLevel]?.id ?? null)
   useViewStore.getState().reset()
   if (result.gridColor) {

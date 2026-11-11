@@ -1,3 +1,4 @@
+import { installSdfTextPipe } from "./sdfShader"
 import { type MapDocument } from "../model/types"
 import { useEffect, useRef, useState } from "react"
 import { Box } from "@chakra-ui/react"
@@ -35,6 +36,7 @@ function sceneState(): SceneState | null {
     shadowStyle: useSettingsStore.getState().shadowStyle,
     postProcess: useSettingsStore.getState().postProcess,
     textVisible: getToolParams("text").visible !== false,
+    editingText: editor.textEdit?.entityId ?? null,
     terrainEnabled: getToolParams("terrainBrush").enable !== false,
     terrainSmooth: getToolParams("terrainBrush").smoothBlending === true,
     showCaveBlast: getToolParams("cave").showBlast === true,
@@ -112,6 +114,8 @@ export function MapCanvas() {
     const el = containerRef.current
     if (!el) return
     let disposed = false
+    // Map labels are distance-field text (sdfShader.ts): set up before the renderer exists.
+    installSdfTextPipe()
     const app = new Application()
     // Follow the container's size (window resizes, panels opening), then repaint.
     const resizer = new ResizeObserver(() => {

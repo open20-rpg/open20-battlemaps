@@ -29,6 +29,8 @@ pub fn run() {
             pack::library_tags,
             pack::resolve_assets,
             fonts::list_system_fonts,
+            fonts::cached_font,
+            fonts::download_font,
             map::save_map,
             map::load_map,
             export::export_begin,

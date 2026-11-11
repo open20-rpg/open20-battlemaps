@@ -32,7 +32,10 @@
     "missingPacks": "{{count}} paquete(s) usados por este mapa no están instalados",
     "exported": "Imagen exportada",
     "exportError": "No se pudo exportar: {{error}}",
-    "importedDungeondraft": "Mapa de Dungeondraft importado. Al guardar se crea un archivo .otbm nuevo (el original no se modifica)."
+    "importedDungeondraft": "Mapa de Dungeondraft importado. Al guardar se crea un archivo .otbm nuevo (el original no se modifica).",
+    "fontDownloadError": "No se pudo descargar {{font}}: {{error}}",
+    "fontsNotDownloaded_one": "No se pudo descargar {{count}} fuente: esos textos usan la predeterminada",
+    "fontsNotDownloaded_other": "No se pudieron descargar {{count}} fuentes: esos textos usan la predeterminada"
   },
   "prefs": {
     "title": "Preferencias",
@@ -205,7 +208,6 @@
     "range": "Alcance",
     "widgets": "Widgets",
     "visible": "Visible",
-    "sharpenFonts": "Afinar Fuentes",
     "modeEdit": "Editar",
     "modeMove": "Mover",
     "delete": "Eliminar",
@@ -213,7 +215,6 @@
     "fontDefault": "Predeterminada",
     "fontSize": "Tamaño de Fuente",
     "fontColor": "Color de Fuente",
-    "textBox": "Caja de Texto",
     "width": "Ancho",
     "smoothness": "Suavidad",
     "transitionIn": "Transición de Entrada",
@@ -309,7 +310,18 @@
     "wear_scratched": "Rayado",
     "assetProperty": "Recurso",
     "restoreColor": "Restaurar el color por defecto",
-    "roofWidth": "Ancho (casillas desde la cumbrera)"
+    "roofWidth": "Ancho (casillas desde la cumbrera)",
+    "fontSearch": "Buscar fuente…",
+    "fontStyle": "Estilo",
+    "fontGoogle": "Google",
+    "fontSystem": "Sistema",
+    "boxShape": "Caja",
+    "boxNone": "Ninguna",
+    "boxRectangle": "Rectángulo",
+    "boxPill": "Píldora",
+    "boxBorderWidth": "Ancho del Borde",
+    "boxColor": "Color de Fondo",
+    "boxBorderColor": "Color del Borde"
   },
   "biomes": {
     "barren": "Yermo",
@@ -369,7 +381,8 @@
     "loadingFonts": "Cargando fuentes",
     "exporting": "Exportando imagen",
     "openingMap": "Abriendo mapa",
-    "estimatingSize": "Estimando el tamaño de la exportación"
+    "estimatingSize": "Estimando el tamaño de la exportación",
+    "downloadingFont": "Descargando la fuente {{font}}"
   },
   "mapFile": {
     "unsavedTitle": "¿Guardar los cambios?",
@@ -427,7 +440,9 @@
     "levelAmbient_one": "la luz ambiente de {{count}} nivel se unificó con la del primero",
     "levelAmbient_other": "la luz ambiente de {{count}} niveles se unificó con la del primero",
     "traceImageSize_one": "revisá el tamaño de la imagen de referencia",
-    "traceImageSize_other": "revisá el tamaño de la imagen de referencia"
+    "traceImageSize_other": "revisá el tamaño de la imagen de referencia",
+    "unknownFonts_one": "{{count}} texto usa una fuente que no está en Google Fonts: se muestra con la predeterminada",
+    "unknownFonts_other": "{{count}} textos usan fuentes que no están en Google Fonts: se muestran con la predeterminada"
   },
   "shortcuts": {
     "title": "Atajos de teclado",
@@ -481,5 +496,12 @@
     "action_selectTool": "Ir a Seleccionar / volver",
     "action_lock": "Bloquear selección",
     "action_unlock": "Desbloquear selección"
+  },
+  "fonts": {
+    "missingTitle": "Fuentes sin descargar",
+    "missingBody_one": "Los textos del mapa usan {{count}} fuente de Google Fonts que no está descargada: {{fonts}}. ¿Descargarla? Si no, se muestran con la fuente predeterminada.",
+    "missingBody_other": "Los textos del mapa usan {{count}} fuentes de Google Fonts que no están descargadas: {{fonts}}. ¿Descargarlas? Si no, se muestran con la fuente predeterminada.",
+    "download": "Descargar",
+    "notNow": "Ahora no"
   }
 }
