@@ -1,4 +1,4 @@
-import { Box, Text, VStack } from "@chakra-ui/react"
+import { Box, Flex, Text, VStack } from "@chakra-ui/react"
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { useEditorStore } from "../../../stores/editorStore"
@@ -28,6 +28,9 @@ function applyLive(patches: Map<string, Partial<MapEntity>>): void {
 }
 
 const NO_ENTITIES: MapEntity[] = []
+
+/** Height of an asset browser among the properties (it scrolls inside). */
+const ASSET_BROWSER_HEIGHT = "360px"
 
 /**
  * Select tool: the selected entities' properties (the ones they all have),
@@ -92,11 +95,19 @@ export function SelectionPropertiesControl({
         </Text>
       ) : (
         props.map((prop) => (
-          <Box key={prop.spec.paramKey}>
+          // Asset browsers fill their box and scroll inside it: in a tool's
+          // panel they take the rest of the height, but here the properties
+          // column scrolls, so they'd grow as tall as every asset.
+          <Flex
+            key={prop.spec.paramKey}
+            direction="column"
+            h={prop.spec.kind === "assetPicker" ? ASSET_BROWSER_HEIGHT : undefined}
+            flexShrink={0}
+          >
             {renderControl(prop.spec, prop.read(first), (value) =>
               applyLive(propertyPatches(selected, prop.spec.paramKey, value, all)),
             )}
-          </Box>
+          </Flex>
         ))
       )}
     </VStack>
