@@ -13,8 +13,8 @@ export type DraftShape =
   | { kind: "circle"; center: Vec2; radius: number }
   /** A not-yet-placed entity, drawn by its real renderer at reduced opacity. */
   | { kind: "ghost"; entity: MapEntity }
-  /** Draggable vertex handles (edit-points mode). */
-  | { kind: "handles"; points: Vec2[] }
+  /** Draggable vertex handles (edit-points mode); `active` is the selected one. */
+  | { kind: "handles"; points: Vec2[]; active?: Vec2 }
   /** Pinned guide: lines through `point` across a `width` × `height` map. */
   | { kind: "guide"; point: Vec2; width: number; height: number }
   /** Ruler measure from `a` to `b`, labeled with its length. */

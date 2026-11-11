@@ -89,6 +89,13 @@ export function drawOverlay(
             .fill({ color: 0xffffff })
             .stroke({ ...line, width: 1.5 * px })
         }
+        // The selected vertex (Delete removes it): filled with the accent.
+        if (shape.active) {
+          const a = shape.active
+          g.rect(-a.x - 5 * px, a.y - 5 * px, 10 * px, 10 * px)
+            .fill({ color: ACCENT })
+            .stroke({ color: 0xffffff, width: 1.5 * px })
+        }
         break
       case "guide": {
         const { point: p, width, height } = shape

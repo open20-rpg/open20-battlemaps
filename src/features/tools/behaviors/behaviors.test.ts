@@ -128,6 +128,44 @@ describe("object & scatter", () => {
     expect(entities()).toEqual([])
   })
 
+  it("Scatter: Ctrl+click places nothing; Shift+wheel re-rolls the next asset", () => {
+    setParams("scatter", { [LIBRARY_PARAM]: ["p|a", "p|b"], spread: 0 })
+    down("scatter", 1, 1, { ctrlKey: true })
+    up("scatter", 1, 1)
+    expect(entities()).toEqual([])
+    const placeAt = (x: number) => {
+      down("scatter", x, 1)
+      up("scatter", x, 1)
+      return entities().at(-1)?.params.asset
+    }
+    // With two assets each re-roll switches to the other one.
+    const first = placeAt(0)
+    expect(placeAt(2)).not.toBe(first)
+    wheel("scatter", 1, { shiftKey: true })
+    expect(placeAt(4)).not.toBe(first)
+  })
+
+  it("Edit points: Delete removes the clicked vertex, keeping a usable shape", () => {
+    useToolsStore.getState().selectToolById("wall")
+    down("wall", 0, 0)
+    down("wall", 4, 0)
+    down("wall", 4, 4)
+    dbl("wall", 4, 4)
+    setParams("wall", { editPoints: true })
+    const del = () => act("wall", (b, c) => b.onKeyDown?.(c, { key: "Delete" } as KeyboardEvent))
+    down("wall", 4, 0)
+    up("wall", 4, 0)
+    del()
+    expect(entities()[0].points).toEqual([
+      { x: 0, y: 0 },
+      { x: 4, y: 4 },
+    ])
+    down("wall", 0, 0)
+    up("wall", 0, 0)
+    del()
+    expect(entities()[0].points).toHaveLength(2)
+  })
+
   it("scatter randomizes within the param ranges", () => {
     setParams("scatter", { [LIBRARY_PARAM]: ["p|a"], rotation: [10, 20], scale: [2, 2] })
     const ctx = buildToolCtx("scatter")

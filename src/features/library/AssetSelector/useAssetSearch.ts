@@ -10,6 +10,7 @@ import {
 import { useTranslation } from "react-i18next"
 import { withLoading } from "../../../stores/loadingStore"
 import { getLibraryItems, releaseLibrarySearch, searchLibrary, type LibItem } from "../api"
+import { registerLibraryBrowser } from "../browsers"
 
 const PAGE = 200 // items fetched per window request
 
@@ -175,6 +176,12 @@ export function useAssetSearch({
       if (jobs.length) await Promise.all(jobs)
     },
     [browserKey],
+  )
+
+  // Let tools step through this grid's order (Shift+wheel: next asset).
+  useEffect(
+    () => registerLibraryBrowser(category, { key: browserKey, items: items.current, total }),
+    [category, browserKey, total],
   )
 
   // Release the backend result cache when the browser instance goes away.

@@ -320,12 +320,17 @@ export function editPointsController(
   toolIds: readonly string[],
   step = 1,
 ): Required<
-  Pick<ToolBehavior, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onDeactivate">
+  Pick<
+    ToolBehavior,
+    "onPointerDown" | "onPointerMove" | "onPointerUp" | "onDeactivate" | "onKeyDown"
+  >
 > & {
   /** Draw the vertex handles (e.g. right when edit mode is turned on). */
   show: (ctx: ToolCtx) => void
 } {
   let target: { id: string; index: number } | null = null
+  /** The last clicked vertex: Delete/Backspace removes it. */
+  let selected: { id: string; index: number } | null = null
   const tools = new Set(toolIds)
   const editable = (ctx: ToolCtx) =>
     ctx.entities.filter((e) => tools.has(e.toolId) && e.points && e.points.length > 0)
@@ -339,9 +344,15 @@ export function editPointsController(
         points: e.points ?? [],
         closed: !!e.closed,
       })),
-      { kind: "handles", points: entities.flatMap((e) => e.points ?? []) },
+      {
+        kind: "handles",
+        points: entities.flatMap((e) => e.points ?? []),
+        active: selectedPoint(ctx),
+      },
     ])
   }
+  const selectedPoint = (ctx: ToolCtx) =>
+    selected ? ctx.entities.find((x) => x.id === selected?.id)?.points?.[selected.index] : undefined
   return {
     show: showHandles,
     onPointerDown: (ctx, e) => {
@@ -350,10 +361,27 @@ export function editPointsController(
         const index = nearestVertex(entity.points ?? [], e, tol)
         if (index !== undefined) {
           target = { id: entity.id, index }
+          selected = target
           beginGesture()
+          showHandles(ctx)
           return
         }
       }
+      selected = null
+      showHandles(ctx)
+    },
+    onKeyDown: (ctx, e) => {
+      if ((e.key !== "Delete" && e.key !== "Backspace") || !selected) return false
+      const entity = ctx.entities.find((x) => x.id === selected?.id)
+      const points = entity?.points
+      // Keep a usable shape: 2 points for a line, 3 for a polygon.
+      if (!entity || !points || points.length <= (entity.closed ? 3 : 2)) return true
+      updateEntities(
+        new Map([[entity.id, { points: points.filter((_, i) => i !== selected?.index) }]]),
+      )
+      selected = null
+      showHandles(ctx)
+      return true
     },
     onPointerMove: (ctx, e) => {
       if (target && e.buttons) {
@@ -373,6 +401,7 @@ export function editPointsController(
     onDeactivate: () => {
       if (target) endGesture()
       target = null
+      selected = null
       setDraft([])
     },
   }
