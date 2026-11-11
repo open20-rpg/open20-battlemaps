@@ -39,7 +39,10 @@ export function createCaveBehavior(): ToolBehavior {
   }
 }
 
-/** Water: paint with the brush, or drag/click out rectangle, ellipse or polygon bodies. */
+/**
+ * Water: paint with the brush, or drag/click out rectangle, ellipse or
+ * polygon bodies (with Alt, shapes that remove water).
+ */
 export function createWaterBehavior(): ToolBehavior {
   const params = (ctx: ToolCtx) => ({
     deepColor: ctx.params.deepColor,
@@ -53,6 +56,7 @@ export function createWaterBehavior(): ToolBehavior {
     layer: () => 0,
     params,
   })
+  // Alt (invert) draws a shape that cuts the water away instead.
   const shape = shapeController((ctx, polygon: Vec2[]) =>
     addEntities([
       makeEntity(ctx, {
@@ -60,7 +64,7 @@ export function createWaterBehavior(): ToolBehavior {
         points: polygon,
         closed: true,
         position: polygon[0],
-        params: params(ctx),
+        params: { ...params(ctx), ...(isHeld("invert") ? { erase: true } : {}) },
       }),
     ]),
   )

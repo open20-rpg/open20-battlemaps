@@ -176,9 +176,10 @@ function masked(fill: Container, mask: Sprite): Container {
 
 /**
  * Every painted shape of the entities, in order: brush strokes plus closed
- * polygons (Water's rectangle/ellipse/polygon bodies). `grow` widens each
- * shape (negative shrinks), with erasing shapes growing the opposite way so
- * a grown area stays consistent.
+ * polygons (Water's rectangle/ellipse/polygon bodies; `params.erase` ones —
+ * Alt-drawn — cut instead). `grow` widens each shape (negative shrinks),
+ * with erasing strokes growing the opposite way so a grown area stays
+ * consistent; erasing polygons keep their size.
  */
 function shapesOf(entities: readonly MapEntity[], grow = 0): Graphics[] {
   const out: Graphics[] = []
@@ -187,6 +188,11 @@ function shapesOf(entities: readonly MapEntity[], grow = 0): Graphics[] {
     if (e.closed && e.points && e.points.length > 2) {
       const flat = e.points.flatMap((p) => [-p.x, p.y])
       const body = new Graphics().poly(flat, true).fill({ color: 0xffffff })
+      if (e.params.erase === true) {
+        body.blendMode = "erase"
+        out.push(body)
+        continue
+      }
       if (grow > 0) body.stroke({ width: grow * 2, color: 0xffffff, join: "round" })
       out.push(body)
       if (grow < 0) {

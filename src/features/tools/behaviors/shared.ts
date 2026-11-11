@@ -1,7 +1,7 @@
 import { useEditorStore, type DraftShape } from "../../../stores/editorStore"
 import { useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
-import { isKeyHeld } from "../../shortcuts/held"
+import { isHeld, isKeyHeld } from "../../shortcuts/held"
 import {
   addEntity,
   beginGesture,
@@ -131,7 +131,9 @@ export function polylineController(
     setDraft(
       points.length > 0
         ? [
-            ...ghosts(ctx, pts, opts.minPoints, opts.preview),
+            ...(opts.closed && isHeld("invert")
+              ? []
+              : ghosts(ctx, pts, opts.minPoints, opts.preview)),
             { kind: "polyline", points: pts, closed: opts.closed && pts.length > 2 },
           ]
         : [],
@@ -231,8 +233,9 @@ export function shapeController(
     if (!start || !current) return setDraft([])
     const polygon = shapePolygon(shapeOf(ctx), start, current)
     const degenerate = Math.abs(start.x - current.x) < 1e-6 || Math.abs(start.y - current.y) < 1e-6
+    // While Alt cuts (Build, Pattern, Water) there's nothing to add: just the outline.
     setDraft([
-      ...(degenerate ? [] : ghosts(ctx, polygon, 3, preview)),
+      ...(degenerate || isHeld("invert") ? [] : ghosts(ctx, polygon, 3, preview)),
       { kind: "polygon", points: polygon },
     ])
   }

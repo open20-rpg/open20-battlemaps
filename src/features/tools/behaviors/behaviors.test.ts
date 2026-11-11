@@ -15,6 +15,7 @@ import { decodeWeights, type TerrainData } from "../../map/model/terrain"
 import { instantiatePrefab, prefabFrom } from "./settings"
 import { nearestWall, screenAngle } from "./structures"
 import { type PointerInfo } from "./types"
+import { pressKey, releaseAll } from "../../shortcuts/held"
 
 const at = (x: number, y: number, extra: Partial<PointerInfo> = {}): PointerInfo => ({
   x,
@@ -246,6 +247,43 @@ describe("walls, build, portals", () => {
     ])
     undo()
     expect(entities()).toHaveLength(2)
+  })
+
+  it("Alt cuts the shape out of rooms (walls rebuilt) and patterns; Water gets an eraser", () => {
+    const drag = (tool: string, a: [number, number], b: [number, number]) => {
+      down(tool, ...a)
+      move(tool, ...b)
+      up(tool, ...b)
+    }
+    useToolsStore.getState().selectToolById("build")
+    drag("build", [0, 0], [6, 6])
+    pressKey("Alt")
+    // A hole in the middle: one floor (bridged ring) and two closed walls.
+    drag("build", [2, 2], [4, 4])
+    releaseAll()
+    const floors = entities().filter((e) => e.toolId === "build")
+    const walls = entities().filter((e) => e.toolId === "wall")
+    expect(floors).toHaveLength(1)
+    expect(floors[0].points).toHaveLength(10)
+    expect(walls.map((w) => w.points?.length)).toEqual([4, 4])
+    undo()
+    expect(entities().filter((e) => e.toolId === "wall")[0].points).toHaveLength(4)
+    expect(entities()).toHaveLength(2)
+
+    setParams("pattern", { shape: "rectangle" })
+    drag("pattern", [10, 0], [14, 4])
+    pressKey("Alt")
+    drag("pattern", [12, -1], [15, 5])
+    releaseAll()
+    const [pattern] = entities().filter((e) => e.toolId === "pattern")
+    expect(pattern.points).toHaveLength(4)
+    expect(Math.max(...(pattern.points ?? []).map((p) => p.x))).toBe(12)
+
+    setParams("water", { shape: "rectangle" })
+    pressKey("Alt")
+    drag("water", [0, 10], [2, 12])
+    releaseAll()
+    expect(entities().find((e) => e.toolId === "water")?.params.erase).toBe(true)
   })
 
   it("previews the real wall and room while they're being drawn", () => {

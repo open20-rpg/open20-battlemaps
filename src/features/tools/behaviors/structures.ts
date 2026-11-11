@@ -11,10 +11,13 @@ import {
   closestOnSegment,
   dist,
   joinPolylines,
+  newId,
   normalizeDegrees,
   segmentsOf,
 } from "../../map/model/geometry"
+import { bridgeHoles, subtractPolygon } from "../../map/model/clip"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
+import { isHeld } from "../../shortcuts/held"
 import { type AssetSelection } from "../params"
 import {
   editPointsController,
@@ -166,12 +169,68 @@ const buildEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
   wallEntity(ctx, polygon, true, selection(ctx.params.wall)),
 ]
 
-/** Build: a room — a floor polygon plus the wall around it, in one undo step. */
+const samePolygon = (a: readonly Vec2[], b: readonly Vec2[]) =>
+  a.length === b.length && a.every((p) => b.some((q) => dist(p, q) < 1e-6))
+
+/**
+ * Cut `cut` out of the level's `toolId` polygons (Alt with Build/Pattern),
+ * in one undo step: each one touched keeps its first piece (holes bridged
+ * into its ring) and copies take the rest. Build's floors bring their walls
+ * along: the wall around a floor is rebuilt as one closed wall per outline
+ * and hole of what's left.
+ */
+export function subtractShape(ctx: ToolCtx, toolId: string, cut: Vec2[]): void {
+  const patches = new Map<string, Partial<MapEntity>>()
+  const added: MapEntity[] = []
+  const removed: string[] = []
+  const reshape = (e: MapEntity, rings: Vec2[][]) => {
+    const [first, ...rest] = rings
+    if (!first) return removed.push(e.id)
+    patches.set(e.id, { points: first, position: first[0] })
+    for (const ring of rest) added.push({ ...e, id: newId(), points: ring, position: ring[0] })
+  }
+  for (const e of ctx.entities) {
+    if (e.toolId !== toolId || !e.closed || !e.points || e.locked) continue
+    const pieces = subtractPolygon(e.points, cut)
+    if (!pieces) continue
+    reshape(e, pieces.map(bridgeHoles))
+    const wall =
+      toolId === "build"
+        ? ctx.entities.find(
+            (w) => w.toolId === "wall" && w.closed && samePolygon(w.points ?? [], e.points ?? []),
+          )
+        : undefined
+    if (wall)
+      reshape(
+        wall,
+        pieces.flatMap((p) => [p.outer, ...p.holes]),
+      )
+  }
+  if (patches.size === 0 && removed.length === 0) return
+  beginGesture()
+  updateEntities(patches)
+  if (added.length) addEntities(added)
+  if (removed.length) removeEntities(removed)
+  endGesture()
+}
+
+/** A shape commit that adds `entities`, or with Alt (invert) cuts the shape out of `toolId`. */
+const addOrSubtract =
+  (toolId: string, entities: (ctx: ToolCtx, polygon: Vec2[]) => MapEntity[]) =>
+  (ctx: ToolCtx, polygon: Vec2[]) => {
+    if (isHeld("invert")) subtractShape(ctx, toolId, polygon)
+    else addEntities(entities(ctx, polygon))
+  }
+
+/**
+ * Build: a room — a floor polygon plus the wall around it, in one undo step
+ * (with Alt, the shape is cut out of the rooms instead).
+ */
 export function createBuildBehavior(): ToolBehavior {
-  return withEditPoints(
-    shapeController((ctx, polygon) => addEntities(buildEntities(ctx, polygon)), buildEntities),
-    ["build", "wall"],
-  )
+  return withEditPoints(shapeController(addOrSubtract("build", buildEntities), buildEntities), [
+    "build",
+    "wall",
+  ])
 }
 
 const patternEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
@@ -190,10 +249,10 @@ const patternEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
   }),
 ]
 
-/** Pattern: a polygon filled with a tiling texture, tinted by Color. */
+/** Pattern: a polygon filled with a tiling texture, tinted by Color (Alt cuts the shape out). */
 export function createPatternBehavior(): ToolBehavior {
   return withEditPoints(
-    shapeController((ctx, polygon) => addEntities(patternEntities(ctx, polygon)), patternEntities),
+    shapeController(addOrSubtract("pattern", patternEntities), patternEntities),
     ["pattern"],
   )
 }
