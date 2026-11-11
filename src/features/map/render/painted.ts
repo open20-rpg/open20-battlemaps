@@ -15,8 +15,9 @@ import { TEXTURE_PX_PER_TILE } from "./assets"
 import { type RenderEnv, selectionAsset } from "./entities"
 import { softBrushTexture } from "./generated"
 import { LayerMaskFilter } from "./layerFilter"
-import { type SplatLayer } from "../format/dungeondraft"
-import { TERRAIN_SLOTS, decodeBase64 } from "./splat"
+import { type TerrainData } from "../model/terrain"
+import { liveTerrain, weightsOf } from "../terrainLive"
+import { packWeights } from "./splat"
 import { TerrainFilter } from "./terrainFilter"
 
 /**
@@ -30,6 +31,8 @@ import { TerrainFilter } from "./terrainFilter"
 export interface Composite {
   view: Container
   dispose: () => void
+  /** Re-read live data in place (terrain while a stroke is painted). */
+  refresh?: () => void
 }
 
 export interface MapBox {
@@ -281,164 +284,64 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
 }
 
 /**
- * An imported splat layer's raw weights as a sprite over the map (content
- * space, premultiplied white with the weight as alpha). Splat UVs are the
- * map's own (texel t centered at (t + 0.5) / 4 tiles, as in Dungeondraft),
- * and Dungeondraft x grows rightward like content space, so it just spans
- * the map; linear filtering is the GPU's bilinear interpolation, as there.
- */
-function weightSprite(splat: SplatLayer, map: MapBox): Sprite | null {
-  const data = splat.weights ?? splat.data
-  if (!data) return null
-  const weights = decodeBase64(data)
-  const rgba = new Uint8Array(weights.length * 4)
-  weights.forEach((v, i) => rgba.fill(v, i * 4, i * 4 + 4))
-  const source = new BufferImageSource({
-    resource: rgba,
-    width: splat.width,
-    height: splat.height,
-    scaleMode: "linear",
-    // The bytes already are premultiplied (white × weight). Left to the
-    // default, Pixi premultiplies again on upload: every weight squared
-    // (0.4 → 0.16), which tips height blends toward the heavier texture.
-    alphaMode: "premultiplied-alpha",
-  })
-  const sprite = new Sprite(new Texture({ source }))
-  sprite.position.set(-map.width, 0)
-  sprite.width = splat.width / 4
-  sprite.height = splat.height / 4
-  return sprite
-}
-
-/** Full weight over the whole map (a Fill without imported weights). */
-function fullWeight(map: MapBox): Sprite {
-  const s = new Sprite(Texture.WHITE)
-  s.position.set(-map.width, 0)
-  s.width = map.width
-  s.height = map.height
-  return s
-}
-
-/** Draw `sprite` into `mask`, then free the sprite's own texture if it has one. */
-function drawWeight(mask: MapMask, sprite: Sprite | null, clear: boolean): void {
-  if (!sprite) return
-  const texture = sprite.texture
-  mask.draw([sprite], clear)
-  if (texture !== Texture.WHITE) texture.destroy(true)
-}
-
-/**
- * How much one Terrain Brush stroke covers, from its Intensity (0.2–8): low
- * intensities need several passes to fully replace the texture underneath,
- * the default (4) almost does it in one, high ones fully.
- */
-export function terrainStrength(intensity: number): number {
-  return Math.min(1, 1 - Math.exp(-Math.max(0, intensity) * 0.5))
-}
-
-/**
- * One stroke's coverage, rendered once into `scratch` (cleared) so the
- * stroke acts as a single layer: overlapping stamps within a stroke don't
- * stack, only separate strokes accumulate. The round soft falloff is kept:
- * with Smooth Blending off it's the layer filter that breaks it up.
- */
-function strokeCoverage(stroke: BrushStroke, scratch: MapMask): Sprite {
-  const stamps = softStroke({ ...stroke, erase: false }, 1)
-  scratch.draw([stamps], true)
-  return scratch.sprite()
-}
-
-/**
- * Terrain: up to 8 texture slots, each with a weight over the map, blended
- * in one pass by Dungeondraft's formula (terrainFilter.ts). Weights are
- * built per slot: a Fill sets its texture to full weight (or to the imported
- * base's weights) and clears the rest; an imported splat layer sets its
- * slot's weights; a brush stroke adds its coverage (scaled by Intensity) to
- * its slot and removes it from every other one. The slots are then packed
- * three per RGB render texture, which is all the filter keeps.
+ * Terrain: one splat per level (slot weights, 4 texels per tile — see
+ * model/terrain.ts), blended in one pass by Dungeondraft's formula
+ * (terrainFilter.ts). The weights are packed three slots per RGB texture,
+ * filtered bilinearly like Dungeondraft's splat; while a stroke is being
+ * painted they're re-packed from the live buffer on every tick (refresh).
  */
 function terrainComposite(
   entities: MapEntity[],
   map: MapBox,
-  renderer: Renderer,
+  _renderer: Renderer,
   env: RenderEnv,
 ): Composite {
-  const masks = new Map<string, MapMask>()
-  const slotOf = (texId: string): MapMask | undefined => {
-    if (!masks.has(texId) && masks.size < TERRAIN_SLOTS) {
-      masks.set(texId, new MapMask(renderer, map))
-    }
-    return masks.get(texId)
+  const view = new Container()
+  const entity = [...entities].reverse().find((e) => e.params.terrain)
+  if (!entity) return { view, dispose: () => view.destroy() }
+  const data = entity.params.terrain as TerrainData
+  const sources = [0, 1, 2].map(
+    () =>
+      new BufferImageSource({
+        resource: new Uint8Array(data.width * data.height * 4),
+        width: data.width,
+        height: data.height,
+        scaleMode: "linear",
+        // Packed bytes are the weights themselves (alpha 255): no premultiplying.
+        alphaMode: "premultiplied-alpha",
+      }),
+  )
+  const pack = () => {
+    packWeights(
+      liveTerrain(entity.id) ?? weightsOf(data),
+      sources.map((src) => src.resource as Uint8Array),
+    )
+    for (const src of sources) src.update()
   }
-  const scratch = new MapMask(renderer, map)
-  let started = false
-  for (const e of entities) {
-    const texId = str(e.params.texture, "")
-    if (!texId) continue
-    // Until a Fill, the base is slot 0 as it was when painting, at full weight.
-    if (!started && typeof e.params.base === "string" && e.params.fill !== true) {
-      const base = slotOf(e.params.base)
-      if (base) drawWeight(base, fullWeight(map), true)
-    }
-    started = true
-    const splat = e.params.splat as SplatLayer | undefined
-    if (e.params.fill === true) {
-      for (const m of masks.values()) m.draw([], true)
-      const m = slotOf(texId)
-      if (m) drawWeight(m, splat ? weightSprite(splat, map) : fullWeight(map), true)
-      continue
-    }
-    if (splat) {
-      const m = slotOf(texId)
-      if (m) drawWeight(m, weightSprite(splat, map), false)
-      continue
-    }
-    const strength = terrainStrength(num(e.params.intensity, 4))
-    for (const stroke of e.strokes ?? []) {
-      const own = slotOf(texId)
-      const paint = (target: MapMask, erase: boolean) => {
-        const coverage = strokeCoverage(stroke, scratch)
-        coverage.alpha = strength
-        if (erase) coverage.blendMode = "erase"
-        target.draw([coverage], false)
-      }
-      for (const [other, m] of masks) {
-        // Right-drag erases the texture itself; painting erases the others.
-        if (stroke.erase ? other === texId : other !== texId) paint(m, true)
-      }
-      if (own && !stroke.erase) paint(own, false)
-    }
-  }
-  scratch.destroy()
-
-  // Pack: slot i goes to channel i % 3 of render texture ⌊i / 3⌋.
-  const slots = [...masks.keys()]
-  const channel = [0xff0000, 0x00ff00, 0x0000ff]
-  const packed = [0, 1, 2].map((r) => {
-    const out = new MapMask(renderer, map)
-    const parts = slots.slice(r * 3, r * 3 + 3).map((id, c) => {
-      const sprite = (masks.get(id) as MapMask).sprite()
-      sprite.tint = channel[c]
-      sprite.blendMode = "add"
-      return sprite
-    })
-    out.draw(parts, true)
-    return out
-  })
-  for (const m of masks.values()) m.destroy()
-
-  const area = fullWeight(map)
+  pack()
+  const [w0, w1, w2] = sources.map((source) => new Texture({ source }))
+  const weights: [Texture, Texture, Texture] = [w0, w1, w2]
+  const area = new Sprite(Texture.WHITE)
+  area.position.set(-map.width, 0)
+  area.width = map.width
+  area.height = map.height
   const filter = new TerrainFilter(area, {
-    textures: slots.map((id) => env.tex(id)),
-    weights: [packed[0].rt, packed[1].rt, packed[2].rt],
+    textures: data.slots.map((id) => (id ? env.tex(id) : undefined)),
+    weights,
     smooth: env.terrainSmooth,
     map,
   })
   area.filters = [filter]
-  area.once("destroyed", () => filter.destroy())
-  const view = new Container()
   view.addChild(area)
-  return composite(view, packed)
+  return {
+    view,
+    dispose: () => {
+      view.destroy({ children: true })
+      filter.destroy()
+      for (const t of weights) t.destroy(true)
+    },
+    refresh: pack,
+  }
 }
 
 /** Material brush: one soft mask per painted material texture. */

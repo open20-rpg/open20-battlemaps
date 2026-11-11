@@ -11,6 +11,7 @@ import { buildToolCtx } from "./context"
 import { getToolBehavior, isToolActionDisabled, runToolAction } from "./index"
 import { scatterAt, scatterSpacing } from "./objects"
 import { terrainSlots } from "./paint"
+import { decodeWeights, type TerrainData } from "../../map/model/terrain"
 import { instantiatePrefab, prefabFrom } from "./settings"
 import { nearestWall, screenAngle } from "./structures"
 import { type PointerInfo } from "./types"
@@ -257,11 +258,24 @@ describe("painting", () => {
     }
     setParams("terrainBrush", { biome })
     expect(terrainSlots(biome)).toEqual({ selected: "p|t1", base: "p|t0" })
-    down("terrainBrush", 1, 1)
-    up("terrainBrush", 1, 1)
+    // A press paints slot 1 under the brush into a new terrain (all slot 0)…
+    setParams("terrainBrush", { biome, brushSize: 2, intensity: 8 })
+    down("terrainBrush", 10, 10)
+    up("terrainBrush", 10, 10)
+    expect(entities()).toHaveLength(1)
+    const data = entities()[0].params.terrain as TerrainData
+    expect(data.slots.slice(0, 3)).toEqual(["p|t0", "p|t1", null])
+    // Map 20×20 tiles: map x 10 → texel 40; the brush center there.
+    const at = (tx: number, ty: number) => decodeWeights(data.weights)[(ty * 80 + tx) * 8 + 1]
+    expect(at(40, 40)).toBeGreaterThan(0)
+    expect(at(10, 10)).toBe(0)
+    // …in one undo step; Fill puts the whole level in the slot.
+    undo()
+    expect(entities()).toEqual([])
     runToolAction("terrainBrush", "fill")
-    expect(entities().map((e) => e.params.fill === true)).toEqual([false, true])
-    expect(entities()[0].params).toMatchObject({ texture: "p|t1", base: "p|t0" })
+    const filled = decodeWeights((entities()[0].params.terrain as TerrainData).weights)
+    expect(filled[1]).toBe(255)
+    expect(filled[0]).toBe(0)
   })
 })
 
