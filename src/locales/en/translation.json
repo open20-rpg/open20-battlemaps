@@ -360,7 +360,8 @@
     "searchingLibrary": "Searching library",
     "loadingFonts": "Loading fonts",
     "exporting": "Exporting image",
-    "openingMap": "Opening map"
+    "openingMap": "Opening map",
+    "estimatingSize": "Estimating the export size"
   },
   "mapFile": {
     "discardTitle": "Discard unsaved changes?",
@@ -374,9 +375,23 @@
     "export": "Export",
     "resolution": "Resolution",
     "pxPerTile": "{{px}} px per tile",
-    "includeGrid": "Include the grid",
+    "includeGrid": "Grid",
     "size": "Size: {{w}} × {{h}} px",
-    "capped": "reduced to stay within the maximum"
+    "capped": "reduced to stay within the maximum",
+    "format": "Format",
+    "format_png": "PNG",
+    "format_jpeg": "JPEG",
+    "format_webp": "WebP",
+    "quality": "Quality",
+    "include": "Include",
+    "includeLighting": "Lighting",
+    "includeShadows": "Shadows",
+    "includePostProcess": "Color adjustments (post-processing)",
+    "transparent": "Transparent background",
+    "transparentNoJpeg": "JPEG has no transparency",
+    "estimating": "Estimating the file size…",
+    "estimateFailed": "Couldn't estimate the file size",
+    "fileSize": "File: ≈ {{size}}"
   },
   "levels": {
     "title": "Levels",

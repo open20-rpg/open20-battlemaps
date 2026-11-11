@@ -360,7 +360,8 @@
     "searchingLibrary": "Buscando en la biblioteca",
     "loadingFonts": "Cargando fuentes",
     "exporting": "Exportando imagen",
-    "openingMap": "Abriendo mapa"
+    "openingMap": "Abriendo mapa",
+    "estimatingSize": "Estimando el tamaño de la exportación"
   },
   "mapFile": {
     "discardTitle": "¿Descartar los cambios sin guardar?",
@@ -374,9 +375,23 @@
     "export": "Exportar",
     "resolution": "Resolución",
     "pxPerTile": "{{px}} px por casilla",
-    "includeGrid": "Incluir la cuadrícula",
+    "includeGrid": "Cuadrícula",
     "size": "Tamaño: {{w}} × {{h}} px",
-    "capped": "reducido para no superar el máximo"
+    "capped": "reducido para no superar el máximo",
+    "format": "Formato",
+    "format_png": "PNG",
+    "format_jpeg": "JPEG",
+    "format_webp": "WebP",
+    "quality": "Calidad",
+    "include": "Incluir",
+    "includeLighting": "Iluminación",
+    "includeShadows": "Sombras",
+    "includePostProcess": "Ajustes de color (postprocesado)",
+    "transparent": "Fondo transparente",
+    "transparentNoJpeg": "JPEG no admite transparencia",
+    "estimating": "Calculando el tamaño del archivo…",
+    "estimateFailed": "No se pudo estimar el tamaño del archivo",
+    "fileSize": "Archivo: ≈ {{size}}"
   },
   "levels": {
     "title": "Niveles",

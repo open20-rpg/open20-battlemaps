@@ -13,11 +13,21 @@ import {
 import { ShadowTintFilter } from "./shadowFilter"
 import { PostProcessFilter } from "./postProcessFilter"
 import { liveTerrainVersion } from "../terrainLive"
-import { isNeutral, type PostProcess } from "../../../lib/postProcess"
+import { DEFAULT_POST_PROCESS, isNeutral, type PostProcess } from "../../../lib/postProcess"
 import { lightingComposite } from "./lighting"
 import { drawOverlay } from "./overlay"
 import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
 import { tileSizeForZoom } from "./viewport"
+
+/** What an exported image includes (the rest of the export look is fixed: no editor overlays). */
+export interface ExportLook {
+  lighting: boolean
+  shadows: boolean
+  /** Apply the map's color adjustments (post-processing). */
+  postProcess: boolean
+  /** No black ground: what's unpainted stays transparent. */
+  transparent: boolean
+}
 
 /** Everything the scene draws from, gathered from the stores each frame it changes. */
 export interface SceneState {
@@ -136,6 +146,8 @@ export class MapScene {
   private clip = new Graphics()
   private baseSize = ""
   private last: SceneState | null = null
+  /** Set while an export renders: the look it asks for, over the live state. */
+  private exporting: { pxPerTile: number; look: ExportLook } | null = null
   private unsubscribe: () => void
 
   constructor(
@@ -160,7 +172,7 @@ export class MapScene {
     this.unsubscribe = assets.subscribe(() => {
       if (!this.last) return
       this.update(this.last, true)
-      this.onDirty()
+      this.dirty()
     })
   }
 
@@ -197,8 +209,28 @@ export class MapScene {
     }
   }
 
-  update(state: SceneState, assetsChanged = false): void {
-    this.last = state
+  /** Ask for a repaint, except mid-export (the canvas keeps its last frame meanwhile). */
+  private dirty(): void {
+    if (!this.exporting) this.onDirty()
+  }
+
+  /** The state actually drawn: the live one, or with an export's look applied. */
+  private drawn(state: SceneState): SceneState {
+    if (!this.exporting) return state
+    const { look } = this.exporting
+    return {
+      ...state,
+      lighting: look.lighting,
+      shadows: look.shadows,
+      postProcess: look.postProcess ? state.postProcess : DEFAULT_POST_PROCESS,
+      showOutside: false,
+      compareLevel: null,
+    }
+  }
+
+  update(live: SceneState, assetsChanged = false): void {
+    this.last = live
+    const state = this.drawn(live)
     const onLevel = state.map.entities.filter((e) => !e.level || e.level === state.level)
     this.syncBounds(state)
     this.syncReference(state)
@@ -334,6 +366,8 @@ export class MapScene {
     // Position is the top-left corner in map space; x is mirrored.
     sprite.position.set(-img.position.x - img.width, img.position.y)
     sprite.alpha = img.opacity
+    // An editor aid, never exported.
+    sprite.visible = !this.exporting
   }
 
   private syncEntities(state: SceneState, onLevel: MapEntity[], assetsChanged: boolean): void {
@@ -445,24 +479,26 @@ export class MapScene {
   }
 
   /**
-   * Run `fn` (an off-screen export render) at `pxPerTile`: editor-only
-   * content (the reference image) hidden and the shadow blur sized for the
-   * export's scale instead of the on-screen zoom.
+   * Switch to an export's look at `pxPerTile` until {@link endExport}:
+   * lighting, shadows, color adjustments and the ground as asked, editor
+   * aids (reference image, compared level, what's past the edges) hidden,
+   * and the shadow blur sized for the export's scale instead of the zoom.
+   * The on-screen canvas isn't repainted meanwhile.
    */
-  forExport<T>(pxPerTile: number, fn: () => T): T {
-    const ref = this.reference?.sprite
-    const was = ref?.visible
-    if (ref) ref.visible = false
+  beginExport(pxPerTile: number, look: ExportLook): void {
+    this.exporting = { pxPerTile, look }
     this.shadowPxPerTile = pxPerTile
-    if (this.last) this.applyShadowStyle(this.last)
-    try {
-      return fn()
-    } finally {
-      if (ref && was !== undefined) ref.visible = was
-      this.shadowPxPerTile = null
-      if (this.last) this.applyShadowStyle(this.last)
-      this.onDirty()
-    }
+    this.base.visible = !look.transparent
+    if (this.last) this.update(this.last)
+  }
+
+  endExport(): void {
+    if (!this.exporting) return
+    this.exporting = null
+    this.shadowPxPerTile = null
+    this.base.visible = true
+    if (this.last) this.update(this.last)
+    this.onDirty()
   }
 
   destroy(): void {

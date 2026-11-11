@@ -1,21 +1,45 @@
-//! Streaming PNG export.
+//! Map image export (PNG, JPEG, WebP).
 //!
 //! The frontend renders the map in horizontal bands and sends each band's
-//! raw RGBA rows here as it goes; they're encoded straight into the file on
-//! a blocking worker thread. Neither side ever holds the whole image (an
-//! 8192² export would be 256 MB of RGBA), and neither the webview nor the
-//! app's main thread does the encoding, so the UI stays responsive.
+//! raw RGBA rows here as it goes. A PNG is encoded straight into the file as
+//! rows arrive (neither side ever holds the whole image); JPEG and WebP
+//! encoders need the whole picture, so their rows are collected (JPEG as
+//! RGB) and encoded at the end. All of it runs on a blocking worker thread,
+//! never the webview or the app's main thread, so the UI stays responsive.
 
 use std::io::Write;
 use std::sync::Mutex;
 
+use image::codecs::jpeg::JpegEncoder;
+use image::codecs::webp::WebPEncoder;
+use image::{ExtendedColorType, ImageEncoder};
+use serde::Deserialize;
 use tauri::{AppHandle, Manager};
 
 type Sink = Box<dyn Write + Send>;
 
-/// An export in progress: the PNG stream and how many bytes are still due.
+/// Output format; JPEG carries its quality (1–100).
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum Format {
+    Png,
+    Jpeg { quality: u8 },
+    Webp,
+}
+
+enum Encoding {
+    /// PNG rows go straight into the file.
+    Png(png::StreamWriter<'static, Sink>),
+    /// Rows kept until the end (RGB for JPEG, RGBA for WebP).
+    Buffered { sink: Sink, pixels: Vec<u8> },
+}
+
+/// An export in progress: its encoder and how many RGBA bytes are still due.
 struct Export {
-    stream: png::StreamWriter<'static, Sink>,
+    format: Format,
+    width: u32,
+    height: u32,
+    encoding: Encoding,
     remaining: u64,
 }
 
@@ -23,15 +47,38 @@ struct Export {
 #[derive(Default)]
 pub struct ExportState(Mutex<Option<Export>>);
 
-/// Start a PNG of `width` × `height` RGBA pixels on `sink`.
-fn begin(sink: Sink, width: u32, height: u32) -> Result<Export, String> {
-    let mut encoder = png::Encoder::new(sink, width, height);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-    let writer = encoder.write_header().map_err(|e| e.to_string())?;
-    let stream = writer.into_stream_writer().map_err(|e| e.to_string())?;
+/// Start an image of `width` × `height` pixels on `sink`.
+fn begin(sink: Sink, format: Format, width: u32, height: u32) -> Result<Export, String> {
+    if width == 0 || height == 0 {
+        return Err("empty image".into());
+    }
+    let encoding = match format {
+        Format::Png => {
+            let mut encoder = png::Encoder::new(sink, width, height);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let writer = encoder.write_header().map_err(|e| e.to_string())?;
+            Encoding::Png(writer.into_stream_writer().map_err(|e| e.to_string())?)
+        }
+        Format::Jpeg { .. } | Format::Webp => {
+            let channels = if matches!(format, Format::Jpeg { .. }) {
+                3
+            } else {
+                4
+            };
+            let size = u64::from(width) * u64::from(height) * channels;
+            let mut pixels = Vec::new();
+            pixels
+                .try_reserve_exact(usize::try_from(size).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+            Encoding::Buffered { sink, pixels }
+        }
+    };
     Ok(Export {
-        stream,
+        format,
+        width,
+        height,
+        encoding,
         remaining: u64::from(width) * u64::from(height) * 4,
     })
 }
@@ -39,20 +86,90 @@ fn begin(sink: Sink, width: u32, height: u32) -> Result<Export, String> {
 /// Append rows (RGBA, top to bottom); they must not overrun the image.
 fn write_rows(export: &mut Export, rows: &[u8]) -> Result<(), String> {
     let len = rows.len() as u64;
-    if len > export.remaining {
+    if len > export.remaining || !len.is_multiple_of(4) {
         return Err("more pixel data than the image holds".into());
     }
-    export.stream.write_all(rows).map_err(|e| e.to_string())?;
+    match &mut export.encoding {
+        Encoding::Png(stream) => stream.write_all(rows).map_err(|e| e.to_string())?,
+        Encoding::Buffered { pixels, .. } => match export.format {
+            // JPEG has no alpha: keep RGB.
+            Format::Jpeg { .. } => {
+                for px in rows.chunks_exact(4) {
+                    pixels.extend_from_slice(&px[..3]);
+                }
+            }
+            _ => pixels.extend_from_slice(rows),
+        },
+    }
     export.remaining -= len;
     Ok(())
 }
 
-/// Finish the PNG: every pixel must have been written.
+/// Encode a whole picture (`pixels`: RGB for JPEG, RGBA otherwise) into `out`.
+fn encode_all(
+    format: Format,
+    out: &mut dyn Write,
+    pixels: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    match format {
+        Format::Jpeg { quality } => JpegEncoder::new_with_quality(out, quality.clamp(1, 100))
+            .write_image(pixels, width, height, ExtendedColorType::Rgb8),
+        Format::Webp => WebPEncoder::new_lossless(out).write_image(
+            pixels,
+            width,
+            height,
+            ExtendedColorType::Rgba8,
+        ),
+        Format::Png => image::codecs::png::PngEncoder::new(out).write_image(
+            pixels,
+            width,
+            height,
+            ExtendedColorType::Rgba8,
+        ),
+    }
+    .map_err(|e| e.to_string())
+}
+
+/// Finish the image: every pixel must have been written.
 fn finish(export: Export) -> Result<(), String> {
     if export.remaining != 0 {
         return Err("the image is incomplete".into());
     }
-    export.stream.finish().map_err(|e| e.to_string())
+    match export.encoding {
+        Encoding::Png(stream) => stream.finish().map_err(|e| e.to_string()),
+        Encoding::Buffered { mut sink, pixels } => {
+            encode_all(
+                export.format,
+                &mut sink,
+                &pixels,
+                export.width,
+                export.height,
+            )?;
+            sink.flush().map_err(|e| e.to_string())
+        }
+    }
+}
+
+/// Encoded size of an RGBA picture in `format` (for the export size estimate).
+fn encoded_size(format: Format, rgba: &[u8], width: u32, height: u32) -> Result<u64, String> {
+    if u64::from(width) * u64::from(height) * 4 != rgba.len() as u64 || rgba.is_empty() {
+        return Err("pixel data doesn't match the size".into());
+    }
+    let rgb: Vec<u8>;
+    let pixels = if matches!(format, Format::Jpeg { .. }) {
+        rgb = rgba
+            .chunks_exact(4)
+            .flat_map(|p| [p[0], p[1], p[2]])
+            .collect();
+        &rgb[..]
+    } else {
+        rgba
+    };
+    let mut out = Vec::new();
+    encode_all(format, &mut out, pixels, width, height)?;
+    Ok(out.len() as u64)
 }
 
 fn open_sink(path: &str) -> Result<Sink, String> {
@@ -74,16 +191,17 @@ async fn blocking<T: Send + 'static>(
         .map_err(|e| e.to_string())?
 }
 
-/// Create the PNG file at `path` for a `width` × `height` image.
+/// Create the image file at `path` for a `width` × `height` image.
 #[tauri::command]
 pub async fn export_begin(
     app: AppHandle,
     path: String,
+    format: Format,
     width: u32,
     height: u32,
 ) -> Result<(), String> {
     blocking(move || {
-        let export = begin(open_sink(&path)?, width, height)?;
+        let export = begin(open_sink(&path)?, format, width, height)?;
         *app.state::<ExportState>().0.lock().unwrap() = Some(export);
         Ok(())
     })
@@ -119,6 +237,33 @@ pub async fn export_end(app: AppHandle, cancel: bool) -> Result<(), String> {
     .await
 }
 
+/// Header of [`export_estimate`] carrying its JSON `{format, width, height}`.
+const ESTIMATE_HEADER: &str = "x-export-sample";
+
+#[derive(Deserialize)]
+struct Sample {
+    format: Format,
+    width: u32,
+    height: u32,
+}
+
+/// Encoded size of a sample picture (raw RGBA body; format and size in the
+/// `x-export-sample` header): the frontend scales it to estimate a file size.
+#[tauri::command]
+pub async fn export_estimate(request: tauri::ipc::Request<'_>) -> Result<u64, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("expected a raw byte body".into());
+    };
+    let header = request
+        .headers()
+        .get(ESTIMATE_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .ok_or("missing sample header")?;
+    let sample: Sample = serde_json::from_str(header).map_err(|e| e.to_string())?;
+    let rgba = bytes.clone();
+    blocking(move || encoded_size(sample.format, &rgba, sample.width, sample.height)).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,28 +282,57 @@ mod tests {
         }
     }
 
-    #[test]
-    fn streams_bands_into_a_valid_png() {
+    const RED: [u8; 4] = [255, 0, 0, 255];
+    const BLUE: [u8; 4] = [0, 0, 255, 255];
+
+    /// Export a 2×3 picture (sent as a 2-row band then a 1-row band) and decode it.
+    fn roundtrip(format: Format) -> image::RgbaImage {
         let out = Shared::default();
-        let mut export = begin(Box::new(out.clone()), 2, 3).unwrap();
-        // Three rows of two pixels, sent as a 2-row band then a 1-row band.
-        let red = [255, 0, 0, 255];
-        let blue = [0, 0, 255, 255];
-        write_rows(&mut export, &[red, red, blue, blue].concat()).unwrap();
-        write_rows(&mut export, &[red, blue].concat()).unwrap();
+        let mut export = begin(Box::new(out.clone()), format, 2, 3).unwrap();
+        write_rows(&mut export, &[RED, RED, BLUE, BLUE].concat()).unwrap();
+        write_rows(&mut export, &[RED, BLUE].concat()).unwrap();
         finish(export).unwrap();
         let bytes = out.0.lock().unwrap().clone();
-        let img = image::load_from_memory(&bytes).unwrap().to_rgba8();
-        assert_eq!(img.dimensions(), (2, 3));
-        assert_eq!(img.get_pixel(0, 1).0, blue);
-        assert_eq!(img.get_pixel(1, 2).0, blue);
-        assert_eq!(img.get_pixel(0, 2).0, red);
+        image::load_from_memory(&bytes).unwrap().to_rgba8()
+    }
+
+    #[test]
+    fn streams_bands_into_a_valid_png_and_webp() {
+        for format in [Format::Png, Format::Webp] {
+            let img = roundtrip(format);
+            assert_eq!(img.dimensions(), (2, 3));
+            assert_eq!(img.get_pixel(0, 1).0, BLUE);
+            assert_eq!(img.get_pixel(1, 2).0, BLUE);
+            assert_eq!(img.get_pixel(0, 2).0, RED);
+        }
+    }
+
+    #[test]
+    fn writes_jpeg() {
+        let out = Shared::default();
+        let mut export = begin(Box::new(out.clone()), Format::Jpeg { quality: 90 }, 8, 8).unwrap();
+        write_rows(&mut export, &RED.repeat(64)).unwrap();
+        finish(export).unwrap();
+        let bytes = out.0.lock().unwrap().clone();
+        assert_eq!(&bytes[..2], &[0xFF, 0xD8]);
     }
 
     #[test]
     fn rejects_overruns_and_incomplete_images() {
-        let mut export = begin(Box::new(Shared::default()), 1, 1).unwrap();
+        let mut export = begin(Box::new(Shared::default()), Format::Png, 1, 1).unwrap();
         assert!(write_rows(&mut export, &[0; 8]).is_err());
         assert!(finish(export).is_err());
+    }
+
+    #[test]
+    fn measures_encoded_sizes() {
+        let flat = RED.repeat(64 * 64);
+        let png = encoded_size(Format::Png, &flat, 64, 64).unwrap();
+        assert!(png > 0 && png < flat.len() as u64);
+        let low = encoded_size(Format::Jpeg { quality: 10 }, &flat, 64, 64).unwrap();
+        assert!(low > 0);
+        assert!(encoded_size(Format::Webp, &flat, 10, 10).is_err());
+        let format: Format = serde_json::from_str(r#"{"kind":"jpeg","quality":80}"#).unwrap();
+        assert_eq!(format, Format::Jpeg { quality: 80 });
     }
 }

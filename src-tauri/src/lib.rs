@@ -34,6 +34,7 @@ pub fn run() {
             export::export_begin,
             export::export_rows,
             export::export_end,
+            export::export_estimate,
             map::read_image_file,
         ])
         .run(tauri::generate_context!())

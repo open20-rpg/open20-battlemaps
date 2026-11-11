@@ -15,8 +15,17 @@ import {
 } from "../tools/params"
 import i18n from "../../i18n"
 import { withLoading } from "../../stores/loadingStore"
-import { exportBegin, exportEnd, exportRows, loadMapFile, resolveAssets, saveMapFile } from "./api"
-import { renderMapRows, type ExportOptions } from "./render/exportMap"
+import {
+  exportBegin,
+  exportEnd,
+  exportEstimate,
+  exportRows,
+  loadMapFile,
+  resolveAssets,
+  saveMapFile,
+} from "./api"
+import { estimateBytes, FORMAT_EXTENSION } from "./exportFormat"
+import { renderExportSample, renderMapRows, type ExportOptions } from "./render/exportMap"
 import { loadMap } from "./commands"
 import { importDungeondraftMap, type ImportResult, type TerrainSetup } from "./format/dungeondraft"
 import { useEditorStore } from "../../stores/editorStore"
@@ -279,15 +288,17 @@ export async function openMapFlow(path?: string): Promise<OpenMapResult> {
   return { opened: true, missingPacks }
 }
 
-const PNG_FILTERS = [{ name: "PNG", extensions: ["png"] }]
-
-/** Prompt for a destination and export the map as a PNG. False if cancelled. */
-export async function exportPngFlow(opts: ExportOptions): Promise<boolean> {
-  const path = await saveDialog({ filters: PNG_FILTERS, defaultPath: "map.png" })
+/** Prompt for a destination and export the map as an image. False if cancelled. */
+export async function exportImageFlow(opts: ExportOptions): Promise<boolean> {
+  const ext = FORMAT_EXTENSION[opts.format.kind]
+  const path = await saveDialog({
+    filters: [{ name: opts.format.kind.toUpperCase(), extensions: [ext] }],
+    defaultPath: `map.${ext}`,
+  })
   if (!path) return false
   await withLoading(i18n.t("loading.exporting"), async () => {
     try {
-      await renderMapRows(opts, (w, h) => exportBegin(path, w, h), exportRows)
+      await renderMapRows(opts, (w, h) => exportBegin(path, opts.format, w, h), exportRows)
       await exportEnd()
     } catch (err) {
       await exportEnd(true)
@@ -295,4 +306,13 @@ export async function exportPngFlow(opts: ExportOptions): Promise<boolean> {
     }
   })
   return true
+}
+
+/** Estimated file size (bytes) of exporting with `opts`: a sample encoded the same way, scaled up. */
+export function estimateExportSize(opts: ExportOptions): Promise<number> {
+  return withLoading(i18n.t("loading.estimatingSize"), async () => {
+    const sample = await renderExportSample(opts)
+    const bytes = await exportEstimate(opts.format, sample.width, sample.height, sample.rgba)
+    return estimateBytes(bytes, sample.width * sample.height, sample.imagePixels)
+  })
 }

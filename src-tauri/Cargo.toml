@@ -28,7 +28,7 @@ thiserror = "2"
 json5 = "1"
 md5 = "0.8"
 # Colorable-asset recoloring (decode/recolor/encode PNG on the fly).
-image = { version = "0.25", default-features = false, features = ["png", "webp"] }
+image = { version = "0.25", default-features = false, features = ["png", "webp", "jpeg"] }
 urlencoding = "2"
 # Streaming PNG export (rows encoded straight into the file).
 png = "0.18"

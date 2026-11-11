@@ -1,3 +1,4 @@
+import { type ExportFormat } from "./exportFormat"
 import { invoke } from "@tauri-apps/api/core"
 
 /** Write a `.otbm` map file (plain JSON text). */
@@ -16,8 +17,25 @@ export function loadMapFile(path: string): Promise<string> {
  * finish — or cancel, which drops the export. The backend encodes on a
  * worker thread as rows arrive.
  */
-export function exportBegin(path: string, width: number, height: number): Promise<void> {
-  return invoke("export_begin", { path, width, height })
+export function exportBegin(
+  path: string,
+  format: ExportFormat,
+  width: number,
+  height: number,
+): Promise<void> {
+  return invoke("export_begin", { path, format, width, height })
+}
+
+/** Encoded size of a sample picture (raw RGBA) in `format`: the base of the size estimate. */
+export function exportEstimate(
+  format: ExportFormat,
+  width: number,
+  height: number,
+  rgba: Uint8Array,
+): Promise<number> {
+  return invoke("export_estimate", rgba, {
+    headers: { "x-export-sample": JSON.stringify({ format, width, height }) },
+  })
 }
 
 export function exportRows(rows: Uint8Array): Promise<void> {
