@@ -13,6 +13,8 @@ import { withLoading } from "../../stores/loadingStore"
 import { loadMapFile, saveBinaryFile, saveMapFile } from "./api"
 import { renderMapPng, type ExportOptions } from "./render/exportMap"
 import { loadMap } from "./commands"
+import { importDungeondraftMap, type ImportResult } from "./format/dungeondraft"
+import { useEditorStore } from "../../stores/editorStore"
 import { getUsedPackIds } from "./packUsage"
 import type { MapDocument } from "./model/types"
 
@@ -28,6 +30,16 @@ export const OPDR_FORMAT_VERSION = 1
 export const OPDR_EXTENSION = "opdr"
 
 const OPDR_FILTERS = [{ name: "OpenDraft Map", extensions: [OPDR_EXTENSION] }]
+
+/** Dungeondraft maps open through the importer (read-only: saving writes `.opdr`). */
+export const DUNGEONDRAFT_EXTENSION = "dungeondraft_map"
+
+/** What "Open" accepts: both formats together first, then each on its own. */
+const OPEN_FILTERS = [
+  { name: "Maps", extensions: [OPDR_EXTENSION, DUNGEONDRAFT_EXTENSION] },
+  ...OPDR_FILTERS,
+  { name: "Dungeondraft Map", extensions: [DUNGEONDRAFT_EXTENSION] },
+]
 
 export interface OpdrMeta {
   /** App version the map was originally created with. */
@@ -62,6 +74,8 @@ export interface OpenMapResult {
   opened: boolean
   /** Pack ids the map references that aren't installed on this machine. */
   missingPacks: string[]
+  /** Set when a Dungeondraft map was imported: what couldn't be carried over. */
+  imported?: ImportResult["warnings"]
 }
 
 export class OpdrParseError extends Error {}
@@ -185,19 +199,43 @@ export async function saveMap(): Promise<boolean> {
 }
 
 /**
- * Load a `.opdr` file, replacing the current session: `path` when given (a
- * recent map), otherwise whatever the user picks in the open dialog.
+ * Bring an imported Dungeondraft map into the session. It becomes a new,
+ * unsaved document (no path), so Save asks where to write the `.opdr` and
+ * the original `.dungeondraft_map` is never overwritten.
+ */
+async function applyImport(result: ImportResult): Promise<string[]> {
+  loadMap(result.doc)
+  useEditorStore.getState().setActiveLevel(result.doc.levels[result.currentLevel]?.id ?? null)
+  useViewStore.getState().reset()
+  if (result.gridColor) {
+    useToolsStore.getState().setToolParams("mapSettings", { gridLineColor: result.gridColor })
+  }
+  useMapFileStore.getState().startNew()
+  useMapFileStore.getState().markDirty()
+  return enableMapPacks(result.packs)
+}
+
+/**
+ * Open a map, replacing the current session: `path` when given (a recent
+ * map), otherwise whatever the user picks in the open dialog. `.opdr` files
+ * load as-is; `.dungeondraft_map` files go through the importer.
  */
 export async function openMapFlow(path?: string): Promise<OpenMapResult> {
-  const selected = path ?? (await openDialog({ filters: OPDR_FILTERS, multiple: false }))
+  const selected = path ?? (await openDialog({ filters: OPEN_FILTERS, multiple: false }))
   if (!selected || Array.isArray(selected)) return { opened: false, missingPacks: [] }
   let raw: string
   try {
-    raw = await loadMapFile(selected)
+    raw = await withLoading(i18n.t("loading.openingMap"), () => loadMapFile(selected))
   } catch (err) {
     // A recent entry whose file is gone shouldn't stay in the list.
     if (path) useSettingsStore.getState().removeRecentMap(path)
     throw err
+  }
+  if (selected.toLowerCase().endsWith(`.${DUNGEONDRAFT_EXTENSION}`)) {
+    const result = importDungeondraftMap(raw)
+    const missingPacks = await applyImport(result)
+    useSettingsStore.getState().pushRecentMap(selected)
+    return { opened: true, missingPacks, imported: result.warnings }
   }
   const file = parseSaveFile(raw)
   const missingPacks = await applySaveFile(file)

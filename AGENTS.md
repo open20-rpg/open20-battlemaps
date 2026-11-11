@@ -80,6 +80,11 @@ ni accionable.
   de entidades del mapa como componentes React ni estado del documento en
   `useState`. Las texturas se piden por asset id a `assetCache`
   (`render/assets.ts`, 256 px = 1 casilla).
+- **Mapas de Dungeondraft**: "Abrir" importa `.dungeondraft_map`
+  (`features/map/format/dungeondraft.ts`, formato documentado en
+  `docs/dungeondraft-map-format.md`). Es solo importación: el mapa queda como
+  documento nuevo sin guardar y "Guardar" escribe un `.opdr`. Lo que no tiene
+  equivalente se reporta como aviso (nunca se descarta en silencio).
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para

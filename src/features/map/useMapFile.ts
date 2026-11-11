@@ -47,7 +47,16 @@ export function useMapFile() {
 
   const openMap = async (path?: string): Promise<void> => {
     try {
-      const { opened, missingPacks } = await openMapFlow(path)
+      const { opened, missingPacks, imported } = await openMapFlow(path)
+      if (opened && imported) {
+        const notes = Object.entries(imported).map(([key, count]) => t(`import.${key}`, { count }))
+        toaster.create({
+          title: t("toast.importedDungeondraft"),
+          description: notes.length > 0 ? notes.join(" · ") : undefined,
+          type: notes.length > 0 ? "warning" : "success",
+          duration: notes.length > 0 ? 12000 : undefined,
+        })
+      }
       if (opened && missingPacks.length > 0) {
         toaster.create({
           title: t("toast.missingPacks", { count: missingPacks.length }),

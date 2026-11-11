@@ -1,0 +1,50 @@
+{
+	"header": {
+		"creation_build": "1.2.0.1 opulent kirin",
+		"uses_default_assets": true,
+		"editor_state": {
+			"camera_position": "Vector2( 2855.54, 3377.9 )",
+			"camera_zoom": 5.333333,
+			"guide_position": null,
+			"epsilon": 2e-06
+		}
+	},
+	"world": {
+		"format": 3,
+		"width": 2,
+		"height": 2,
+		"next_node_id": "1ca",
+		"embedded": {},
+		"levels": {
+			"0": {
+				"label": "Ground",
+				"tiles": {
+					"cells": "PoolIntArray( -1, -1, 73, -1 )",
+					"colors": [
+						"ffffffff",
+						"ffffffff"
+					],
+					"lookup": {
+						"0": "res://textures/tilesets/simple/tileset_carpet.png"
+					}
+				},
+				"walls": [
+					{
+						"points": "PoolVector2Array( 1536, 1792, 1536, 1024 )",
+						"color": "ffffffff",
+						"loop": false,
+						"rotation": -1.570796,
+						"portals": []
+					}
+				],
+				"cave": {
+					"bitmap": "PoolByteArray( 0, 12, 255, 0 )"
+				},
+				"texts_vis": true
+			}
+		}
+	},
+	"mod": {
+		".node_table": {}
+	}
+}

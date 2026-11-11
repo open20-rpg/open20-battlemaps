@@ -30,7 +30,8 @@
     "mapOpenError": "Couldn't open the map: {{error}}",
     "missingPacks": "{{count}} pack(s) used by this map aren't installed",
     "exported": "Image exported",
-    "exportError": "Could not export: {{error}}"
+    "exportError": "Could not export: {{error}}",
+    "importedDungeondraft": "Dungeondraft map imported. Saving creates a new .opdr file (the original is left untouched)."
   },
   "prefs": {
     "title": "Preferences",
@@ -298,7 +299,8 @@
     "deletingAssets": "Deleting assets",
     "searchingLibrary": "Searching library",
     "loadingFonts": "Loading fonts",
-    "exporting": "Exporting image"
+    "exporting": "Exporting image",
+    "openingMap": "Opening map"
   },
   "mapFile": {
     "discardTitle": "Discard unsaved changes?",
@@ -328,5 +330,23 @@
   "recent": {
     "title": "Recent maps",
     "forget": "Remove from the list"
+  },
+  "import": {
+    "mirroredObjects_one": "{{count}} mirrored object was imported unmirrored",
+    "mirroredObjects_other": "{{count}} mirrored objects were imported unmirrored",
+    "builtinAssets_one": "{{count}} Dungeondraft built-in asset is unavailable",
+    "builtinAssets_other": "{{count}} Dungeondraft built-in assets are unavailable",
+    "embeddedAssets_one": "{{count}} embedded image isn't supported",
+    "embeddedAssets_other": "{{count}} embedded images aren't supported",
+    "waterHoles_one": "{{count}} island inside water was ignored",
+    "waterHoles_other": "{{count}} islands inside water were ignored",
+    "looseTiles_one": "{{count}} floor tile outside a room was ignored",
+    "looseTiles_other": "{{count}} floor tiles outside rooms were ignored",
+    "levelAmbient_one": "{{count}} level's ambient light was unified with the first level's",
+    "levelAmbient_other": "{{count}} levels' ambient light was unified with the first level's",
+    "pathLoops_one": "{{count}} closed path became open",
+    "pathLoops_other": "{{count}} closed paths became open",
+    "traceImageSize_one": "check the reference image size",
+    "traceImageSize_other": "check the reference image size"
   }
 }

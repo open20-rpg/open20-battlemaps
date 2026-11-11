@@ -30,7 +30,8 @@
     "mapOpenError": "No se pudo abrir el mapa: {{error}}",
     "missingPacks": "{{count}} paquete(s) usados por este mapa no están instalados",
     "exported": "Imagen exportada",
-    "exportError": "No se pudo exportar: {{error}}"
+    "exportError": "No se pudo exportar: {{error}}",
+    "importedDungeondraft": "Mapa de Dungeondraft importado. Al guardar se crea un archivo .opdr nuevo (el original no se modifica)."
   },
   "prefs": {
     "title": "Preferencias",
@@ -298,7 +299,8 @@
     "deletingAssets": "Eliminando activos",
     "searchingLibrary": "Buscando en la biblioteca",
     "loadingFonts": "Cargando fuentes",
-    "exporting": "Exportando imagen"
+    "exporting": "Exportando imagen",
+    "openingMap": "Abriendo mapa"
   },
   "mapFile": {
     "discardTitle": "¿Descartar los cambios sin guardar?",
@@ -328,5 +330,23 @@
   "recent": {
     "title": "Mapas recientes",
     "forget": "Quitar de la lista"
+  },
+  "import": {
+    "mirroredObjects_one": "{{count}} objeto espejado se importó sin espejar",
+    "mirroredObjects_other": "{{count}} objetos espejados se importaron sin espejar",
+    "builtinAssets_one": "{{count}} asset propio de Dungeondraft no está disponible",
+    "builtinAssets_other": "{{count}} assets propios de Dungeondraft no están disponibles",
+    "embeddedAssets_one": "{{count}} imagen incrustada no es compatible",
+    "embeddedAssets_other": "{{count}} imágenes incrustadas no son compatibles",
+    "waterHoles_one": "{{count}} isla dentro del agua se ignoró",
+    "waterHoles_other": "{{count}} islas dentro del agua se ignoraron",
+    "looseTiles_one": "{{count}} baldosa fuera de una habitación se ignoró",
+    "looseTiles_other": "{{count}} baldosas fuera de habitaciones se ignoraron",
+    "levelAmbient_one": "la luz ambiente de {{count}} nivel se unificó con la del primero",
+    "levelAmbient_other": "la luz ambiente de {{count}} niveles se unificó con la del primero",
+    "pathLoops_one": "{{count}} camino cerrado se convirtió en abierto",
+    "pathLoops_other": "{{count}} caminos cerrados se convirtieron en abiertos",
+    "traceImageSize_one": "revisá el tamaño de la imagen de referencia",
+    "traceImageSize_other": "revisá el tamaño de la imagen de referencia"
   }
 }
