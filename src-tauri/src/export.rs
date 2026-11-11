@@ -29,7 +29,7 @@ pub enum Format {
 
 enum Encoding {
     /// PNG rows go straight into the file.
-    Png(png::StreamWriter<'static, Sink>),
+    Png(Box<png::StreamWriter<'static, Sink>>),
     /// Rows kept until the end (RGB for JPEG, RGBA for WebP).
     Buffered { sink: Sink, pixels: Vec<u8> },
 }
@@ -58,7 +58,9 @@ fn begin(sink: Sink, format: Format, width: u32, height: u32) -> Result<Export, 
             encoder.set_color(png::ColorType::Rgba);
             encoder.set_depth(png::BitDepth::Eight);
             let writer = encoder.write_header().map_err(|e| e.to_string())?;
-            Encoding::Png(writer.into_stream_writer().map_err(|e| e.to_string())?)
+            Encoding::Png(Box::new(
+                writer.into_stream_writer().map_err(|e| e.to_string())?,
+            ))
         }
         Format::Jpeg { .. } | Format::Webp => {
             let channels = if matches!(format, Format::Jpeg { .. }) {
