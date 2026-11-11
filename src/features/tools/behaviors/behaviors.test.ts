@@ -395,11 +395,38 @@ describe("effects, text, select, prefabs", () => {
     move("select", 8.15, 2)
     up("select", 8.15, 2)
     const [a, b] = entities()[0].points ?? []
-    // The far end follows the pointer; the near end barely moves; y is untouched.
-    expect(b.x).toBeCloseTo(7.93, 1)
-    expect(a.x).toBeCloseTo(2.07, 1)
+    // The far end follows the pointer onto the grid (the points, not the
+    // thickness-padded box, are what snaps); the near end stays; y untouched.
+    expect(b.x).toBeCloseTo(8)
+    expect(a.x).toBeCloseTo(2)
     expect(a.y).toBe(2)
     expect(b.y).toBe(2)
+    // Without Snap to Grid it follows the pointer exactly.
+    useViewStore.setState({ snap: false })
+    down("select", 8.15, 2)
+    move("select", 8.4, 2)
+    up("select", 8.4, 2)
+    expect(entities()[0].points?.[1].x).toBeCloseTo(8.25)
+    expect(entities()[0].points?.[0].x).toBeCloseTo(2)
+  })
+
+  it("Select drags a lone wall's points (one undo step)", () => {
+    useViewStore.setState({ zoom: 100 })
+    useToolsStore.getState().selectToolById("wall")
+    down("wall", 2, 2)
+    down("wall", 6, 2)
+    dbl("wall", 6, 2)
+    useToolsStore.getState().selectToolById("select")
+    useEditorStore.getState().select([entities()[0].id])
+    down("select", 6, 2)
+    move("select", 6.9, 4.1)
+    up("select", 6.9, 4.1)
+    expect(entities()[0].points).toEqual([
+      { x: 2, y: 2 },
+      { x: 7, y: 4 },
+    ])
+    undo()
+    expect(entities()[0].points?.[1]).toEqual({ x: 6, y: 2 })
   })
 
   it("Shift snaps handle rotation to 15° steps", () => {

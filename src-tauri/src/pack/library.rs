@@ -8,6 +8,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
@@ -368,18 +369,60 @@ pub(crate) fn split_asset_id(id: &str) -> Option<(&str, &str)> {
     Some((pack, rel))
 }
 
+/// Image extensions a texture may have been re-encoded to between pack versions.
+const IMAGE_EXTS: [&str; 4] = ["png", "webp", "jpg", "jpeg"];
+
+/// Find `rel` inside `dir`, tolerating what differs between pack versions and
+/// the map that references them: the image extension (a `.png` re-released
+/// as `.webp`) and letter case. Returns the path relative to `dir` as found.
+pub(crate) fn locate(dir: &Path, rel: &str) -> Option<String> {
+    let mut candidates = vec![rel.to_string()];
+    if let Some((stem, ext)) = rel.rsplit_once('.') {
+        if IMAGE_EXTS.contains(&ext.to_ascii_lowercase().as_str()) {
+            for alt in IMAGE_EXTS {
+                if !alt.eq_ignore_ascii_case(ext) {
+                    candidates.push(format!("{stem}.{alt}"));
+                }
+            }
+        }
+    }
+    for c in &candidates {
+        if dir.join(c).is_file() {
+            return Some(c.clone());
+        }
+    }
+    candidates.iter().find_map(|c| locate_ignoring_case(dir, c))
+}
+
+/// Walk `rel` one component at a time, matching names case-insensitively.
+fn locate_ignoring_case(dir: &Path, rel: &str) -> Option<String> {
+    let mut path = dir.to_path_buf();
+    let mut found = Vec::new();
+    for part in rel.split('/').filter(|p| !p.is_empty()) {
+        let name = fs::read_dir(&path)
+            .ok()?
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .find(|n| n.eq_ignore_ascii_case(part))?;
+        path.push(&name);
+        found.push(name);
+    }
+    path.is_file().then(|| found.join("/"))
+}
+
 /// Resolve asset ids to their texture files (missing packs/files resolve to None).
 pub(crate) fn resolve(app: &AppHandle, ids: &[String]) -> Vec<ResolvedAsset> {
     ids.iter()
         .map(|id| {
             let found = split_asset_id(id).and_then(|(pack_id, rel)| {
                 let dir = pack_dir(app, pack_id).ok()?;
-                let full = dir.join(rel);
-                if !full.is_file() || !full.starts_with(&dir) {
+                let rel = locate(&dir, rel)?;
+                let full = dir.join(&rel);
+                if !full.starts_with(&dir) {
                     return None;
                 }
                 let colorable = pack_color_cfg(app, pack_id).is_some()
-                    && pack_colorable_set(app, pack_id).contains(rel);
+                    && pack_colorable_set(app, pack_id).contains(&rel);
                 Some((full.to_string_lossy().into_owned(), colorable))
             });
             ResolvedAsset {
@@ -410,6 +453,31 @@ mod tests {
         assert_eq!(split_asset_id("no-separator"), None);
         assert_eq!(split_asset_id("|textures/a.png"), None);
         assert_eq!(split_asset_id("p|../../etc/passwd"), None);
+    }
+
+    #[test]
+    fn locates_textures_across_extensions_and_case() {
+        let dir = std::env::temp_dir().join(format!("opendraft-locate-{}", std::process::id()));
+        let sub = dir.join("textures").join("Terrain");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join("Grass.webp"), b"x").unwrap();
+        fs::write(sub.join("Dirt.png"), b"x").unwrap();
+        assert_eq!(
+            locate(&dir, "textures/Terrain/Grass.webp").as_deref(),
+            Some("textures/Terrain/Grass.webp")
+        );
+        // Re-encoded between pack versions.
+        assert_eq!(
+            locate(&dir, "textures/Terrain/Grass.png").as_deref(),
+            Some("textures/Terrain/Grass.webp")
+        );
+        // Different letter case (and extension) than on disk.
+        assert_eq!(
+            locate(&dir, "textures/terrain/dirt.webp").as_deref(),
+            Some("textures/Terrain/Dirt.png")
+        );
+        assert_eq!(locate(&dir, "textures/Terrain/Rock.png"), None);
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

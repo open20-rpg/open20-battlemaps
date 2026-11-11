@@ -1,6 +1,7 @@
 import { type Container, Graphics } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import {
+  editablePointsOf,
   entityBounds,
   isStretchable,
   selectionBounds,
@@ -107,6 +108,21 @@ export function drawOverlay(
       g.rect(-s.at.x - 4 * px, s.at.y - 4 * px, 8 * px, 8 * px)
         .fill({ color: 0xffffff })
         .stroke(line)
+    }
+  }
+  // A lone wall/path/area: its control line and draggable points (round, so
+  // they read apart from the square scale handles).
+  const editable = handles ? editablePointsOf(selected) : null
+  if (editable?.points) {
+    const pts = editable.points
+    g.moveTo(-pts[0].x, pts[0].y)
+    for (const p of pts.slice(1)) g.lineTo(-p.x, p.y)
+    if (editable.closed) g.lineTo(-pts[0].x, pts[0].y)
+    g.stroke({ ...line, width: 1 * px, alpha: 0.8 })
+    for (const p of pts) {
+      g.regularPoly(-p.x, p.y, 4.5 * px, 12)
+        .fill({ color: ACCENT })
+        .stroke({ color: 0xffffff, width: 1.5 * px })
     }
   }
   root.addChild(g)

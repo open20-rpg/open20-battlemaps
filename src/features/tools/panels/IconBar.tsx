@@ -1,6 +1,7 @@
 import { type ReactNode } from "react"
 import { Flex, Icon, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
+import { withShortcut } from "../../../lib/shortcuts"
 import { Tooltip } from "../../../ui/chakra/tooltip"
 import { type ToolNode } from "../definitions"
 
@@ -16,6 +17,7 @@ interface ToolIconProps {
 function ToolIcon({ node, active, onClick, withTooltip = true }: ToolIconProps) {
   const { t } = useTranslation()
   const label = t(node.nameKey)
+  const tip = withShortcut(label, node.type === "tool" ? node.shortcut : undefined)
   const button = (
     <Flex
       as="button"
@@ -36,7 +38,7 @@ function ToolIcon({ node, active, onClick, withTooltip = true }: ToolIconProps) 
   )
   if (!withTooltip) return button
   return (
-    <Tooltip content={label} positioning={{ placement: "right" }} openDelay={200} showArrow>
+    <Tooltip content={tip} positioning={{ placement: "right" }} openDelay={200} showArrow>
       {button}
     </Tooltip>
   )

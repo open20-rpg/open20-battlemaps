@@ -190,11 +190,22 @@ export function lineHalfWidth(entity: MapEntity): number {
 }
 
 /**
- * Whether an entity can be picked/selected. A painted entity with no strokes
- * (Terrain's Fill: a map-wide base texture) has no shape of its own.
+ * Whether an entity can be picked/selected. Brush paint (terrain, cave,
+ * material, water strokes, and Terrain's Fill) is part of the ground, as in
+ * Dungeondraft: it's edited by painting over it, not selected.
  */
 export function isSelectable(entity: MapEntity): boolean {
-  return !(entity.strokes && entity.strokes.length === 0 && !entity.points)
+  return !(entity.strokes && !entity.points)
+}
+
+/**
+ * The entity whose points the Select tool lets you drag: the selection's
+ * only item, when it's a polyline/polygon (wall, path, floor, pattern…).
+ */
+export function editablePointsOf(selected: readonly MapEntity[]): MapEntity | null {
+  if (selected.length !== 1) return null
+  const [e] = selected
+  return e.points && e.points.length > 0 ? e : null
 }
 
 /** Axis-aligned bounds of an entity, for selection boxes and rubber-band selection. */

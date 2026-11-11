@@ -1,7 +1,10 @@
 import { useEditorStore } from "../../../stores/editorStore"
 import { beginGesture, endGesture, moveEntities, updateEntities } from "../../map/commands"
 import {
+  boundsOf,
   dist,
+  editablePointsOf,
+  nearestVertex,
   entityBounds,
   hitTest,
   rectFromCorners,
@@ -13,6 +16,7 @@ import {
   selectionBounds,
   transformEntity,
   transformHandles,
+  type Rect,
   type ScaleHandle,
 } from "../../map/model/geometry"
 import { screenAngle } from "./structures"
@@ -29,7 +33,20 @@ const HANDLE_GRAB_PX = 9
 /** A scale/rotate drag of the selection's handles. */
 type TransformDrag =
   | { kind: "rotate"; center: Vec2; start: Vec2; originals: MapEntity[] }
-  | { kind: "scale"; handle: ScaleHandle; start: Vec2; originals: MapEntity[] }
+  | {
+      kind: "scale"
+      handle: ScaleHandle
+      /** Where the grabbed handle was. */
+      grab: Vec2
+      /**
+       * The grabbed side and the fixed side on the selection's geometry
+       * (wall/path points, not the box padded by their thickness): what the
+       * scale is computed on, so Snap to Grid puts the points on the grid.
+       */
+      start: Vec2
+      anchor: Vec2
+      originals: MapEntity[]
+    }
 
 /** Smallest scale factor a drag can reach (no collapsing or flipping). */
 const MIN_FACTOR = 0.05
@@ -51,7 +68,31 @@ export function handleAt(
     return { kind: "rotate", center, start, originals }
   }
   const handle = h.scale.find((s) => dist(p, s.at) <= grab)
-  return handle ? { kind: "scale", handle, start: handle.at, originals } : null
+  if (!handle) return null
+  const inner = geometryBox(selected, box)
+  return {
+    kind: "scale",
+    handle,
+    grab: handle.at,
+    start: remap(handle.at, box, inner),
+    anchor: remap(handle.anchor, box, inner),
+    originals,
+  }
+}
+
+/** The selection's own geometry box: its points when it's all polylines/polygons. */
+function geometryBox(selected: readonly MapEntity[], box: Rect): Rect {
+  const allPoints = selected.every((e) => (e.points?.length ?? 0) > 0)
+  return allPoints ? boundsOf(selected.flatMap((e) => e.points ?? [])) : box
+}
+
+/** The point at the same relative place of `to` as `v` is in `from`. */
+function remap(v: Vec2, from: Rect, to: Rect): Vec2 {
+  const rel = (p: number, o: number, size: number) => (size > 0 ? (p - o) / size : 0.5)
+  return {
+    x: to.x + rel(v.x, from.x, from.w) * to.w,
+    y: to.y + rel(v.y, from.y, from.h) * to.h,
+  }
 }
 
 /** Scale factor along one axis: how far the pointer is from the anchor vs. where the handle began. */
@@ -62,11 +103,14 @@ const axisFactor = (p: number, start: number, anchor: number) =>
  * Apply a handle drag at pointer `p`, from the drag's originals. Rotation
  * turns around the selection's center (Shift snaps to 15°); scaling keeps
  * the opposite corner/edge fixed, so the selection grows toward the pointer.
+ * With `toGrid` (Snap to Grid) the dragged side lands on the grid; a corner
+ * puts its longer side there.
  */
 export function applyTransformDrag(
   drag: TransformDrag,
   p: Vec2,
   snap: boolean,
+  toGrid?: (p: Vec2) => Vec2,
 ): Map<string, MapEntity> {
   if (drag.kind === "rotate") {
     const from = screenAngle({ x: drag.start.x - drag.center.x, y: drag.start.y - drag.center.y })
@@ -75,19 +119,27 @@ export function applyTransformDrag(
     if (snap) degrees = Math.round(degrees / ROTATE_STEP) * ROTATE_STEP
     return new Map(drag.originals.map((e) => [e.id, transformEntity(e, drag.center, degrees, 1)]))
   }
-  const { anchor, axis } = drag.handle
+  const { axis } = drag.handle
+  const { anchor, start } = drag
+  // Where the grabbed side goes: it follows the pointer from where it was.
+  const moved = { x: start.x + p.x - drag.grab.x, y: start.y + p.y - drag.grab.y }
+  const target = toGrid ? toGrid(moved) : moved
   let sx = 1
   let sy = 1
   if (axis === "both") {
-    // Corners scale uniformly: project the pointer on the anchor→corner diagonal.
-    const d = { x: drag.start.x - anchor.x, y: drag.start.y - anchor.y }
+    // Corners scale uniformly: project on the anchor→corner diagonal, or
+    // (on the grid) follow the longer side so it lands on a grid line.
+    const d = { x: start.x - anchor.x, y: start.y - anchor.y }
     const len2 = d.x * d.x + d.y * d.y
-    const t = len2 > 0 ? ((p.x - anchor.x) * d.x + (p.y - anchor.y) * d.y) / len2 : 1
+    let t = len2 > 0 ? ((target.x - anchor.x) * d.x + (target.y - anchor.y) * d.y) / len2 : 1
+    if (toGrid && len2 > 0) {
+      t = Math.abs(d.x) >= Math.abs(d.y) ? (target.x - anchor.x) / d.x : (target.y - anchor.y) / d.y
+    }
     sx = sy = Math.min(10, Math.max(MIN_FACTOR, t))
   } else if (axis === "x") {
-    sx = axisFactor(p.x, drag.start.x, anchor.x)
+    sx = axisFactor(target.x, start.x, anchor.x)
   } else {
-    sy = axisFactor(p.y, drag.start.y, anchor.y)
+    sy = axisFactor(target.y, start.y, anchor.y)
   }
   return new Map(drag.originals.map((e) => [e.id, scaleEntity(e, anchor, sx, sy)]))
 }
@@ -128,6 +180,7 @@ export function createSelectBehavior(): ToolBehavior {
     | { kind: "move"; from: Vec2; moved: Vec2 }
     | { kind: "band"; from: Vec2; to: Vec2 }
     | { kind: "transform"; drag: TransformDrag }
+    | { kind: "vertex"; id: string; index: number }
     | null = null
   const selectedOf = (ctx: ToolCtx) => {
     const ids = new Set(editor().selection)
@@ -137,6 +190,14 @@ export function createSelectBehavior(): ToolBehavior {
   return {
     onPointerDown: (ctx, e) => {
       if (e.button !== 0) return
+      // A lone wall/path/area shows its points: dragging one moves just it.
+      const editable = editablePointsOf(selectedOf(ctx))
+      const index = editable && nearestVertex(editable.points ?? [], e, screenTiles(8))
+      if (editable && index !== null && index !== undefined) {
+        beginGesture()
+        mode = { kind: "vertex", id: editable.id, index }
+        return
+      }
       // Handles win over whatever is underneath them.
       const drag = handleAt(ctx, e, selectedOf(ctx))
       if (drag) {
@@ -144,7 +205,7 @@ export function createSelectBehavior(): ToolBehavior {
         mode = { kind: "transform", drag }
         return
       }
-      const hit = hitTest(ctx.entities, e, ctx.sizeOf)
+      const hit = hitTest(ctx.entities, e, ctx.sizeOf, isSelectable)
       const { selection } = editor()
       if (hit) {
         if (e.shiftKey) {
@@ -161,8 +222,19 @@ export function createSelectBehavior(): ToolBehavior {
     },
     onPointerMove: (ctx, e) => {
       if (!mode || !e.buttons) return
+      if (mode.kind === "vertex") {
+        const { id, index } = mode
+        const entity = ctx.entities.find((x) => x.id === id)
+        if (!entity?.points) return
+        const points = entity.points.slice()
+        points[index] = ctx.snap(e, 0.5)
+        updateEntities(new Map([[id, { points }]]))
+        return
+      }
       if (mode.kind === "transform") {
-        updateEntities(applyTransformDrag(mode.drag, e, e.shiftKey))
+        // Scaling follows Snap to Grid like moving does; rotation snaps with Shift.
+        const toGrid = ctx.snapEnabled ? (p: Vec2) => ctx.snap(p, 0.5) : undefined
+        updateEntities(applyTransformDrag(mode.drag, e, e.shiftKey, toGrid))
         return
       }
       if (mode.kind === "move") {
@@ -177,7 +249,8 @@ export function createSelectBehavior(): ToolBehavior {
       }
     },
     onPointerUp: (ctx, e) => {
-      if (mode?.kind === "move" || mode?.kind === "transform") endGesture()
+      if (mode?.kind === "move" || mode?.kind === "transform" || mode?.kind === "vertex")
+        endGesture()
       if (mode?.kind === "band") {
         const ids = entitiesInRect(ctx, mode.from, mode.to).map((x) => x.id)
         if (e.shiftKey) editor().toggleSelect(ids)
@@ -196,6 +269,7 @@ export function createSelectBehavior(): ToolBehavior {
       if (
         !e.ctrlKey &&
         !e.metaKey &&
+        !e.shiftKey &&
         (key === "h" || key === "v") &&
         editor().selection.length > 0
       ) {

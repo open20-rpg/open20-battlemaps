@@ -1,5 +1,10 @@
+import { matchesShortcut } from "../../lib/shortcuts"
 import { useEditorStore } from "../../stores/editorStore"
 import { useMapStore } from "../../stores/mapStore"
+import { useToolsStore } from "../../stores/toolsStore"
+import { useViewStore } from "../../stores/viewStore"
+import { TOOL_BY_ID } from "../tools/definitions"
+import { VIEW_CONTROLS, ZOOM_LEVELS } from "../viewport/controls"
 import { addEntities, redo, removeEntities, undo } from "./commands"
 import { isSelectable, newId, translateEntity } from "./model/geometry"
 
@@ -60,6 +65,37 @@ export function runShortcut(e: KeyboardEvent): boolean {
     )
   } else if (!mod && (e.key === "Delete" || e.key === "Backspace")) deleteSelection()
   else if (e.key === "Escape") useEditorStore.getState().select([])
-  else return false
+  else if (!mod && (e.key === "+" || e.key === "=")) stepZoom(1)
+  else if (!mod && e.key === "-") stepZoom(-1)
+  else return runKeyShortcut(e)
   return true
+}
+
+/** The next/previous preset zoom level from the current zoom. */
+export function nextZoom(zoom: number, dir: 1 | -1): number {
+  const next =
+    dir > 0 ? ZOOM_LEVELS.find((z) => z > zoom) : [...ZOOM_LEVELS].reverse().find((z) => z < zoom)
+  return next ?? zoom
+}
+
+function stepZoom(dir: 1 | -1): void {
+  const view = useViewStore.getState()
+  view.setZoom(nextZoom(view.zoom, dir))
+}
+
+/** Tool and view-toggle keys, declared on their data (TOOL_TREE, VIEW_CONTROLS). */
+function runKeyShortcut(e: KeyboardEvent): boolean {
+  for (const tool of TOOL_BY_ID.values()) {
+    if (tool.shortcut && matchesShortcut(e, tool.shortcut)) {
+      useToolsStore.getState().selectToolById(tool.id)
+      return true
+    }
+  }
+  for (const control of VIEW_CONTROLS) {
+    if (control.kind === "toggle" && control.shortcut && matchesShortcut(e, control.shortcut)) {
+      useViewStore.getState().toggle(control.key)
+      return true
+    }
+  }
+  return false
 }

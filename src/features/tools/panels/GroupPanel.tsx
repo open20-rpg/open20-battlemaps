@@ -1,4 +1,5 @@
 import { Flex, Icon, Text, VStack } from "@chakra-ui/react"
+import { formatShortcut } from "../../../lib/shortcuts"
 import { useTranslation } from "react-i18next"
 import { type ToolGroup, type ToolNode } from "../definitions"
 import { IconBar } from "./IconBar"
@@ -66,6 +67,11 @@ export function GroupPanel({ group, expanded, selectedChildId, onSelect }: Group
               <Text fontSize="sm" textAlign="left" truncate>
                 {t(child.nameKey)}
               </Text>
+              {child.type === "tool" && child.shortcut && (
+                <Text ml="auto" fontSize="xs" color="fg.muted" flexShrink={0}>
+                  {formatShortcut(child.shortcut)}
+                </Text>
+              )}
             </Flex>
           )
         })}
