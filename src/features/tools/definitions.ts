@@ -514,37 +514,6 @@ export const TOOL_TREE: ToolNode[] = [
           }),
         ],
       }),
-    ],
-  },
-  {
-    type: "group",
-    id: "settings",
-    nameKey: "tools.settings",
-    icon: LuSettings2,
-    children: [
-      tool("mapSettings", "tools.mapSettings", LuMap, {
-        params: [
-          segmented(
-            "gridStyle",
-            "tools.gridStyle",
-            [
-              { value: "dashes", labelKey: "tools.gridStyleDashes" },
-              { value: "dotted", labelKey: "tools.gridStyleDotted" },
-              { value: "narrow", labelKey: "tools.gridStyleNarrow" },
-              { value: "thick", labelKey: "tools.gridStyleThick" },
-            ],
-            "narrow",
-          ),
-          customColor("gridLineColor", "tools.gridLineColor", "#00000080"),
-          // Mirrors the document's buildingWear (behaviors/effects.ts).
-          segmented(
-            "buildingWear",
-            "tools.buildingWear",
-            BUILDING_WEARS.map((w) => ({ value: w, labelKey: `tools.wear_${w}` })),
-            DEFAULT_BUILDING_WEAR,
-          ),
-        ],
-      }),
       // How drop shadows look in Open20 Battle Maps (not part of Dungeondraft's format):
       // app settings, mirrored by the tool's params (behaviors/settings.ts).
       tool("shadowSettings", "tools.shadowSettings", LuEclipse, {
@@ -609,6 +578,37 @@ export const TOOL_TREE: ToolNode[] = [
             (p) => p.filter === "threshold",
           ),
           button("reset", "tools.resetPostProcessing", LuRotateCcw),
+        ],
+      }),
+    ],
+  },
+  {
+    type: "group",
+    id: "settings",
+    nameKey: "tools.settings",
+    icon: LuSettings2,
+    children: [
+      tool("mapSettings", "tools.mapSettings", LuMap, {
+        params: [
+          segmented(
+            "gridStyle",
+            "tools.gridStyle",
+            [
+              { value: "dashes", labelKey: "tools.gridStyleDashes" },
+              { value: "dotted", labelKey: "tools.gridStyleDotted" },
+              { value: "narrow", labelKey: "tools.gridStyleNarrow" },
+              { value: "thick", labelKey: "tools.gridStyleThick" },
+            ],
+            "narrow",
+          ),
+          customColor("gridLineColor", "tools.gridLineColor", "#00000080"),
+          // Mirrors the document's buildingWear (behaviors/effects.ts).
+          segmented(
+            "buildingWear",
+            "tools.buildingWear",
+            BUILDING_WEARS.map((w) => ({ value: w, labelKey: `tools.wear_${w}` })),
+            DEFAULT_BUILDING_WEAR,
+          ),
         ],
       }),
       tool("levelSettings", "tools.levelSettings", LuLayers, {
