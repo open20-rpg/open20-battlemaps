@@ -98,8 +98,12 @@ export const useToolsStore = create<ToolsState>()((set) => ({
 
   setToolParams: (toolId, patch) =>
     set((s) => {
+      const stored = s.paramsByTool[toolId]
+      // Nothing changes (e.g. the wheel at a slider's end): keep the state
+      // as is, so nothing re-renders.
+      if (stored && Object.entries(patch).every(([k, v]) => Object.is(stored[k], v))) return s
       const tool = TOOL_BY_ID.get(toolId)
-      const merged = { ...resolveParams(tool?.params, s.paramsByTool[toolId]), ...patch }
+      const merged = { ...resolveParams(tool?.params, stored), ...patch }
       const resolved = tool?.normalizeParams ? tool.normalizeParams(merged, patch) : merged
       return { paramsByTool: { ...s.paramsByTool, [toolId]: resolved } }
     }),

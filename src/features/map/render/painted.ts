@@ -89,20 +89,36 @@ class MapMask {
   }
 }
 
+/**
+ * Pixi picks how many segments a circle, round cap or round join gets from
+ * its size in the Graphics' own units — tiles here, tiny numbers — so they
+ * came out as visible polygons. Shapes are built this many times larger and
+ * scaled back down.
+ */
+const CURVE_SCALE = 64
+
+/** A Graphics drawn at CURVE_SCALE (pass coordinates/widths × CURVE_SCALE). */
+function curveGraphics(): Graphics {
+  const g = new Graphics()
+  g.scale.set(1 / CURVE_SCALE)
+  return g
+}
+
 /** Hard-edged stroke shape (round caps/joins) in content space. */
 function strokeShape(stroke: BrushStroke, extraRadius = 0, color = 0xffffff): Graphics {
-  const g = new Graphics()
+  const g = curveGraphics()
+  const k = CURVE_SCALE
   const r = Math.max(0.01, stroke.radius + extraRadius)
   const [first] = stroke.points
   if (!first) return g
   if (stroke.points.length === 1) {
-    g.circle(-first.x, first.y, r).fill({ color })
+    g.circle(-first.x * k, first.y * k, r * k).fill({ color })
   } else {
     g.poly(
-      stroke.points.flatMap((p) => [-p.x, p.y]),
+      stroke.points.flatMap((p) => [-p.x * k, p.y * k]),
       false,
     ).stroke({
-      width: r * 2,
+      width: r * 2 * k,
       color,
       cap: "round",
       join: "round",
@@ -194,14 +210,17 @@ function shapesOf(entities: readonly MapEntity[], grow = 0): Graphics[] {
         out.push(body)
         continue
       }
-      if (grow > 0) body.stroke({ width: grow * 2, color: 0xffffff, join: "round" })
       out.push(body)
-      if (grow < 0) {
-        // Shrinking a polygon = erasing a band along its edge.
-        const band = new Graphics()
-          .poly(flat, true)
-          .stroke({ width: -grow * 2, color: 0xffffff, join: "round" })
-        band.blendMode = "erase"
+      if (grow !== 0) {
+        // Growing a polygon adds a band along its edge; shrinking erases one.
+        const k = CURVE_SCALE
+        const band = curveGraphics()
+          .poly(
+            flat.map((v) => v * k),
+            true,
+          )
+          .stroke({ width: Math.abs(grow) * 2 * k, color: 0xffffff, join: "round" })
+        if (grow < 0) band.blendMode = "erase"
         out.push(band)
       }
     }

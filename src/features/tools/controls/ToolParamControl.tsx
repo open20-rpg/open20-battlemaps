@@ -4,12 +4,7 @@ import { useMapStore } from "../../../stores/mapStore"
 import { useToolsStore } from "../../../stores/toolsStore"
 import { LevelsPanel } from "../../map/LevelsPanel"
 import { isToolActionDisabled, notifyParamsChange, runToolAction } from "../behaviors"
-import {
-  type ParamKind,
-  type ParamValueByKind,
-  type ToolParamSpec,
-  type ToolParamValues,
-} from "../params"
+import { type ParamKind, type ParamValueByKind, type ToolParamSpec } from "../params"
 import { CustomColorControl } from "./CustomColorControl"
 import { LayerControl } from "./LayerControl"
 import { SortingControl } from "./SortingControl"
@@ -33,7 +28,8 @@ interface RenderArgs<K extends ParamKind> {
   toolId: string
   spec: Extract<ToolParamSpec, { kind: K }>
   value: ParamValueByKind[K]
-  values: ToolParamValues
+  /** Asset pickers recolored by a sibling param: that param's color. */
+  recolorColor?: string
   onChange: (value: unknown) => void
 }
 
@@ -102,10 +98,8 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
   editPoints: ({ spec, value, onChange }) => (
     <EditPointsControl value={value} labelKey={spec.labelKey} onChange={onChange} />
   ),
-  assetPicker: ({ toolId, spec, value, values, onChange }) => {
+  assetPicker: ({ toolId, spec, value, recolorColor, onChange }) => {
     const recolor = spec.recolor ?? "own"
-    const recolorColor =
-      typeof recolor === "object" ? (values[recolor.fromParam] as string) : undefined
     return (
       <AssetPickerControl
         value={value}
@@ -153,7 +147,6 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
           toolId,
           spec,
           value: value as ParamValueByKind[ParamKind],
-          values: {},
           onChange,
         })
       }
@@ -197,31 +190,32 @@ function renderParam<K extends ParamKind>(args: RenderArgs<K>): ReactNode {
 }
 
 /**
- * The single wiring point between param specs and the tools store: resolves
+ * The single wiring point between param specs and the tools store: reads
  * the spec's current value out of the (already materialized) param bag and
  * renders the matching presentational control. Controls know nothing about
- * tools or the store — they get `value` + `onChange`.
+ * tools or the store — they get `value` + `onChange`. Each control
+ * subscribes to its own value only, so changing one param (e.g. the brush
+ * size, many times a second with the wheel) doesn't re-render the others.
  */
-export function ToolParamControl({
-  toolId,
-  spec,
-  values,
-}: {
-  toolId: string
-  spec: ToolParamSpec
-  values: ToolParamValues
-}) {
+export function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpec }) {
   const setToolParams = useToolsStore((s) => s.setToolParams)
-  const onChange = (value: unknown) => {
-    const patch = { [spec.paramKey]: value }
+  const value = useToolsStore((s) => s.paramsByTool[toolId]?.[spec.paramKey] ?? spec.default)
+  const recolor = spec.kind === "assetPicker" ? spec.recolor : undefined
+  const recolorColor = useToolsStore((s) =>
+    typeof recolor === "object"
+      ? (s.paramsByTool[toolId]?.[recolor.fromParam] as string)
+      : undefined,
+  )
+  const onChange = (next: unknown) => {
+    const patch = { [spec.paramKey]: next }
     setToolParams(toolId, patch)
     notifyParamsChange(toolId, patch)
   }
   return renderParam({
     toolId,
     spec,
-    value: values[spec.paramKey] as ParamValueByKind[ParamKind],
-    values,
+    value: value as ParamValueByKind[ParamKind],
+    recolorColor,
     onChange,
   })
 }

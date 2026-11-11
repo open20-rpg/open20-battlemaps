@@ -185,7 +185,14 @@ function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
 
 /** Half-width of a stroked line entity (walls, paths) in tiles. */
 export function lineHalfWidth(entity: MapEntity, sizeOf: AssetSizeOf): number {
-  return entity.toolId === "path" ? pathWidth(entity, sizeOf) / 2 : 0.15
+  if (entity.toolId === "path") return pathWidth(entity, sizeOf) / 2
+  if (entity.toolId === "wall") {
+    // As wide as its texture is tall (see the wall renderer).
+    const id = (entity.params.wall as { assets?: string[] } | undefined)?.assets?.[0]
+    const h = id ? sizeOf(id)?.h : undefined
+    if (h) return h / 2
+  }
+  return 0.15
 }
 
 /**
@@ -271,11 +278,13 @@ export function hitTest(
   p: Vec2,
   sizeOf: AssetSizeOf,
   filter?: (e: MapEntity) => boolean,
+  /** Extra reach around lines (walls, paths), in tiles. */
+  tolerance?: number,
 ): MapEntity | undefined {
   let best: { e: MapEntity; i: number } | undefined
   entities.forEach((e, i) => {
     if (filter && !filter(e)) return
-    if (!entityHit(e, p, sizeOf)) return
+    if (!entityHit(e, p, sizeOf, tolerance)) return
     if (!best || e.layer > best.e.layer || (e.layer === best.e.layer && i > best.i)) best = { e, i }
   })
   return best?.e

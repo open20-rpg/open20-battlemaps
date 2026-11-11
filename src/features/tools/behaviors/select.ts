@@ -31,6 +31,9 @@ import { type ToolBehavior, type ToolCtx } from "./types"
 /** Rotation step (mouse wheel, Shift-snapped rotate handle). */
 const ROTATE_STEP = 15
 
+/** How far past a wall's or path's edge a click still picks it, in screen px. */
+const HIT_REACH_PX = 8
+
 /** Grab radius of the transform handles, in screen px. */
 const HANDLE_GRAB_PX = 9
 
@@ -260,7 +263,10 @@ export function createSelectBehavior(): ToolBehavior {
         mode = { kind: "transform", drag }
         return
       }
-      const hit = hitTest(ctx.entities, e, ctx.sizeOf, pickable(ctx))
+      // Lines (walls, paths) are picked within a few screen px of their
+      // edges, whatever the zoom.
+      const reach = Math.max(0.2, screenTiles(HIT_REACH_PX))
+      const hit = hitTest(ctx.entities, e, ctx.sizeOf, pickable(ctx), reach)
       const { selection } = editor()
       if (hit) {
         // A group member picks the whole group.

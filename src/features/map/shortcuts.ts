@@ -129,24 +129,30 @@ function stepZoom(dir: 1 | -1): void {
 /** The tool X returns to after jumping to Select. */
 let toolBeforeSelect: string | null = null
 
-/** Brush size ±1 (in the tool's own steps), or the Object's scale ±0.1. */
-export function nudgeBrush(dir: 1 | -1): boolean {
+/**
+ * Brush size ± `steps` (in the tool's own steps; negative shrinks), or the
+ * Object's scale ±0.1 per step. Nothing is written when it's already at the
+ * end of its range.
+ */
+export function nudgeBrush(steps: number): boolean {
   const tool = selectActiveTool(useToolsStore.getState())
   if (!tool) return false
   const params = getToolParams(tool.id)
-  const set = (patch: Record<string, unknown>) => {
+  const set = (key: string, value: number) => {
+    if (params[key] === value) return
+    const patch = { [key]: value }
     useToolsStore.getState().setToolParams(tool.id, patch)
     notifyParamsChange(tool.id, patch)
   }
   const spec = tool.params?.find((p) => p.kind === "brushSize")
   if (spec?.kind === "brushSize") {
     const v = typeof params.brushSize === "number" ? params.brushSize : spec.default
-    set({ brushSize: Math.min(spec.max, Math.max(spec.min, v + dir * spec.step)) })
+    set("brushSize", Math.min(spec.max, Math.max(spec.min, v + steps * spec.step)))
     return true
   }
   if (tool.id === "object") {
     const v = typeof params.scale === "number" ? params.scale : 1
-    set({ scale: Math.round(Math.min(4, Math.max(0.1, v + dir * 0.1)) * 10) / 10 })
+    set("scale", Math.round(Math.min(4, Math.max(0.1, v + steps * 0.1)) * 10) / 10)
     return true
   }
   return false

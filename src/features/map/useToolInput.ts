@@ -131,7 +131,32 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
     }
     // Wheel (no Ctrl: that zooms): the active tool's, else brush size. A
     // trackpad sends many small deltas; they add up to one notch per WHEEL_NOTCH.
+    // Notches are applied once per frame: a fast scroll sends dozens of
+    // events, and handling each (params, panel, cursor) would stall the UI.
     let wheelAcc = 0
+    let wheelFrame = 0
+    let wheelNotches: { dir: 1 | -1; horizontal: boolean; info: PointerInfo }[] = []
+    const flushWheel = () => {
+      wheelFrame = 0
+      const notches = wheelNotches
+      wheelNotches = []
+      const a = active()
+      if (!a || notches.length === 0) return
+      let unhandled = 0
+      for (const n of notches) {
+        // Each notch sees the params the previous one left.
+        const ctx = buildToolCtx(a.ctx.toolId) ?? a.ctx
+        const handled = a.behavior.onWheel?.(ctx, {
+          ...n.info,
+          buttons: 0,
+          dir: n.dir,
+          horizontal: n.horizontal,
+        })
+        if (!handled) unhandled += n.dir
+      }
+      if (unhandled !== 0) nudgeBrush(unhandled)
+      refreshHover()
+    }
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) return
       e.preventDefault()
@@ -142,11 +167,9 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       const dir: 1 | -1 = wheelAcc < 0 ? 1 : -1
       wheelAcc = 0
       const info = toMap(e, -1)
-      const a = active()
-      if (!info || !a) return
-      const handled = a.behavior.onWheel?.(a.ctx, { ...info, buttons: 0, dir, horizontal })
-      if (!handled) nudgeBrush(dir)
-      refreshHover()
+      if (!info) return
+      wheelNotches.push({ dir, horizontal, info })
+      wheelFrame ||= requestAnimationFrame(flushWheel)
     }
     // Right-click is a tool action (finish a polyline, erase), not a menu.
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
@@ -199,6 +222,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       el.removeEventListener("contextmenu", onContextMenu)
       el.removeEventListener("wheel", onWheel)
       window.removeEventListener("keydown", onKeyDown)
+      cancelAnimationFrame(wheelFrame)
     }
   }, [ref])
 }

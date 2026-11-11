@@ -80,9 +80,16 @@ export function drawOverlay(
           .stroke(line)
         break
       }
-      case "circle":
-        g.circle(-shape.center.x, shape.center.y, shape.radius).stroke(line)
+      case "circle": {
+        // regularPoly with a side every ~2 screen px: circle() would pick its
+        // segment count from the tile-unit radius and look polygonal.
+        const sides = Math.min(
+          360,
+          Math.max(24, Math.ceil((2 * Math.PI * shape.radius) / (2 * px))),
+        )
+        g.regularPoly(-shape.center.x, shape.center.y, shape.radius, sides).stroke(line)
         break
+      }
       case "handles":
         for (const p of shape.points) {
           g.rect(-p.x - 4 * px, p.y - 4 * px, 8 * px, 8 * px)

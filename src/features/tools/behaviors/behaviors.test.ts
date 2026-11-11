@@ -534,6 +534,20 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()).toEqual([])
   })
 
+  it("Select picks a wall a few screen px off its line", () => {
+    useToolsStore.getState().selectToolById("wall")
+    down("wall", 0, 0)
+    down("wall", 6, 0)
+    dbl("wall", 6, 0)
+    useToolsStore.getState().selectToolById("select")
+    // Off the line by more than the old fixed reach (0.35 tiles).
+    useViewStore.setState({ zoom: 25 })
+    down("select", 3, 0.5)
+    up("select", 3, 0.5)
+    expect(useEditorStore.getState().selection).toEqual([entities()[0].id])
+    useViewStore.setState({ zoom: 100 })
+  })
+
   it("Select picks, rubber-bands and drag-moves (one undo step)", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
     down("object", 2, 2)

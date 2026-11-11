@@ -15,13 +15,20 @@ function paramKeyOf(spec: ToolParamSpec): string {
 /** The selected tool's parameters, each rendered by its matching control. */
 export function ParamsPanel({ tool, onHide }: { tool: ToolLeaf; onHide: () => void }) {
   const { t } = useTranslation()
-  // The bag is materialized on selection; resolveParams here only covers the
-  // (unreachable in practice) case of rendering a never-selected tool.
-  const stored = useToolsStore((s) => s.paramsByTool[tool.id])
-  const values = stored ?? resolveParams(tool.params)
-  // Filter out params hidden by their visibleWhen predicate for the current
-  // values (e.g. Portal shows Rotate 180 or Rotation depending on `anchored`).
-  const params = (tool.params ?? []).filter((s) => !s.visibleWhen || s.visibleWhen(values))
+  // Which params show: those whose visibleWhen predicate passes for the
+  // current values (e.g. Portal shows Rotate 180 or Rotation depending on
+  // `anchored`). Subscribed as a key string, so a value change that shows or
+  // hides nothing (the brush size on every wheel notch) doesn't re-render
+  // the panel; each control subscribes to its own value.
+  const shown = useToolsStore((s) => {
+    const values = s.paramsByTool[tool.id] ?? resolveParams(tool.params)
+    return (tool.params ?? [])
+      .filter((p) => !p.visibleWhen || p.visibleWhen(values))
+      .map(paramKeyOf)
+      .join("|")
+  })
+  const visible = new Set(shown.split("|"))
+  const params = (tool.params ?? []).filter((p) => visible.has(paramKeyOf(p)))
 
   return (
     <VStack
@@ -80,7 +87,7 @@ export function ParamsPanel({ tool, onHide }: { tool: ToolLeaf; onHide: () => vo
                 minH={grows ? "0" : undefined}
                 flexShrink={grows ? 1 : 0}
               >
-                <ToolParamControl toolId={tool.id} spec={spec} values={values} />
+                <ToolParamControl toolId={tool.id} spec={spec} />
               </Flex>
             )
           })}
