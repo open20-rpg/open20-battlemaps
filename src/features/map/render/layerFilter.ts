@@ -23,6 +23,12 @@ import {
  *
  * Coverage comes from render textures (premultiplied), so its alpha is the
  * coverage itself.
+ *
+ * Terrain with Smooth Blending off uses height blending, as Dungeondraft
+ * does: the layer's own brightness acts as its height, so where it's only
+ * partly covering, its bright parts (cobblestones) poke through the texture
+ * below while its dark parts (the mortar) don't, and map-anchored noise
+ * breaks the edge up. Full coverage still always wins and none never shows.
  */
 const vertex = /* glsl */ `
 in vec2 aPosition;
@@ -53,6 +59,32 @@ uniform sampler2D uTexture;
 uniform sampler2D uMaskTexture;
 uniform vec4 uMaskClamp;
 uniform float uOpaque;
+uniform float uHeightBlend;
+uniform highp vec2 uMapSize;
+
+// Arithmetic hash (no sin): stable at any precision and on any GPU.
+float hash(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+float valueNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+    mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+    f.y
+  );
+}
+
+// How much brightness (0..1) and noise can lift a partial coverage, and the
+// width of the resulting cut.
+const float DEPTH = 1.0;
+const float NOISE = 0.35;
+const float BAND = 0.06;
 
 void main(void) {
   vec4 color = texture(uTexture, vTextureCoord);
@@ -63,7 +95,18 @@ void main(void) {
   float inside = step(3.5,
     step(uMaskClamp.x, vMaskCoord.x) + step(uMaskClamp.y, vMaskCoord.y) +
     step(vMaskCoord.x, uMaskClamp.z) + step(vMaskCoord.y, uMaskClamp.w));
-  finalColor = color * texture(uMaskTexture, vMaskCoord).a * inside;
+  float coverage = texture(uMaskTexture, vMaskCoord).a;
+  if (uHeightBlend > 0.5) {
+    vec3 rgb = color.a > 0.0 ? color.rgb / color.a : color.rgb;
+    float lum = dot(rgb, vec3(0.299, 0.587, 0.114));
+    highp vec2 tile = vMaskCoord * uMapSize;
+    float n = valueNoise(tile * 3.0) * 0.7 + valueNoise(tile * 9.0) * 0.3;
+    float h = coverage + (lum - 0.4) * DEPTH * (1.0 - coverage) + (n - 0.5) * NOISE;
+    float a = smoothstep(0.5 - BAND, 0.5 + BAND, h);
+    // Nothing painted never shows; fully painted always does.
+    coverage = coverage < 0.01 ? 0.0 : (coverage > 0.99 ? 1.0 : a);
+  }
+  finalColor = color * coverage * inside;
 }
 `
 
@@ -75,9 +118,17 @@ export class LayerMaskFilter extends Filter {
   constructor(
     private readonly mask: Sprite,
     opaque: boolean,
+    /** Height blending over a map of this size (tiles); see above. */
+    heightBlend?: { width: number; height: number },
   ) {
     const textureMatrix = new TextureMatrix(mask.texture)
-    program ??= GlProgram.from({ vertex, fragment, name: "layer-mask" })
+    program ??= GlProgram.from({
+      vertex,
+      fragment,
+      name: "layer-mask",
+      // Map-space noise coordinates need more than mediump.
+      preferredFragmentPrecision: "highp",
+    })
     super({
       glProgram: program,
       resources: {
@@ -85,6 +136,11 @@ export class LayerMaskFilter extends Filter {
           uFilterMatrix: { value: new Matrix(), type: "mat3x3<f32>" },
           uMaskClamp: { value: textureMatrix.uClampFrame, type: "vec4<f32>" },
           uOpaque: { value: opaque ? 1 : 0, type: "f32" },
+          uHeightBlend: { value: heightBlend ? 1 : 0, type: "f32" },
+          uMapSize: {
+            value: new Float32Array([heightBlend?.width ?? 1, heightBlend?.height ?? 1]),
+            type: "vec2<f32>",
+          },
         }),
         uMaskTexture: mask.texture.source,
       },

@@ -7,7 +7,6 @@ import {
   Sprite,
   Texture,
   TilingSprite,
-  type Filter,
   type Renderer,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
@@ -15,11 +14,10 @@ import { type BrushStroke, type MapEntity } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
 import { type RenderEnv, selectionAsset } from "./entities"
 import { softBrushTexture } from "./generated"
-import { naturalEdgeFilter } from "./naturalEdge"
 import { LayerMaskFilter } from "./layerFilter"
 import { opaqueFilter } from "./opaque"
 import { type SplatLayer } from "../format/dungeondraft"
-import { SPLAT_UPSAMPLE, SplatStack, decodeBase64, sharpenWeights, upsampleWeights } from "./splat"
+import { SPLAT_UPSAMPLE, SplatStack, decodeBase64, upsampleWeights } from "./splat"
 
 /**
  * Painted layers (Cave, Water, Terrain Brush, Material): every stroke of a
@@ -162,12 +160,12 @@ function mapFill(map: MapBox, texture: Texture | undefined, tint: string | undef
  * screen-clipped filter pass (see layerFilter.ts); `opaque` also drops the
  * fill's own alpha (terrain).
  */
-function masked(fill: Container, mask: Sprite, opaque = false): Container {
+function masked(fill: Container, mask: Sprite, opaque = false, heightBlend?: MapBox): Container {
   const c = new Container()
   // The mask sprite only needs its transform (the filter samples its texture).
   mask.renderable = false
   c.addChild(fill, mask)
-  const filter = new LayerMaskFilter(mask, opaque)
+  const filter = new LayerMaskFilter(mask, opaque, heightBlend)
   fill.filters = [filter]
   c.once("destroyed", () => filter.destroy())
   return c
@@ -322,18 +320,12 @@ interface SplatOpacity {
 /**
  * Each imported splat layer's opacity over the ones below. Layers after one
  * Fill (the imported base and its layers) blend together: their weights are
- * upsampled, sharpened as a set when Smooth Blending is off, then stacked.
- * Legacy saves carry precomputed opacities.
+ * upsampled, then stacked. Legacy saves carry precomputed opacities.
  */
-function splatOpacities(entities: MapEntity[], smooth: boolean): Map<MapEntity, SplatOpacity> {
+function splatOpacities(entities: MapEntity[]): Map<MapEntity, SplatOpacity> {
   const out = new Map<MapEntity, SplatOpacity>()
-  let run: { e: MapEntity; splat: SplatLayer; weights: Float32Array }[] = []
+  let run: { e: MapEntity; weights: Float32Array }[] = []
   const flush = () => {
-    if (run.length > 0 && !smooth) {
-      const { splat } = run[0]
-      const planes = run.map((r) => r.weights)
-      sharpenWeights(planes, splat.width * SPLAT_UPSAMPLE, 4 * SPLAT_UPSAMPLE)
-    }
     const stack = new SplatStack()
     for (const r of run) {
       const opacity = stack.push(r.weights)
@@ -352,7 +344,7 @@ function splatOpacities(entities: MapEntity[], smooth: boolean): Map<MapEntity, 
         splat.height,
         SPLAT_UPSAMPLE,
       )
-      run.push({ e, splat, weights })
+      run.push({ e, weights })
     } else if (splat.data) {
       out.set(e, { opacity: decodeBase64(splat.data), scale: 1 })
     }
@@ -373,12 +365,11 @@ export function terrainStrength(intensity: number): number {
 /**
  * One stroke's coverage, rendered once into `scratch` (cleared) so the
  * stroke acts as a single layer: overlapping stamps within a stroke don't
- * stack, only separate strokes accumulate. Smooth Blending keeps the round
- * soft falloff; otherwise the falloff is broken up into natural edges.
+ * stack, only separate strokes accumulate. The round soft falloff is kept:
+ * with Smooth Blending off it's the layer filter that breaks it up.
  */
-function strokeCoverage(stroke: BrushStroke, natural: Filter | null, scratch: MapMask): Sprite {
+function strokeCoverage(stroke: BrushStroke, scratch: MapMask): Sprite {
   const stamps = softStroke({ ...stroke, erase: false }, 1)
-  if (natural) stamps.filters = [natural]
   scratch.draw([stamps], true)
   return scratch.sprite()
 }
@@ -398,11 +389,8 @@ function terrainComposite(
 ): Composite {
   const masks = new Map<string, MapMask>()
   const scratch = new MapMask(renderer, map)
-  const natural = naturalEdgeFilter(scratch.res)
   let base: string | undefined
-  // Smooth Blending is one switch for the whole terrain, as in Dungeondraft.
-  const smooth = env.terrainSmooth
-  const imported = splatOpacities(entities, smooth)
+  const imported = splatOpacities(entities)
   for (const e of entities) {
     const texId = str(e.params.texture, "")
     if (!texId) continue
@@ -416,8 +404,7 @@ function terrainComposite(
     }
     const opacity = imported.get(e)
     if (splat && opacity) {
-      // An imported Dungeondraft splat layer: exact per-texel coverage
-      // (already sharpened when Smooth Blending is off).
+      // An imported Dungeondraft splat layer: exact per-texel coverage.
       if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
       const layer = splatSprite(opacity.opacity, splat, opacity.scale, map)
       const texture = layer.texture
@@ -429,7 +416,7 @@ function terrainComposite(
     for (const stroke of e.strokes ?? []) {
       if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
       const paint = (target: MapMask, erase: boolean) => {
-        const coverage = strokeCoverage(stroke, smooth ? null : natural, scratch)
+        const coverage = strokeCoverage(stroke, scratch)
         coverage.alpha = strength
         if (erase) coverage.blendMode = "erase"
         target.draw([coverage], false)
@@ -442,11 +429,14 @@ function terrainComposite(
     }
   }
   scratch.destroy()
-  natural.destroy()
   const view = new Container()
   if (base) view.addChild(terrainBase(map, env.tex(base), "#6b7a4a"))
+  // Smooth Blending is one switch for the whole terrain, as in Dungeondraft:
+  // off, layers height-blend (see layerFilter.ts).
+  const height = env.terrainSmooth ? undefined : map
   for (const [texId, m] of masks) {
-    view.addChild(masked(textureOrColor(map, env.tex(texId), "#9a8a6a"), m.sprite(), true))
+    const fill = textureOrColor(map, env.tex(texId), "#9a8a6a")
+    view.addChild(masked(fill, m.sprite(), true, height))
   }
   return composite(view, masks.values())
 }
