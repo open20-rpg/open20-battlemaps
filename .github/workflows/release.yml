@@ -219,15 +219,19 @@ jobs:
         if: env.ANDROID_KEYSTORE_BASE64 == ''
         run: npm run tauri android build -- --apk
 
+      # Only the final outputs (Gradle also leaves an intermediary-bundle.aab).
       - name: collect artifacts
         run: |
           mkdir -p android-artifacts
-          find src-tauri/gen/android -type f \( -name "*.apk" -o -name "*.aab" \) \
+          find src-tauri/gen/android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) \
             -exec cp {} android-artifacts/ \;
           ls -la android-artifacts
 
+      # A convenience copy on the run page: GitHub's artifact service failing
+      # must not stop the build from reaching the release.
       - name: upload artifacts
         uses: actions/upload-artifact@v7
+        continue-on-error: true
         with:
           name: android
           path: android-artifacts/*
