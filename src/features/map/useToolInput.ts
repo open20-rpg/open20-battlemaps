@@ -8,6 +8,7 @@ import { buildToolCtx } from "../tools/behaviors/context"
 import { getToolBehavior } from "../tools/behaviors"
 import { type PointerInfo } from "../tools/behaviors/types"
 import { nudgeBrush, runShortcut } from "./shortcuts"
+import { undo } from "./commands"
 
 /** Wheel delta (px) that counts as one notch. */
 const WHEEL_NOTCH = 40
@@ -26,6 +27,12 @@ import { screenToMap } from "./render/viewport"
 const LONG_PRESS_MS = 550
 /** How far (screen px) a touch press may drift and still count as held still. */
 const LONG_PRESS_SLOP_PX = 10
+/**
+ * How long a finger's press waits for a second finger (a pinch) before it
+ * reaches the tool, unless it moves TOUCH_SLOP_PX first.
+ */
+const TOUCH_HOLD_MS = 120
+const TOUCH_SLOP_PX = 8
 
 export function useToolInput(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
@@ -72,9 +79,14 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
      * press is released first.
      */
     let longPress: { x: number; y: number } | null = null
-    let longPressTimer: ReturnType<typeof setTimeout> | undefined
+    /** A finger's timer: its press waiting for a second finger, then its long press (never both). */
+    let touchTimer: ReturnType<typeof setTimeout> | undefined
+    const startTouchTimer = (fn: () => void, ms: number) => {
+      clearTimeout(touchTimer)
+      touchTimer = setTimeout(fn, ms)
+    }
     const cancelLongPress = () => {
-      clearTimeout(longPressTimer)
+      clearTimeout(touchTimer)
       longPress = null
     }
     /** Where the pointer last hovered the map (null once it left). */
@@ -93,29 +105,58 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
     /** Where a ruler measure started (ruler mode drags measure, not use the tool). */
     let rulerFrom: { x: number; y: number } | null = null
 
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0 && e.button !== 2) return
-      // A left drag while the pan key is held pans the view (useViewportGestures).
-      if (e.button === 0 && isHeld("pan")) return
-      if (e.pointerType === "touch" && !e.isPrimary) return
-      const info = toMap(e, e.button)
-      if (info && e.button === 0 && useEditorStore.getState().rulerOn) {
+    /**
+     * Touch: one finger uses the tool, two pan and zoom (useViewportGestures).
+     * A finger's press waits until it moves or TOUCH_HOLD_MS pass, so a
+     * second finger landing right after it never reaches the tool; one
+     * landing later ends the tool's gesture and undoes what it did. A pen
+     * goes straight to the tool, and fingers are ignored while it's down
+     * (the palm resting on the screen).
+     */
+    const touches = new Set<number>()
+    let penDown = false
+    let pending: {
+      pointerId: number
+      info: PointerInfo
+      x: number
+      y: number
+    } | null = null
+    /** The finger whose press reached the tool, and the undo history length before it. */
+    let touchPress: { pointerId: number; history: number; last: PointerInfo } | null = null
+    const dropPending = () => {
+      clearTimeout(touchTimer)
+      pending = null
+    }
+
+    /** A press reaching the tool (`e` is the event that started it). */
+    const press = (e: PointerEvent, info: PointerInfo) => {
+      if (info.button === 0 && useEditorStore.getState().rulerOn) {
         rulerFrom = { x: info.x, y: info.y }
         useEditorStore.getState().setRuler({ from: rulerFrom, to: rulerFrom })
-        el.setPointerCapture(e.pointerId)
         return
       }
       const a = active()
-      if (!info || !a) return
-      pressedButton = e.button
-      el.setPointerCapture(e.pointerId)
+      if (!a) return
+      pressedButton = info.button
+      if (e.pointerType === "touch") {
+        touchPress = {
+          pointerId: e.pointerId,
+          history: useMapStore.temporal.getState().pastStates.length,
+          last: info,
+        }
+      }
       a.behavior.onPointerDown?.(a.ctx, info)
-      if (e.pointerType === "touch" && e.button === 0 && a.behavior.longPressRightClick?.(a.ctx)) {
+      if (
+        e.pointerType === "touch" &&
+        info.button === 0 &&
+        a.behavior.longPressRightClick?.(a.ctx)
+      ) {
         cancelLongPress()
-        longPressTimer = setTimeout(() => {
+        startTouchTimer(() => {
           longPress = null
           if (pressedButton !== 0) return
           pressedButton = null
+          touchPress = null
           const left = active()
           left?.behavior.onPointerUp?.(left.ctx, info)
           const right = active()
@@ -127,7 +168,65 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
         longPress = { x: e.clientX, y: e.clientY }
       }
     }
+
+    /** A second finger: whatever the first one started becomes a pan/zoom instead. */
+    const abortTouchPress = () => {
+      dropPending()
+      cancelLongPress()
+      if (!touchPress) return
+      const { history, last } = touchPress
+      touchPress = null
+      if (pressedButton !== null) {
+        pressedButton = null
+        const a = active()
+        a?.behavior.onPointerUp?.(a.ctx, { ...last, buttons: 0 })
+      }
+      rulerFrom = null
+      let extra = useMapStore.temporal.getState().pastStates.length - history
+      while (extra-- > 0) undo()
+    }
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 && e.button !== 2) return
+      // A left drag while the pan key is held pans the view (useViewportGestures).
+      if (e.button === 0 && isHeld("pan")) return
+      // No emulated mouse events after a finger or pen press: their mousedown
+      // would move the focus (closing the text editor a tap just opened).
+      if (e.pointerType !== "mouse") e.preventDefault()
+      if (e.pointerType === "pen") penDown = true
+      if (e.pointerType === "touch") {
+        if (penDown) return
+        touches.add(e.pointerId)
+        if (touches.size > 1) return abortTouchPress()
+      }
+      const info = toMap(e, e.button)
+      if (!info) return
+      el.setPointerCapture(e.pointerId)
+      if (e.pointerType !== "touch") return press(e, info)
+      const pointerId = e.pointerId
+      pending = {
+        pointerId,
+        info,
+        x: e.clientX,
+        y: e.clientY,
+      }
+      startTouchTimer(() => {
+        if (pending?.pointerId !== pointerId) return
+        pending = null
+        press(e, info)
+      }, TOUCH_HOLD_MS)
+    }
     const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch") {
+        // Fingers only steer the tool alone (and never under a pen).
+        if (penDown || touches.size > 1 || !touches.has(e.pointerId)) return
+        if (pending?.pointerId === e.pointerId) {
+          if (Math.hypot(e.clientX - pending.x, e.clientY - pending.y) < TOUCH_SLOP_PX) return
+          const { info } = pending
+          dropPending()
+          press(e, info)
+        }
+      }
       if (
         longPress &&
         Math.hypot(e.clientX - longPress.x, e.clientY - longPress.y) > LONG_PRESS_SLOP_PX
@@ -135,6 +234,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
         cancelLongPress()
       const info = toMap(e, pressedButton ?? -1)
       if (!info) return
+      if (touchPress?.pointerId === e.pointerId) touchPress.last = info
       useEditorStore.getState().setPointer({ x: info.x, y: info.y })
       hover = { ...info, buttons: 0 }
       if (rulerFrom) {
@@ -147,6 +247,21 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       a.behavior.onPointerMove?.(a.ctx, pressedButton === null ? { ...info, buttons: 0 } : info)
     }
     const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerType === "pen") penDown = false
+      if (e.pointerType === "touch") {
+        const wasAlone = touches.size === 1 && touches.has(e.pointerId)
+        touches.delete(e.pointerId)
+        if (!wasAlone) return
+        // A quick tap: it reaches the tool as a click.
+        if (pending?.pointerId === e.pointerId) {
+          const { info } = pending
+          dropPending()
+          if (e.type === "pointercancel") return
+          press(e, info)
+        }
+        if (touchPress?.pointerId !== e.pointerId && !rulerFrom) return
+        touchPress = null
+      }
       cancelLongPress()
       if (rulerFrom) {
         rulerFrom = null
@@ -261,7 +376,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       el.removeEventListener("wheel", onWheel)
       window.removeEventListener("keydown", onKeyDown)
       cancelAnimationFrame(wheelFrame)
-      clearTimeout(longPressTimer)
+      clearTimeout(touchTimer)
     }
   }, [ref])
 }

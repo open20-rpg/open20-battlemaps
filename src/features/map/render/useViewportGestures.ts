@@ -35,7 +35,8 @@ function stepZoom(zoom: number, dir: 1 | -1): number {
 /**
  * Wires up viewport gestures on `ref`'s element:
  *  - Pan: the pan shortcut (middle-mouse drag, or a left drag while Space is
- *    held, by default), or a two-finger touch drag.
+ *    held, by default), or a two-finger touch drag (one finger is the
+ *    tool's; fingers are ignored while a pen is down: the palm).
  *  - Zoom: Ctrl+scroll (also how browsers report a trackpad pinch), stepping
  *    through the same ZOOM_LEVELS as the zoom selector, centered on the
  *    cursor; and touch pinch (continuous) centered between the fingers,
@@ -85,7 +86,15 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
       anchor: Point | null
     } | null = null
 
+    /** A pen is down: fingers on the screen are the palm resting, not a pinch. */
+    let penDown = false
+
     const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "pen") {
+        penDown = true
+        pointers.clear()
+        touchGesture = null
+      }
       // Pan: the middle button (if bound) or a left drag while the pan key is held.
       const panning =
         (e.button === 1 && currentBindings().pan?.includes("MouseMiddle")) ||
@@ -97,7 +106,12 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
         el.setPointerCapture(e.pointerId)
         return
       }
-      if (e.pointerType !== "touch") return
+      if (e.pointerType !== "touch" || penDown) return
+      // The first finger of a new touch: no other can still be down.
+      if (e.isPrimary) {
+        pointers.clear()
+        touchGesture = null
+      }
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       el.setPointerCapture(e.pointerId)
       if (pointers.size === 2) {
@@ -152,6 +166,7 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
     }
 
     const onPointerEnd = (e: PointerEvent) => {
+      if (e.pointerType === "pen") penDown = false
       if (middlePanning && (e.button === 1 || e.button === 0)) middlePanning = false
       pointers.delete(e.pointerId)
       if (pointers.size < 2) touchGesture = null
@@ -159,15 +174,18 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
 
     el.addEventListener("wheel", onWheel, { passive: false })
     el.addEventListener("pointerdown", onPointerDown)
-    el.addEventListener("pointermove", onPointerMove)
-    el.addEventListener("pointerup", onPointerEnd)
-    el.addEventListener("pointercancel", onPointerEnd)
+    window.addEventListener("pointermove", onPointerMove)
+    // Moves and lifts are heard on the window: the tool input captures the
+    // pointer on the editor around this element, so they may never reach
+    // it — and a finger left behind would make every later pinch count three.
+    window.addEventListener("pointerup", onPointerEnd)
+    window.addEventListener("pointercancel", onPointerEnd)
     return () => {
       el.removeEventListener("wheel", onWheel)
       el.removeEventListener("pointerdown", onPointerDown)
-      el.removeEventListener("pointermove", onPointerMove)
-      el.removeEventListener("pointerup", onPointerEnd)
-      el.removeEventListener("pointercancel", onPointerEnd)
+      window.removeEventListener("pointermove", onPointerMove)
+      window.removeEventListener("pointerup", onPointerEnd)
+      window.removeEventListener("pointercancel", onPointerEnd)
     }
   }, [ref])
 }
