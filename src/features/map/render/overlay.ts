@@ -1,6 +1,11 @@
 import { type Container, Graphics } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
-import { entityBounds, type AssetSizeOf } from "../model/geometry"
+import {
+  entityBounds,
+  selectionBounds,
+  transformHandles,
+  type AssetSizeOf,
+} from "../model/geometry"
 import { type MapEntity } from "../model/types"
 import { ENTITY_RENDERERS, type RenderEnv } from "./entities"
 import { tileSizeForZoom } from "./viewport"
@@ -19,6 +24,8 @@ export function drawOverlay(
   sizeOf: AssetSizeOf,
   zoom: number,
   env: RenderEnv,
+  /** Draw the selection's scale/rotate handles (Select tool active). */
+  handles = false,
 ): void {
   for (const child of root.removeChildren()) child.destroy({ children: true })
   const px = 1 / tileSizeForZoom(zoom)
@@ -34,7 +41,7 @@ export function drawOverlay(
             !!shape.closed,
           ).stroke(line)
         }
-        for (const p of shape.points) g.circle(-p.x, p.y, 3 * px).fill({ color: ACCENT })
+        for (const p of shape.points) g.regularPoly(-p.x, p.y, 3 * px, 12).fill({ color: ACCENT })
         break
       case "polygon":
         if (shape.points.length > 1) {
@@ -79,6 +86,23 @@ export function drawOverlay(
   for (const e of selected) {
     const b = entityBounds(e, sizeOf)
     g.rect(-(b.x + b.w), b.y, b.w, b.h).stroke({ ...line, width: 1.5 * px })
+  }
+
+  const box = handles ? selectionBounds(selected, sizeOf) : null
+  if (box) {
+    const h = transformHandles(box, px)
+    const topCenter = { x: box.x + box.w / 2, y: box.y }
+    g.moveTo(-topCenter.x, topCenter.y).lineTo(-h.rotate.x, h.rotate.y).stroke(line)
+    // regularPoly, not circle: circle() picks its segment count from the tiny
+    // tile-unit radius (before the world's ~64× scale) and renders a diamond.
+    g.regularPoly(-h.rotate.x, h.rotate.y, 5 * px, 16)
+      .fill({ color: 0xffffff })
+      .stroke(line)
+    for (const c of h.corners) {
+      g.rect(-c.x - 4 * px, c.y - 4 * px, 8 * px, 8 * px)
+        .fill({ color: 0xffffff })
+        .stroke(line)
+    }
   }
   root.addChild(g)
 }

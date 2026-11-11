@@ -3,8 +3,9 @@ import { Box } from "@chakra-ui/react"
 import { Application, Container, Graphics } from "pixi.js"
 import { useMapStore } from "../../../stores/mapStore"
 import { useViewStore } from "../../../stores/viewStore"
-import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
+import { getToolParams, selectActiveTool, useToolsStore } from "../../../stores/toolsStore"
 import { useEditorStore } from "../../../stores/editorStore"
+import { useSettingsStore } from "../../../stores/settingsStore"
 import { drawGrid, type GridStyle } from "./grid"
 import { computeWorldTransform } from "./viewport"
 import { useViewportGestures } from "./useViewportGestures"
@@ -28,10 +29,12 @@ function sceneState(): SceneState | null {
     level: editor.activeLevel,
     lighting: view.lighting,
     shadows: view.shadows,
+    shadowStyle: useSettingsStore.getState().shadowStyle,
     textVisible: getToolParams("text").visible !== false,
     terrainEnabled: getToolParams("terrainBrush").enable !== false,
     draft: editor.draft,
     selection: editor.selection,
+    transformHandles: selectActiveTool(useToolsStore.getState())?.id === "select",
     zoom: view.zoom,
     referenceUrl: ref ? referenceImageUrl(ref.path) : null,
   }
@@ -96,6 +99,8 @@ export function MapCanvas() {
 
     app
       .init({
+        // The painted-layer filters (natural terrain edges) ship GLSL only.
+        preference: "webgl",
         resizeTo: el,
         backgroundAlpha: 0,
         antialias: true,
@@ -169,6 +174,7 @@ export function MapCanvas() {
     const unsubView = useViewStore.subscribe(schedule)
     const unsubTools = useToolsStore.subscribe(schedule)
     const unsubRef = subscribeReferenceImages(schedule)
+    const unsubSettings = useSettingsStore.subscribe(schedule)
     return () => {
       cancelAnimationFrame(frame)
       unsubMap()
@@ -176,6 +182,7 @@ export function MapCanvas() {
       unsubView()
       unsubTools()
       unsubRef()
+      unsubSettings()
     }
   }, [ready])
 

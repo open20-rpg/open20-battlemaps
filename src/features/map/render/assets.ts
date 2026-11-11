@@ -17,17 +17,24 @@ export interface TextureRequest {
    * "tiles"). The extension is kept from the main file.
    */
   part?: string
+  /**
+   * Suffix appended to the main file's name (keeping folder and extension),
+   * e.g. "_end" for a wall's end-cap texture next to it.
+   */
+  suffix?: string
   /** Recolor colorable assets to this hex color. */
   color?: string
 }
 
 type Listener = () => void
 
-function siblingPath(path: string, part: string): string {
+/** Path of a related file next to `path`: another name (`part`) and/or a name suffix. */
+export function relatedPath(path: string, req: Pick<TextureRequest, "part" | "suffix">): string {
   const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))
   const dot = path.lastIndexOf(".")
   const ext = dot > slash ? path.slice(dot) : ".png"
-  return `${path.slice(0, slash + 1)}${part}${ext}`
+  const stem = path.slice(slash + 1, dot > slash ? dot : undefined)
+  return `${path.slice(0, slash + 1)}${req.part ?? stem}${req.suffix ?? ""}${ext}`
 }
 
 /**
@@ -73,6 +80,17 @@ export class AssetCache {
     return this.resolved.get(id) === null
   }
 
+  /**
+   * Whether a texture will never arrive: its asset is missing or the file
+   * failed to load (e.g. an optional "_end" cap the pack doesn't ship). The
+   * scene stops waiting for those instead of redrawing forever.
+   */
+  isUnavailable(id: string, req: TextureRequest = {}): boolean {
+    if (this.isMissing(id)) return true
+    const url = this.urlFor(id, req)
+    return !!url && this.textures.get(url) === "error"
+  }
+
   /** Register an already-loaded image (data URL, e.g. the reference image). */
   textureFromUrl(url: string): Texture | undefined {
     const cached = this.textures.get(url)
@@ -88,7 +106,7 @@ export class AssetCache {
       return undefined
     }
     if (!res?.path) return undefined
-    const path = req.part ? siblingPath(res.path, req.part) : res.path
+    const path = req.part || req.suffix ? relatedPath(res.path, req) : res.path
     return res.colorable && req.color ? recolorUrl(path, req.color) : thumbUrl(path)
   }
 

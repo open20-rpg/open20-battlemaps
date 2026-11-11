@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { roofShade, shadeColor, smoothPolyline } from "./entities"
 import { exportPxPerTile } from "./exportMap"
-import { maskResolution, paintedLayer, terrainAlpha } from "./painted"
+import { maskResolution, paintedLayer, terrainStrength } from "./painted"
 import { mapToScreen, screenToMap } from "./viewport"
 
 describe("viewport", () => {
@@ -50,7 +50,22 @@ describe("renderers", () => {
     expect(maskResolution({ width: 30, height: 30 })).toBe(32)
     expect(maskResolution({ width: 400, height: 100 })).toBe(10)
     expect(maskResolution({ width: 5000, height: 10 })).toBe(4)
-    expect(terrainAlpha(4)).toBe(0.5)
+    // Default intensity nearly replaces the texture in one pass; low needs several.
+    expect(terrainStrength(4)).toBeCloseTo(0.865, 2)
+    expect(terrainStrength(0.2)).toBeLessThan(0.15)
+    expect(terrainStrength(8)).toBeGreaterThan(0.98)
     expect(paintedLayer("cave", [])).toBe(-300)
+  })
+})
+
+describe("asset paths", () => {
+  it("derives sibling and suffixed files next to an asset", async () => {
+    const { relatedPath } = await import("./assets")
+    expect(relatedPath("/p/textures/walls/stone.png", { suffix: "_end" })).toBe(
+      "/p/textures/walls/stone_end.png",
+    )
+    expect(relatedPath("C:\\p\\caves\\rock\\floor.png", { part: "wall" })).toBe(
+      "C:\\p\\caves\\rock\\wall.png",
+    )
   })
 })

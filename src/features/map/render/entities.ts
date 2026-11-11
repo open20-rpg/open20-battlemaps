@@ -1,7 +1,8 @@
 import {
   Container,
   Graphics,
-  MeshRope,
+  Mesh,
+  MeshGeometry,
   Point,
   Sprite,
   Text,
@@ -9,9 +10,10 @@ import {
   TilingSprite,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
-import { boundsOf, dist, wallPieces, type WallOpening } from "../model/geometry"
+import { boundsOf, dist, stripOutline, sub, wallRuns, type WallOpening } from "../model/geometry"
 import { type MapEntity, type Vec2 } from "../model/types"
 import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
+import { lightFalloffTexture } from "./generated"
 
 /**
  * Per-entity renderers, keyed by the tool that created the entity. They draw
@@ -23,10 +25,16 @@ import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
 export interface RenderEnv {
   /** Texture lookup that remembers misses, so the scene retries once loaded. */
   tex: (id: string | undefined, req?: TextureRequest) => Texture | undefined
-  /** Draw drop shadows (view toggle). */
-  shadows: boolean
+  /**
+   * Hand the scene a drop-shadow silhouette (black, opaque, in content space,
+   * not offset). The scene draws every shadow in one layer and applies the
+   * user's shadow style (offset, softness, opacity) and the view toggle there.
+   */
+  castShadow: (shadow: Container) => void
   /** Text tool's "Visible" toggle. */
   textVisible: boolean
+  /** Lighting view toggle (light glows hide with it). */
+  lighting: boolean
   /** Portals on the level (walls leave openings where they sit). */
   portals: readonly MapEntity[]
   /** Asset size in tiles (remembers misses like `tex`). */
@@ -73,14 +81,14 @@ function spriteEntity(
     root.addChild(placeholder())
     return root
   }
-  if (env.shadows && entity.params.shadow !== false) {
+  if (entity.params.shadow !== false) {
     const shadow = new Sprite(texture)
     shadow.anchor.set(0.5)
     shadow.scale.set(scale)
     shadow.tint = 0x000000
-    shadow.alpha = 0.35
-    shadow.position.set(0.06, 0.08)
-    root.addChild(shadow)
+    shadow.position.copyFrom(p)
+    shadow.rotation = root.rotation
+    env.castShadow(shadow)
   }
   const sprite = new Sprite(texture)
   sprite.anchor.set(0.5)
@@ -114,41 +122,80 @@ export function smoothPolyline(points: Vec2[], iterations: number): Vec2[] {
 }
 
 /**
- * A textured line (walls, paths): the texture runs along the polyline and
- * repeats; its height maps to `width` tiles. Falls back to a flat stroke while
- * the texture loads or when none is picked.
+ * A strip of `width` tiles along a polyline (walls, paths) with mitered
+ * corners. Textured strips run the texture along the line, repeating it at
+ * its own aspect ratio (one repeat = width × texture aspect), so it's never
+ * stretched; untextured ones fill the outline with `color`.
  */
-function ropeLine(
+export function strip(
   points: Vec2[],
   closed: boolean,
   width: number,
   texture: Texture | undefined,
-  fallbackColor: number,
+  color: number,
+  /** Tint over the texture/color (e.g. black for a shadow). */
+  tint?: number,
 ): Container {
-  const pts = closed && points.length > 2 ? [...points, points[0]] : points
   const root = new Container()
-  if (pts.length < 2) return root
-  if (texture) {
-    texture.source.style.addressMode = "repeat"
-    const rope = new MeshRope({
-      texture,
-      points: pts.map(toContent),
-      textureScale: width / texture.height,
-    })
-    root.addChild(rope)
+  if (points.length < 2) return root
+  const outline = stripOutline(points, closed, width)
+  // A closed strip repeats its first point at the end so the texture wraps.
+  const centers = closed ? [...points, points[0]] : points
+  const sides = closed ? [...outline, outline[0]] : outline
+  if (!texture) {
+    const ring = [...sides.map((s) => s.left), ...sides.map((s) => s.right).reverse()]
+    root.addChild(
+      new Graphics()
+        .poly(
+          ring.flatMap((p) => [-p.x, p.y]),
+          true,
+        )
+        .fill({ color: tint ?? color }),
+    )
     return root
   }
-  const g = new Graphics()
-  g.poly(
-    pts.flatMap((p) => [-p.x, p.y]),
-    false,
-  ).stroke({
-    width,
-    color: fallbackColor,
-    cap: "round",
-    join: "round",
+  texture.source.style.addressMode = "repeat"
+  const repeat = width * (texture.width / texture.height)
+  const positions: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+  // One quad per segment (corner vertices shared in position, not in UV):
+  // each vertex's u is its projection on that segment's direction, so the
+  // texture runs straight along every segment and only the miter seam is
+  // diagonal — a shared u at a mitered corner would skew the whole side.
+  let along = 0
+  for (let k = 0; k + 1 < centers.length; k++) {
+    const c0 = centers[k]
+    const c1 = centers[k + 1]
+    const len = dist(c0, c1)
+    if (len === 0) continue
+    const d = { x: (c1.x - c0.x) / len, y: (c1.y - c0.y) / len }
+    const u = (v: Vec2) => (along + (v.x - c0.x) * d.x + (v.y - c0.y) * d.y) / repeat
+    const base = positions.length / 2
+    for (const v of [sides[k].left, sides[k].right, sides[k + 1].left, sides[k + 1].right]) {
+      positions.push(-v.x, v.y)
+    }
+    uvs.push(
+      u(sides[k].left),
+      0,
+      u(sides[k].right),
+      1,
+      u(sides[k + 1].left),
+      0,
+      u(sides[k + 1].right),
+      1,
+    )
+    indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2)
+    along += len
+  }
+  const geometry = new MeshGeometry({
+    positions: new Float32Array(positions),
+    uvs: new Float32Array(uvs),
+    indices: new Uint32Array(indices),
   })
-  root.addChild(g)
+  const mesh = new Mesh({ geometry, texture })
+  if (tint !== undefined) mesh.tint = tint
+  root.addChild(mesh)
   return root
 }
 
@@ -164,47 +211,48 @@ function portalOpenings(env: RenderEnv): WallOpening[] {
   })
 }
 
-/**
- * One straight textured stretch of wall. Ends on a corner are extended by
- * half the thickness so adjoining pieces overlap and corners stay solid
- * (a single rope through a sharp corner collapses its width).
- */
-function wallPiece(
-  a: Vec2,
-  b: Vec2,
-  extendA: boolean,
-  extendB: boolean,
-  width: number,
-  texture: Texture | undefined,
-  color: number,
-): Container {
-  const len = dist(a, b)
-  const ux = (b.x - a.x) / len
-  const uy = (b.y - a.y) / len
-  const ext = width / 2
-  const start = extendA ? { x: a.x - ux * ext, y: a.y - uy * ext } : a
-  const end = extendB ? { x: b.x + ux * ext, y: b.y + uy * ext } : b
-  return ropeLine([start, end], false, width, texture, color)
+/** A wall's end-cap sprite at `at`, facing along `dir` (map space). */
+function endCap(texture: Texture, at: Vec2, dir: Vec2, width: number, tint?: number): Sprite {
+  const cap = new Sprite(texture)
+  if (tint !== undefined) cap.tint = tint
+  cap.anchor.set(0.5)
+  cap.position.set(-at.x, at.y)
+  // Content space mirrors x, so the direction's x flips too.
+  cap.rotation = Math.atan2(dir.y, -dir.x)
+  cap.scale.set(width / texture.height)
+  return cap
 }
 
+/**
+ * Walls: each continuous run (split only where portals open the wall) is one
+ * mitered strip, so corners join cleanly. Open ends get the pack's
+ * `<name>_end` cap texture when it has one. The drop shadow is the same
+ * geometry tinted black, so it follows the wall's real shape.
+ */
 const wallRenderer: EntityRenderer = (e, env) => {
   const { id, color } = selectionAsset(e.params.wall)
   const texture = env.tex(id, { color })
+  const cap = env.tex(id, { color, suffix: "_end" })
   const width = texture ? texture.height / TEXTURE_PX_PER_TILE : WALL_WIDTH
-  const pieces = wallPieces(e.points ?? [], !!e.closed, portalOpenings(env))
-  const root = new Container()
-  if (env.shadows && e.params.shadow !== false) {
-    const shadow = new Container()
-    for (const p of pieces) {
-      const off = (v: Vec2) => ({ x: v.x - 0.05, y: v.y + 0.08 })
-      shadow.addChild(wallPiece(off(p.a), off(p.b), p.capA, p.capB, width, undefined, 0x000000))
+  const runs = wallRuns(e.points ?? [], !!e.closed, portalOpenings(env))
+
+  const draw = (tint?: number): Container => {
+    const layer = new Container()
+    for (const run of runs) {
+      layer.addChild(strip(run.points, run.closed, width, texture, 0x3b3631, tint))
+      if (cap && !run.closed) {
+        const pts = run.points
+        const n = pts.length
+        layer.addChild(endCap(cap, pts[0], sub(pts[0], pts[1]), width, tint))
+        layer.addChild(endCap(cap, pts[n - 1], sub(pts[n - 1], pts[n - 2]), width, tint))
+      }
     }
-    shadow.alpha = 0.3
-    root.addChild(shadow)
+    return layer
   }
-  for (const p of pieces) {
-    root.addChild(wallPiece(p.a, p.b, p.capA, p.capB, width, texture, 0x3b3631))
-  }
+
+  const root = new Container()
+  if (e.params.shadow !== false) env.castShadow(draw(0x000000))
+  root.addChild(draw())
   return root
 }
 
@@ -212,7 +260,7 @@ const pathRenderer: EntityRenderer = (e, env) => {
   const texture = env.tex(str(e.params.asset, ""))
   const smooth = Math.round(num(e.params.smoothness, 0) * 3)
   const pts = smoothPolyline(e.points ?? [], smooth)
-  return ropeLine(pts, false, num(e.params.width, 1), texture, 0x7a6a52)
+  return strip(pts, false, num(e.params.width, 1), texture, 0x7a6a52)
 }
 
 /**
@@ -402,7 +450,33 @@ const textRenderer: EntityRenderer = (e, env) => {
 }
 
 /** Renderers by tool id. Painted tools (cave, water, terrain, material) and lights are composited separately. */
+/**
+ * A light's glow: its falloff texture (the Style, or a soft default) tinted
+ * with its color and added on top of the map, the way Godot's additive 2D
+ * lights brighten what they touch even when the scene is fully lit. The
+ * ambient darkness itself is the lighting composite (lighting.ts).
+ */
+const lightRenderer: EntityRenderer = (e, env) => {
+  const root = new Container()
+  root.visible = env.lighting
+  const { id } = selectionAsset(e.params.style)
+  const glow = new Sprite(env.tex(id) ?? lightFalloffTexture())
+  glow.anchor.set(0.5)
+  glow.position.copyFrom(toContent(e.position))
+  const range = num(e.params.range, 5)
+  glow.width = glow.height = range * 2
+  glow.tint = hexToPixiColor(str(e.params.color, "#eccd8b")).color
+  glow.alpha = Math.min(1, LIGHT_GLOW * num(e.params.intensity, 1))
+  glow.blendMode = "add"
+  root.addChild(glow)
+  return root
+}
+
+/** Glow strength at intensity 1 (keeps a white-ambient map from washing out). */
+export const LIGHT_GLOW = 0.45
+
 export const ENTITY_RENDERERS: Record<string, EntityRenderer> = {
+  light: lightRenderer,
   object: objectRenderer,
   scatter: objectRenderer,
   portal: portalRenderer,

@@ -37,8 +37,13 @@
     "theme": "Theme: Dark (fixed)",
     "language": "Language",
     "panelOpacity": "Panel opacity",
-    "more": "More configuration options will be available soon.",
-    "close": "Close"
+    "close": "Close",
+    "shadows": "Shadows",
+    "shadowBlur": "Softness (tiles)",
+    "shadowOffsetX": "Offset X (tiles)",
+    "shadowOffsetY": "Offset Y (tiles)",
+    "shadowOpacity": "Opacity",
+    "reset": "Reset"
   },
   "about": {
     "title": "About OpenDraft",

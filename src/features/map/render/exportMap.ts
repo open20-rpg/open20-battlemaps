@@ -59,7 +59,7 @@ export async function renderMapPng(opts: ExportOptions): Promise<string> {
   stage.addChild(bg, content, grid)
   const rt = RenderTexture.create({ width: map.width * ppt, height: map.height * ppt })
   try {
-    scene.withoutEditorAids(() => renderer.render({ container: stage, target: rt, clear: true }))
+    scene.forExport(ppt, () => renderer.render({ container: stage, target: rt, clear: true }))
     return await renderer.extract.base64({ target: rt, format: "png" })
   } finally {
     // Put the live content back exactly where it was.

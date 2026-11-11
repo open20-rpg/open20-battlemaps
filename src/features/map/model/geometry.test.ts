@@ -16,6 +16,13 @@ import {
   textSize,
   translateEntity,
   wallPieces,
+  wallRuns,
+  selectionBounds,
+  transformHandles,
+  transformEntity,
+  normalizeDegrees,
+  stripOutline,
+  dist,
 } from "./geometry"
 import { createDocument, normalizeDocument, type MapEntity } from "./types"
 
@@ -199,5 +206,133 @@ describe("wall pieces", () => {
         [{ center: { x: 2, y: 1 }, width: 1 }],
       ),
     ).toHaveLength(1)
+  })
+})
+
+describe("wall runs & strip outline", () => {
+  const L = [
+    { x: 0, y: 0 },
+    { x: 4, y: 0 },
+    { x: 4, y: 4 },
+  ]
+
+  it("keeps an uncut wall as one run (closed stays closed)", () => {
+    expect(wallRuns(L, false, [])).toEqual([{ points: L, closed: false }])
+    const square = rectPolygon({ x: 0, y: 0 }, { x: 4, y: 4 })
+    expect(wallRuns(square, true, [])).toEqual([{ points: square, closed: true }])
+  })
+
+  it("splits runs at portal openings", () => {
+    const runs = wallRuns(L, false, [{ center: { x: 2, y: 0 }, width: 1 }])
+    expect(runs.map((r) => r.points)).toEqual([
+      [
+        { x: 0, y: 0 },
+        { x: 1.5, y: 0 },
+      ],
+      [
+        { x: 2.5, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 4 },
+      ],
+    ])
+  })
+
+  it("stitches a cut closed wall back across its first vertex", () => {
+    const square = rectPolygon({ x: 0, y: 0 }, { x: 4, y: 4 })
+    // Opening on the third side (x from 4 to 0 at y = 4).
+    const runs = wallRuns(square, true, [{ center: { x: 2, y: 4 }, width: 1 }])
+    expect(runs).toHaveLength(1)
+    expect(runs[0].points[0]).toEqual({ x: 1.5, y: 4 })
+    expect(runs[0].points[runs[0].points.length - 1]).toEqual({ x: 2.5, y: 4 })
+  })
+
+  it("miters corners so both sides meet", () => {
+    const out = stripOutline(L, false, 0.5)
+    // Straight ends: offset by half the width.
+    expect(out[0].left.y).toBeCloseTo(0.25)
+    expect(out[0].right.y).toBeCloseTo(-0.25)
+    // The 90° corner's miter reaches the outer corner diagonally.
+    expect(out[1].left.x).toBeCloseTo(3.75)
+    expect(out[1].left.y).toBeCloseTo(0.25)
+    expect(out[1].right.x).toBeCloseTo(4.25)
+    expect(out[1].right.y).toBeCloseTo(-0.25)
+  })
+
+  it("clamps the miter of very sharp corners", () => {
+    const sharp = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 0.1 },
+    ]
+    const out = stripOutline(sharp, false, 1)
+    expect(dist(out[1].left, sharp[1])).toBeLessThanOrEqual(2 + 1e-9)
+  })
+})
+
+describe("wall picking", () => {
+  const room: MapEntity = {
+    id: "w",
+    toolId: "wall",
+    layer: 600,
+    position: { x: 0, y: 0 },
+    rotation: 0,
+    points: rectPolygon({ x: 0, y: 0 }, { x: 6, y: 6 }),
+    closed: true,
+    params: {},
+  }
+  const floor: MapEntity = { ...room, id: "f", toolId: "build", layer: -200 }
+
+  it("picks a closed wall only near its outline", () => {
+    expect(entityHit(room, { x: 3, y: 3 }, noSize)).toBe(false)
+    expect(entityHit(room, { x: 3, y: 0.1 }, noSize)).toBe(true)
+  })
+
+  it("lets clicks inside a room reach what is inside", () => {
+    const chair = obj("chair", 3, 3, 100)
+    expect(hitTest([floor, room, chair], { x: 3, y: 3 }, noSize)?.id).toBe("chair")
+    expect(hitTest([floor, room], { x: 2, y: 2 }, noSize)?.id).toBe("f")
+    expect(hitTest([floor, room], { x: 0, y: 3 }, noSize)?.id).toBe("w")
+  })
+})
+
+describe("transform handles", () => {
+  it("bounds a selection and places corner/rotate handles", () => {
+    const box = selectionBounds([obj("a", 0, 0), obj("b", 4, 2)], noSize)
+    expect(box).toEqual({ x: -0.5, y: -0.5, w: 5, h: 3 })
+    const h = transformHandles(box!, 0.01)
+    expect(h.corners).toHaveLength(4)
+    expect(h.rotate).toEqual({ x: 2, y: -0.74 })
+    expect(selectionBounds([], noSize)).toBeNull()
+  })
+
+  it("rotates and scales sprites around a center", () => {
+    const e = { ...obj("a", 2, 0), rotation: 10, scale: 1 }
+    const t = transformEntity(e, { x: 0, y: 0 }, 90, 2)
+    expect(t.rotation).toBe(100)
+    expect(t.scale).toBe(2)
+    // 90° clockwise on screen = counter-clockwise in mirrored map space.
+    expect(t.position.x).toBeCloseTo(0)
+    expect(t.position.y).toBeCloseTo(-4)
+  })
+
+  it("moves polyline points and widens strokes, keeping their rotation", () => {
+    const wall: MapEntity = { ...obj("w", 0, 0), points: [{ x: 1, y: 0 }], rotation: 0 }
+    const t = transformEntity(wall, { x: 0, y: 0 }, 0, 3)
+    expect(t.points).toEqual([{ x: 3, y: 0 }])
+    expect(t.rotation).toBe(0)
+    const brush: MapEntity = {
+      ...obj("s", 0, 0),
+      strokes: [{ points: [{ x: 1, y: 1 }], radius: 0.5 }],
+    }
+    expect(transformEntity(brush, { x: 0, y: 0 }, 0, 2).strokes?.[0]).toEqual({
+      points: [{ x: 2, y: 2 }],
+      radius: 1,
+    })
+  })
+
+  it("normalizes angles", () => {
+    expect(normalizeDegrees(190)).toBe(-170)
+    expect(normalizeDegrees(-180)).toBe(180)
+    expect(normalizeDegrees(45)).toBe(45)
   })
 })

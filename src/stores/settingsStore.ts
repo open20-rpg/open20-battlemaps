@@ -12,6 +12,27 @@ export interface Prefab {
   entities: MapEntity[]
 }
 
+/**
+ * How drop shadows (objects, walls) look in OpenDraft. An app preference, not
+ * part of any map file: Dungeondraft maps have no such settings.
+ */
+export interface ShadowStyle {
+  /** Softness: blur radius in tiles (0 = hard edge). */
+  blur: number
+  /** Offset in tiles, on screen (+x right, +y down). */
+  offsetX: number
+  offsetY: number
+  /** 0..1 */
+  opacity: number
+}
+
+export const DEFAULT_SHADOW_STYLE: ShadowStyle = {
+  blur: 0.04,
+  offsetX: 0.06,
+  offsetY: 0.08,
+  opacity: 0.35,
+}
+
 /** How many recently opened/saved map paths to remember. */
 export const MAX_RECENT_MAPS = 10
 
@@ -31,6 +52,9 @@ interface SettingsState {
   prefabs: Prefab[]
   /** Recently opened/saved map files (most recent first). */
   recentMaps: string[]
+  shadowStyle: ShadowStyle
+  setShadowStyle: (patch: Partial<ShadowStyle>) => void
+  resetShadowStyle: () => void
   setPanelAlpha: (alpha: number) => void
   addColorPreset: (color: string) => void
   addTemplate: (tpl: MapTemplate) => void
@@ -71,6 +95,9 @@ export const useSettingsStore = create<SettingsState>()(
       userTemplates: [],
       prefabs: [],
       recentMaps: [],
+      shadowStyle: DEFAULT_SHADOW_STYLE,
+      setShadowStyle: (patch) => set((s) => ({ shadowStyle: { ...s.shadowStyle, ...patch } })),
+      resetShadowStyle: () => set({ shadowStyle: DEFAULT_SHADOW_STYLE }),
       ...readLegacy(),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),
       addColorPreset: (color) =>

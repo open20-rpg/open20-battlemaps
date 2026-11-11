@@ -1,4 +1,4 @@
-import { useEditorStore } from "../../../stores/editorStore"
+import { useEditorStore, type DraftShape } from "../../../stores/editorStore"
 import { useToolsStore } from "../../../stores/toolsStore"
 import {
   addEntities,
@@ -47,13 +47,20 @@ export function lightAt(ctx: ToolCtx, p: Vec2): MapEntity {
 export function createLightBehavior(): ToolBehavior {
   let dragging: { id: string; last: Vec2 } | null = null
   const lights = (ctx: ToolCtx) => ctx.entities.filter((e) => e.toolId === "light")
+  // Widgets (range circles + center handles of placed lights) follow the
+  // Widgets param; the hover preview (the light's real glow) always shows.
   const showWidgets = (ctx: ToolCtx, hover?: Vec2) => {
-    if (ctx.params.widgets === false) return useEditorStore.getState().setDraft([])
-    const draft = lights(ctx).flatMap((l) => [
-      { kind: "circle" as const, center: l.position, radius: paramNum(l.params.range, 5) },
-      { kind: "handles" as const, points: [l.position] },
-    ])
-    if (hover) draft.push({ kind: "circle", center: hover, radius: paramNum(ctx.params.range, 5) })
+    const draft: DraftShape[] =
+      ctx.params.widgets === false
+        ? []
+        : lights(ctx).flatMap((l) => [
+            { kind: "circle" as const, center: l.position, radius: paramNum(l.params.range, 5) },
+            { kind: "handles" as const, points: [l.position] },
+          ])
+    if (hover) {
+      draft.push({ kind: "ghost", entity: lightAt(ctx, hover) })
+      draft.push({ kind: "circle", center: hover, radius: paramNum(ctx.params.range, 5) })
+    }
     useEditorStore.getState().setDraft(draft)
   }
   return {

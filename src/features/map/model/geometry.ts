@@ -192,6 +192,13 @@ export function entityBounds(entity: MapEntity, sizeOf: AssetSizeOf): Rect {
 }
 
 /** Whether `p` falls on the entity (hit test used by the Select tool). */
+/**
+ * Entities picked only along their outline, never by their interior: a
+ * closed wall encloses a room, and clicking inside the room must reach what
+ * is in it (furniture, the floor), not the wall around it.
+ */
+const OUTLINE_ONLY_TOOLS = new Set(["wall"])
+
 export function entityHit(
   entity: MapEntity,
   p: Vec2,
@@ -202,7 +209,8 @@ export function entityHit(
     return entity.strokes.some((s) => !s.erase && distToPolyline(p, s.points) <= s.radius)
   }
   if (entity.points && entity.points.length > 0) {
-    if (entity.closed && entity.points.length > 2 && pointInPolygon(p, entity.points)) return true
+    const area = entity.closed && entity.points.length > 2 && !OUTLINE_ONLY_TOOLS.has(entity.toolId)
+    if (area && pointInPolygon(p, entity.points)) return true
     return distToPolyline(p, entity.points, entity.closed) <= lineHalfWidth(entity) + tolerance
   }
   return pointInPolygon(p, spriteCorners(entity, sizeOf))
@@ -326,4 +334,154 @@ export function wallPieces(
       pieces.push({ a: lerp(start), b: b, capA: start === 0 && cornerStart, capB: cornerEnd })
   })
   return pieces
+}
+
+/** A continuous stretch of wall to draw as one strip (joined corners). */
+export interface WallRun {
+  points: Vec2[]
+  closed: boolean
+}
+
+/**
+ * Group wall pieces into continuous runs: consecutive pieces that meet at a
+ * corner become one polyline, so the renderer can join corners with miters
+ * instead of overlapping separate strips. A closed wall without openings
+ * stays one closed run; openings split it into open runs (the run crossing
+ * the first vertex is stitched back together).
+ */
+export function wallRuns(
+  points: readonly Vec2[],
+  closed: boolean,
+  openings: readonly WallOpening[],
+): WallRun[] {
+  const pieces = wallPieces(points, closed, openings)
+  if (pieces.length === 0) return []
+  const cut = pieces.some((p) => !p.capA || !p.capB)
+  if (closed && !cut) return [{ points: pieces.map((p) => p.a), closed: true }]
+  const runs: Vec2[][] = []
+  for (const p of pieces) {
+    const current = runs[runs.length - 1]
+    if (p.capA && current) current.push(p.b)
+    else runs.push([p.a, p.b])
+  }
+  // A closed wall's first piece continues the last run across vertex 0.
+  if (closed && runs.length > 1 && pieces[0].capA) {
+    const first = runs.shift() as Vec2[]
+    runs[runs.length - 1].push(...first.slice(1))
+  }
+  return runs.map((r) => ({ points: r, closed: false }))
+}
+
+/** Longest miter, in half-widths, before a very sharp corner is clamped. */
+const MITER_LIMIT = 4
+
+/**
+ * Left/right outline vertices of a strip of `width` along `points`, with
+ * mitered joins (clamped at sharp angles) — the geometry of a wall run.
+ * Returned per input point (closed runs join the last point to the first).
+ */
+export function stripOutline(
+  points: readonly Vec2[],
+  closed: boolean,
+  width: number,
+): { left: Vec2; right: Vec2 }[] {
+  const n = points.length
+  const half = width / 2
+  const dirOf = (a: Vec2, b: Vec2): Vec2 => {
+    const len = dist(a, b) || 1
+    return { x: (b.x - a.x) / len, y: (b.y - a.y) / len }
+  }
+  return points.map((p, i) => {
+    const prev = i > 0 ? points[i - 1] : closed ? points[n - 1] : undefined
+    const next = i < n - 1 ? points[i + 1] : closed ? points[0] : undefined
+    const dIn = prev ? dirOf(prev, p) : undefined
+    const dOut = next ? dirOf(p, next) : undefined
+    const d1 = dIn ?? dOut ?? { x: 1, y: 0 }
+    const d2 = dOut ?? dIn ?? { x: 1, y: 0 }
+    // Normals (rotate 90°), averaged into the miter direction.
+    const n1 = { x: -d1.y, y: d1.x }
+    const n2 = { x: -d2.y, y: d2.x }
+    let mx = n1.x + n2.x
+    let my = n1.y + n2.y
+    const mlen = Math.hypot(mx, my)
+    if (mlen < 1e-9) {
+      // A full U-turn: no miter exists; use the incoming normal.
+      mx = n1.x
+      my = n1.y
+    } else {
+      mx /= mlen
+      my /= mlen
+    }
+    const cos = mx * n1.x + my * n1.y
+    const len = Math.min(half / Math.max(cos, 1e-6), half * MITER_LIMIT)
+    return {
+      left: { x: p.x + mx * len, y: p.y + my * len },
+      right: { x: p.x - mx * len, y: p.y - my * len },
+    }
+  })
+}
+
+/** Union of the entities' bounds (selection box), or null for none. */
+export function selectionBounds(entities: readonly MapEntity[], sizeOf: AssetSizeOf): Rect | null {
+  if (entities.length === 0) return null
+  const corners = entities.flatMap((e) => {
+    const b = entityBounds(e, sizeOf)
+    return [
+      { x: b.x, y: b.y },
+      { x: b.x + b.w, y: b.y + b.h },
+    ]
+  })
+  return boundsOf(corners)
+}
+
+/** Screen px between the selection box's top edge and its rotate handle. */
+const ROTATE_HANDLE_GAP_PX = 24
+
+/**
+ * Where the selection's transform handles sit: the box corners (uniform
+ * scale) and a rotate handle above the box's top-center. `tile` is the size
+ * of one screen pixel in tiles, so the gap stays constant on screen.
+ */
+export function transformHandles(box: Rect, pxInTiles: number): { corners: Vec2[]; rotate: Vec2 } {
+  return {
+    corners: rectPolygon({ x: box.x, y: box.y }, { x: box.x + box.w, y: box.y + box.h }),
+    rotate: { x: box.x + box.w / 2, y: box.y - ROTATE_HANDLE_GAP_PX * pxInTiles },
+  }
+}
+
+/**
+ * Rotate (`screenDegrees`, clockwise on screen) and uniformly scale
+ * (`factor`) an entity around `center`. Every coordinate moves; sprite-like
+ * entities also turn and grow, brush strokes widen. Map x is mirrored, so a
+ * clockwise turn on screen is counter-clockwise in map space.
+ */
+export function transformEntity(
+  entity: MapEntity,
+  center: Vec2,
+  screenDegrees: number,
+  factor: number,
+): MapEntity {
+  const move = (p: Vec2): Vec2 => {
+    const r = rotateAround(p, center, -screenDegrees)
+    return { x: center.x + (r.x - center.x) * factor, y: center.y + (r.y - center.y) * factor }
+  }
+  const sprite = !entity.points && !entity.strokes
+  return {
+    ...entity,
+    position: move(entity.position),
+    rotation: sprite ? normalizeDegrees(entity.rotation + screenDegrees) : entity.rotation,
+    scale: sprite ? (entity.scale ?? 1) * factor : entity.scale,
+    points: entity.points?.map(move),
+    strokes: entity.strokes?.map((s) => ({
+      ...s,
+      radius: s.radius * factor,
+      points: s.points.map(move),
+    })),
+  }
+}
+
+/** Wrap an angle to (-180, 180]. */
+export function normalizeDegrees(deg: number): number {
+  const d = ((((deg + 180) % 360) + 360) % 360) - 180
+  return d === -180 ? 180 : d
 }

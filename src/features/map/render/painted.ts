@@ -1,6 +1,7 @@
 import {
   BlurFilter,
   Container,
+  type Filter,
   Graphics,
   RenderTexture,
   Sprite,
@@ -13,6 +14,7 @@ import { type BrushStroke, type MapEntity } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
 import { type RenderEnv, selectionAsset } from "./entities"
 import { softBrushTexture } from "./generated"
+import { naturalEdgeFilter } from "./naturalEdge"
 
 /**
  * Painted layers (Cave, Water, Terrain Brush, Material): every stroke of a
@@ -147,7 +149,10 @@ function mapFill(map: MapBox, texture: Texture | undefined, tint: string | undef
 function masked(fill: Container, mask: Sprite): Container {
   const c = new Container()
   c.addChild(fill, mask)
-  fill.mask = mask
+  // Masks come from render textures (premultiplied alpha). Pixi's default
+  // "red" channel would multiply coverage by itself (r == a), turning 50%
+  // coverage into 25%; the alpha channel is the coverage itself.
+  fill.setMask({ mask, channel: "alpha" })
   return c
 }
 
@@ -260,15 +265,34 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
   return composite(view, masks)
 }
 
-/** Per-stroke opacity from the Terrain Brush intensity (0.2–8). */
-export function terrainAlpha(intensity: number): number {
-  return Math.max(0.05, Math.min(1, intensity / 8))
+/**
+ * How much one Terrain Brush stroke covers, from its Intensity (0.2–8): low
+ * intensities need several passes to fully replace the texture underneath,
+ * the default (4) almost does it in one, high ones fully.
+ */
+export function terrainStrength(intensity: number): number {
+  return Math.min(1, 1 - Math.exp(-Math.max(0, intensity) * 0.5))
 }
 
 /**
- * Terrain splat: the base slot (texture 0, or the last Fill) covers the map;
- * every other texture gets its own soft mask. Painting a texture also erases
- * it from the other masks, so whichever texture was painted last shows on top.
+ * One stroke's coverage, rendered once into `scratch` (cleared) so the
+ * stroke acts as a single layer: overlapping stamps within a stroke don't
+ * stack, only separate strokes accumulate. Smooth Blending keeps the round
+ * soft falloff; otherwise the falloff is broken up into natural edges.
+ */
+function strokeCoverage(stroke: BrushStroke, natural: Filter | null, scratch: MapMask): Sprite {
+  const stamps = softStroke({ ...stroke, erase: false }, 1)
+  if (natural) stamps.filters = [natural]
+  scratch.draw([stamps], true)
+  return scratch.sprite()
+}
+
+/**
+ * Terrain splat: the base (slot 0 as painted, or the last Fill) covers the
+ * map; every other texture is masked by its own coverage. Painting a texture
+ * adds its stroke coverage (scaled by Intensity) to its mask and removes the
+ * same coverage from every other mask, so the latest paint shows on top and
+ * textures blend by coverage — no stacked semi-transparent layers.
  */
 function terrainComposite(
   entities: MapEntity[],
@@ -277,6 +301,8 @@ function terrainComposite(
   env: RenderEnv,
 ): Composite {
   const masks = new Map<string, MapMask>()
+  const scratch = new MapMask(renderer, map)
+  const natural = naturalEdgeFilter(scratch.res)
   let base: string | undefined
   for (const e of entities) {
     const texId = str(e.params.texture, "")
@@ -288,22 +314,29 @@ function terrainComposite(
       for (const m of masks.values()) m.draw([], true)
       continue
     }
-    const alpha = terrainAlpha(num(e.params.intensity, 4))
-    const soft = (e.params.smoothBlending === true ? 0.6 : 1) * alpha
+    const strength = terrainStrength(num(e.params.intensity, 4))
+    const smooth = e.params.smoothBlending === true
     for (const stroke of e.strokes ?? []) {
       if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
-      masks.get(texId)?.draw([softStroke(stroke, soft)], false)
-      if (stroke.erase) continue
-      for (const [other, m] of masks) {
-        if (other !== texId) m.draw([softStroke({ ...stroke, erase: true }, soft)], false)
+      const paint = (target: MapMask, erase: boolean) => {
+        const coverage = strokeCoverage(stroke, smooth ? null : natural, scratch)
+        coverage.alpha = strength
+        if (erase) coverage.blendMode = "erase"
+        target.draw([coverage], false)
       }
+      for (const [other, m] of masks) {
+        // Right-drag erases the texture itself; painting erases the others.
+        if (stroke.erase ? other === texId : other !== texId) paint(m, true)
+      }
+      if (!stroke.erase) paint(masks.get(texId) as MapMask, false)
     }
   }
+  scratch.destroy()
+  natural.destroy()
   const view = new Container()
-  if (base) view.addChild(mapFill(map, env.tex(base), undefined))
+  if (base) view.addChild(textureOrColor(map, env.tex(base), "#6b7a4a"))
   for (const [texId, m] of masks) {
-    if (texId === base && masks.size === 1) continue
-    view.addChild(masked(mapFill(map, env.tex(texId), "#9a8a6a"), m.sprite()))
+    view.addChild(masked(textureOrColor(map, env.tex(texId), "#9a8a6a"), m.sprite()))
   }
   return composite(view, masks.values())
 }

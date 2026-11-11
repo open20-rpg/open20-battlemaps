@@ -329,4 +329,41 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()).toHaveLength(2)
     expect(entities()[1].position).toEqual({ x: 8, y: 8 })
   })
+
+  it("Select's corner handle scales and the top handle rotates (one undo step each)", () => {
+    useViewStore.setState({ zoom: 100 })
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
+    down("object", 5, 5)
+    useToolsStore.getState().selectToolById("select")
+    useEditorStore.getState().select([entities()[0].id])
+    // Corner (5.5, 5.5) dragged twice as far from the center → scale ×2.
+    down("select", 5.5, 5.5)
+    move("select", 6, 6)
+    up("select", 6, 6)
+    expect(entities()[0].scale).toBeCloseTo(2)
+    // Rotate handle sits 24 screen px (24/64 tiles at 100%) above the box top.
+    // The box is now 2×2 around (5,5): top at y=4.
+    down("select", 5, 4 - 24 / 64)
+    // Pointer to screen-right of the center (map x decreases): +90° clockwise.
+    move("select", 3, 5)
+    up("select", 3, 5)
+    expect(entities()[0].rotation).toBeCloseTo(90)
+    expect(entities()[0].position).toEqual({ x: 5, y: 5 })
+    undo()
+    expect(entities()[0].rotation).toBe(0)
+    undo()
+    expect(entities()[0].scale ?? 1).toBe(1)
+  })
+
+  it("Shift snaps handle rotation to 15° steps", () => {
+    useViewStore.setState({ zoom: 100 })
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
+    down("object", 5, 5)
+    useToolsStore.getState().selectToolById("select")
+    useEditorStore.getState().select([entities()[0].id])
+    down("select", 5, 4.5 - 24 / 64)
+    move("select", 4.2, 4.5, { shiftKey: true })
+    up("select", 4.2, 4.5)
+    expect(entities()[0].rotation % 15).toBeCloseTo(0)
+  })
 })

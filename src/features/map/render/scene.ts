@@ -1,11 +1,13 @@
-import { Container, Sprite, type Renderer } from "pixi.js"
+import { AlphaFilter, BlurFilter, Container, Sprite, type Renderer } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
+import { type ShadowStyle } from "../../../stores/settingsStore"
 import { type MapDocument, type MapEntity } from "../model/types"
 import { type AssetCache } from "./assets"
 import { ENTITY_RENDERERS, type RenderEnv } from "./entities"
 import { lightingComposite } from "./lighting"
 import { drawOverlay } from "./overlay"
 import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
+import { tileSizeForZoom } from "./viewport"
 
 /** Everything the scene draws from, gathered from the stores each frame it changes. */
 export interface SceneState {
@@ -13,10 +15,14 @@ export interface SceneState {
   level: string | null
   lighting: boolean
   shadows: boolean
+  /** How shadows look (an app preference, not part of the map). */
+  shadowStyle: ShadowStyle
   textVisible: boolean
   terrainEnabled: boolean
   draft: readonly DraftShape[]
   selection: readonly string[]
+  /** Show the selection's transform handles (Select tool active). */
+  transformHandles: boolean
   zoom: number
   /** Reference image as a loaded data URL (null when none/hidden). */
   referenceUrl: string | null
@@ -27,9 +33,11 @@ interface EntityView {
   /** Other entities the view depends on (walls: the level's portals). */
   deps: readonly unknown[]
   /** Render inputs that, if changed, require a redraw. */
-  shadows: boolean
   textVisible: boolean
+  lighting: boolean
   view: Container
+  /** Drop-shadow silhouettes it cast (they live in the shared shadow layer). */
+  shadows: Container[]
   /** False when a texture was still loading — redraw once assets arrive. */
   complete: boolean
 }
@@ -46,6 +54,18 @@ const sameInputs = (a: readonly unknown[], b: readonly unknown[]) =>
 /** Draw order: layer bucket first, then document order within it. */
 const zFor = (layer: number, index: number) => (layer + 1000) * 100000 + index
 
+/** Free an entity's view and the shadows it cast. */
+function destroyView(entry: EntityView): void {
+  entry.view.destroy({ children: true })
+  for (const shadow of entry.shadows) shadow.destroy({ children: true })
+}
+
+/**
+ * Where the shared shadow layer sits: above floors/caves/terrain (−200 and
+ * below), under everything that casts a shadow.
+ */
+const SHADOW_LAYER = -150
+
 /**
  * The imperative map renderer: owns the Pixi display tree for the document
  * and reconciles it against store state (`update`), redrawing only what
@@ -58,6 +78,16 @@ export class MapScene {
   readonly content = new Container()
   /** Editor overlay (drafts, selection); above the grid. */
   readonly overlay = new Container()
+  /**
+   * Every drop shadow, drawn as one group: offset, blurred and faded as a
+   * whole, so overlapping shadows don't darken each other and changing the
+   * shadow style never redraws an entity.
+   */
+  private shadowLayer = new Container()
+  private shadowBlur = new BlurFilter({ strength: 0, quality: 3 })
+  private shadowAlpha = new AlphaFilter({ alpha: 1 })
+  /** Px per tile the shadow blur is computed for (export overrides the zoom's). */
+  private shadowPxPerTile: number | null = null
   private entities = new Map<string, EntityView>()
   private composites = new Map<string, CompositeView>()
   private lighting: CompositeView | null = null
@@ -71,6 +101,9 @@ export class MapScene {
   ) {
     this.content.scale.x = -1
     this.content.sortableChildren = true
+    this.shadowLayer.zIndex = zFor(SHADOW_LAYER, 0)
+    this.shadowLayer.filters = [this.shadowBlur, this.shadowAlpha]
+    this.content.addChild(this.shadowLayer)
     this.overlay.scale.x = -1
     this.unsubscribe = assets.subscribe(() => {
       if (this.last) this.update(this.last, true)
@@ -82,12 +115,13 @@ export class MapScene {
     state: SceneState,
     track: { complete: boolean },
     portals: readonly MapEntity[] = [],
+    shadows: Container[] | null = null,
   ): RenderEnv {
     return {
       tex: (id, req) => {
         if (!id) return undefined
         const t = this.assets.texture(id, req)
-        if (!t && !this.assets.isMissing(id)) track.complete = false
+        if (!t && !this.assets.isUnavailable(id, req)) track.complete = false
         return t
       },
       size: (id) => {
@@ -96,8 +130,14 @@ export class MapScene {
         if (!s && !this.assets.isMissing(id)) track.complete = false
         return s
       },
-      shadows: state.shadows,
+      castShadow: (shadow) => {
+        // Editor-only renders (overlay ghosts) cast nothing.
+        if (!shadows) return shadow.destroy({ children: true })
+        shadows.push(shadow)
+        this.shadowLayer.addChild(shadow)
+      },
       textVisible: state.textVisible,
+      lighting: state.lighting,
       portals,
     }
   }
@@ -106,6 +146,7 @@ export class MapScene {
     this.last = state
     const onLevel = state.map.entities.filter((e) => !e.level || e.level === state.level)
     this.syncReference(state)
+    this.applyShadowStyle(state)
     this.syncEntities(state, onLevel, assetsChanged)
     this.syncComposites(state, onLevel, assetsChanged)
     this.syncLighting(state, onLevel, assetsChanged)
@@ -119,7 +160,19 @@ export class MapScene {
       (id) => this.assets.size(id),
       state.zoom,
       this.env(state, track),
+      state.transformHandles,
     )
+  }
+
+  private applyShadowStyle(state: SceneState): void {
+    const style = state.shadowStyle
+    this.shadowLayer.visible = state.shadows && style.opacity > 0
+    // Content space isn't mirrored: +x is right, +y is down on screen.
+    this.shadowLayer.position.set(style.offsetX, style.offsetY)
+    this.shadowAlpha.alpha = style.opacity
+    // Blur works in output pixels, so convert the tile radius at the current scale.
+    const px = this.shadowPxPerTile ?? tileSizeForZoom(state.zoom)
+    this.shadowBlur.strength = style.blur * px
   }
 
   private syncReference(state: SceneState): void {
@@ -164,20 +217,22 @@ export class MapScene {
         !current ||
         current.entity !== entity ||
         !sameInputs(current.deps, deps) ||
-        current.shadows !== state.shadows ||
         current.textVisible !== state.textVisible ||
+        current.lighting !== state.lighting ||
         (assetsChanged && !current.complete)
       if (stale) {
-        current?.view.destroy({ children: true })
+        if (current) destroyView(current)
         const track = { complete: true }
-        const view = render(entity, this.env(state, track, portals))
+        const shadows: Container[] = []
+        const view = render(entity, this.env(state, track, portals, shadows))
         this.content.addChild(view)
         this.entities.set(entity.id, {
           entity,
           deps,
-          shadows: state.shadows,
           textVisible: state.textVisible,
+          lighting: state.lighting,
           view,
+          shadows,
           complete: track.complete,
         })
       }
@@ -186,7 +241,7 @@ export class MapScene {
     })
     for (const [id, entry] of this.entities) {
       if (seen.has(id)) continue
-      entry.view.destroy({ children: true })
+      destroyView(entry)
       this.entities.delete(id)
     }
   }
@@ -242,21 +297,31 @@ export class MapScene {
     this.lighting = { inputs, comp, complete: track.complete }
   }
 
-  /** Run `fn` with editor-only content (the reference image) hidden — for exports. */
-  withoutEditorAids<T>(fn: () => T): T {
+  /**
+   * Run `fn` (an off-screen export render) at `pxPerTile`: editor-only
+   * content (the reference image) hidden and the shadow blur sized for the
+   * export's scale instead of the on-screen zoom.
+   */
+  forExport<T>(pxPerTile: number, fn: () => T): T {
     const ref = this.reference?.sprite
     const was = ref?.visible
     if (ref) ref.visible = false
+    this.shadowPxPerTile = pxPerTile
+    if (this.last) this.applyShadowStyle(this.last)
     try {
       return fn()
     } finally {
       if (ref && was !== undefined) ref.visible = was
+      this.shadowPxPerTile = null
+      if (this.last) this.applyShadowStyle(this.last)
     }
   }
 
   destroy(): void {
     this.unsubscribe()
-    for (const e of this.entities.values()) e.view.destroy({ children: true })
+    for (const e of this.entities.values()) destroyView(e)
+    this.shadowBlur.destroy()
+    this.shadowAlpha.destroy()
     for (const c of this.composites.values()) c.comp.dispose()
     this.lighting?.comp.dispose()
     this.reference?.sprite.destroy()
