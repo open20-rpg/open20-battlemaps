@@ -251,7 +251,9 @@
     "shadowOffsetX": "Desplazamiento X (casillas)",
     "shadowOffsetY": "Desplazamiento Y (casillas)",
     "shadowOpacity": "Opacidad",
-    "resetShadows": "Restablecer"
+    "resetShadows": "Restablecer",
+    "group": "Agrupar (Ctrl+G)",
+    "ungroup": "Desagrupar (Ctrl+Shift+G)"
   },
   "biomes": {
     "barren": "Yermo",

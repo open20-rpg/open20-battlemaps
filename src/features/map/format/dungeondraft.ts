@@ -164,6 +164,15 @@ function bitmapStrokes(im: Importer, literal: unknown, cellPx: number): BrushStr
   }))
 }
 
+/**
+ * The group an item belongs to: Dungeondraft stores groups ("prefabs" in its
+ * code) as a shared `prefab_id` on each member, a decimal string, map-wide.
+ */
+function grouped(raw: Json): Pick<MapEntity, "group"> {
+  const id = raw.prefab_id
+  return typeof id === "string" && id !== "" ? { group: `dd-${id}` } : {}
+}
+
 function entity(
   level: string,
   fields: Partial<MapEntity> & Pick<MapEntity, "toolId" | "layer">,
@@ -194,6 +203,7 @@ export function spriteScale(scale: Vec2): Pick<MapEntity, "scale" | "flipX" | "f
 function portal(im: Importer, level: string, raw: Json, anchored: boolean): MapEntity {
   const scale = vec(raw.scale, { x: 1, y: 1 })
   return entity(level, {
+    ...grouped(raw),
     toolId: "portal",
     layer: 500,
     position: im.p(vec(raw.position)),
@@ -211,6 +221,7 @@ function walls(im: Importer, level: string, raw: Json): MapEntity[] {
     out.push(
       entity(level, {
         toolId: "wall",
+        ...grouped(w),
         layer: 600,
         points: pts,
         closed: bool(w.loop, false),
@@ -275,6 +286,7 @@ function patterns(im: Importer, level: string, raw: Json): MapEntity[] {
       return [
         entity(level, {
           toolId: "pattern",
+          ...grouped(pt),
           layer: num(pt.layer, 100),
           points: pts,
           closed: true,
@@ -296,6 +308,7 @@ function objects(im: Importer, level: string, raw: Json): MapEntity[] {
     .map((o) => {
       const scale = vec(o.scale, { x: 1, y: 1 })
       return entity(level, {
+        ...grouped(o),
         toolId: "object",
         layer: num(o.layer, 100),
         position: im.p(vec(o.position)),
@@ -330,6 +343,7 @@ function paths(im: Importer, level: string, raw: Json): MapEntity[] {
       return [
         entity(level, {
           toolId: "path",
+          ...grouped(pa),
           layer: num(pa.layer, 100),
           points: pts,
           position: pts[0],
@@ -351,6 +365,7 @@ function lights(im: Importer, level: string, raw: Json): MapEntity[] {
     .map(obj)
     .map((l) =>
       entity(level, {
+        ...grouped(l),
         toolId: "light",
         layer: 700,
         position: im.p(vec(l.position)),
@@ -400,6 +415,7 @@ function roofs(im: Importer, level: string, raw: Json): MapEntity[] {
       return [
         entity(level, {
           toolId: "roof",
+          ...grouped(r),
           layer: 800,
           points: outline,
           closed: true,
@@ -422,6 +438,7 @@ function texts(im: Importer, level: string, raw: Json): MapEntity[] {
     .map(obj)
     .map((t) => {
       const e = entity(level, {
+        ...grouped(t),
         toolId: "text",
         layer: 900,
         text: str(t.text) ?? "",

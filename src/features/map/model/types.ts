@@ -57,6 +57,11 @@ export interface MapEntity {
   closed?: boolean
   /** Painted area of brush tools. */
   strokes?: BrushStroke[]
+  /**
+   * Group id: entities sharing it select, move and transform together
+   * (Select's Group / Ungroup).
+   */
+  group?: string
   /** Text content (Text tool). */
   text?: string
   params: Record<string, unknown>

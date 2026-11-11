@@ -12,6 +12,7 @@ import {
   LuFlipHorizontal2,
   LuFlipVertical2,
   LuGrid3X3,
+  LuGroup,
   LuHouse,
   LuImage,
   LuImagePlus,
@@ -32,6 +33,7 @@ import {
   LuTrash2,
   LuTriangle,
   LuType,
+  LuUngroup,
 } from "react-icons/lu"
 import { type AssetCategory } from "../../lib/categories"
 import { type Shortcut } from "../../lib/shortcuts"
@@ -604,6 +606,8 @@ export const TOOL_TREE: ToolNode[] = [
     params: [
       button("flipH", "tools.flipHorizontal", LuFlipHorizontal2),
       button("flipV", "tools.flipVertical", LuFlipVertical2),
+      button("group", "tools.group", LuGroup),
+      button("ungroup", "tools.ungroup", LuUngroup),
       { kind: "properties", paramKey: "properties", default: null },
     ],
   }),
