@@ -21,6 +21,7 @@ mod library;
 mod recolor;
 mod registry;
 mod tags;
+mod thumbs;
 
 pub use commands::*;
 pub use library::LibraryState;

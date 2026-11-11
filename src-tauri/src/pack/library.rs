@@ -8,7 +8,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
@@ -348,16 +348,45 @@ pub(crate) fn get_items(
         return Ok(Vec::new());
     }
     let end = (offset + limit).min(results.len());
-    let mut out = Vec::with_capacity(end - offset);
-    for lite in &results[offset..end] {
+    let window = &results[offset..end];
+    // Packs ship thumbnails named by the md5 of the texture's res:// path;
+    // for the ones missing, make them (in parallel: decoding big textures is
+    // the slow part) the way Dungeondraft does, next to the shipped ones.
+    let mut paths = Vec::with_capacity(window.len());
+    for lite in window {
         let dir = pack_dir(app, &lite.pack_id)?;
         let res_path = format!("res://packs/{}/{}", lite.pack_id, lite.rel_path);
         let hash = format!("{:x}", md5::compute(res_path.as_bytes()));
         let full = dir.join(&lite.rel_path);
-        let thumb = dir.join("thumbnails").join(format!("{hash}.png"));
-        // Some packs ship no pre-baked thumbnails; fall back to the texture
-        // itself (the webview scales it down to the cell size).
-        let image = if thumb.is_file() { thumb } else { full.clone() };
+        let shipped = dir.join("thumbnails").join(format!("{hash}.png"));
+        paths.push((full, shipped));
+    }
+    let thumb_of = |(full, shipped): &(PathBuf, PathBuf), rel: &str| {
+        // Unreadable textures fall back to the file itself.
+        if shipped.is_file() || super::thumbs::generate(full, shipped, super::thumbs::rule_for(rel))
+        {
+            shipped.clone()
+        } else {
+            full.clone()
+        }
+    };
+    // A few at a time: each big texture is decoded whole.
+    let workers = std::thread::available_parallelism().map_or(4, |n| n.get());
+    let jobs: Vec<_> = paths.iter().zip(window).collect();
+    let mut images: Vec<PathBuf> = Vec::with_capacity(jobs.len());
+    for batch in jobs.chunks(workers) {
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = batch
+                .iter()
+                .map(|(p, lite)| scope.spawn(|| thumb_of(p, &lite.rel_path)))
+                .collect();
+            for (h, (p, _)) in handles.into_iter().zip(batch) {
+                images.push(h.join().unwrap_or_else(|_| p.0.clone()));
+            }
+        });
+    }
+    let mut out = Vec::with_capacity(window.len());
+    for ((lite, (full, _)), image) in window.iter().zip(&paths).zip(images) {
         let (colorable, default_color) = color_info(app, &lite.pack_id, &lite.rel_path);
         out.push(LibItem {
             id: format!("{}|{}", lite.pack_id, lite.rel_path),
