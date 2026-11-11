@@ -22,6 +22,11 @@ import { screenToMap } from "./render/viewport"
  * shortcuts (undo/redo, delete, copy/paste…). Also tells a tool when it's
  * being switched away from, so it can finish its draft.
  */
+/** How long a touch press must stay still to act as a right-click, in ms. */
+const LONG_PRESS_MS = 550
+/** How far (screen px) a touch press may drift and still count as held still. */
+const LONG_PRESS_SLOP_PX = 10
+
 export function useToolInput(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const el = ref.current
@@ -61,6 +66,16 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
     }
 
     let pressedButton: number | null = null
+    /**
+     * A touch press held still: after LONG_PRESS_MS it acts as a right-click
+     * (for tools that ask, see ToolBehavior.longPressRightClick) — the left
+     * press is released first.
+     */
+    let longPress: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null
+    const cancelLongPress = () => {
+      if (longPress) clearTimeout(longPress.timer)
+      longPress = null
+    }
     /** Where the pointer last hovered the map (null once it left). */
     let hover: PointerInfo | null = null
     /**
@@ -94,8 +109,29 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       pressedButton = e.button
       el.setPointerCapture(e.pointerId)
       a.behavior.onPointerDown?.(a.ctx, info)
+      if (e.pointerType === "touch" && e.button === 0 && a.behavior.longPressRightClick?.(a.ctx)) {
+        cancelLongPress()
+        const timer = setTimeout(() => {
+          longPress = null
+          if (pressedButton !== 0) return
+          pressedButton = null
+          const left = active()
+          left?.behavior.onPointerUp?.(left.ctx, info)
+          const right = active()
+          if (!right) return
+          const click = { ...info, button: 2, buttons: 2 }
+          right.behavior.onPointerDown?.(right.ctx, click)
+          right.behavior.onPointerUp?.(right.ctx, { ...click, buttons: 0 })
+        }, LONG_PRESS_MS)
+        longPress = { timer, x: e.clientX, y: e.clientY }
+      }
     }
     const onPointerMove = (e: PointerEvent) => {
+      if (
+        longPress &&
+        Math.hypot(e.clientX - longPress.x, e.clientY - longPress.y) > LONG_PRESS_SLOP_PX
+      )
+        cancelLongPress()
       const info = toMap(e, pressedButton ?? -1)
       if (!info) return
       useEditorStore.getState().setPointer({ x: info.x, y: info.y })
@@ -110,6 +146,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       a.behavior.onPointerMove?.(a.ctx, pressedButton === null ? { ...info, buttons: 0 } : info)
     }
     const onPointerUp = (e: PointerEvent) => {
+      cancelLongPress()
       if (rulerFrom) {
         rulerFrom = null
         return
@@ -223,6 +260,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       el.removeEventListener("wheel", onWheel)
       window.removeEventListener("keydown", onKeyDown)
       cancelAnimationFrame(wheelFrame)
+      cancelLongPress()
     }
   }, [ref])
 }

@@ -66,6 +66,8 @@ function withEditPoints(draw: ToolBehavior, editToolIds: string[]): ToolBehavior
       if (ctx.params.editPoints === true) edit.show(ctx)
     },
     cursor: (params) => (params.editPoints === true ? "pointer" : "crosshair"),
+    // Editing points: a long press on one removes it, like a right-click.
+    longPressRightClick: (ctx) => ctx.params.editPoints === true,
   }
 }
 

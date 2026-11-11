@@ -12,12 +12,14 @@ import {
 import {
   appendSample,
   dist,
+  lineHalfWidth,
+  nearestSegment,
   ellipsePolygon,
   nearestVertex,
   rectPolygon,
   tangentArc,
 } from "../../map/model/geometry"
-import { vertexPatches } from "../../map/model/links"
+import { insertVertexPatches, vertexPatches } from "../../map/model/links"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { newId } from "../../map/model/geometry"
 import { tileSizeForZoom } from "../../map/render/viewport"
@@ -357,6 +359,60 @@ export function brushController(
  * Edit-points mode: drag existing vertices of entities made by `toolIds`.
  * Shows every editable vertex as a handle; one drag is one undo step.
  */
+/** Most time between the two presses of a double tap, in ms. */
+const DOUBLE_TAP_MS = 350
+/** Farthest apart the two presses of a double tap may land, in screen px. */
+const DOUBLE_TAP_PX = 12
+
+/**
+ * A double-tap detector fed every press: true on the second press of a
+ * quick pair at about the same place. Detected on the press itself (not the
+ * browser's dblclick, which fires on release) so the second press can go on
+ * to drag.
+ */
+export function doubleTapDetector(): (p: Vec2) => boolean {
+  let last: { t: number; p: Vec2 } | null = null
+  return (p) => {
+    const now = performance.now()
+    const hit =
+      !!last && now - last.t < DOUBLE_TAP_MS && dist(last.p, p) < screenTiles(DOUBLE_TAP_PX)
+    last = hit ? null : { t: now, p: { x: p.x, y: p.y } }
+    return hit
+  }
+}
+
+/** How far past a line's edge a double tap still adds a point to it, in screen px. */
+const INSERT_REACH_PX = 8
+
+/**
+ * Add a vertex to `entity`'s line where `p` is, if `p` is on it (within its
+ * width plus a few screen px), and to its linked entities too. Opens a
+ * gesture (the caller ends it once the new vertex's drag is released) and
+ * returns the new vertex's index, or null if `p` is off the line.
+ */
+export function insertVertexAt(ctx: ToolCtx, entity: MapEntity, p: Vec2): number | null {
+  const pts = entity.points ?? []
+  if (pts.length < 2) return null
+  const seg = nearestSegment(pts, p, !!entity.closed)
+  const reach = lineHalfWidth(entity, ctx.sizeOf) + screenTiles(INSERT_REACH_PX)
+  if (!seg || seg.dist > reach) return null
+  beginGesture()
+  updateEntities(insertVertexPatches(entity, seg.index, ctx.snap(p, 0.5), ctx.entities))
+  return seg.index + 1
+}
+
+/**
+ * Remove vertex `index` of `entity` (and the matching one of its linked
+ * entities), keeping a usable shape: 2 points for a line, 3 for a polygon.
+ * False when it can't go.
+ */
+export function removeVertex(ctx: ToolCtx, entity: MapEntity, index: number): boolean {
+  const points = entity.points ?? []
+  if (points.length <= (entity.closed ? 3 : 2)) return false
+  updateEntities(vertexPatches(entity, index, null, ctx.entities))
+  return true
+}
+
 export function editPointsController(
   toolIds: readonly string[],
   step = 1,
@@ -370,6 +426,7 @@ export function editPointsController(
   show: (ctx: ToolCtx) => void
 } {
   let target: { id: string; index: number } | null = null
+  const isDoubleTap = doubleTapDetector()
   /** The last clicked vertex: Delete/Backspace removes it. */
   let selected: { id: string; index: number } | null = null
   const tools = new Set(toolIds)
@@ -398,6 +455,20 @@ export function editPointsController(
     show: showHandles,
     onPointerDown: (ctx, e) => {
       const tol = screenTiles(8)
+      // Right-click (or a long press on touch) on a point removes it.
+      if (e.button === 2) {
+        for (const entity of editable(ctx).reverse()) {
+          const index = nearestVertex(entity.points ?? [], e, tol)
+          if (index === undefined) continue
+          removeVertex(ctx, entity, index)
+          selected = null
+          showHandles(ctx)
+          return
+        }
+        return
+      }
+      // Fed on every press, so a vertex press doesn't pair with the next one.
+      const doubleTap = isDoubleTap(e)
       for (const entity of editable(ctx).reverse()) {
         const index = nearestVertex(entity.points ?? [], e, tol)
         if (index !== undefined) {
@@ -408,16 +479,24 @@ export function editPointsController(
           return
         }
       }
+      // A double tap on a line adds a point there, already being dragged.
+      if (doubleTap) {
+        for (const entity of editable(ctx).reverse()) {
+          const index = insertVertexAt(ctx, entity, e)
+          if (index === null) continue
+          target = { id: entity.id, index }
+          selected = target
+          showHandles(ctx)
+          return
+        }
+      }
       selected = null
       showHandles(ctx)
     },
     onKeyDown: (ctx, e) => {
       if ((e.key !== "Delete" && e.key !== "Backspace") || !selected) return false
       const entity = ctx.entities.find((x) => x.id === selected?.id)
-      const points = entity?.points
-      // Keep a usable shape: 2 points for a line, 3 for a polygon.
-      if (!entity || !points || points.length <= (entity.closed ? 3 : 2)) return true
-      updateEntities(vertexPatches(entity, selected.index, null, ctx.entities))
+      if (!entity || !removeVertex(ctx, entity, selected.index)) return true
       selected = null
       showHandles(ctx)
       return true

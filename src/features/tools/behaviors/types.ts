@@ -77,4 +77,9 @@ export interface ToolBehavior {
   isActionDisabled?(ctx: ToolCtx, action: string): boolean
   /** CSS cursor for the viewport while this tool is active. */
   cursor?(params: ToolParamValues): string
+  /**
+   * Whether a long press on touch acts as a right-click (e.g. removing a
+   * point). Off unless asked: for painting tools holding still is painting.
+   */
+  longPressRightClick?(ctx: ToolCtx): boolean
 }

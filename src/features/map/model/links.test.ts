@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { regroup } from "./groups"
-import { linkRooms, vertexPatches, withLinked } from "./links"
+import { insertVertexPatches, linkRooms, vertexPatches, withLinked } from "./links"
 import { type MapEntity } from "./types"
 
 const square = [
@@ -56,5 +56,16 @@ describe("linking imported rooms", () => {
     expect(f.link).toBeDefined()
     expect(w.link).toBe(f.link)
     expect(w2.link).toBeUndefined()
+  })
+})
+
+describe("inserting vertices", () => {
+  it("adds the point on the segment, in linked entities too", () => {
+    const patches = insertVertexPatches(floor, 0, { x: 2, y: 0 }, all)
+    expect(patches.get("f")?.points?.[1]).toEqual({ x: 2, y: 0 })
+    // The wall runs (4,0)…(0,0): its closing segment joins the same points.
+    const w = patches.get("w")?.points ?? []
+    expect(w).toHaveLength(5)
+    expect(w.at(-1)).toEqual({ x: 2, y: 0 })
   })
 })

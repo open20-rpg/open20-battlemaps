@@ -668,3 +668,22 @@ export function joinPolylines(a: readonly Vec2[], b: readonly Vec2[], tol = 1e-6
   if (meet(a[0], rb[rb.length - 1])) return [...rb, ...a.slice(1)]
   return null
 }
+
+/**
+ * The segment of a polyline nearest to `p`: its index (segment i runs from
+ * point i to i + 1, the closing one back to point 0), the nearest point on
+ * it and how far that is.
+ */
+export function nearestSegment(
+  points: readonly Vec2[],
+  p: Vec2,
+  closed: boolean,
+): { index: number; point: Vec2; dist: number } | null {
+  let best: { index: number; point: Vec2; dist: number } | null = null
+  segmentsOf(points, closed).forEach(([a, b], index) => {
+    const { point } = closestOnSegment(p, a, b)
+    const d = dist(point, p)
+    if (!best || d < best.dist) best = { index, point, dist: d }
+  })
+  return best
+}

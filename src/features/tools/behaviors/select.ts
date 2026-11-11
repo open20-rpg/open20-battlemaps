@@ -24,7 +24,13 @@ import { expandGroups, hasGroups } from "../../map/model/groups"
 import { vertexPatches, withLinked } from "../../map/model/links"
 import { elementFilter, selectableBy } from "../selectKinds"
 import { screenAngle } from "./structures"
-import { screenTiles, wheelDegrees } from "./shared"
+import {
+  doubleTapDetector,
+  insertVertexAt,
+  removeVertex,
+  screenTiles,
+  wheelDegrees,
+} from "./shared"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type ToolBehavior, type ToolCtx } from "./types"
 
@@ -245,15 +251,31 @@ export function createSelectBehavior(): ToolBehavior {
     return ctx.entities.filter((x) => ids.has(x.id))
   }
   const editor = () => useEditorStore.getState()
+  const isDoubleTap = doubleTapDetector()
   return {
     onPointerDown: (ctx, e) => {
+      // Right-click (or a long press on touch) on a point of the selected
+      // wall/path/area removes it.
+      if (e.button === 2) {
+        const lone = editablePointsOf(selectedOf(ctx))
+        const at = lone && nearestVertex(lone.points ?? [], e, screenTiles(8))
+        if (lone && at !== undefined && at !== null) removeVertex(ctx, lone, at)
+        return
+      }
       if (e.button !== 0) return
+      const doubleTap = isDoubleTap(e)
       // A lone wall/path/area shows its points: dragging one moves just it.
       const editable = editablePointsOf(selectedOf(ctx))
       const index = editable && nearestVertex(editable.points ?? [], e, screenTiles(8))
       if (editable && index !== null && index !== undefined) {
         beginGesture()
         mode = { kind: "vertex", id: editable.id, index }
+        return
+      }
+      // A double tap on its line adds a point there, already being dragged.
+      const inserted = editable && doubleTap ? insertVertexAt(ctx, editable, e) : null
+      if (editable && inserted !== null) {
+        mode = { kind: "vertex", id: editable.id, index: inserted }
         return
       }
       // Handles win over whatever is underneath them.
@@ -350,6 +372,8 @@ export function createSelectBehavior(): ToolBehavior {
       mode = null
       editor().setDraft([])
     },
+    // A long press on a point removes it, like a right-click.
+    longPressRightClick: () => true,
     cursor: () => "default",
   }
 }

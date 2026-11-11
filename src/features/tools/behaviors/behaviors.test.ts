@@ -4,7 +4,7 @@ import { useMapStore } from "../../../stores/mapStore"
 import { useSettingsStore } from "../../../stores/settingsStore"
 import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
-import { canUndo, closeMap, createMap, undo } from "../../map/commands"
+import { canUndo, closeMap, createMap, redo, undo } from "../../map/commands"
 import { normalizeDocument, type MapEntity } from "../../map/model/types"
 import { LIBRARY_PARAM } from "../params"
 import { buildToolCtx } from "./context"
@@ -532,6 +532,50 @@ describe("effects, text, select, prefabs", () => {
     expect(isToolActionDisabled("text", "delete")).toBe(false)
     runToolAction("text", "delete")
     expect(entities()).toEqual([])
+  })
+
+  it("double tap on a line adds a point that drags at once; right-click removes one", () => {
+    useToolsStore.getState().selectToolById("wall")
+    down("wall", 0, 0)
+    down("wall", 6, 0)
+    dbl("wall", 6, 0)
+    const wall = () => entities()[0]
+    useToolsStore.getState().selectToolById("select")
+    down("select", 3, 0)
+    up("select", 3, 0)
+    expect(useEditorStore.getState().selection).toEqual([wall().id])
+    // Second tap: inserts at (3, 0) and keeps dragging it, one undo step.
+    down("select", 3, 0)
+    move("select", 3, 2)
+    up("select", 3, 2)
+    expect(wall().points).toEqual([
+      { x: 0, y: 0 },
+      { x: 3, y: 2 },
+      { x: 6, y: 0 },
+    ])
+    undo()
+    expect(wall().points).toHaveLength(2)
+    redo()
+    // Right-click on the new point removes it; a line keeps its 2 points.
+    down("select", 3, 2, { button: 2, buttons: 2 })
+    expect(wall().points).toHaveLength(2)
+    down("select", 0, 0, { button: 2, buttons: 2 })
+    expect(wall().points).toHaveLength(2)
+  })
+
+  it("Edit Points: double tap adds a point, right-click removes it", () => {
+    useToolsStore.getState().selectToolById("wall")
+    down("wall", 0, 0)
+    down("wall", 6, 0)
+    dbl("wall", 6, 0)
+    setParams("wall", { editPoints: true })
+    down("wall", 2, 0)
+    up("wall", 2, 0)
+    down("wall", 2, 0)
+    up("wall", 2, 0)
+    expect(entities()[0].points).toHaveLength(3)
+    down("wall", 2, 0, { button: 2, buttons: 2 })
+    expect(entities()[0].points).toHaveLength(2)
   })
 
   it("Select picks a wall a few screen px off its line", () => {

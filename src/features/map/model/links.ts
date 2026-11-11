@@ -82,3 +82,46 @@ export function linkRooms(entities: readonly MapEntity[]): MapEntity[] {
   if (links.size === 0) return [...entities]
   return entities.map((e) => (links.has(e.id) ? { ...e, link: links.get(e.id) } : e))
 }
+
+/**
+ * Insert `at` as a new vertex after vertex `index` of `entity` (on segment
+ * `index`), and in each linked entity on its segment joining the same two
+ * points. Returns the patches and the new vertex's index in `entity`.
+ */
+export function insertVertexPatches(
+  entity: MapEntity,
+  index: number,
+  at: Vec2,
+  entities: readonly MapEntity[],
+): Map<string, Partial<MapEntity>> {
+  const patches = new Map<string, Partial<MapEntity>>()
+  const pts = entity.points ?? []
+  const a = pts[index]
+  const b = pts[(index + 1) % pts.length]
+  if (!a || !b) return patches
+  const insert = (e: MapEntity, after: number) => {
+    const points = [...(e.points ?? [])]
+    points.splice(after + 1, 0, at)
+    patches.set(e.id, { points })
+  }
+  insert(entity, index)
+  const near = (p: Vec2, q: Vec2) => dist(p, q) < 1e-6
+  for (const partner of partnersOf(entity, entities)) {
+    const ps = partner.points ?? []
+    const n = ps.length
+    for (let i = 0; i < n; i++) {
+      const p = ps[i]
+      const q = ps[(i + 1) % n]
+      if (i === n - 1 && !partner.closed) break
+      if (near(p, a) && near(q, b)) {
+        insert(partner, i)
+        break
+      }
+      if (near(p, b) && near(q, a)) {
+        insert(partner, i)
+        break
+      }
+    }
+  }
+  return patches
+}
