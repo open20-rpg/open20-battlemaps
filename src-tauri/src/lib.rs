@@ -29,7 +29,7 @@ pub fn run() {
             fonts::list_system_fonts,
             map::save_map,
             map::load_map,
-            map::save_binary,
+            map::save_bytes,
             map::read_image_file,
         ])
         .run(tauri::generate_context!())
