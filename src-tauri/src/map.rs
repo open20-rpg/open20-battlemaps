@@ -1,6 +1,6 @@
 //! Map document persistence.
 //!
-//! The `.opdr` map file is a plain UTF-8 JSON document built entirely on the
+//! The `.otbm` map file is a plain UTF-8 JSON document built entirely on the
 //! JS side (see `src/features/map/io.ts`). The backend only handles the actual
 //! filesystem read/write so we don't need the `fs` plugin/permission — the
 //! path itself is chosen through the dialog plugin. Errors are surfaced to JS
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn write_bytes_and_read_image_roundtrip() {
-        let dir = std::env::temp_dir().join(format!("opendraft-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("battle-maps-test-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("img.png");
         let p = path.to_string_lossy().into_owned();

@@ -1,4 +1,4 @@
-# OpenDraft — Análisis crítico de arquitectura
+# Open20 Battle Maps — Análisis crítico de arquitectura
 
 *Fecha: 2026-07-11 · Versión analizada: 0.1.4 (~5.000 líneas TS/TSX + `pack.rs` de ~1.300 líneas)*
 
@@ -178,7 +178,7 @@ trivialmente testeable con Vitest.
 - **`App.tsx` hace de cajón de sastre:** contiene los diálogos de Preferencias y About
   inline, el estado de 4 modales y la preferencia `panel-alpha` con su efecto de CSS var.
   Extraer `PreferencesDialog`, `AboutDialog`, `EmptyState`.
-- **`localStorage` disperso:** `opendraft.panel-alpha` en `App.tsx`, presets de color en
+- **`localStorage` disperso:** una clave `panel-alpha` suelta en `App.tsx`, presets de color en
   `lib/colors.ts`. Falta un módulo `settings` único (clave, schema, migración futura).
 - **`normalizeParams` re-busca la herramienta en el árbol en cada cambio**
   (`findToolPath` dentro de `setToolParams`). Trivial hoy; con un índice `Map<id, ToolLeaf>`
@@ -379,7 +379,7 @@ Principios: corto (se lee completo en cada sesión), **imperativo**, solo lo que
 deduce del código, y con las invariantes del proyecto explícitas. Propuesta:
 
 ```markdown
-# OpenDraft
+# Open20 Battle Maps
 
 Clon de Dungeondraft: editor de mapas de rol de escritorio. Tauri v2 (Rust) +
 React 19 + TypeScript + Chakra UI v3. Compatible con packs `.dungeondraft_pack`.

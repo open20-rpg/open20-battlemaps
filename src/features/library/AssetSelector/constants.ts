@@ -48,8 +48,8 @@ export const nullCellStyle: CSSProperties = {
 
 // Loaded items get the pointer cursor; the selected one gets a highlight ring.
 export const THUMB_CSS =
-  ".od-thumb[data-name]{cursor:pointer}" +
-  ".od-thumb[data-selected]{outline:2px solid #5aa9ff;outline-offset:-2px;border-radius:6px;background:#26364f}"
+  ".bm-thumb[data-name]{cursor:pointer}" +
+  ".bm-thumb[data-selected]{outline:2px solid #e0534e;outline-offset:-2px;border-radius:6px;background:#3a1a1c}"
 
 // Positioned wrappers for the virtualized rows; the per-row translateY is the
 // only dynamic bit and is merged inline where they're used.

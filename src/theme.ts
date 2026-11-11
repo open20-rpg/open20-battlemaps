@@ -1,8 +1,9 @@
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react"
 
 /**
- * OpenDraft theme — a forced dark chrome that mirrors Dungeondraft's look:
- * a near-black top menu bar, dark charcoal panels and a blue accent.
+ * Open20 Battle Maps theme — the Open20 suite's identity: a forced dark
+ * chrome (near-black menu bar, charcoal panels) with the suite's crimson
+ * accent, #A70909.
  */
 const config = defineConfig({
   globalCss: {
@@ -34,10 +35,20 @@ const config = defineConfig({
   theme: {
     tokens: {
       colors: {
+        // Open20 crimson, #A70909 at 600; lighter steps are for text and
+        // icons on the dark chrome, where the base red is too dim.
         brand: {
-          400: { value: "#5aa9ff" },
-          500: { value: "#3d8bfd" },
-          600: { value: "#2f6fd6" },
+          50: { value: "#fdecec" },
+          100: { value: "#f9d0cf" },
+          200: { value: "#f0a3a1" },
+          300: { value: "#ec7d79" },
+          400: { value: "#e0534e" },
+          500: { value: "#c41d18" },
+          600: { value: "#a70909" },
+          700: { value: "#860707" },
+          800: { value: "#640505" },
+          900: { value: "#430303" },
+          950: { value: "#2a0202" },
         },
       },
     },
@@ -54,12 +65,16 @@ const config = defineConfig({
         "panel.solid": { value: "#212126" },
         "panel.border": { value: "#34343c" },
         "panel.rowHover": { value: "#2a2a31" },
-        "panel.rowSelected": { value: "#26364f" },
+        "panel.rowSelected": { value: "#3a1a1c" },
+        // Full palette semantics, so `colorPalette="brand"` works on any recipe.
         brand: {
-          solid: { value: "{colors.brand.500}" },
+          solid: { value: "{colors.brand.600}" },
           contrast: { value: "#ffffff" },
           fg: { value: "{colors.brand.400}" },
-          emphasized: { value: "{colors.brand.600}" },
+          muted: { value: "{colors.brand.900}" },
+          subtle: { value: "{colors.brand.950}" },
+          emphasized: { value: "{colors.brand.700}" },
+          focusRing: { value: "{colors.brand.500}" },
         },
       },
     },

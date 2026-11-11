@@ -1,8 +1,7 @@
 import { create } from "zustand"
 import { DEFAULT_POST_PROCESS, type PostProcess } from "../lib/postProcess"
 import { persist } from "zustand/middleware"
-import { loadUserPresets } from "../lib/colors"
-import { loadUserTemplates, type MapTemplate } from "../lib/templates"
+import { type MapTemplate } from "../lib/templates"
 import { type MapEntity } from "../features/map/model/types"
 
 /** A saved group of entities (Prefabs tool), stored relative to its center. */
@@ -14,7 +13,7 @@ export interface Prefab {
 }
 
 /**
- * How drop shadows (objects, walls) look in OpenDraft. An app preference, not
+ * How drop shadows (objects, walls) look in Open20 Battle Maps. An app preference, not
  * part of any map file: Dungeondraft maps have no such settings.
  */
 export interface ShadowStyle {
@@ -88,26 +87,6 @@ interface SettingsState {
   removeRecentMap: (path: string) => void
 }
 
-/**
- * Seed defaults from the pre-store localStorage keys (panel-alpha, color
- * presets, user templates) so existing users keep their data. The persisted
- * store value, when present, overrides these on rehydration.
- */
-function readLegacy(): Partial<
-  Pick<SettingsState, "panelAlpha" | "colorPresets" | "userTemplates">
-> {
-  const out: ReturnType<typeof readLegacy> = {}
-  // No storage outside a browser (e.g. unit tests): nothing to migrate.
-  if (typeof localStorage === "undefined") return out
-  const alpha = Number(localStorage.getItem("opendraft.panel-alpha"))
-  if (Number.isFinite(alpha) && alpha > 0) out.panelAlpha = alpha
-  const presets = loadUserPresets()
-  if (presets.length > 0) out.colorPresets = presets
-  const templates = loadUserTemplates()
-  if (templates.length > 0) out.userTemplates = templates
-  return out
-}
-
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -122,7 +101,6 @@ export const useSettingsStore = create<SettingsState>()(
       postProcess: DEFAULT_POST_PROCESS,
       setPostProcess: (patch) => set((s) => ({ postProcess: { ...s.postProcess, ...patch } })),
       resetPostProcess: () => set({ postProcess: DEFAULT_POST_PROCESS }),
-      ...readLegacy(),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),
       addColorPreset: (color) =>
         set((s) =>
@@ -143,7 +121,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({ recentMaps: s.recentMaps.filter((p) => p !== path) })),
     }),
     {
-      name: "opendraft.settings",
+      name: "open20-battle-maps.settings",
       version: 1,
       // Settings saved before a shadow option existed get its default.
       merge: (persisted, current) => {

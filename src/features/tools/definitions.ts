@@ -546,7 +546,7 @@ export const TOOL_TREE: ToolNode[] = [
           customColor("gridLineColor", "tools.gridLineColor", "#00000080"),
         ],
       }),
-      // How drop shadows look in OpenDraft (not part of Dungeondraft's format):
+      // How drop shadows look in Open20 Battle Maps (not part of Dungeondraft's format):
       // app settings, mirrored by the tool's params (behaviors/settings.ts).
       tool("shadowSettings", "tools.shadowSettings", LuEclipse, {
         params: [

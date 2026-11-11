@@ -19,19 +19,6 @@ export const BUILTIN_COLOR_PRESETS: string[] = [
 ]
 
 /**
- * User presets from the pre-settings-store localStorage key. Only used to seed
- * the settings store for existing users; new writes go through the store.
- */
-export function loadUserPresets(): string[] {
-  try {
-    const arr = JSON.parse(localStorage.getItem("opendraft.colorPresets") ?? "[]")
-    return Array.isArray(arr) ? arr.filter((c) => typeof c === "string") : []
-  } catch {
-    return []
-  }
-}
-
-/**
  * Parse a `#RRGGBB`/`#RRGGBBAA` hex color into the `{ color, alpha }` shape
  * PixiJS fill/stroke styles expect (a 24-bit color plus a separate 0-1 alpha).
  */

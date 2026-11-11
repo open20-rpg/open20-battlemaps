@@ -11,16 +11,16 @@ import { argbToHex, parsePoolBytes, parsePoolInt, parsePoolVec2, parseVec2 } fro
 
 /**
  * Importer for Dungeondraft maps (`.dungeondraft_map`, save format 3) into
- * the OpenDraft document model. Field semantics follow the format notes in
+ * the Open20 Battle Maps document model. Field semantics follow the format notes in
  * docs/dungeondraft-map-format.md (reconstructed for interoperability).
  *
  * Coordinates: Dungeondraft uses 256 world px per grid cell with x growing to
- * the right; OpenDraft map space is in cells with x mirrored (0 at the right
+ * the right; Open20 Battle Maps map space is in cells with x mirrored (0 at the right
  * edge), so `x' = width − x/256`, `y' = y/256`. Angles stay screen-clockwise
  * (radians → degrees).
  *
  * Bitmap areas (caves, materials, terrain splats) become brush strokes, one
- * per horizontal run of set samples. Anything OpenDraft can't represent is
+ * per horizontal run of set samples. Anything Open20 Battle Maps can't represent is
  * reported as a warning instead of being silently dropped.
  */
 
@@ -44,7 +44,7 @@ export interface ImportResult {
   gridColor?: string
   /** Index into `doc.levels` of the level the map was last edited on. */
   currentLevel: number
-  /** Features OpenDraft couldn't carry over, with how many times each occurred. */
+  /** Features Open20 Battle Maps couldn't carry over, with how many times each occurred. */
   warnings: Partial<Record<ImportWarningKey, number>>
   /** Terrain brush setup of the level the map opens on. */
   terrain?: TerrainSetup
@@ -83,7 +83,7 @@ class Importer {
     this.warnings[key] = (this.warnings[key] ?? 0) + count
   }
 
-  /** Dungeondraft world px → OpenDraft map tiles. */
+  /** Dungeondraft world px → Open20 Battle Maps map tiles. */
   p(v: Vec2): Vec2 {
     return { x: this.width - v.x / PX, y: v.y / PX }
   }
@@ -186,7 +186,7 @@ const selection = (assetId: string | undefined, color = "#ffffff") => ({
 })
 
 /**
- * A Godot node scale as OpenDraft sprite fields: negative components are
+ * A Godot node scale as Open20 Battle Maps sprite fields: negative components are
  * mirrors (`mirror` is baked into scale.x < 0), magnitudes average into the
  * uniform scale (Dungeondraft only ever scales props uniformly, give or take
  * float noise).
@@ -334,7 +334,7 @@ function paths(im: Importer, level: string, raw: Json): MapEntity[] {
         .local(local, vec(pa.position), num(pa.rotation, 0), vec(pa.scale, { x: 1, y: 1 }))
         .map((q) => im.p(q))
       if (bool(pa.loop, false)) {
-        // OpenDraft paths are open: close the loop by returning to the start.
+        // Open20 Battle Maps paths are open: close the loop by returning to the start.
         im.warn("pathLoops")
         pts = [...pts, pts[0]]
       }
@@ -384,7 +384,7 @@ function lights(im: Importer, level: string, raw: Json): MapEntity[] {
 const ROOF_TYPES = ["gable", "hip", "dormer"]
 
 /**
- * Roofs. Dungeondraft stores the ridge line plus the eave distance; OpenDraft
+ * Roofs. Dungeondraft stores the ridge line plus the eave distance; Open20 Battle Maps
  * roofs are outlines, so the outline is the ridge's bounds grown by the eave
  * width (hips also past the ridge ends).
  */
@@ -432,7 +432,7 @@ function roofs(im: Importer, level: string, raw: Json): MapEntity[] {
     })
 }
 
-/** Texts: Dungeondraft anchors the top-left corner; OpenDraft the center. */
+/** Texts: Dungeondraft anchors the top-left corner; Open20 Battle Maps the center. */
 function texts(im: Importer, level: string, raw: Json): MapEntity[] {
   return arr(raw.texts)
     .map(obj)
@@ -641,7 +641,7 @@ function water(im: Importer, level: string, raw: Json): MapEntity[] {
   return out
 }
 
-/** Convert a `.dungeondraft_map` JSON text into an OpenDraft document. */
+/** Convert a `.dungeondraft_map` JSON text into an Open20 Battle Maps document. */
 export function importDungeondraftMap(text: string): ImportResult {
   let data: Json
   try {

@@ -17,7 +17,7 @@
     "saveAs": "Save As"
   },
   "canvas": {
-    "title": "OpenDraft",
+    "title": "Open20 Battle Maps",
     "subtitle": "Create or open a map to get started. Manage your packs from <b>Assets</b>.",
     "openAssets": "Open Assets"
   },
@@ -31,7 +31,7 @@
     "missingPacks": "{{count}} pack(s) used by this map aren't installed",
     "exported": "Image exported",
     "exportError": "Could not export: {{error}}",
-    "importedDungeondraft": "Dungeondraft map imported. Saving creates a new .opdr file (the original is left untouched)."
+    "importedDungeondraft": "Dungeondraft map imported. Saving creates a new .otbm file (the original is left untouched)."
   },
   "prefs": {
     "title": "Preferences",
@@ -41,9 +41,9 @@
     "close": "Close"
   },
   "about": {
-    "title": "About OpenDraft",
-    "version": "OpenDraft v{{version}}",
-    "desc": "Open-source RPG map editor inspired by Dungeondraft.",
+    "title": "About Open20 Battle Maps",
+    "version": "Open20 Battle Maps v{{version}}",
+    "desc": "Open-source battle map editor for tabletop RPGs. Part of the Open20 suite of RPG tools.",
     "compat": "Compatible with .dungeondraft_pack files."
   },
   "newMap": {

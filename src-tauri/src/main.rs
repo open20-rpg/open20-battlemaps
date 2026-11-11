@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    opendraft_lib::run()
+    open20_battle_maps_lib::run()
 }

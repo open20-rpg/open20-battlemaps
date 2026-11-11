@@ -1,4 +1,4 @@
-# OpenDraft
+# Open20 Battle Maps
 
 Editor de mapas de rol de escritorio, open source, compatible con los packs de
 assets de Dungeondraft (`.dungeondraft_pack`). Hecho con Tauri v2 (Rust) +
@@ -22,7 +22,7 @@ React 19 + TypeScript + PixiJS.
     referencia.
   - Texto, Prefabricados y Seleccionar (mover, selección por recuadro, rotar
     con `[`/`]`).
-- Deshacer/rehacer, copiar/cortar/pegar, guardar/abrir `.opdr`, mapas
+- Deshacer/rehacer, copiar/cortar/pegar, guardar/abrir `.otbm`, mapas
   recientes y exportar a PNG.
 
 ## Atajos

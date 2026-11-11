@@ -1,6 +1,6 @@
 /**
  * The map document model: plain data, no React. This is what gets serialized
- * to/from the `.opdr` file (features/map/io) and what the viewport renders.
+ * to/from the `.otbm` file (features/map/io) and what the viewport renders.
  * Keep it JSON-serializable and free of functions/class instances so undo
  * snapshots and file IO stay trivial.
  *

@@ -28,7 +28,7 @@ export function EmptyState({ onOpenAssets }: { onOpenAssets: () => void }) {
           <Trans i18nKey="canvas.subtitle" components={{ b: <b /> }} />
         </Text>
       </Stack>
-      <Button variant="subtle" colorPalette="blue" onClick={onOpenAssets}>
+      <Button variant="subtle" colorPalette="brand" onClick={onOpenAssets}>
         <LuGem />
         {t("canvas.openAssets")}
       </Button>

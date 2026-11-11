@@ -28,10 +28,10 @@ android {
         }
     }
     compileSdk = 36
-    namespace = "com.opendraft.app"
+    namespace = "app.open20.battlemaps"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.opendraft.app"
+        applicationId = "app.open20.battlemaps"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
