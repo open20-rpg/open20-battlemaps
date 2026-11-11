@@ -246,7 +246,7 @@ pub(crate) fn search(
         }
     }
 
-    results.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    results.sort_by_cached_key(|a| a.name.to_lowercase());
     let total = results.len();
     state.results.lock().unwrap().insert(key, results);
     Ok(LibrarySearch { total })

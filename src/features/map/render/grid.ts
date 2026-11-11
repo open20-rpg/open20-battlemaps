@@ -195,7 +195,14 @@ export function drawGrid(
     if (!isFloor) {
       dashLines(g, mapWidth, mapHeight, naturalWidth("dashes"), color, alpha)
     } else {
-      squareDots(g, mapWidth, mapHeight, FLOOR_PX / tileSize, color, alpha * DASHES_FLOOR_ALPHA_FACTOR)
+      squareDots(
+        g,
+        mapWidth,
+        mapHeight,
+        FLOOR_PX / tileSize,
+        color,
+        alpha * DASHES_FLOOR_ALPHA_FACTOR,
+      )
     }
     return
   }
@@ -204,8 +211,22 @@ export function drawGrid(
   if (zoom > DOTTED_CIRCLE_ZOOM) {
     circleDots(g, mapWidth, mapHeight, naturalWidth("dotted"), color, alpha)
   } else if (!isFloor) {
-    squareDots(g, mapWidth, mapHeight, naturalWidth("dotted"), color, alpha * FLOOR_ALPHA_FACTOR.dotted)
+    squareDots(
+      g,
+      mapWidth,
+      mapHeight,
+      naturalWidth("dotted"),
+      color,
+      alpha * FLOOR_ALPHA_FACTOR.dotted,
+    )
   } else {
-    squareDots(g, mapWidth, mapHeight, FLOOR_PX / tileSize, color, alpha * FLOOR_ALPHA_FACTOR.dotted)
+    squareDots(
+      g,
+      mapWidth,
+      mapHeight,
+      FLOOR_PX / tileSize,
+      color,
+      alpha * FLOOR_ALPHA_FACTOR.dotted,
+    )
   }
 }

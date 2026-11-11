@@ -91,17 +91,12 @@ export function AssetSelector({
   })
 
   const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds])
-  const selectedRef = useRef(selectedSet)
-  selectedRef.current = selectedSet
   // Anchor for shift-range selection.
   const anchorIdx = useRef<number | null>(null)
 
   // Shared name tooltip via event delegation (see LibraryPanel history).
   const [tip, setTip] = useState<{ name: string; x: number; y: number } | null>(null)
   const tipTimer = useRef<number | undefined>(undefined)
-
-  const colorRef = useRef(color)
-  colorRef.current = color
 
   const setPreview = usePreviewStore((s) => s.setPreview)
   const previewIdx = useRef<number | null>(null)
@@ -128,14 +123,14 @@ export function AssetSelector({
           item
             ? {
                 name: item.name,
-                thumbUrl: itemImageUrl(item.thumb, item.colorable, colorRef.current),
-                fullUrl: itemImageUrl(item.full, item.colorable, colorRef.current),
+                thumbUrl: itemImageUrl(item.thumb, item.colorable, color),
+                fullUrl: itemImageUrl(item.full, item.colorable, color),
               }
             : null,
         )
       }
     },
-    [items, setPreview, showPreview],
+    [items, setPreview, showPreview, color],
   )
 
   const clearAll = useCallback(() => {
@@ -179,7 +174,7 @@ export function AssetSelector({
         }
         onSelectionChange(ids)
       } else if (e.ctrlKey || e.metaKey) {
-        const next = new Set(selectedRef.current)
+        const next = new Set(selectedSet)
         if (next.has(item.id)) next.delete(item.id)
         else next.add(item.id)
         onSelectionChange([...next])
@@ -189,7 +184,7 @@ export function AssetSelector({
         anchorIdx.current = idx
       }
     },
-    [select, onSelectionChange, ensureLoaded, items],
+    [select, onSelectionChange, ensureLoaded, items, selectedSet],
   )
 
   // Clear any lingering tooltip/preview on unmount.

@@ -90,7 +90,6 @@ export function MapCanvas() {
         worldRef.current = world
         mapBgRef.current = mapBg
         gridRef.current = grid
-        app.renderer.on("resize", () => bumpResize((n) => n + 1))
         setReady(true)
       })
 
@@ -103,6 +102,19 @@ export function MapCanvas() {
     }
   }, [])
 
+  // Re-render on canvas resizes so the world transform below is recomputed.
+  // Separate from the init effect: the renderer only exists once init()
+  // resolves (`ready`), and this way the subscription owns its own cleanup.
+  useEffect(() => {
+    const renderer = appRef.current?.renderer
+    if (!ready || !renderer) return
+    const onResize = () => bumpResize((n) => n + 1)
+    renderer.on("resize", onResize)
+    return () => {
+      renderer.off("resize", onResize)
+    }
+  }, [ready])
+
   // Position/scale the world container: cheap (no geometry rebuild) so this
   // runs on every zoom/pan tick and resize without any redraw cost. Also
   // corrects the stored pan if it's out of the clamped range (e.g. a resize
@@ -111,10 +123,17 @@ export function MapCanvas() {
     const app = appRef.current
     const world = worldRef.current
     if (!app || !world || mapWidth == null || mapHeight == null) return
-    const t = computeWorldTransform(app.screen.width, app.screen.height, mapWidth, mapHeight, zoom, {
-      x: panX,
-      y: panY,
-    })
+    const t = computeWorldTransform(
+      app.screen.width,
+      app.screen.height,
+      mapWidth,
+      mapHeight,
+      zoom,
+      {
+        x: panX,
+        y: panY,
+      },
+    )
     world.position.set(t.x, t.y)
     world.scale.set(t.scaleX, t.scaleY)
     if (t.pan.x !== panX || t.pan.y !== panY) {

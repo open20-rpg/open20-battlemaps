@@ -39,7 +39,8 @@ ni accionable.
   ad-hoc ni cases especiales en los panels.
 - Un nuevo tipo de parámetro = nuevo kind en `ToolParamSpec`
   (`features/tools/params.ts`, con su tipo de valor en `ParamValueByKind`) +
-  control presentacional en `tools/controls/` + case en `ToolParamControl`.
+  control presentacional en `tools/controls/` + entrada en `RENDERERS` de
+  `ToolParamControl` (mapped type: si falta, no compila).
   Todos los kinds llevan `paramKey` explícito; los defaults viven SOLO en el
   spec (`resolveParams` los materializa al seleccionar la herramienta — los
   controles reciben `value`/`onChange` y no tienen fallbacks propios).
@@ -114,7 +115,7 @@ Sin CHANGELOG ni versionado semántico estricto (todo bump es de patch,
    `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`
    (entrada `name = "opendraft"`). Los 5 valores deben coincidir siempre.
 2. Verificar (`npm run typecheck` y `cargo check --manifest-path
-   src-tauri/Cargo.toml` alcanza; no hace falta correr la suite completa solo
+src-tauri/Cargo.toml` alcanza; no hace falta correr la suite completa solo
    para el bump).
 3. Commitear solo esos 5 archivos: `chore: bump version to X.Y.Z`.
 4. Taggear ese commit como `vX.Y.Z` y pushear la rama **y** el tag

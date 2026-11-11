@@ -55,8 +55,13 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
     let lastPoint: Point | null = null
 
     const pointers: PointerMap = new Map()
-    let touchGesture: { dist: number; mid: Point; zoom: number; panX: number; panY: number } | null =
-      null
+    let touchGesture: {
+      dist: number
+      mid: Point
+      zoom: number
+      panX: number
+      panY: number
+    } | null = null
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button === 1) {
@@ -91,10 +96,15 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
       const pts = [...pointers.values()]
       const dist = distance(pts)
       const mid = midpoint(pts)
-      useViewStore.getState().setZoom(clampZoom(Math.round(touchGesture.zoom * (dist / touchGesture.dist))))
       useViewStore
         .getState()
-        .setPan(touchGesture.panX + (mid.x - touchGesture.mid.x), touchGesture.panY + (mid.y - touchGesture.mid.y))
+        .setZoom(clampZoom(Math.round(touchGesture.zoom * (dist / touchGesture.dist))))
+      useViewStore
+        .getState()
+        .setPan(
+          touchGesture.panX + (mid.x - touchGesture.mid.x),
+          touchGesture.panY + (mid.y - touchGesture.mid.y),
+        )
     }
 
     const onPointerEnd = (e: PointerEvent) => {

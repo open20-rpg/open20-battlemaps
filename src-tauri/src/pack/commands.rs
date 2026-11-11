@@ -103,7 +103,7 @@ pub async fn list_installed(app: AppHandle) -> Result<Vec<InstalledPack>> {
         if dirty {
             let _ = write_registry(&app, &reg);
         }
-        out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        out.sort_by_cached_key(|a| a.name.to_lowercase());
         Ok(out)
     })
     .await

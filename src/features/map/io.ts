@@ -130,11 +130,11 @@ async function enableMapPacks(packIds: string[]): Promise<string[]> {
   // The pack list is loaded lazily (first AssetsManager open); make sure we
   // have it before deciding what's disabled vs. not installed at all.
   if (!usePacksStore.getState().loaded) await usePacksStore.getState().refresh()
-  const installed = usePacksStore.getState().packs
+  const installed = new Map(usePacksStore.getState().packs.map((p) => [p.id, p]))
   const missing: string[] = []
   const toEnable: string[] = []
   for (const id of packIds) {
-    const pack = installed.find((p) => p.id === id)
+    const pack = installed.get(id)
     if (!pack) missing.push(id)
     else if (!pack.enabled) toEnable.push(id)
   }

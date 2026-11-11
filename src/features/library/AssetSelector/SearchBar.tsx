@@ -29,7 +29,8 @@ export function SearchBar({
           placeholder={t("library.searchPlaceholder")}
           onChange={(e) => setQueryInput(e.currentTarget.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void runSearch(queryInput)
+            // Enter while an IME is composing confirms the candidate, not the search.
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) void runSearch(queryInput)
           }}
         />
         <IconButton

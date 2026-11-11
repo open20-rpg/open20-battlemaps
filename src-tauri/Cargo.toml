@@ -23,14 +23,14 @@ tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-base64 = "0.22"
+base64 = "0.23"
 thiserror = "2"
-json5 = "0.4"
-md5 = "0.7"
+json5 = "1"
+md5 = "0.8"
 # Colorable-asset recoloring (decode/recolor/encode PNG on the fly).
 image = { version = "0.25", default-features = false, features = ["png", "webp"] }
 urlencoding = "2"
-fontdb = "0.23.0"
+fontdb = "0.24"
 
 # Android needs JNI to resolve `content://` picker URIs to a file descriptor
 # (the Storage Access Framework gives no real filesystem path).

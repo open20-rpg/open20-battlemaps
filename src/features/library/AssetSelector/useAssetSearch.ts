@@ -1,7 +1,7 @@
 import {
   useCallback,
   useEffect,
-  useEffectEvent,
+  useLayoutEffect,
   useReducer,
   useRef,
   useState,
@@ -62,10 +62,29 @@ export function useAssetSearch({
   const [searchGen, setSearchGen] = useState(0)
   const items = useRef<Map<number, LibItem>>(new Map())
   const requestedPages = useRef<Set<number>>(new Set())
-  const [tick, bump] = useReducer((x) => x + 1, 0)
+  const [, bump] = useReducer((x) => x + 1, 0)
 
   // The null option occupies display slot 0; real items shift up by one.
   const nullOffset = allowNull ? 1 : 0
+
+  // Single-select must always hold one item: when nothing is selected, default
+  // to the first result. It runs when page 0 of a search arrives (the only
+  // moment that can make it possible), not from an effect watching the
+  // selection — so it never hands the parent an item from a stale result set
+  // (e.g. right after a pack was disabled). Skipped when null is allowed (empty
+  // is valid). Page loads resolve asynchronously, so the selection props are
+  // read through a ref synced after each commit rather than a stale closure.
+  const selectionProps = useRef({ select, allowNull, selectedIds, onSelectionChange })
+  useLayoutEffect(() => {
+    selectionProps.current = { select, allowNull, selectedIds, onSelectionChange }
+  })
+  const applyDefaultSelection = useCallback(() => {
+    const { select, allowNull, selectedIds, onSelectionChange } = selectionProps.current
+    if (select !== "single" || allowNull || !onSelectionChange) return
+    if ((selectedIds?.length ?? 0) > 0) return
+    const first = items.current.get(0)
+    if (first) onSelectionChange([first.id])
+  }, [])
 
   const runSearch = useCallback(
     (q: string) => {
@@ -115,12 +134,13 @@ export function useAssetSearch({
         getLibraryItems(browserKey, p * PAGE, PAGE)
           .then((batch) => {
             batch.forEach((it, i) => items.current.set(p * PAGE + i, it))
+            if (p === 0) applyDefaultSelection()
             bump()
           })
           .catch(() => requestedPages.current.delete(p))
       }
     },
-    [browserKey, total, nullOffset],
+    [browserKey, total, nullOffset, applyDefaultSelection],
   )
 
   // Ensure every index in [from, to] is loaded (used by shift-range selection).
@@ -141,21 +161,6 @@ export function useAssetSearch({
     },
     [browserKey],
   )
-
-  // Single-select must always hold one item: when nothing is selected, default
-  // to the first result once it has loaded (runs again if the first page loads
-  // after mount, via `tick`). Skipped when null is allowed (empty is valid).
-  // The parent callback goes through an effect event so the effect itself only
-  // reacts to the values that can make a default selection necessary.
-  const applyDefaultSelection = useEffectEvent(() => {
-    if (select !== "single" || allowNull || !onSelectionChange) return
-    if ((selectedIds?.length ?? 0) > 0 || total === 0) return
-    const first = items.current.get(0)
-    if (first) onSelectionChange([first.id])
-  })
-  useEffect(() => {
-    applyDefaultSelection()
-  }, [select, allowNull, selectedIds, total, tick])
 
   // Release the backend result cache when the browser instance goes away.
   useEffect(() => () => void releaseLibrarySearch(browserKey), [browserKey])
