@@ -12,6 +12,7 @@ import {
 } from "./entities"
 import { ShadowTintFilter } from "./shadowFilter"
 import { PostProcessFilter } from "./postProcessFilter"
+import { liveTerrainVersion } from "../terrainLive"
 import { isNeutral, type PostProcess } from "../../../lib/postProcess"
 import { lightingComposite } from "./lighting"
 import { drawOverlay } from "./overlay"
@@ -61,6 +62,8 @@ interface CompositeView {
   inputs: readonly unknown[]
   comp: Composite
   complete: boolean
+  /** Live terrain version last shown (see terrainLive.ts). */
+  live: number
 }
 
 const sameInputs = (a: readonly unknown[], b: readonly unknown[]) =>
@@ -331,6 +334,12 @@ export class MapScene {
       }
       const inputs = [state.map.width, state.map.height, state.terrainSmooth, ...mine]
       if (current && sameInputs(current.inputs, inputs) && !(assetsChanged && !current.complete)) {
+        // Same document, but a stroke in progress may have painted since.
+        const live = liveTerrainVersion()
+        if (current.live !== live) {
+          current.comp.refresh?.()
+          current.live = live
+        }
         continue
       }
       current?.comp.dispose()
@@ -338,7 +347,12 @@ export class MapScene {
       const comp = build(mine, state.map, this.renderer, this.env(state, track))
       comp.view.zIndex = zFor(paintedLayer(toolId, mine), -1)
       this.content.addChild(comp.view)
-      this.composites.set(toolId, { inputs, comp, complete: track.complete })
+      this.composites.set(toolId, {
+        inputs,
+        comp,
+        complete: track.complete,
+        live: liveTerrainVersion(),
+      })
     }
   }
 
@@ -365,7 +379,7 @@ export class MapScene {
     )
     comp.view.zIndex = Number.MAX_SAFE_INTEGER
     this.content.addChild(comp.view)
-    this.lighting = { inputs, comp, complete: track.complete }
+    this.lighting = { inputs, comp, complete: track.complete, live: 0 }
   }
 
   /**

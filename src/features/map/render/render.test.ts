@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { glowStrength, roofShade, shadeColor, smoothPolyline } from "./entities"
 import { exportPxPerTile, exportTiles } from "./exportMap"
-import { maskResolution, paintedLayer, terrainStrength } from "./painted"
+import { maskResolution, paintedLayer } from "./painted"
 import { mapToScreen, screenToMap } from "./viewport"
 
 describe("viewport", () => {
@@ -66,10 +66,6 @@ describe("renderers", () => {
     expect(maskResolution({ width: 400, height: 100 })).toBe(5)
     expect(maskResolution({ width: 100, height: 80 })).toBe(20)
     expect(maskResolution({ width: 5000, height: 10 })).toBe(4)
-    // Default intensity nearly replaces the texture in one pass; low needs several.
-    expect(terrainStrength(4)).toBeCloseTo(0.865, 2)
-    expect(terrainStrength(0.2)).toBeLessThan(0.15)
-    expect(terrainStrength(8)).toBeGreaterThan(0.98)
     expect(paintedLayer("cave", [])).toBe(-300)
   })
 })

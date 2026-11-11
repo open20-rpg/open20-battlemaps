@@ -1,5 +1,12 @@
 import { boundsOf, newId, pointInPolygon, rotateAround, textSize } from "../model/geometry"
 import {
+  TERRAIN_SLOTS,
+  TEXELS_PER_TILE,
+  encodeWeights,
+  filledWeights,
+  type TerrainData,
+} from "../model/terrain"
+import {
   createDocument,
   type BrushStroke,
   type MapDocument,
@@ -497,86 +504,35 @@ function materials(im: Importer, level: string, raw: Json): MapEntity[] {
   return out
 }
 
-/** A terrain texture's coverage imported from a Dungeondraft splat. */
-export interface SplatLayer {
-  /** Texels per axis (4 per cell). */
-  width: number
-  height: number
-  /**
-   * Base64 of one byte per texel: the texture's raw splat weight, blended
-   * by the renderer with Dungeondraft's own formula (render/terrainFilter.ts).
-   */
-  weights?: string
-  /** Legacy (pre-0.1.14 saves): per-texel layer opacity, used as the weight. */
-  data?: string
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let bin = ""
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  }
-  return btoa(bin)
-}
-
 /**
- * Terrain splat (RGBA weights, 4 texels per cell, up to 8 textures with
- * `splat2`): texture 1 is the base (a Fill); every other texture becomes a
- * coverage layer carrying its exact weights (the base keeps its own too, as
- * they take part in the normalization), so blends look as in Dungeondraft
- * instead of being rounded to the dominant texture.
+ * Terrain: Dungeondraft's splat (RGBA weights, 4 texels per cell; `splat2`
+ * holds slots 5–8) carried over byte for byte as the level's terrain
+ * (model/terrain.ts), which blends and paints exactly as Dungeondraft does.
  */
 function terrain(im: Importer, level: string, raw: Json): MapEntity[] {
   const t = obj(raw.terrain)
-  const ids = Array.from({ length: 8 }, (_, i) =>
-    str(t[`texture_${i + 1}`]) ? im.asset(t[`texture_${i + 1}`]) : undefined,
+  if (!str(t.texture_1)) return []
+  const slots = Array.from({ length: TERRAIN_SLOTS }, (_, i) =>
+    str(t[`texture_${i + 1}`]) ? (im.asset(t[`texture_${i + 1}`]) ?? null) : null,
   )
-  const base = ids[0]
-  if (!base) return []
-  const fill = entity(level, {
-    toolId: "terrainBrush",
-    layer: -500,
-    strokes: [],
-    params: { texture: base, base, fill: true },
-  })
-  const out: MapEntity[] = [fill]
-  const w = im.width * 4
-  const h = im.height * 4
-  const texels = w * h
+  const width = im.width * TEXELS_PER_TILE
+  const height = im.height * TEXELS_PER_TILE
+  const texels = width * height
   const splats = [tryParse(parsePoolBytes, t.splat), tryParse(parsePoolBytes, t.splat2)]
-  // One weight plane per texture slot, in slot order.
-  const weights: Uint8Array[] = []
-  const slots: number[] = []
-  splats.forEach((bytes, splatIndex) => {
+  // A map without a splat is all slot 1, Dungeondraft's default.
+  const weights = splats[0]
+    ? new Uint8Array(texels * TERRAIN_SLOTS)
+    : filledWeights(width, height, 0)
+  splats.forEach((bytes, half) => {
     if (!bytes) return
-    for (let channel = 0; channel < 4; channel++) {
-      const slot = splatIndex * 4 + channel
-      if (!ids[slot]) continue
-      const plane = new Uint8Array(texels)
-      for (let i = 0; i < texels; i++) plane[i] = bytes[i * 4 + channel] ?? 0
-      weights.push(plane)
-      slots.push(slot)
+    for (let i = 0; i < texels; i++) {
+      for (let c = 0; c < 4; c++) weights[i * TERRAIN_SLOTS + half * 4 + c] = bytes[i * 4 + c] ?? 0
     }
   })
-  if (weights.length < 2) return out
-  const layer = (plane: Uint8Array): SplatLayer => ({
-    width: w,
-    height: h,
-    weights: toBase64(plane),
-  })
-  fill.params.splat = layer(weights[0])
-  weights.forEach((plane, k) => {
-    if (k === 0 || !plane.some((v) => v > 0)) return
-    out.push(
-      entity(level, {
-        toolId: "terrainBrush",
-        layer: -500,
-        strokes: [],
-        params: { texture: ids[slots[k]], base, splat: layer(plane) },
-      }),
-    )
-  })
-  return out
+  const data: TerrainData = { width, height, slots, weights: encodeWeights(weights) }
+  return [
+    entity(level, { toolId: "terrainBrush", layer: -500, strokes: [], params: { terrain: data } }),
+  ]
 }
 
 /** The terrain brush setup a map was saved with (slots, blending, visibility). */

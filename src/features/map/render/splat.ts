@@ -6,8 +6,9 @@
  * reference.
  */
 
-/** Texture slots of the terrain (Dungeondraft: 4, or 8 with expanded slots). */
-export const TERRAIN_SLOTS = 8
+import { TERRAIN_SLOTS } from "../model/terrain"
+
+export { TERRAIN_SLOTS }
 
 /** Height margin within which slots mix (Dungeondraft's `blend_step`). */
 export const TERRAIN_BLEND_STEP = 0.04
@@ -26,6 +27,20 @@ export function heightBlend(heights: readonly number[]): number[] {
   return s.map((v) => (sum > 0 ? v / sum : 0))
 }
 
-export function decodeBase64(data: string): Uint8Array {
-  return Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
+/**
+ * Pack texel-major slot weights (8 bytes per texel) into three RGBA images
+ * for the GPU: slot i in channel i % 3 of image ⌊i / 3⌋, alpha opaque.
+ */
+export function packWeights(weights: Uint8Array, out: Uint8Array[]): void {
+  const texels = weights.length / TERRAIN_SLOTS
+  for (let t = 0; t < texels; t++) {
+    for (let r = 0; r < 3; r++) {
+      const o = out[r]
+      for (let c = 0; c < 3; c++) {
+        const slot = r * 3 + c
+        o[t * 4 + c] = slot < TERRAIN_SLOTS ? weights[t * TERRAIN_SLOTS + slot] : 0
+      }
+      o[t * 4 + 3] = 255
+    }
+  }
 }

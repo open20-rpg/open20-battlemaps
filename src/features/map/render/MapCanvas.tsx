@@ -12,6 +12,7 @@ import { useViewportGestures } from "./useViewportGestures"
 import { assetCache } from "./assets"
 import { MapScene, type SceneState } from "./scene"
 import { referenceImageUrl, subscribeReferenceImages } from "./referenceImages"
+import { subscribeLiveTerrain } from "../terrainLive"
 import { setActiveRenderer } from "./exportMap"
 
 /** Fill color of the map rect under every layer. */
@@ -205,6 +206,7 @@ export function MapCanvas() {
     const unsubTools = useToolsStore.subscribe(schedule)
     const unsubRef = subscribeReferenceImages(schedule)
     const unsubSettings = useSettingsStore.subscribe(schedule)
+    const unsubTerrain = subscribeLiveTerrain(schedule)
     return () => {
       cancelAnimationFrame(frame)
       unsubMap()
@@ -213,6 +215,7 @@ export function MapCanvas() {
       unsubTools()
       unsubRef()
       unsubSettings()
+      unsubTerrain()
     }
   }, [ready])
 

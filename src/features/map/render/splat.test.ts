@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { TERRAIN_BLEND_STEP, heightBlend } from "./splat"
+import { TERRAIN_BLEND_STEP, heightBlend, packWeights } from "./splat"
 
 describe("terrain height blending", () => {
   it("lets the highest slot win outright when the others are far below", () => {
@@ -16,5 +16,14 @@ describe("terrain height blending", () => {
 
   it("mixes every slot evenly where none has weight (as Dungeondraft does)", () => {
     expect(heightBlend([0, 0])).toEqual([0.5, 0.5])
+  })
+
+  it("packs slot weights three per RGBA image", () => {
+    const weights = Uint8Array.from([10, 20, 30, 40, 50, 60, 70, 80])
+    const out = [0, 1, 2].map(() => new Uint8Array(4))
+    packWeights(weights, out)
+    expect([...out[0]]).toEqual([10, 20, 30, 255])
+    expect([...out[1]]).toEqual([40, 50, 60, 255])
+    expect([...out[2]]).toEqual([70, 80, 0, 255])
   })
 })

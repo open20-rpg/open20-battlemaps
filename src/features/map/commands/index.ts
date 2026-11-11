@@ -1,4 +1,5 @@
 import { useMapStore } from "../../../stores/mapStore"
+import { resizeTerrain, type TerrainData } from "../model/terrain"
 import { useMapFileStore } from "../../../stores/mapFileStore"
 import { useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
@@ -138,7 +139,22 @@ export function updateReferenceImage(patch: Partial<ReferenceImage>): void {
 export function resizeMap(width: number, height: number): void {
   const w = Math.max(1, Math.round(width))
   const h = Math.max(1, Math.round(height))
-  edit((map) => (map.width === w && map.height === h ? map : { ...map, width: w, height: h }))
+  edit((map) => {
+    if (map.width === w && map.height === h) return map
+    // Terrain splats follow the map's size (new area in slot 1).
+    const entities = map.entities.map((e) =>
+      e.params.terrain
+        ? {
+            ...e,
+            params: {
+              ...e.params,
+              terrain: resizeTerrain(e.params.terrain as TerrainData, { width: w, height: h }),
+            },
+          }
+        : e,
+    )
+    return { ...map, width: w, height: h, entities }
+  })
 }
 
 // -- levels ------------------------------------------------------------------

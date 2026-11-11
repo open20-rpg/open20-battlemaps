@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { TERRAIN_SLOTS, decodeWeights, type TerrainData } from "../model/terrain"
 import {
   bitAt,
   bitmapRuns,
@@ -201,23 +202,21 @@ describe("Dungeondraft import", () => {
     expect(text.position.y).toBeGreaterThan(0)
   })
 
-  it("turns bitmaps into strokes, splats into weight layers, and water trees into bodies", () => {
+  it("turns bitmaps into strokes, the splat into the level's terrain, water trees into bodies", () => {
     const [caveEntity] = byTool("cave")
     expect(caveEntity.strokes?.length).toBe(1)
     const terrain = byTool("terrainBrush")
-    expect(terrain[0].params).toMatchObject({
-      fill: true,
-      texture: "abcd1234|textures/terrain/grass.png",
-    })
-    expect(terrain[1].params.texture).toBe("abcd1234|textures/terrain/dirt.png")
-    expect(terrain[1].strokes).toEqual([])
-    const splat = terrain[1].params.splat as { width: number; height: number; weights: string }
-    expect([splat.width, splat.height]).toEqual([16, 12])
-    // Texel (0,0) is all dirt; the rest grass (the base keeps its weights).
-    const bytes = (s: unknown) =>
-      Uint8Array.from(atob((s as { weights: string }).weights), (c) => c.charCodeAt(0))
-    expect([...bytes(splat).subarray(0, 2)]).toEqual([255, 0])
-    expect([...bytes(terrain[0].params.splat).subarray(0, 2)]).toEqual([0, 255])
+    expect(terrain).toHaveLength(1)
+    const data = terrain[0].params.terrain as TerrainData
+    expect([data.width, data.height]).toEqual([16, 12])
+    expect(data.slots.slice(0, 2)).toEqual([
+      "abcd1234|textures/terrain/grass.png",
+      "abcd1234|textures/terrain/dirt.png",
+    ])
+    // Byte for byte, 8 slots per texel: texel (0,0) is all dirt, the next all grass.
+    const bytes = decodeWeights(data.weights)
+    expect([...bytes.subarray(0, 2)]).toEqual([0, 255])
+    expect([...bytes.subarray(TERRAIN_SLOTS, TERRAIN_SLOTS + 2)]).toEqual([255, 0])
     const [lake] = byTool("water")
     expect(lake.params).toMatchObject({ deepColor: "#112233", disableBorder: true })
     expect(run().warnings.waterHoles).toBe(1)
