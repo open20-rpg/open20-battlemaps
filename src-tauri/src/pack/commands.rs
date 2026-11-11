@@ -51,6 +51,13 @@ fn resolve_in_pack(app: &AppHandle, id: &str, rel_path: &str) -> Result<PathBuf>
     Ok(full)
 }
 
+/// Run `f` on a blocking worker thread: disk access never stalls the UI.
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| PackError::Other(e.to_string()))?
+}
+
 /// Install (unpack) one or more `.dungeondraft_pack` files. Runs on a blocking
 /// thread so the UI stays responsive; emits `pack-install-progress` events.
 #[tauri::command]
@@ -142,22 +149,30 @@ pub async fn uninstall_pack(app: AppHandle, id: String) -> Result<()> {
 
 /// Enable or disable a pack (toggles a flag; files stay on disk).
 #[tauri::command]
-pub fn set_pack_enabled(app: AppHandle, id: String, enabled: bool) -> Result<()> {
-    if !pack_dir(&app, &id)?.is_dir() {
+pub async fn set_pack_enabled(app: AppHandle, id: String, enabled: bool) -> Result<()> {
+    blocking(move || set_enabled(&app, id, enabled)).await
+}
+
+fn set_enabled(app: &AppHandle, id: String, enabled: bool) -> Result<()> {
+    if !pack_dir(app, &id)?.is_dir() {
         return Err(PackError::NotInstalled(id));
     }
-    let mut reg = read_registry(&app);
+    let mut reg = read_registry(app);
     // Preserve cached stats when toggling.
     reg.entry(id).or_default().enabled = enabled;
-    write_registry(&app, &reg)?;
-    clear_library(&app);
+    write_registry(app, &reg)?;
+    clear_library(app);
     Ok(())
 }
 
 /// List the extracted contents of a pack (for the future asset browser).
 #[tauri::command]
-pub fn list_pack_contents(app: AppHandle, id: String) -> Result<Vec<AssetInfo>> {
-    let dir = pack_dir(&app, &id)?;
+pub async fn list_pack_contents(app: AppHandle, id: String) -> Result<Vec<AssetInfo>> {
+    blocking(move || pack_contents(&app, id)).await
+}
+
+fn pack_contents(app: &AppHandle, id: String) -> Result<Vec<AssetInfo>> {
+    let dir = pack_dir(app, &id)?;
     if !dir.is_dir() {
         return Err(PackError::NotInstalled(id));
     }
@@ -208,8 +223,12 @@ pub async fn load_asset(app: AppHandle, id: String, rel_path: String) -> Result<
 /// Prefers the pack's own `preview.png`, otherwise falls back to the first
 /// per-texture thumbnail. Returns None if the pack has no images at all.
 #[tauri::command]
-pub fn load_pack_thumbnail(app: AppHandle, id: String) -> Result<Option<LoadedImage>> {
-    let dir = pack_dir(&app, &id)?;
+pub async fn load_pack_thumbnail(app: AppHandle, id: String) -> Result<Option<LoadedImage>> {
+    blocking(move || pack_thumbnail(&app, &id)).await
+}
+
+fn pack_thumbnail(app: &AppHandle, id: &str) -> Result<Option<LoadedImage>> {
+    let dir = pack_dir(app, id)?;
 
     // 1. The pack's own preview/cover image, if present.
     let preview = dir.join("preview.png");
@@ -265,13 +284,13 @@ pub async fn packs_with_category(app: AppHandle, category: String) -> Result<Vec
 
 /// Fetch a window of a browser instance's search results, resolving thumbnails.
 #[tauri::command]
-pub fn get_library_items(
+pub async fn get_library_items(
     app: AppHandle,
     key: String,
     offset: usize,
     limit: usize,
 ) -> Result<Vec<LibItem>> {
-    library::get_items(&app, &key, offset, limit)
+    blocking(move || library::get_items(&app, &key, offset, limit)).await
 }
 
 /// Drop a browser instance's cached results (call when the browser unmounts).

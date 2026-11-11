@@ -11,12 +11,21 @@ export function loadMapFile(path: string): Promise<string> {
 }
 
 /**
- * Write binary data to `path` (PNG export). The bytes travel as the raw IPC
- * body — no base64/JSON round trip for multi-megabyte files — with the path
- * in a header (percent-encoded: header values must be ASCII).
+ * Streaming PNG export: open `path` for a `width` × `height` image, append
+ * bands of RGBA rows (sent as the raw IPC body, no base64/JSON detour), then
+ * finish — or cancel, which drops the export. The backend encodes on a
+ * worker thread as rows arrive.
  */
-export function saveBytes(path: string, bytes: Uint8Array): Promise<void> {
-  return invoke("save_bytes", bytes, { headers: { "x-path": encodeURIComponent(path) } })
+export function exportBegin(path: string, width: number, height: number): Promise<void> {
+  return invoke("export_begin", { path, width, height })
+}
+
+export function exportRows(rows: Uint8Array): Promise<void> {
+  return invoke("export_rows", rows)
+}
+
+export function exportEnd(cancel = false): Promise<void> {
+  return invoke("export_end", { cancel })
 }
 
 /** Read an arbitrary image from disk as a data URL (Reference Image tool). */

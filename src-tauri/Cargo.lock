@@ -2479,6 +2479,7 @@ dependencies = [
  "jni",
  "json5",
  "md5",
+ "png",
  "serde",
  "serde_json",
  "tauri",

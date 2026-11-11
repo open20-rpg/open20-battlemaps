@@ -15,8 +15,8 @@ import {
 } from "../tools/params"
 import i18n from "../../i18n"
 import { withLoading } from "../../stores/loadingStore"
-import { loadMapFile, resolveAssets, saveBytes, saveMapFile } from "./api"
-import { renderMapPng, type ExportOptions } from "./render/exportMap"
+import { exportBegin, exportEnd, exportRows, loadMapFile, resolveAssets, saveMapFile } from "./api"
+import { renderMapRows, type ExportOptions } from "./render/exportMap"
 import { loadMap } from "./commands"
 import { importDungeondraftMap, type ImportResult, type TerrainSetup } from "./format/dungeondraft"
 import { useEditorStore } from "../../stores/editorStore"
@@ -286,8 +286,13 @@ export async function exportPngFlow(opts: ExportOptions): Promise<boolean> {
   const path = await saveDialog({ filters: PNG_FILTERS, defaultPath: "map.png" })
   if (!path) return false
   await withLoading(i18n.t("loading.exporting"), async () => {
-    const bytes = await renderMapPng(opts)
-    await saveBytes(path, bytes)
+    try {
+      await renderMapRows(opts, (w, h) => exportBegin(path, w, h), exportRows)
+      await exportEnd()
+    } catch (err) {
+      await exportEnd(true)
+      throw err
+    }
   })
   return true
 }
