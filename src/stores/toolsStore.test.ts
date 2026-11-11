@@ -26,7 +26,6 @@ describe("toolsStore", () => {
         "paths",
         "patterns",
         "roofs",
-        "water",
         "texts",
         "caves",
         "materials",
