@@ -2,12 +2,12 @@ import {
   BlurFilter,
   BufferImageSource,
   Container,
-  type Filter,
   Graphics,
   RenderTexture,
   Sprite,
   Texture,
   TilingSprite,
+  type Filter,
   type Renderer,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
@@ -16,6 +16,7 @@ import { TEXTURE_PX_PER_TILE } from "./assets"
 import { type RenderEnv, selectionAsset } from "./entities"
 import { softBrushTexture } from "./generated"
 import { naturalEdgeFilter } from "./naturalEdge"
+import { LayerMaskFilter } from "./layerFilter"
 import { opaqueFilter } from "./opaque"
 import { type SplatLayer } from "../format/dungeondraft"
 import { SPLAT_UPSAMPLE, SplatStack, decodeBase64, sharpenWeights, upsampleWeights } from "./splat"
@@ -38,9 +39,15 @@ export interface MapBox {
   height: number
 }
 
-/** Mask resolution (px per tile), capped so big maps stay within GPU limits. */
+/**
+ * Mask resolution (px per tile). Each painted texture keeps one mask the
+ * size of the map, so the longest side is held to MASK_MAX_PX (16 MB of GPU
+ * memory per mask at most): coverage is soft and filtered, it doesn't need
+ * the textures' detail.
+ */
+const MASK_MAX_PX = 2048
 export function maskResolution(map: MapBox): number {
-  return Math.max(4, Math.min(32, Math.floor(4096 / Math.max(map.width, map.height))))
+  return Math.max(4, Math.min(32, Math.floor(MASK_MAX_PX / Math.max(map.width, map.height))))
 }
 
 /** A map-sized render target plus the container transform to draw into it in content space. */
@@ -150,13 +157,19 @@ function mapFill(map: MapBox, texture: Texture | undefined, tint: string | undef
   return s
 }
 
-function masked(fill: Container, mask: Sprite): Container {
+/**
+ * `fill` showing only where `mask` (a coverage sprite) covers, in one
+ * screen-clipped filter pass (see layerFilter.ts); `opaque` also drops the
+ * fill's own alpha (terrain).
+ */
+function masked(fill: Container, mask: Sprite, opaque = false): Container {
   const c = new Container()
+  // The mask sprite only needs its transform (the filter samples its texture).
+  mask.renderable = false
   c.addChild(fill, mask)
-  // Masks come from render textures (premultiplied alpha). Pixi's default
-  // "red" channel would multiply coverage by itself (r == a), turning 50%
-  // coverage into 25%; the alpha channel is the coverage itself.
-  fill.setMask({ mask, channel: "alpha" })
+  const filter = new LayerMaskFilter(mask, opaque)
+  fill.filters = [filter]
+  c.once("destroyed", () => filter.destroy())
   return c
 }
 
@@ -206,14 +219,11 @@ function composite(view: Container, masks: Iterable<MapMask>): Composite {
 }
 
 /** A texture fill, or the flat `color` while the texture is loading/unset. */
-/** A terrain texture over the whole map, opaque whatever its alpha (see opaque.ts). */
-function terrainFill(map: MapBox, texture: Texture | undefined, color: string): Container {
+/** The terrain's base texture over the whole map, opaque whatever its alpha (see opaque.ts). */
+function terrainBase(map: MapBox, texture: Texture | undefined, color: string): Container {
   const fill = textureOrColor(map, texture, color)
   if (texture) fill.filters = [opaqueFilter()]
-  // Wrapped, so a mask on it applies after the filter.
-  const c = new Container()
-  c.addChild(fill)
-  return c
+  return fill
 }
 
 function textureOrColor(map: MapBox, texture: Texture | undefined, color: string): Container {
@@ -434,9 +444,9 @@ function terrainComposite(
   scratch.destroy()
   natural.destroy()
   const view = new Container()
-  if (base) view.addChild(terrainFill(map, env.tex(base), "#6b7a4a"))
+  if (base) view.addChild(terrainBase(map, env.tex(base), "#6b7a4a"))
   for (const [texId, m] of masks) {
-    view.addChild(masked(terrainFill(map, env.tex(texId), "#9a8a6a"), m.sprite()))
+    view.addChild(masked(textureOrColor(map, env.tex(texId), "#9a8a6a"), m.sprite(), true))
   }
   return composite(view, masks.values())
 }

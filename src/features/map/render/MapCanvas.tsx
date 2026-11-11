@@ -64,6 +64,8 @@ export function MapCanvas() {
   const mapBgRef = useRef<Graphics | null>(null)
   const gridRef = useRef<Graphics | null>(null)
   const sceneRef = useRef<MapScene | null>(null)
+  /** Repaint on the next frame (the canvas doesn't render continuously). */
+  const requestRenderRef = useRef<() => void>(() => {})
   // Flips once the async Pixi init resolves, just to trigger the render that
   // lets the effects below see the now-populated refs.
   const [ready, setReady] = useState(false)
@@ -108,6 +110,11 @@ export function MapCanvas() {
         antialias: true,
         autoDensity: true,
         resolution: window.devicePixelRatio || 1,
+        // Render on demand (requestRender), not 60 times a second: an idle
+        // map then costs nothing, and the painted-layer filters only run
+        // when something actually changed.
+        autoStart: false,
+        sharedTicker: false,
       })
       .then(() => {
         if (disposed) {
@@ -118,7 +125,18 @@ export function MapCanvas() {
         const world = new Container()
         const mapBg = new Graphics()
         const grid = new Graphics()
-        const scene = new MapScene(app.renderer, assetCache)
+        let frame = 0
+        const requestRender = () => {
+          if (frame || disposed) return
+          frame = requestAnimationFrame(() => {
+            frame = 0
+            if (!disposed) app.render()
+          })
+        }
+        requestRenderRef.current = requestRender
+        // Window resizes (resizeTo) change the canvas: repaint.
+        app.renderer.on("resize", requestRender)
+        const scene = new MapScene(app.renderer, assetCache, requestRender)
         world.addChild(mapBg, scene.content, grid, scene.overlay)
         app.stage.addChild(world)
         appRef.current = app
@@ -168,6 +186,7 @@ export function MapCanvas() {
         frame = 0
         const state = sceneState()
         if (state) scene.update(state)
+        requestRenderRef.current()
       })
     }
     schedule()
@@ -209,6 +228,7 @@ export function MapCanvas() {
     )
     world.position.set(t.x, t.y)
     world.scale.set(t.scaleX, t.scaleY)
+    requestRenderRef.current()
     if (t.pan.x !== panX || t.pan.y !== panY) {
       useViewStore.getState().setPan(t.pan.x, t.pan.y)
     }
@@ -219,6 +239,7 @@ export function MapCanvas() {
     const mapBg = mapBgRef.current
     if (!mapBg || mapWidth == null || mapHeight == null) return
     mapBg.clear().rect(0, 0, mapWidth, mapHeight).fill({ color: MAP_BG })
+    requestRenderRef.current()
   }, [ready, mapWidth, mapHeight])
 
   // Rebuild the grid geometry on param/dimension changes, and on zoom changes
@@ -228,12 +249,14 @@ export function MapCanvas() {
     const grid = gridRef.current
     if (!grid || mapWidth == null || mapHeight == null) return
     drawGrid(grid, mapWidth, mapHeight, { style: gridStyle, color: gridLineColor }, zoom)
+    requestRenderRef.current()
   }, [ready, mapWidth, mapHeight, gridStyle, gridLineColor, zoom])
 
   // Toggling the overlay is just a visibility flip, no rebuild.
   useEffect(() => {
     const grid = gridRef.current
     if (grid) grid.visible = gridOn
+    requestRenderRef.current()
   }, [ready, gridOn])
 
   return <Box ref={containerRef} position="absolute" inset="0" overflow="hidden" />

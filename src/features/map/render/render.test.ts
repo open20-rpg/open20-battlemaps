@@ -63,7 +63,8 @@ describe("renderers", () => {
 
   it("sizes painted masks within GPU limits and maps tools to layers", () => {
     expect(maskResolution({ width: 30, height: 30 })).toBe(32)
-    expect(maskResolution({ width: 400, height: 100 })).toBe(10)
+    expect(maskResolution({ width: 400, height: 100 })).toBe(5)
+    expect(maskResolution({ width: 100, height: 80 })).toBe(20)
     expect(maskResolution({ width: 5000, height: 10 })).toBe(4)
     // Default intensity nearly replaces the texture in one pass; low needs several.
     expect(terrainStrength(4)).toBeCloseTo(0.865, 2)

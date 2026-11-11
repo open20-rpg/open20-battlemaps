@@ -107,6 +107,8 @@ export class MapScene {
   constructor(
     private renderer: Renderer,
     private assets: AssetCache,
+    /** Ask for a repaint: the canvas renders on demand, not every frame. */
+    private onDirty: () => void = () => {},
   ) {
     this.content.scale.x = -1
     this.content.sortableChildren = true
@@ -117,7 +119,9 @@ export class MapScene {
     this.content.addChild(this.base, this.clip)
     this.overlay.scale.x = -1
     this.unsubscribe = assets.subscribe(() => {
-      if (this.last) this.update(this.last, true)
+      if (!this.last) return
+      this.update(this.last, true)
+      this.onDirty()
     })
   }
 
@@ -350,6 +354,7 @@ export class MapScene {
       if (ref && was !== undefined) ref.visible = was
       this.shadowPxPerTile = null
       if (this.last) this.applyShadowStyle(this.last)
+      this.onDirty()
     }
   }
 
