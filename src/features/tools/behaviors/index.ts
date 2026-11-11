@@ -11,6 +11,7 @@ import { createSelectBehavior } from "./select"
 import {
   createPrefabsBehavior,
   createReferenceImageBehavior,
+  createPostProcessingBehavior,
   createShadowSettingsBehavior,
 } from "./settings"
 import {
@@ -54,6 +55,7 @@ export const TOOL_BEHAVIORS: Record<string, ToolBehavior> = {
   light: createLightBehavior(),
   referenceImage: createReferenceImageBehavior(),
   shadowSettings: createShadowSettingsBehavior(),
+  postProcessing: createPostProcessingBehavior(),
   text: createTextBehavior(),
   prefabs: createPrefabsBehavior(),
   select: createSelectBehavior(),

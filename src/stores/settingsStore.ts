@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { DEFAULT_POST_PROCESS, type PostProcess } from "../lib/postProcess"
 import { persist } from "zustand/middleware"
 import { loadUserPresets } from "../lib/colors"
 import { loadUserTemplates, type MapTemplate } from "../lib/templates"
@@ -71,6 +72,10 @@ interface SettingsState {
   shadowStyle: ShadowStyle
   setShadowStyle: (patch: Partial<ShadowStyle>) => void
   resetShadowStyle: () => void
+  /** Map post-processing (Settings › Post-processing). */
+  postProcess: PostProcess
+  setPostProcess: (patch: Partial<PostProcess>) => void
+  resetPostProcess: () => void
   setPanelAlpha: (alpha: number) => void
   addColorPreset: (color: string) => void
   addTemplate: (tpl: MapTemplate) => void
@@ -114,6 +119,9 @@ export const useSettingsStore = create<SettingsState>()(
       shadowStyle: DEFAULT_SHADOW_STYLE,
       setShadowStyle: (patch) => set((s) => ({ shadowStyle: { ...s.shadowStyle, ...patch } })),
       resetShadowStyle: () => set({ shadowStyle: DEFAULT_SHADOW_STYLE }),
+      postProcess: DEFAULT_POST_PROCESS,
+      setPostProcess: (patch) => set((s) => ({ postProcess: { ...s.postProcess, ...patch } })),
+      resetPostProcess: () => set({ postProcess: DEFAULT_POST_PROCESS }),
       ...readLegacy(),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),
       addColorPreset: (color) =>
@@ -144,6 +152,7 @@ export const useSettingsStore = create<SettingsState>()(
           ...current,
           ...saved,
           shadowStyle: { ...DEFAULT_SHADOW_STYLE, ...saved.shadowStyle },
+          postProcess: { ...DEFAULT_POST_PROCESS, ...saved.postProcess },
         }
       },
     },

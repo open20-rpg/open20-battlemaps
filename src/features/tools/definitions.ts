@@ -30,6 +30,7 @@ import {
   LuShapes,
   LuSparkles,
   LuSprayCan,
+  LuSunMedium,
   LuTrash2,
   LuTriangle,
   LuType,
@@ -38,6 +39,7 @@ import {
 import { type AssetCategory } from "../../lib/categories"
 import { type Shortcut } from "../../lib/shortcuts"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
+import { DEFAULT_POST_PROCESS, POST_FILTERS } from "../../lib/postProcess"
 import { DEFAULT_SHADOW_STYLE } from "../../stores/settingsStore"
 import {
   shapeVsEditPoints,
@@ -573,6 +575,40 @@ export const TOOL_TREE: ToolNode[] = [
           switchParam("patterns", "tools.shadowPatterns", DEFAULT_SHADOW_STYLE.patterns),
           switchParam("roofs", "tools.shadowRoofs", DEFAULT_SHADOW_STYLE.roofs),
           button("reset", "tools.resetShadows", LuRotateCcw),
+        ],
+      }),
+      // Color adjustments over the rendered map (app settings, mirrored by
+      // the params like Shadows; applied on screen and in PNG exports).
+      tool("postProcessing", "tools.postProcessing", LuSunMedium, {
+        params: [
+          sliderParam(
+            "brightness",
+            "tools.brightness",
+            -1,
+            1,
+            0.01,
+            DEFAULT_POST_PROCESS.brightness,
+          ),
+          sliderParam("contrast", "tools.contrast", -1, 1, 0.01, DEFAULT_POST_PROCESS.contrast),
+          sliderParam(
+            "saturation",
+            "tools.saturation",
+            -1,
+            1,
+            0.01,
+            DEFAULT_POST_PROCESS.saturation,
+          ),
+          segmented(
+            "filter",
+            "tools.postFilter",
+            POST_FILTERS.map((f) => ({ value: f, labelKey: `tools.postFilter_${f}` })),
+            DEFAULT_POST_PROCESS.filter,
+          ),
+          when(
+            sliderParam("threshold", "tools.threshold", 0, 1, 0.01, DEFAULT_POST_PROCESS.threshold),
+            (p) => p.filter === "threshold",
+          ),
+          button("reset", "tools.resetPostProcessing", LuRotateCcw),
         ],
       }),
       tool("levelSettings", "tools.levelSettings", LuLayers, {

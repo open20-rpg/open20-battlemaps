@@ -31,6 +31,7 @@ function sceneState(): SceneState | null {
     shadows: view.shadows,
     showOutside: view.outside,
     shadowStyle: useSettingsStore.getState().shadowStyle,
+    postProcess: useSettingsStore.getState().postProcess,
     textVisible: getToolParams("text").visible !== false,
     terrainEnabled: getToolParams("terrainBrush").enable !== false,
     terrainSmooth: getToolParams("terrainBrush").smoothBlending === true,
