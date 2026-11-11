@@ -123,10 +123,8 @@ ni accionable.
   `chore(release): vX.Y.Z` que crea semantic-release en CI van a nombre de
   `semantic-release-bot`, y está bien así — no los reescribas.
 - Nunca trabajes en worktrees, siempre sobre la rama principal.
-- **Nunca hagas `git commit` ni `git push` sin permiso explícito para ese
-  cambio puntual** — ni siquiera en tareas que impliquen git de por sí (bump
-  de versión, releases, fixes ya verificados). Dejá el cambio hecho y sin
-  commitear, y pedí confirmación antes de commitear/pushear.
+- Al terminar un cambio (con `npm run check`, `npm run test` y
+  `npm run doctor` en verde), commitealo y pushealo sin pedir confirmación.
 
 ## Commits y release
 
