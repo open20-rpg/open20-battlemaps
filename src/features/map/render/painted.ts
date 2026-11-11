@@ -298,6 +298,10 @@ function weightSprite(splat: SplatLayer, map: MapBox): Sprite | null {
     width: splat.width,
     height: splat.height,
     scaleMode: "linear",
+    // The bytes already are premultiplied (white × weight). Left to the
+    // default, Pixi premultiplies again on upload: every weight squared
+    // (0.4 → 0.16), which tips height blends toward the heavier texture.
+    alphaMode: "premultiplied-alpha",
   })
   const sprite = new Sprite(new Texture({ source }))
   sprite.position.set(-map.width, 0)
