@@ -299,7 +299,8 @@
     "selectAll_caves": "All caves",
     "kind_materials": "Materials",
     "selectAll_materials": "All materials",
-    "elementFilter": "Element filter"
+    "elementFilter": "Element filter",
+    "resetToggles": "Reset filter"
   },
   "biomes": {
     "barren": "Barren",

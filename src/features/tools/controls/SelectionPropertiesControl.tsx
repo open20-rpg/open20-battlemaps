@@ -82,7 +82,7 @@ export function SelectionPropertiesControl({
   return (
     <VStack align="stretch" gap="0" borderTopWidth="1px" borderColor="panel.border" mt="2">
       <Box px="3" pt="2.5" pb="1">
-        <Text fontSize="xs" fontWeight="bold" color="brand.fg">
+        <Text fontSize="xs" fontWeight="bold" color="menubar.fg">
           {sameTool && selected.length > 1 && tool ? `${t(tool.nameKey)} · ${title}` : title}
         </Text>
       </Box>

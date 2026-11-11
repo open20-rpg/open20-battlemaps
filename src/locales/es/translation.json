@@ -299,7 +299,8 @@
     "selectAll_caves": "Todas las cuevas",
     "kind_materials": "Materiales",
     "selectAll_materials": "Todos los materiales",
-    "elementFilter": "Filtro de elementos"
+    "elementFilter": "Filtro de elementos",
+    "resetToggles": "Restablecer filtro"
   },
   "biomes": {
     "barren": "Yermo",

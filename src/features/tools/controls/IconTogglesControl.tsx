@@ -1,4 +1,5 @@
-import { Box, Flex, Icon, Text } from "@chakra-ui/react"
+import { Box, Flex, Icon, IconButton, Text } from "@chakra-ui/react"
+import { LuRotateCcw } from "react-icons/lu"
 import { type IconType } from "react-icons"
 import { useTranslation } from "react-i18next"
 import { Tooltip } from "../../../ui/chakra/tooltip"
@@ -12,22 +13,40 @@ export function IconTogglesControl({
   value,
   labelKey,
   options,
+  defaultValue,
   onChange,
 }: {
   value: string[]
   labelKey: string
   options: readonly { value: string; labelKey: string; icon: IconType }[]
+  /** What "reset" restores (the spec's default). */
+  defaultValue: readonly string[]
   onChange: (value: string[]) => void
 }) {
   const { t } = useTranslation()
   const on = new Set(value)
+  const isDefault = value.length === defaultValue.length && defaultValue.every((v) => on.has(v))
   const toggle = (id: string) =>
     onChange(options.map((o) => o.value).filter((v) => (v === id ? !on.has(v) : on.has(v))))
   return (
     <Box px="3" py="1.5">
-      <Text fontSize="xs" color="fg.muted" mb="1.5">
-        {t(labelKey)}
-      </Text>
+      <Flex align="center" justify="space-between" mb="1.5">
+        <Text fontSize="xs" color="fg.muted">
+          {t(labelKey)}
+        </Text>
+        <Tooltip content={t("tools.resetToggles")} openDelay={200} showArrow>
+          <IconButton
+            aria-label={t("tools.resetToggles")}
+            size="2xs"
+            variant="ghost"
+            color="menubar.fgMuted"
+            disabled={isDefault}
+            onClick={() => onChange([...defaultValue])}
+          >
+            <LuRotateCcw />
+          </IconButton>
+        </Tooltip>
+      </Flex>
       <Flex wrap="wrap" gap="1">
         {options.map((o) => {
           const active = on.has(o.value)

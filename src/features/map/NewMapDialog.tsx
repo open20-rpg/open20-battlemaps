@@ -141,7 +141,7 @@ function NewMapDialogContent({ open, onOpenChange, onCreate, onOpenAssets }: New
                 aria-label={t("newMap.removeTemplate")}
                 size="sm"
                 variant="subtle"
-                colorPalette="red"
+                colorPalette="danger"
                 disabled={!selected || !!selected.builtin}
                 onClick={handleRemove}
               >

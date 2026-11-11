@@ -36,7 +36,7 @@ export const ThumbCell = memo(function ThumbCell({
           style={imgStyle}
         />
       ) : item ? (
-        <LuImageOff color="#8a8a90" size={16} />
+        <LuImageOff color="var(--chakra-colors-icon-muted)" size={16} />
       ) : null}
     </div>
   )
@@ -75,7 +75,7 @@ export const ListCell = memo(function ListCell({
           style={listImgStyle}
         />
       ) : item ? (
-        <LuImageOff color="#8a8a90" size={16} />
+        <LuImageOff color="var(--chakra-colors-icon-muted)" size={16} />
       ) : null}
     </div>
   )
@@ -90,7 +90,7 @@ export function NullCell({ selected }: { selected: boolean }) {
       data-selected={selected ? "" : undefined}
       style={nullCellStyle}
     >
-      <LuBan color="#8a8a90" size={18} />
+      <LuBan color="var(--chakra-colors-icon-muted)" size={18} />
     </div>
   )
 }
