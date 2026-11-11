@@ -6,6 +6,7 @@ import {
   LuFolderOpen,
   LuGem,
   LuInfo,
+  LuKeyboard,
   LuLogOut,
   LuMenu,
   LuRedo2,
@@ -55,6 +56,7 @@ export interface MenuBarProps {
   mapOpen: boolean
   onToggleAssets: () => void
   onOpenPreferences: () => void
+  onOpenShortcuts: () => void
   onOpenAbout: () => void
   onOpenRecent: () => void
   onExit: () => void
@@ -136,11 +138,15 @@ export function MenuBar(props: MenuBarProps) {
                 <LuSettings />
                 <Text ml="2">{t("menu.preferences")}</Text>
               </Menu.Item>
+              <Menu.Item value="shortcuts" onClick={props.onOpenShortcuts}>
+                <LuKeyboard />
+                <Text ml="2">{t("menu.shortcuts")}</Text>
+              </Menu.Item>
               <Menu.Separator />
               <Menu.Item
                 value="exit"
-                color="red.300"
-                _hover={{ bg: "red.900/40", color: "red.200" }}
+                color="danger.fg"
+                _hover={{ bg: "danger.muted", color: "danger.fg" }}
                 onClick={props.onExit}
               >
                 <LuLogOut />

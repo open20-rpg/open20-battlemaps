@@ -37,7 +37,6 @@ import {
   LuUngroup,
 } from "react-icons/lu"
 import { type AssetCategory } from "../../lib/categories"
-import { type Shortcut } from "../../lib/shortcuts"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import { DEFAULT_POST_PROCESS, POST_FILTERS } from "../../lib/postProcess"
 import { DEFAULT_SHADOW_STYLE } from "../../stores/settingsStore"
@@ -105,8 +104,6 @@ export interface ToolLeaf {
   params?: ToolParamSpec[]
   /** Cross-field rule applied after any of this tool's params changes. */
   normalizeParams?: ParamNormalizer
-  /** Key that selects the tool (when the map has focus). */
-  shortcut?: Shortcut
 }
 
 /** A folder that opens a panel listing its children. */
@@ -129,7 +126,6 @@ const tool = (
     librarySelect?: "single" | "multi"
     params?: ToolParamSpec[]
     normalizeParams?: ParamNormalizer
-    shortcut?: Shortcut
   },
 ): ToolLeaf => ({
   type: "tool",
@@ -140,7 +136,6 @@ const tool = (
   librarySelect: opts?.library ? (opts.librarySelect ?? "single") : undefined,
   params: opts?.params,
   normalizeParams: opts?.normalizeParams,
-  shortcut: opts?.shortcut,
 })
 
 // Shared param specs, so tools reuse the same controls with minimal config.
@@ -287,7 +282,6 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuDraftingCompass,
     children: [
       tool("build", "tools.build", LuHouse, {
-        shortcut: { key: "b" },
         params: [
           shadow(true),
           shape("rectangle"),
@@ -299,7 +293,6 @@ export const TOOL_TREE: ToolNode[] = [
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("wall", "tools.wall", LuBrickWall, {
-        shortcut: { key: "w" },
         params: [
           editPoints(false),
           sorting("under"),
@@ -309,7 +302,6 @@ export const TOOL_TREE: ToolNode[] = [
         ],
       }),
       tool("portal", "tools.portal", LuDoorOpen, {
-        shortcut: { key: "d" },
         params: [
           shadow(true),
           switchParam("blockLight", "tools.blockLight", false),
@@ -324,7 +316,6 @@ export const TOOL_TREE: ToolNode[] = [
         ],
       }),
       tool("cave", "tools.cave", LuMountainSnow, {
-        shortcut: { key: "c" },
         params: [
           brushSize(0.5, 2.5, 0.5, 1),
           customColor("groundColor", "tools.groundColor"),
@@ -371,7 +362,6 @@ export const TOOL_TREE: ToolNode[] = [
         normalizeParams: shapeVsEditPoints("rectangle"),
       }),
       tool("roof", "tools.roof", LuTriangle, {
-        shortcut: { key: "r" },
         params: [
           shadow(true),
           segmented(
@@ -418,7 +408,6 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuMountain,
     children: [
       tool("terrainBrush", "tools.terrainBrush", LuBrush, {
-        shortcut: { key: "t" },
         params: [
           switchParam("enable", "tools.enable", true),
           brushSize(1, 25, 1, 8),
@@ -439,7 +428,6 @@ export const TOOL_TREE: ToolNode[] = [
         ],
       }),
       tool("material", "tools.material", LuPaintBucket, {
-        shortcut: { key: "m" },
         params: [
           objectLayer(-400),
           brushSize(1, 5, 1, 2),
@@ -447,7 +435,6 @@ export const TOOL_TREE: ToolNode[] = [
         ],
       }),
       tool("path", "tools.path", LuRoute, {
-        shortcut: { key: "p" },
         library: "paths",
         params: [
           shadow(true),
@@ -470,7 +457,6 @@ export const TOOL_TREE: ToolNode[] = [
     icon: LuShapes,
     children: [
       tool("object", "tools.object", LuBox, {
-        shortcut: { key: "o" },
         library: "objects",
         params: [
           objectLayer(100),
@@ -484,7 +470,6 @@ export const TOOL_TREE: ToolNode[] = [
         ],
       }),
       tool("scatter", "tools.scatter", LuSprayCan, {
-        shortcut: { key: "y" },
         library: "objects",
         librarySelect: "multi",
         params: [
@@ -509,10 +494,10 @@ export const TOOL_TREE: ToolNode[] = [
         params: [customColor("ambientLight", "tools.ambientLight", "#ffffff")],
       }),
       tool("light", "tools.light", LuLightbulb, {
-        shortcut: { key: "l" },
         params: [
           sliderParam("range", "tools.range", 0.5, 20, 0.1, 5),
           sliderParam("intensity", "tools.intensity", 0.5, 3, 0.1, 1),
+          sliderParam("rotation", "tools.rotation", -180, 180, 1, 0),
           shadow(true),
           switchParam("widgets", "tools.widgets", true),
           customColor("color", "tools.color", "#eccd8b", LIGHT_PRESETS),
@@ -627,7 +612,6 @@ export const TOOL_TREE: ToolNode[] = [
     ],
   },
   tool("text", "tools.text", LuType, {
-    shortcut: { key: "x" },
     params: [
       switchParam("visible", "tools.visible", true),
       switchParam("sharpenFonts", "tools.sharpenFonts", true),
@@ -654,7 +638,6 @@ export const TOOL_TREE: ToolNode[] = [
     ],
   }),
   tool("select", "tools.select", LuMousePointer2, {
-    shortcut: { key: "s" },
     params: [
       {
         kind: "iconToggles",

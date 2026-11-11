@@ -24,6 +24,8 @@ import { BiomeControl } from "./biome/BiomeControl"
 import { ButtonControl } from "./ButtonControl"
 import { FontControl } from "./FontControl"
 import { PrefabsControl } from "./PrefabsControl"
+import { ACTION_BY_ID } from "../../shortcuts/actions"
+import { useActionBinding } from "../../shortcuts/bindings"
 import { SelectionPropertiesControl } from "./SelectionPropertiesControl"
 import { IconTogglesControl } from "./IconTogglesControl"
 
@@ -174,8 +176,11 @@ function ActionButton({
   useEditorStore((s) => s.selection)
   useMapStore((s) => s.map)
   const disabled = spec.disabled || isToolActionDisabled(toolId, spec.paramKey)
+  // A button whose action is also a shortcut shows its current binding.
+  const binding = useActionBinding(spec.paramKey)
   return (
     <ButtonControl
+      binding={ACTION_BY_ID.has(spec.paramKey) ? binding : undefined}
       labelKey={spec.labelKey}
       icon={spec.icon}
       colorPalette={spec.colorPalette}

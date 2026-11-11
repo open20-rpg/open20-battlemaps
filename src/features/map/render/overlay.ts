@@ -1,4 +1,4 @@
-import { type Container, Graphics } from "pixi.js"
+import { type Container, Graphics, type StrokeStyle, Text } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import {
   editablePointsOf,
@@ -8,12 +8,28 @@ import {
   transformHandles,
   type AssetSizeOf,
 } from "../model/geometry"
-import { type MapEntity } from "../model/types"
+import { type MapEntity, type Vec2 } from "../model/types"
 import { ENTITY_RENDERERS, type RenderEnv } from "./entities"
 import { tileSizeForZoom } from "./viewport"
 
 /** Selection/draft accent: Open20 crimson, lightened to read over any map. */
 const ACCENT = 0xe0534e
+
+/** Ruler distances: the usual 5 ft per square. */
+const FEET_PER_TILE = 5
+
+/** A dashed line from `a` to `b` (map space) with `dash`-long dashes. */
+function dashed(g: Graphics, a: Vec2, b: Vec2, dash: number, style: StrokeStyle): void {
+  const len = Math.hypot(b.x - a.x, b.y - a.y)
+  const n = Math.max(1, Math.floor(len / (dash * 2)))
+  for (let i = 0; i < n; i++) {
+    const t0 = (i * 2 * dash) / len
+    const t1 = Math.min(1, ((i * 2 + 1) * dash) / len)
+    g.moveTo(-(a.x + (b.x - a.x) * t0), a.y + (b.y - a.y) * t0)
+    g.lineTo(-(a.x + (b.x - a.x) * t1), a.y + (b.y - a.y) * t1)
+  }
+  g.stroke(style)
+}
 
 /**
  * Editor-only drawing on top of the map: the active tool's drafts and the
@@ -74,6 +90,36 @@ export function drawOverlay(
             .stroke({ ...line, width: 1.5 * px })
         }
         break
+      case "guide": {
+        const { point: p, width, height } = shape
+        const guide = { width: 1 * px, color: ACCENT, alpha: 0.7 }
+        dashed(g, { x: 0, y: p.y }, { x: width, y: p.y }, 8 * px, guide)
+        dashed(g, { x: p.x, y: 0 }, { x: p.x, y: height }, 8 * px, guide)
+        break
+      }
+      case "measure": {
+        const { a, b } = shape
+        g.moveTo(-a.x, a.y)
+          .lineTo(-b.x, b.y)
+          .stroke({ ...line, width: 2 * px })
+        for (const p of [a, b]) g.regularPoly(-p.x, p.y, 4 * px, 12).fill({ color: ACCENT })
+        const tiles = Math.hypot(b.x - a.x, b.y - a.y)
+        const label = new Text({
+          text: `${tiles.toFixed(1)} · ${Math.round(tiles * FEET_PER_TILE)} ft`,
+          style: {
+            fontSize: 13,
+            fill: 0xffffff,
+            fontWeight: "600",
+            stroke: { color: 0x000000, width: 3 },
+          },
+        })
+        // Text is sized in screen px: undo the world's scale.
+        label.scale.set(px)
+        label.anchor.set(0.5, 1.4)
+        label.position.set(-(a.x + b.x) / 2, (a.y + b.y) / 2)
+        root.addChild(label)
+        break
+      }
       case "ghost": {
         const render = ENTITY_RENDERERS[shape.entity.toolId]
         if (render) {

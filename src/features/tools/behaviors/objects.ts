@@ -1,8 +1,9 @@
 import { useEditorStore } from "../../../stores/editorStore"
+import { useToolsStore } from "../../../stores/toolsStore"
 import { addEntities, beginGesture, endGesture } from "../../map/commands"
-import { dist } from "../../map/model/geometry"
+import { dist, normalizeDegrees } from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
-import { makeEntity, paramNum } from "./shared"
+import { makeEntity, nudgeParam, paramNum, wheelDegrees } from "./shared"
 import { type ToolBehavior, type ToolCtx } from "./types"
 
 /** Objects snap to half tiles (cell centers and corners). */
@@ -40,9 +41,26 @@ export const objectBehavior: ToolBehavior = {
       .setDraft([{ kind: "ghost", entity: objectAt(ctx, ctx.snap(e, OBJECT_SNAP), id) }])
   },
   onPointerDown: (ctx, e) => {
+    // Right-click: rotate 90° (snapped to quarter turns; −90° with Alt).
+    if (e.button === 2) {
+      const r = paramNum(ctx.params.rotation, 0)
+      const quarter = e.altKey ? Math.ceil(r / 90) * 90 - 90 : Math.floor(r / 90) * 90 + 90
+      useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(quarter) })
+      return
+    }
     const id = ctx.libraryAssets[0]
     if (!id || e.button !== 0) return
     addEntities([objectAt(ctx, ctx.snap(e, OBJECT_SNAP), id)], under(ctx))
+  },
+  // Wheel: rotate (±15°, ±5° with Z); Alt+wheel: scale ±0.1.
+  onWheel: (ctx, e) => {
+    if (e.altKey) nudgeParam(ctx, "scale", e.dir * 0.1, 0.1, 4, 1)
+    else {
+      const r = paramNum(ctx.params.rotation, 0) + e.dir * wheelDegrees()
+      useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(r) })
+    }
+    objectBehavior.onPointerMove?.(ctx, e)
+    return true
   },
   onDeactivate: () => useEditorStore.getState().setDraft([]),
   cursor: () => "crosshair",

@@ -12,6 +12,7 @@ import {
   flipEntity,
   isStretchable,
   newId,
+  normalizeDegrees,
   scaleEntity,
   selectionBounds,
   transformEntity,
@@ -22,11 +23,11 @@ import {
 import { expandGroups, hasGroups } from "../../map/model/groups"
 import { elementFilter, selectableBy } from "../selectKinds"
 import { screenAngle } from "./structures"
-import { screenTiles } from "./shared"
+import { screenTiles, wheelDegrees } from "./shared"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type ToolBehavior, type ToolCtx } from "./types"
 
-/** Degrees per rotate keypress ([ / ]); Shift for fine steps. Also the rotate-handle snap with Shift. */
+/** Rotation step (mouse wheel, Shift-snapped rotate handle). */
 const ROTATE_STEP = 15
 
 /** Grab radius of the transform handles, in screen px. */
@@ -179,6 +180,17 @@ export function ungroupSelection(ctx: ToolCtx): void {
 /** What clicks and rubber bands may pick: the Select tool's element filter. */
 const pickable = (ctx: ToolCtx) => selectableBy(elementFilter(ctx.params))
 
+/** Turn the selected sprites (objects, portals, lights…) by `delta` degrees each, in place. */
+export function rotateSelection(ctx: ToolCtx, delta: number): void {
+  const ids = new Set(useEditorStore.getState().selection)
+  const patches = new Map(
+    ctx.entities
+      .filter((x) => ids.has(x.id) && !x.points && !x.strokes)
+      .map((x) => [x.id, { rotation: normalizeDegrees(x.rotation + delta) }]),
+  )
+  updateEntities(patches)
+}
+
 /** Entities whose bounds intersect the rubber band. */
 export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
   const band = rectFromCorners(a, b)
@@ -193,7 +205,7 @@ export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
  * rubber-band selects. The selection box's corner handles scale it uniformly
  * and its edge handles (selections with walls, paths, areas…) stretch it,
  * keeping the opposite corner/edge fixed; the top handle rotates it around
- * its center (Shift snaps to 15°). H / V (or the panel buttons) mirror the
+ * its center (Shift snaps to 15°). The flip shortcuts (or the panel buttons) mirror the
  * selection left↔right / top↔bottom. `[`/`]`
  * rotate the selection too; Delete/Ctrl+C/V/X are the global shortcuts.
  */
@@ -258,7 +270,8 @@ export function createSelectBehavior(): ToolBehavior {
       if (mode.kind === "transform") {
         // Scaling follows Snap to Grid like moving does; rotation snaps with Shift.
         const toGrid = ctx.snapEnabled ? (p: Vec2) => ctx.snap(p, 0.5) : undefined
-        updateEntities(applyTransformDrag(mode.drag, e, e.shiftKey, toGrid))
+        // Alt (Dungeondraft) or Shift snaps the rotate handle to 15° steps.
+        updateEntities(applyTransformDrag(mode.drag, e, e.altKey || e.shiftKey, toGrid))
         return
       }
       if (mode.kind === "move") {
@@ -271,6 +284,12 @@ export function createSelectBehavior(): ToolBehavior {
         mode.to = { x: e.x, y: e.y }
         editor().setDraft([{ kind: "rect", a: mode.from, b: mode.to }])
       }
+    },
+    // Wheel turns the selection ±15° (±5° with Z held).
+    onWheel: (ctx, e) => {
+      if (editor().selection.length === 0) return false
+      rotateSelection(ctx, e.dir * wheelDegrees())
+      return true
     },
     onPointerUp: (ctx, e) => {
       if (mode?.kind === "move" || mode?.kind === "transform" || mode?.kind === "vertex")
@@ -297,38 +316,6 @@ export function createSelectBehavior(): ToolBehavior {
       if (action === "group") return selected.length < 2
       if (action === "ungroup") return !hasGroups(selected)
       return selected.length === 0
-    },
-    onKeyDown: (ctx, e) => {
-      const key = e.key.toLowerCase()
-      if ((e.ctrlKey || e.metaKey) && key === "g") {
-        if (e.shiftKey) ungroupSelection(ctx)
-        else groupSelection(ctx)
-        return true
-      }
-      if (
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.shiftKey &&
-        (key === "h" || key === "v") &&
-        editor().selection.length > 0
-      ) {
-        flipSelection(ctx, key === "h" ? "x" : "y")
-        return true
-      }
-      if (e.key !== "[" && e.key !== "]") return false
-      const ids = new Set(editor().selection)
-      if (ids.size === 0) return false
-      const delta = (e.key === "]" ? 1 : -1) * (e.shiftKey ? 1 : ROTATE_STEP)
-      const patches = new Map(
-        ctx.entities
-          .filter((x) => ids.has(x.id) && !x.points && !x.strokes)
-          .map((x) => [
-            x.id,
-            { rotation: ((((x.rotation + delta + 180) % 360) + 360) % 360) - 180 },
-          ]),
-      )
-      updateEntities(patches)
-      return true
     },
     onDeactivate: () => {
       if (mode?.kind === "move" || mode?.kind === "transform") endGesture()

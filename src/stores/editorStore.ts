@@ -15,6 +15,10 @@ export type DraftShape =
   | { kind: "ghost"; entity: MapEntity }
   /** Draggable vertex handles (edit-points mode). */
   | { kind: "handles"; points: Vec2[] }
+  /** Pinned guide: lines through `point` across a `width` × `height` map. */
+  | { kind: "guide"; point: Vec2; width: number; height: number }
+  /** Ruler measure from `a` to `b`, labeled with its length. */
+  | { kind: "measure"; a: Vec2; b: Vec2 }
 
 /** Inline text editor open over the canvas (Text tool). */
 export interface TextEditState {
@@ -39,6 +43,13 @@ interface EditorState {
   pointer: Vec2 | null
   /** Copied entities (Ctrl+C), pasted with fresh ids. */
   clipboard: MapEntity[]
+  /** Pinned guide: crosshair lines through this point (H). */
+  guide: Vec2 | null
+  /** Ruler mode (R): dragging measures instead of using the tool; the current measure. */
+  ruler: { from: Vec2; to: Vec2 } | null
+  rulerOn: boolean
+  /** Show the level below the active one, faded (C). */
+  compareLevels: boolean
   select: (ids: string[]) => void
   /** Add to (or toggle within) the selection. */
   toggleSelect: (ids: string[]) => void
@@ -48,6 +59,10 @@ interface EditorState {
   setTextEdit: (edit: TextEditState | null) => void
   setPointer: (p: Vec2 | null) => void
   setClipboard: (entities: MapEntity[]) => void
+  setGuide: (p: Vec2 | null) => void
+  setRuler: (ruler: { from: Vec2; to: Vec2 } | null) => void
+  setRulerOn: (on: boolean) => void
+  setCompareLevels: (on: boolean) => void
   /** Clear the whole session (map created/opened/closed). */
   reset: (activeLevel: string | null) => void
 }
@@ -59,6 +74,10 @@ export const useEditorStore = create<EditorState>()((set) => ({
   textEdit: null,
   pointer: null,
   clipboard: [],
+  guide: null,
+  ruler: null,
+  rulerOn: false,
+  compareLevels: false,
   select: (ids) => set({ selection: ids }),
   toggleSelect: (ids) =>
     set((s) => {
@@ -80,6 +99,20 @@ export const useEditorStore = create<EditorState>()((set) => ({
   setTextEdit: (textEdit) => set({ textEdit }),
   setPointer: (pointer) => set({ pointer }),
   setClipboard: (clipboard) => set({ clipboard }),
+  setGuide: (guide) => set({ guide }),
+  setRuler: (ruler) => set({ ruler }),
+  setRulerOn: (rulerOn) => set({ rulerOn, ruler: null }),
+  setCompareLevels: (compareLevels) => set({ compareLevels }),
   reset: (activeLevel) =>
-    set({ selection: [], activeLevel, draft: [], textEdit: null, pointer: null }),
+    set({
+      selection: [],
+      activeLevel,
+      draft: [],
+      textEdit: null,
+      pointer: null,
+      guide: null,
+      ruler: null,
+      rulerOn: false,
+      compareLevels: false,
+    }),
 }))

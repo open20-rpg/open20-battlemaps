@@ -1,3 +1,4 @@
+import { type MapDocument } from "../model/types"
 import { useEffect, useRef, useState } from "react"
 import { Box } from "@chakra-ui/react"
 import { Application, Container, Graphics } from "pixi.js"
@@ -37,11 +38,20 @@ function sceneState(): SceneState | null {
     terrainEnabled: getToolParams("terrainBrush").enable !== false,
     terrainSmooth: getToolParams("terrainBrush").smoothBlending === true,
     draft: editor.draft,
+    guide: editor.guide,
+    ruler: editor.ruler,
+    compareLevel: editor.compareLevels ? levelBelow(map, editor.activeLevel) : null,
     selection: editor.selection,
     transformHandles: selectActiveTool(useToolsStore.getState())?.id === "select",
     zoom: view.zoom,
     referenceUrl: ref ? referenceImageUrl(ref.path) : null,
   }
+}
+
+/** The level under `level` in the stack (the one Compare levels shows), if any. */
+function levelBelow(map: MapDocument, level: string | null): string | null {
+  const i = map.levels.findIndex((l) => l.id === level)
+  return i > 0 ? map.levels[i - 1].id : null
 }
 
 /**

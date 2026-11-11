@@ -1,5 +1,7 @@
 import { useEditorStore, type DraftShape } from "../../../stores/editorStore"
+import { useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
+import { isKeyHeld } from "../../shortcuts/held"
 import {
   addEntity,
   beginGesture,
@@ -149,7 +151,7 @@ export function polylineController(
       if (points.length === 0) return false
       if (e.key === "Enter") finish(ctx)
       else if (e.key === "Escape") cancel()
-      else if (e.key === "Backspace") {
+      else if (e.key === "Backspace" || e.key === "Delete") {
         points = points.slice(0, -1)
         show(ctx)
       } else return false
@@ -378,3 +380,26 @@ export function editPointsController(
 
 /** Read a numeric param with a fallback. */
 export const paramNum = num
+
+/**
+ * Nudge a numeric tool param by `delta`, clamped to [min, max] and rounded
+ * to `precision` decimals (wheel / key adjustments).
+ */
+export function nudgeParam(
+  ctx: ToolCtx,
+  key: string,
+  delta: number,
+  min: number,
+  max: number,
+  fallback: number,
+  precision = 2,
+): void {
+  const v = paramNum(ctx.params[key], fallback) + delta
+  const f = 10 ** precision
+  useToolsStore
+    .getState()
+    .setToolParams(ctx.toolId, { [key]: Math.round(Math.min(max, Math.max(min, v)) * f) / f })
+}
+
+/** Degrees per wheel notch: 15, or 5 while Z is held (Dungeondraft's fine step). */
+export const wheelDegrees = (): number => (isKeyHeld("Z") ? 5 : 15)

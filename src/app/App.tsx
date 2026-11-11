@@ -6,6 +6,7 @@ import { StatusBar, STATUS_BAR_HEIGHT } from "./StatusBar"
 import { EmptyState } from "./EmptyState"
 import { PreferencesDialog } from "./dialogs/PreferencesDialog"
 import { AboutDialog } from "./dialogs/AboutDialog"
+import { ShortcutsDialog } from "../features/shortcuts/ShortcutsDialog"
 import { RecentMapsDialog } from "./dialogs/RecentMapsDialog"
 import { ExportDialog } from "../features/map/ExportDialog"
 import { AssetsManager } from "../features/packs/AssetsManager"
@@ -19,6 +20,13 @@ import { Toaster } from "../ui/chakra/toaster"
 import { useCanRedo, useCanUndo, useHasMap } from "../stores/mapStore"
 import { useActiveTool, useToolsStore } from "../stores/toolsStore"
 import { useSettingsStore } from "../stores/settingsStore"
+import { useMapStore } from "../stores/mapStore"
+import { useModalStackStore } from "../stores/modalStackStore"
+import { registerAppActions } from "../features/shortcuts/appActions"
+import { actionForKey, currentBindings } from "../features/shortcuts/bindings"
+import { pressKey, releaseAll, releaseKey } from "../features/shortcuts/held"
+import { runAction } from "../features/map/shortcuts"
+import { typingIn } from "../lib/dom"
 
 export default function App() {
   const hasMap = useHasMap()
@@ -39,6 +47,7 @@ export default function App() {
 
   const [assetsOpen, setAssetsOpen] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [newMapOpen, setNewMapOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
@@ -48,17 +57,44 @@ export default function App() {
 
   const { handleSave, handleSaveAs, handleOpen, handleOpenPath, guarded } = useMapFile()
 
-  // Ctrl/Cmd+S saves (the rest of the editor shortcuts live in the canvas).
-  const onSaveShortcut = useEffectEvent((e: KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && hasMap) {
-      e.preventDefault()
-      void (e.shiftKey ? handleSaveAs() : handleSave())
-    }
+  // File shortcuts (new, open, save, export) run the shell's own handlers.
+  const runFile = useEffectEvent((id: "newMap" | "open" | "save" | "saveAs" | "export") => {
+    if (id === "newMap") guarded(() => setNewMapOpen(true))()
+    else if (id === "open") void handleOpen()
+    else if (hasMap && id === "save") void handleSave()
+    else if (hasMap && id === "saveAs") void handleSaveAs()
+    else if (hasMap && id === "export") setExportOpen(true)
   })
+  useEffect(
+    () =>
+      registerAppActions({
+        newMap: () => runFile("newMap"),
+        open: () => runFile("open"),
+        save: () => runFile("save"),
+        saveAs: () => runFile("saveAs"),
+        export: () => runFile("export"),
+      }),
+    [],
+  )
+  // Keys held for hold actions, and the shortcuts that work with no map open
+  // (with a map, the editor's own key handler runs them all).
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => onSaveShortcut(e)
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    const onDown = (e: KeyboardEvent) => {
+      pressKey(e.key)
+      if (useMapStore.getState().map || typingIn(e.target)) return
+      if (useModalStackStore.getState().stack.length > 0) return
+      const id = actionForKey(e, currentBindings())
+      if (id && runAction(id)) e.preventDefault()
+    }
+    const onUp = (e: KeyboardEvent) => releaseKey(e.key)
+    window.addEventListener("keydown", onDown)
+    window.addEventListener("keyup", onUp)
+    window.addEventListener("blur", releaseAll)
+    return () => {
+      window.removeEventListener("keydown", onDown)
+      window.removeEventListener("keyup", onUp)
+      window.removeEventListener("blur", releaseAll)
+    }
   }, [])
 
   return (
@@ -68,6 +104,7 @@ export default function App() {
         mapOpen={hasMap}
         onToggleAssets={() => setAssetsOpen((v) => !v)}
         onOpenPreferences={() => setPrefsOpen(true)}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
         onOpenRecent={() => setRecentOpen(true)}
         onExit={() => getCurrentWindow().close()}
@@ -104,6 +141,7 @@ export default function App() {
 
       <PreferencesDialog open={prefsOpen} onClose={() => setPrefsOpen(false)} />
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <RecentMapsDialog
         open={recentOpen}
         onClose={() => setRecentOpen(false)}

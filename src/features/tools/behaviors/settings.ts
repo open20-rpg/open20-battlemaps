@@ -37,6 +37,15 @@ const refParams = (img: ReferenceImage | null | undefined) =>
 export function createReferenceImageBehavior(): ToolBehavior {
   let dragging: Vec2 | null = null
   return {
+    // Wheel scales the image: ±1 tile wide (±0.1 with Shift).
+    onWheel: (ctx, e) => {
+      const img = ctx.map.referenceImage
+      if (!img) return false
+      const width = Math.max(1, Math.round((img.width + e.dir * (e.shiftKey ? 0.1 : 1)) * 10) / 10)
+      updateReferenceImage({ width })
+      useToolsStore.getState().setToolParams(ctx.toolId, { width })
+      return true
+    },
     onActivate: (ctx) => {
       const p = refParams(ctx.map.referenceImage)
       if (p) useToolsStore.getState().setToolParams(ctx.toolId, p)

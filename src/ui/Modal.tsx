@@ -109,6 +109,8 @@ export function Modal({
         borderRadius="lg"
         w={SIZE_WIDTH[size]}
         maxW="calc(100vw - 32px)"
+        // Tall content scrolls inside the body; header and footer stay put.
+        maxH="calc(100vh - 32px)"
         display="flex"
         flexDirection="column"
         overflow="hidden"
@@ -129,7 +131,7 @@ export function Modal({
             <LuX />
           </IconButton>
         </Flex>
-        <Box px="5" py="4" overflowY="auto">
+        <Box px="5" py="4" overflowY="auto" flex="1" minH="0">
           {children}
         </Box>
         {footer && (

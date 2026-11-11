@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Box, Flex, Icon, Menu, Portal, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
-import { withShortcut } from "../../lib/shortcuts"
+import { useActionBinding, withBinding } from "../shortcuts/bindings"
 import { Tooltip } from "../../ui/chakra/tooltip"
 import { useViewStore } from "../../stores/viewStore"
 import { VIEW_CONTROLS, ZOOM_LEVELS, type ToggleControl, type ZoomControl } from "./controls"
@@ -15,10 +15,11 @@ function ToggleButton({ control }: { control: ToggleControl }) {
   const active = useViewStore((s) => s[control.key])
   const toggle = useViewStore((s) => s.toggle)
   const label = t(control.nameKey)
+  const binding = useActionBinding(control.key)
 
   return (
     <Tooltip
-      content={withShortcut(label, control.shortcut)}
+      content={withBinding(label, binding)}
       positioning={{ placement: "right" }}
       openDelay={200}
       showArrow

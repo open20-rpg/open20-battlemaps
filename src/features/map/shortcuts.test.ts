@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest"
-import { useToolsStore } from "../../stores/toolsStore"
+import { findConflicts } from "../../lib/keybindings"
+import { useEditorStore } from "../../stores/editorStore"
+import { useSettingsStore } from "../../stores/settingsStore"
+import { getToolParams, useToolsStore } from "../../stores/toolsStore"
 import { useViewStore } from "../../stores/viewStore"
-import { TOOL_BY_ID } from "../tools/definitions"
-import { VIEW_CONTROLS } from "../viewport/controls"
+import { FIXED_CHORDS, PRESET_BINDINGS, effectiveBindings } from "../shortcuts/actions"
 import { closeMap, createMap } from "./commands"
 import { nextZoom, runShortcut } from "./shortcuts"
 
@@ -16,40 +18,83 @@ const press = (key: string, mods: Partial<KeyboardEvent> = {}) =>
     altKey: false,
     ...mods,
   } as KeyboardEvent)
+const activeTool = () => useToolsStore.getState().path.at(-1)?.id
 
 beforeEach(() => {
   closeMap()
   createMap(10, 10)
+  useSettingsStore.getState().resetShortcuts()
 })
 
-describe("keyboard shortcuts", () => {
-  it("selects tools by their declared key", () => {
+describe("keyboard shortcuts (Dungeondraft preset)", () => {
+  it("selects tools; X jumps to Select and back", () => {
     expect(press("w")).toBe(true)
-    expect(useToolsStore.getState().path.at(-1)?.id).toBe("wall")
+    expect(activeTool()).toBe("wall")
+    press("x")
+    expect(activeTool()).toBe("select")
+    press("x")
+    expect(activeTool()).toBe("wall")
+  })
+
+  it("toggles view overlays with Dungeondraft's keys", () => {
+    useViewStore.setState({ snap: true, grid: true, lighting: true })
     press("s")
-    expect(useToolsStore.getState().path.at(-1)?.id).toBe("select")
-  })
-
-  it("toggles view controls with Shift + key", () => {
-    useViewStore.setState({ snap: true, grid: true })
-    press("S", { shiftKey: true })
     expect(useViewStore.getState().snap).toBe(false)
-    press("G", { shiftKey: true })
+    press("g")
     expect(useViewStore.getState().grid).toBe(false)
+    press("l")
+    expect(useViewStore.getState().lighting).toBe(false)
   })
 
-  it("steps through the zoom presets", () => {
-    expect(nextZoom(100, 1)).toBe(125)
-    expect(nextZoom(100, -1)).toBe(75)
-    expect(nextZoom(110, -1)).toBe(100)
+  it("zooms with Ctrl+= / Ctrl+- through the presets", () => {
+    useViewStore.setState({ zoom: 100 })
+    press("=", { ctrlKey: true })
+    expect(useViewStore.getState().zoom).toBe(125)
+    press("-", { ctrlKey: true })
+    expect(useViewStore.getState().zoom).toBe(100)
     expect(nextZoom(800, 1)).toBe(800)
   })
 
-  it("declares no key twice", () => {
-    const keys = [
-      ...[...TOOL_BY_ID.values()].flatMap((t) => (t.shortcut ? [t.shortcut] : [])),
-      ...VIEW_CONTROLS.flatMap((c) => (c.kind === "toggle" && c.shortcut ? [c.shortcut] : [])),
-    ].map((s) => `${s.shift ? "shift+" : ""}${s.key}`)
-    expect(new Set(keys).size).toBe(keys.length)
+  it("follows the user's changes, and resets them", () => {
+    useViewStore.setState({ grid: true })
+    useSettingsStore.getState().setShortcutBindings("grid", ["Shift+G"])
+    expect(press("g")).toBe(false)
+    press("G", { shiftKey: true })
+    expect(useViewStore.getState().grid).toBe(false)
+    useSettingsStore.getState().resetShortcuts()
+    press("g")
+    expect(useViewStore.getState().grid).toBe(true)
+  })
+
+  it("sets the tool's layer with the quick layer keys", () => {
+    useToolsStore.getState().selectToolById("object")
+    press("2")
+    expect(getToolParams("object").layer).toBe(200)
+    press("1", { altKey: true })
+    expect(getToolParams("object").layer).toBe(-100)
+  })
+
+  it("resizes the brush with { and }", () => {
+    useToolsStore.getState().selectToolById("terrainBrush")
+    const size = getToolParams("terrainBrush").brushSize as number
+    press("}")
+    expect(getToolParams("terrainBrush").brushSize).toBe(size + 1)
+    press("[")
+    expect(getToolParams("terrainBrush").brushSize).toBe(size)
+  })
+
+  it("toggles the ruler, compare levels and pins the guide at the pointer", () => {
+    useEditorStore.getState().setPointer({ x: 3, y: 4 })
+    press("h")
+    expect(useEditorStore.getState().guide).toEqual({ x: 3, y: 4 })
+    press("r")
+    expect(useEditorStore.getState().rulerOn).toBe(true)
+    press("c")
+    expect(useEditorStore.getState().compareLevels).toBe(true)
+  })
+
+  it("has no conflicts in the preset", () => {
+    expect([...findConflicts(effectiveBindings("dungeondraft", {}), FIXED_CHORDS)]).toEqual([])
+    expect(Object.keys(PRESET_BINDINGS.dungeondraft).length).toBeGreaterThan(40)
   })
 })

@@ -1,6 +1,7 @@
 import { useEditorStore } from "../../../stores/editorStore"
+import { useToolsStore } from "../../../stores/toolsStore"
 import { addEntities } from "../../map/commands"
-import { closestOnSegment, dist, segmentsOf } from "../../map/model/geometry"
+import { closestOnSegment, dist, normalizeDegrees, segmentsOf } from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type AssetSelection } from "../params"
 import {
@@ -272,9 +273,24 @@ export const portalBehavior: ToolBehavior = {
     useEditorStore.getState().setDraft(ghost ? [{ kind: "ghost", entity: ghost }] : [])
   },
   onPointerDown: (ctx, e) => {
+    // Freestanding portals: right-click turns 90° (−90° with Shift).
+    if (e.button === 2 && ctx.params.anchored === false) {
+      const r = paramNum(ctx.params.rotation, 0) + (e.shiftKey ? -90 : 90)
+      useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(r) })
+      portalBehavior.onPointerMove?.(ctx, e)
+      return
+    }
     if (e.button !== 0) return
     const portal = portalAt(ctx, e)
     if (portal) addEntities([portal])
+  },
+  // Freestanding portals: wheel turns ±5° (±15° with Shift).
+  onWheel: (ctx, e) => {
+    if (ctx.params.anchored !== false) return false
+    const r = paramNum(ctx.params.rotation, 0) + e.dir * (e.shiftKey ? 15 : 5)
+    useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(r) })
+    portalBehavior.onPointerMove?.(ctx, e)
+    return true
   },
   onDeactivate: () => useEditorStore.getState().setDraft([]),
   cursor: () => "crosshair",

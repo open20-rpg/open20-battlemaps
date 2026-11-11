@@ -1,6 +1,5 @@
 import { type IconType } from "react-icons"
 import { LuEclipse, LuFrame, LuGrid3X3, LuLightbulb, LuMagnet, LuSearch } from "react-icons/lu"
-import { type Shortcut } from "../../lib/shortcuts"
 import { type ViewToggleKey } from "../../stores/viewStore"
 
 /**
@@ -20,7 +19,6 @@ export interface ToggleControl {
   icon: IconType
   /** Which boolean in the view store this button flips. */
   key: ViewToggleKey
-  shortcut?: Shortcut
 }
 
 /** The zoom-level selector; shows the current zoom and opens a level menu. */
@@ -43,7 +41,6 @@ export const VIEW_CONTROLS: ViewControl[] = [
     nameKey: "view.grid",
     icon: LuGrid3X3,
     key: "grid",
-    shortcut: { key: "g", shift: true },
   },
   {
     kind: "toggle",
@@ -51,7 +48,6 @@ export const VIEW_CONTROLS: ViewControl[] = [
     nameKey: "view.snap",
     icon: LuMagnet,
     key: "snap",
-    shortcut: { key: "s", shift: true },
   },
   {
     kind: "toggle",
@@ -59,7 +55,6 @@ export const VIEW_CONTROLS: ViewControl[] = [
     nameKey: "view.lighting",
     icon: LuLightbulb,
     key: "lighting",
-    shortcut: { key: "l", shift: true },
   },
   {
     kind: "toggle",
@@ -67,7 +62,6 @@ export const VIEW_CONTROLS: ViewControl[] = [
     nameKey: "view.shadows",
     icon: LuEclipse,
     key: "shadows",
-    shortcut: { key: "h", shift: true },
   },
   {
     kind: "toggle",
@@ -75,7 +69,6 @@ export const VIEW_CONTROLS: ViewControl[] = [
     nameKey: "view.outside",
     icon: LuFrame,
     key: "outside",
-    shortcut: { key: "o", shift: true },
   },
   { kind: "zoom", id: "zoom", nameKey: "view.zoom", icon: LuSearch },
 ]
