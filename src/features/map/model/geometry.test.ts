@@ -31,7 +31,7 @@ import {
   resamplePolyline,
   lengthFractions,
 } from "./geometry"
-import { createDocument, normalizeDocument, type MapEntity } from "./types"
+import { createDocument, normalizeDocument, type MapEntity, type Vec2 } from "./types"
 
 const obj = (id: string, x: number, y: number, layer = 100): MapEntity => ({
   id,
@@ -251,6 +251,70 @@ describe("wall runs & strip outline", () => {
     expect(runs).toHaveLength(1)
     expect(runs[0].points[0]).toEqual({ x: 1.5, y: 4 })
     expect(runs[0].points[runs[0].points.length - 1]).toEqual({ x: 2.5, y: 4 })
+  })
+})
+
+describe("openings next to a corner", () => {
+  const room = rectPolygon({ x: 0, y: 0 }, { x: 4, y: 4 })
+  const round = (p: Vec2) => ({ x: +p.x.toFixed(6), y: +p.y.toFixed(6) })
+  const pts = (center: Vec2) =>
+    wallRuns(room, true, [{ center, width: 1 }]).map((r) => r.points.map(round))
+
+  it("doesn't join the run past a window that cuts the end of a side", () => {
+    // A 1-tile window at x 3.2–4.2 on the top side: 0.2 of it sticks out past
+    // the (4,0) corner and cuts the right side too.
+    expect(pts({ x: 3.7, y: 0 })).toEqual([
+      [
+        { x: 4, y: 0.2 },
+        { x: 4, y: 4 },
+        { x: 0, y: 4 },
+        { x: 0, y: 0 },
+        { x: 3.2, y: 0 },
+      ],
+    ])
+  })
+
+  it("same next to vertex 0 (the closing seam), both ways", () => {
+    // Right after vertex 0, on the first side.
+    expect(pts({ x: 0.3, y: 0 })).toEqual([
+      [
+        { x: 0.8, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 4 },
+        { x: 0, y: 4 },
+        { x: 0, y: 0.2 },
+      ],
+    ])
+    // Right before vertex 0, on the closing side (x = 0, going up).
+    expect(pts({ x: 0, y: 0.3 })).toEqual([
+      [
+        { x: 0.2, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 4 },
+        { x: 0, y: 4 },
+        { x: 0, y: 0.8 },
+      ],
+    ])
+  })
+
+  it("an open wall: the corner piece doesn't hook onto a piece cut short", () => {
+    const L = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 4 },
+    ]
+    expect(
+      wallRuns(L, false, [{ center: { x: 3.5, y: 0 }, width: 1 }]).map((r) => r.points),
+    ).toEqual([
+      [
+        { x: 0, y: 0 },
+        { x: 3, y: 0 },
+      ],
+      [
+        { x: 4, y: 0 },
+        { x: 4, y: 4 },
+      ],
+    ])
   })
 })
 

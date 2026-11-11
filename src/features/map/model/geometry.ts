@@ -333,8 +333,9 @@ const OPENING_TOLERANCE = 0.05
 
 /**
  * Split a wall polyline into the pieces left after cutting out portal
- * openings. Pieces that end on an interior corner are flagged so the
- * renderer can extend them over the joint (no gaps at sharp angles).
+ * openings. Each opening cuts the segment nearest its center; whatever of
+ * it sticks out past a corner cuts the neighbouring segment too. Pieces that
+ * end on a corner are flagged (`capA`/`capB`) so runs join only there.
  */
 export function wallPieces(
   points: readonly Vec2[],
@@ -342,30 +343,62 @@ export function wallPieces(
   openings: readonly WallOpening[],
 ): WallPiece[] {
   const segments = segmentsOf(points, closed)
+  const n = segments.length
+  const lens = segments.map(([a, b]) => dist(a, b))
+  /** Cut intervals per segment, as fractions [t0, t1] of its length. */
+  const cuts: [number, number][][] = segments.map(() => [])
+  const prevOf = (i: number) => (i > 0 ? i - 1 : closed ? n - 1 : -1)
+  const nextOf = (i: number) => (i < n - 1 ? i + 1 : closed ? 0 : -1)
+  for (const o of openings) {
+    let best = -1
+    let bestD = OPENING_TOLERANCE
+    let bestT = 0
+    segments.forEach(([a, b], i) => {
+      if (lens[i] === 0) return
+      const { point, t } = closestOnSegment(o.center, a, b)
+      const d = dist(point, o.center)
+      if (d <= bestD) {
+        best = i
+        bestD = d
+        bestT = t
+      }
+    })
+    if (best < 0) continue
+    const half = o.width / 2
+    const at = bestT * lens[best]
+    cuts[best].push([
+      Math.max(0, at - half) / lens[best],
+      Math.min(lens[best], at + half) / lens[best],
+    ])
+    // The part past the segment's ends cuts into the segments around the corners.
+    let over = half - at
+    for (let i = prevOf(best); over > 1e-9 && i >= 0 && i !== best; i = prevOf(i)) {
+      if (lens[i] === 0) continue
+      cuts[i].push([Math.max(0, 1 - over / lens[i]), 1])
+      over -= lens[i]
+    }
+    over = at + half - lens[best]
+    for (let i = nextOf(best); over > 1e-9 && i >= 0 && i !== best; i = nextOf(i)) {
+      if (lens[i] === 0) continue
+      cuts[i].push([0, Math.min(1, over / lens[i])])
+      over -= lens[i]
+    }
+  }
   const pieces: WallPiece[] = []
   segments.forEach(([a, b], i) => {
-    const len = dist(a, b)
-    if (len === 0) return
-    const lerp = (t: number): Vec2 => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
-    const cuts = openings
-      .map((o) => {
-        const { point, t } = closestOnSegment(o.center, a, b)
-        if (dist(point, o.center) > OPENING_TOLERANCE) return null
-        const half = o.width / 2 / len
-        return [Math.max(0, t - half), Math.min(1, t + half)] as const
-      })
-      .filter((c): c is readonly [number, number] => c !== null)
-      .sort((x, y) => x[0] - y[0])
+    if (lens[i] === 0) return
+    const lerp = (t: number): Vec2 =>
+      t >= 1 ? b : { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
     const cornerStart = closed || i > 0
-    const cornerEnd = closed || i < segments.length - 1
+    const cornerEnd = closed || i < n - 1
     let start = 0
-    for (const [t0, t1] of cuts) {
+    for (const [t0, t1] of cuts[i].sort((x, y) => x[0] - y[0])) {
       if (t0 > start)
         pieces.push({ a: lerp(start), b: lerp(t0), capA: start === 0 && cornerStart, capB: false })
       start = Math.max(start, t1)
     }
     if (start < 1)
-      pieces.push({ a: lerp(start), b: b, capA: start === 0 && cornerStart, capB: cornerEnd })
+      pieces.push({ a: lerp(start), b, capA: start === 0 && cornerStart, capB: cornerEnd })
   })
   return pieces
 }
@@ -377,11 +410,11 @@ export interface WallRun {
 }
 
 /**
- * Group wall pieces into continuous runs: consecutive pieces that meet at a
- * corner become one polyline, so the renderer can join corners with miters
- * instead of overlapping separate strips. A closed wall without openings
- * stays one closed run; openings split it into open runs (the run crossing
- * the first vertex is stitched back together).
+ * Group wall pieces into continuous runs: a piece joins the run before it
+ * only when both meet at the same corner (the previous piece reaches it and
+ * this one starts there), so the renderer joins their corner. A closed wall
+ * without openings stays one closed run; openings split it into open runs
+ * (the run crossing the first vertex is stitched back together).
  */
 export function wallRuns(
   points: readonly Vec2[],
@@ -393,13 +426,15 @@ export function wallRuns(
   const cut = pieces.some((p) => !p.capA || !p.capB)
   if (closed && !cut) return [{ points: pieces.map((p) => p.a), closed: true }]
   const runs: Vec2[][] = []
+  let prev: WallPiece | undefined
   for (const p of pieces) {
     const current = runs[runs.length - 1]
-    if (p.capA && current) current.push(p.b)
+    if (p.capA && current && prev?.capB) current.push(p.b)
     else runs.push([p.a, p.b])
+    prev = p
   }
   // A closed wall's first piece continues the last run across vertex 0.
-  if (closed && runs.length > 1 && pieces[0].capA) {
+  if (closed && runs.length > 1 && pieces[0].capA && pieces[pieces.length - 1].capB) {
     const first = runs.shift() as Vec2[]
     runs[runs.length - 1].push(...first.slice(1))
   }
