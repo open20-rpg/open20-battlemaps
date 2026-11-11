@@ -542,7 +542,6 @@ function terrain(im: Importer, level: string, raw: Json): MapEntity[] {
     }
   })
   if (weights.length < 2) return out
-  const smooth = bool(t.smooth_blending, false)
   const layer = (plane: Uint8Array): SplatLayer => ({
     width: w,
     height: h,
@@ -556,7 +555,7 @@ function terrain(im: Importer, level: string, raw: Json): MapEntity[] {
         toolId: "terrainBrush",
         layer: -500,
         strokes: [],
-        params: { texture: ids[slots[k]], base, splat: layer(plane), smoothBlending: smooth },
+        params: { texture: ids[slots[k]], base, splat: layer(plane) },
       }),
     )
   })

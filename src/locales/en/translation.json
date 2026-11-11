@@ -115,7 +115,8 @@
     "snap": "Snap",
     "lighting": "Lighting",
     "shadows": "Shadows",
-    "zoom": "Zoom"
+    "zoom": "Zoom",
+    "outside": "Show outside the map"
   },
   "tools": {
     "design": "Design",

@@ -20,8 +20,13 @@ uniform highp vec4 uInputSize;
 uniform highp vec4 uOutputFrame;
 uniform float uPxPerTile;
 
+// Arithmetic hash (no sin): the classic fract(sin(x) * 43758) collapses to
+// a constant at mediump or on GPUs with a coarse sin(), which made every
+// partial coverage vanish below one flat threshold.
 float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
 }
 
 float valueNoise(vec2 p) {
@@ -62,7 +67,13 @@ void main(void) {
 /** A natural-edge filter for a mask rendered at `pxPerTile` px per map tile. */
 export function naturalEdgeFilter(pxPerTile: number): Filter {
   return new Filter({
-    glProgram: GlProgram.from({ vertex: defaultFilterVert, fragment, name: "natural-edge" }),
+    glProgram: GlProgram.from({
+      vertex: defaultFilterVert,
+      fragment,
+      name: "natural-edge",
+      // Pixel positions across a whole map overflow mediump (≈ 2^10 exact).
+      preferredFragmentPrecision: "highp",
+    }),
     resources: {
       naturalEdgeUniforms: { uPxPerTile: { value: pxPerTile, type: "f32" } },
     },

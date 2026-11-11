@@ -1,5 +1,5 @@
 import { type IconType } from "react-icons"
-import { LuEclipse, LuGrid3X3, LuLightbulb, LuMagnet, LuSearch } from "react-icons/lu"
+import { LuEclipse, LuFrame, LuGrid3X3, LuLightbulb, LuMagnet, LuSearch } from "react-icons/lu"
 import { type Shortcut } from "../../lib/shortcuts"
 import { type ViewToggleKey } from "../../stores/viewStore"
 
@@ -68,6 +68,14 @@ export const VIEW_CONTROLS: ViewControl[] = [
     icon: LuEclipse,
     key: "shadows",
     shortcut: { key: "h", shift: true },
+  },
+  {
+    kind: "toggle",
+    id: "outside",
+    nameKey: "view.outside",
+    icon: LuFrame,
+    key: "outside",
+    shortcut: { key: "o", shift: true },
   },
   { kind: "zoom", id: "zoom", nameKey: "view.zoom", icon: LuSearch },
 ]
