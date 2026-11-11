@@ -301,7 +301,9 @@
     "kind_materials": "Materials",
     "selectAll_materials": "All materials",
     "elementFilter": "Element filter",
-    "resetToggles": "Reset filter"
+    "resetToggles": "Reset filter",
+    "lock": "Lock",
+    "unlock": "Unlock"
   },
   "biomes": {
     "barren": "Barren",
@@ -456,6 +458,8 @@
     "action_invert": "Invert tool (erase)",
     "action_brushSmaller": "Shrink brush / object",
     "action_brushBigger": "Grow brush / object",
-    "action_selectTool": "Go to Select / back"
+    "action_selectTool": "Go to Select / back",
+    "action_lock": "Lock selection",
+    "action_unlock": "Unlock selection"
   }
 }

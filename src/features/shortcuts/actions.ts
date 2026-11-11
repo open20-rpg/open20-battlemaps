@@ -59,6 +59,8 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   action("delete", "edit"),
   action("group", "edit"),
   action("ungroup", "edit"),
+  action("lock", "edit"),
+  action("unlock", "edit"),
   action("flipH", "edit"),
   action("flipV", "edit"),
   action("pan", "view", true),
@@ -97,6 +99,9 @@ export const PRESET_BINDINGS: Record<PresetId, Record<string, string[]>> = {
     delete: ["Delete", "Backspace"],
     group: ["Ctrl+G"],
     ungroup: ["Ctrl+Shift+G"],
+    // Dungeondraft has no lock shortcuts; these keys are free in it.
+    lock: ["Ctrl+L"],
+    unlock: ["Ctrl+Shift+L"],
     flipH: ["F"],
     flipV: ["Shift+F"],
     pan: ["Space", "MouseMiddle"],

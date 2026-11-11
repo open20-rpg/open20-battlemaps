@@ -301,7 +301,9 @@
     "kind_materials": "Materiales",
     "selectAll_materials": "Todos los materiales",
     "elementFilter": "Filtro de elementos",
-    "resetToggles": "Restablecer filtro"
+    "resetToggles": "Restablecer filtro",
+    "lock": "Bloquear",
+    "unlock": "Desbloquear"
   },
   "biomes": {
     "barren": "Yermo",
@@ -456,6 +458,8 @@
     "action_invert": "Invertir herramienta (borrar)",
     "action_brushSmaller": "Achicar pincel / objeto",
     "action_brushBigger": "Agrandar pincel / objeto",
-    "action_selectTool": "Ir a Seleccionar / volver"
+    "action_selectTool": "Ir a Seleccionar / volver",
+    "action_lock": "Bloquear selección",
+    "action_unlock": "Desbloquear selección"
   }
 }

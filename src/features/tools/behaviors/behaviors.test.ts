@@ -550,6 +550,34 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()[0].group).toBeDefined()
   })
 
+  it("Locked entities skip clicks and bands; an Alt band picks only them", () => {
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
+    down("object", 2, 2)
+    down("object", 6, 6)
+    useToolsStore.getState().selectToolById("select")
+    const [a, b] = entities().map((e) => e.id)
+    useEditorStore.getState().select([a])
+    expect(isToolActionDisabled("select", "unlock")).toBe(true)
+    runToolAction("select", "lock")
+    expect(entities()[0].locked).toBe(true)
+    useEditorStore.getState().select([])
+    down("select", 2, 2)
+    up("select", 2, 2)
+    expect(useEditorStore.getState().selection).toEqual([])
+    const band = (altKey: boolean) => {
+      down("select", 10, 10, { altKey })
+      move("select", 0, 0, { altKey })
+      up("select", 0, 0)
+      return useEditorStore.getState().selection
+    }
+    expect(band(false)).toEqual([b])
+    expect(band(true)).toEqual([a])
+    runToolAction("select", "unlock")
+    expect(entities()[0].locked).toBeUndefined()
+    undo()
+    expect(entities()[0].locked).toBe(true)
+  })
+
   it("Select mirrors the selection (panel buttons / flip shortcuts)", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"], mirror: true })
     down("object", 2, 2)

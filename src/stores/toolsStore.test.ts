@@ -35,6 +35,8 @@ describe("toolsStore", () => {
       flipV: null,
       group: null,
       ungroup: null,
+      lock: null,
+      unlock: null,
       properties: null,
     })
   })

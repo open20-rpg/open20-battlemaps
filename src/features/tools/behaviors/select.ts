@@ -177,8 +177,15 @@ export function ungroupSelection(ctx: ToolCtx): void {
   updateEntities(new Map(grouped.map((e) => [e.id, { group: undefined }])))
 }
 
-/** What clicks and rubber bands may pick: the Select tool's element filter. */
-const pickable = (ctx: ToolCtx) => selectableBy(elementFilter(ctx.params))
+/** What clicks and rubber bands may pick: the Select tool's element filter (locked ones alone with `locked`). */
+const pickable = (ctx: ToolCtx, locked = false) => selectableBy(elementFilter(ctx.params), locked)
+
+/** Lock (or unlock) the selection in place. */
+export function lockSelection(ctx: ToolCtx, locked: boolean): void {
+  const ids = new Set(useEditorStore.getState().selection)
+  const changed = ctx.entities.filter((e) => ids.has(e.id) && !!e.locked !== locked)
+  updateEntities(new Map(changed.map((e) => [e.id, { locked: locked || undefined }])))
+}
 
 /** Turn the selected sprites (objects, portals, lights…) by `delta` degrees each, in place. */
 export function rotateSelection(ctx: ToolCtx, delta: number): void {
@@ -191,12 +198,11 @@ export function rotateSelection(ctx: ToolCtx, delta: number): void {
   updateEntities(patches)
 }
 
-/** Entities whose bounds intersect the rubber band. */
-export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
+/** Entities whose bounds intersect the rubber band (only the locked ones with `locked`). */
+export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2, locked = false): MapEntity[] {
   const band = rectFromCorners(a, b)
-  return ctx.entities.filter(
-    (e) => pickable(ctx)(e) && rectsIntersect(entityBounds(e, ctx.sizeOf), band),
-  )
+  const pick = pickable(ctx, locked)
+  return ctx.entities.filter((e) => pick(e) && rectsIntersect(entityBounds(e, ctx.sizeOf), band))
 }
 
 /**
@@ -208,11 +214,13 @@ export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
  * its center (Shift snaps to 15°). The flip shortcuts (or the panel buttons) mirror the
  * selection left↔right / top↔bottom. `[`/`]`
  * rotate the selection too; Delete/Ctrl+C/V/X are the global shortcuts.
+ * Locked entities are left out of clicks and bands; an Alt band picks only
+ * them (to unlock, move or delete them).
  */
 export function createSelectBehavior(): ToolBehavior {
   let mode:
     | { kind: "move"; from: Vec2; moved: Vec2 }
-    | { kind: "band"; from: Vec2; to: Vec2 }
+    | { kind: "band"; from: Vec2; to: Vec2; locked: boolean }
     | { kind: "transform"; drag: TransformDrag }
     | { kind: "vertex"; id: string; index: number }
     | null = null
@@ -254,7 +262,7 @@ export function createSelectBehavior(): ToolBehavior {
         return
       }
       if (!e.shiftKey) editor().select([])
-      mode = { kind: "band", from: { x: e.x, y: e.y }, to: { x: e.x, y: e.y } }
+      mode = { kind: "band", from: { x: e.x, y: e.y }, to: { x: e.x, y: e.y }, locked: e.altKey }
     },
     onPointerMove: (ctx, e) => {
       if (!mode || !e.buttons) return
@@ -296,7 +304,7 @@ export function createSelectBehavior(): ToolBehavior {
         endGesture()
       if (mode?.kind === "band") {
         const ids = expandGroups(
-          entitiesInRect(ctx, mode.from, mode.to).map((x) => x.id),
+          entitiesInRect(ctx, mode.from, mode.to, mode.locked).map((x) => x.id),
           ctx.entities,
         )
         if (e.shiftKey) editor().toggleSelect(ids)
@@ -310,11 +318,14 @@ export function createSelectBehavior(): ToolBehavior {
       if (action === "flipV") flipSelection(ctx, "y")
       if (action === "group") groupSelection(ctx)
       if (action === "ungroup") ungroupSelection(ctx)
+      if (action === "lock" || action === "unlock") lockSelection(ctx, action === "lock")
     },
     isActionDisabled: (ctx, action) => {
       const selected = selectedOf(ctx)
       if (action === "group") return selected.length < 2
       if (action === "ungroup") return !hasGroups(selected)
+      if (action === "lock") return !selected.some((x) => !x.locked)
+      if (action === "unlock") return !selected.some((x) => x.locked)
       return selected.length === 0
     },
     onDeactivate: () => {

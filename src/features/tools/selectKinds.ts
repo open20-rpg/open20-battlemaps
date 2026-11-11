@@ -77,11 +77,16 @@ const KIND_OF_TOOL = new Map(SELECT_KINDS.flatMap((k) => k.toolIds.map((t) => [t
 
 /**
  * Whether the Select tool may pick `e` with the element filter `enabled`
- * (kind ids). Entities of no listed kind are always pickable.
+ * (kind ids). Entities of no listed kind are always pickable. Locked
+ * entities are skipped — or, with `locked`, are the only ones picked.
  */
-export function selectableBy(enabled: readonly string[]): (e: MapEntity) => boolean {
+export function selectableBy(
+  enabled: readonly string[],
+  locked = false,
+): (e: MapEntity) => boolean {
   const on = new Set(enabled)
   return (e) => {
+    if (!!e.locked !== locked) return false
     const k = KIND_OF_TOOL.get(e.toolId)
     if (!k) return isSelectable(e)
     return on.has(k.id) && isSelectable(e, k.paint === true)

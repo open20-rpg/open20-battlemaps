@@ -62,6 +62,11 @@ export interface MapEntity {
    * (Select's Group / Ungroup).
    */
   group?: string
+  /**
+   * Locked in place: clicks, rubber bands and Select All skip it; only an
+   * Alt rubber band (which picks locked entities alone) selects it.
+   */
+  locked?: boolean
   /** Text content (Text tool). */
   text?: string
   params: Record<string, unknown>

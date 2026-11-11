@@ -172,12 +172,16 @@ function bitmapStrokes(im: Importer, literal: unknown, cellPx: number): BrushStr
 }
 
 /**
- * The group an item belongs to: Dungeondraft stores groups ("prefabs" in its
- * code) as a shared `prefab_id` on each member, a decimal string, map-wide.
+ * The group an item belongs to and whether it's locked: Dungeondraft stores
+ * groups ("prefabs" in its code) as a shared `prefab_id` on each member, a
+ * decimal string, map-wide, and the lock as an optional `locked` bool.
  */
-function grouped(raw: Json): Pick<MapEntity, "group"> {
+function grouped(raw: Json): Pick<MapEntity, "group" | "locked"> {
   const id = raw.prefab_id
-  return typeof id === "string" && id !== "" ? { group: `dd-${id}` } : {}
+  return {
+    ...(typeof id === "string" && id !== "" ? { group: `dd-${id}` } : {}),
+    ...(raw.locked === true ? { locked: true } : {}),
+  }
 }
 
 function entity(

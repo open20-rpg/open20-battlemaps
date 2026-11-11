@@ -211,6 +211,8 @@ export function runAction(id: string): boolean {
     }
     case "group":
     case "ungroup":
+    case "lock":
+    case "unlock":
       runToolAction("select", id)
       return true
     case "zoomIn":

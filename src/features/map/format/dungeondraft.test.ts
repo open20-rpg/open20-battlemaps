@@ -67,6 +67,7 @@ const MAP = {
             position: "Vector2( 0, 0 )",
             texture: "res://textures/objects/barrel.png",
             prefab_id: "4",
+            locked: true,
           },
         ],
         paths: [
@@ -176,6 +177,8 @@ describe("Dungeondraft import", () => {
     // Same prefab_id → same group.
     expect(chair.group).toBe("dd-4")
     expect(barrel.group).toBe(chair.group)
+    expect(barrel.locked).toBe(true)
+    expect(chair.locked).toBeUndefined()
   })
 
   it("converts paths, lights, roofs and texts", () => {
