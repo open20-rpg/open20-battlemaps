@@ -54,14 +54,17 @@ function withMaterialized(
   return next
 }
 
+/** The tool active by default (and when the active one is turned off): Select. */
+const DEFAULT_PATH: ToolNode[] = findToolPath(TOOL_TREE, "select") ?? []
+
 export const useToolsStore = create<ToolsState>()((set) => ({
-  path: [],
-  paramsByTool: {},
+  path: DEFAULT_PATH,
+  paramsByTool: withMaterialized({}, DEFAULT_PATH),
   paramsCollapsed: false,
 
   selectTop: (node) =>
     set((s) => {
-      const path = s.path[0]?.id === node.id ? [] : [node]
+      const path = s.path[0]?.id === node.id ? DEFAULT_PATH : [node]
       return { path, paramsByTool: withMaterialized(s.paramsByTool, path), paramsCollapsed: false }
     }),
 
@@ -82,9 +85,14 @@ export const useToolsStore = create<ToolsState>()((set) => ({
       }
     }),
 
-  reset: () => set({ path: [], paramsCollapsed: false }),
+  reset: () => set({ path: DEFAULT_PATH, paramsCollapsed: false }),
 
-  resetAll: () => set({ path: [], paramsCollapsed: false, paramsByTool: {} }),
+  resetAll: () =>
+    set({
+      path: DEFAULT_PATH,
+      paramsCollapsed: false,
+      paramsByTool: withMaterialized({}, DEFAULT_PATH),
+    }),
 
   toggleParams: () => set((s) => ({ paramsCollapsed: !s.paramsCollapsed })),
 

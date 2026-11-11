@@ -3,6 +3,7 @@ import { Box, Flex, Heading, IconButton, Portal } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuX } from "react-icons/lu"
 import { useModalLayer } from "../stores/modalStackStore"
+import { STATUS_BAR_HEIGHT } from "./layout"
 
 interface ModalLayerProps {
   open: boolean
@@ -52,17 +53,21 @@ export function ModalLayer({
           onPointerDown={closeOnBackdrop ? onClose : undefined}
         />
         {centered ? (
+          // Dialogs fit between the top of the window and the status bar
+          // (which stays on top of them): taller content scrolls inside.
           <Flex
             position="absolute"
-            inset="0"
-            align="center"
+            top="0"
+            left="0"
+            right="0"
+            bottom={STATUS_BAR_HEIGHT}
             justify="center"
             p="4"
             pointerEvents="none"
           >
-            <Box pointerEvents="auto" maxH="100%" display="flex">
+            <Flex h="full" align="center" css={{ "& > *": { pointerEvents: "auto" } }}>
               {children}
-            </Box>
+            </Flex>
           </Flex>
         ) : (
           children
@@ -110,7 +115,7 @@ export function Modal({
         w={SIZE_WIDTH[size]}
         maxW="calc(100vw - 32px)"
         // Tall content scrolls inside the body; header and footer stay put.
-        maxH="calc(100vh - 32px)"
+        maxH="full"
         display="flex"
         flexDirection="column"
         overflow="hidden"

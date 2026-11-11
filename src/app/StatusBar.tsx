@@ -2,13 +2,11 @@ import { Box, Flex, HStack, Icon, Portal, Spinner, Text, VStack } from "@chakra-
 import { useTranslation } from "react-i18next"
 import { LuCircleCheck } from "react-icons/lu"
 import { Tooltip } from "../ui/chakra/tooltip"
+import { STATUS_BAR_HEIGHT } from "../ui/layout"
 import { useIsLoading, useLoadingStore } from "../stores/loadingStore"
 import { useHasMap } from "../stores/mapStore"
 import { useMapDirty, useMapFilePath } from "../stores/mapFileStore"
 import { useActiveTool } from "../stores/toolsStore"
-
-/** Height of the status bar; the app reserves this much space at the bottom. */
-export const STATUS_BAR_HEIGHT = "26px"
 
 /** A thin vertical divider between status-bar items. */
 function Sep() {

@@ -51,13 +51,13 @@ describe("toolsStore", () => {
     })
   })
 
-  it("selectTop toggles the same node off", () => {
-    const { selectToolById } = useToolsStore.getState()
-    selectToolById("select")
+  it("starts on Select, and turning a tool off goes back to it", () => {
+    useToolsStore.getState().resetAll()
     expect(selectActiveTool(useToolsStore.getState())?.id).toBe("select")
+    useToolsStore.getState().selectToolById("wall")
     const top = useToolsStore.getState().path[0]
     useToolsStore.getState().selectTop(top)
-    expect(useToolsStore.getState().path).toEqual([])
+    expect(selectActiveTool(useToolsStore.getState())?.id).toBe("select")
   })
 
   it("toggleParams flips the collapsed flag", () => {
