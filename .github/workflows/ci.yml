@@ -6,6 +6,26 @@ on:
     branches: [main]
 
 jobs:
+  # Every commit must be a Conventional Commit: semantic-release derives the
+  # version and release notes from them (see AGENTS.md → Release).
+  commits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: lint PR commits
+        if: github.event_name == 'pull_request'
+        run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+      - name: lint pushed commits
+        if: github.event_name == 'push'
+        run: npx commitlint --last --verbose
+
   frontend:
     runs-on: ubuntu-latest
     steps:

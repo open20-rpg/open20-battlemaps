@@ -1,11 +1,18 @@
 name: "release"
 
-# Builds OpenDraft for Windows, Linux, macOS (Intel + Apple Silicon) and Android,
-# and attaches the installers to a (draft) GitHub Release.
+# Releases are automated with semantic-release on every push to `main`:
+#   1. `release` reads the Conventional Commits since the last tag, decides the
+#      next version (feat/fix/perf -> patch, breaking -> minor while in 0.x; see
+#      .releaserc.json), bumps the 5 version files, commits them back as
+#      `chore(release): vX.Y.Z [skip ci]`, tags `vX.Y.Z` and creates the GitHub
+#      Release (marked prerelease until 1.0).
+#   2. Only when a release was published, the build jobs compile Windows, Linux,
+#      macOS (Intel + Apple Silicon) and Android from that tag and attach the
+#      installers to it. Pushes with nothing releasable (docs, chore, ci…) build
+#      nothing.
 #
-# Triggers:
-#   - Manually from the Actions tab (workflow_dispatch).
-#   - Automatically when a tag like `v1.2.3` is pushed.
+# semantic-release runs through `npx` with pinned versions instead of being a
+# devDependency: it bundles its own npm, whose dependencies trip `npm audit`.
 #
 # Android signing (optional). To produce a *signed*, installable APK/AAB, set these
 # repository secrets. Without them the Android job still runs but only uploads an
@@ -18,21 +25,63 @@ name: "release"
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches: [main]
 
-# Allow the jobs to create/update the release.
+# Allow the jobs to create/update the release and push the version commit.
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
+
+# Never run two releases at once (they'd race for the same version).
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   # ---------------------------------------------------------------------------
+  # semantic-release: version, tag and GitHub Release from the commit history.
+  # ---------------------------------------------------------------------------
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semrel.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: semantic-release
+        id: semrel
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          npx --yes
+          -p semantic-release@25.0.9
+          -p @semantic-release/exec@7.1.0
+          -p @semantic-release/git@11.0.1
+          -p conventional-changelog-conventionalcommits@9.3.1
+          semantic-release
+
+      # Every release is a prerelease until 1.0 (see AGENTS.md → Release).
+      - name: mark as prerelease
+        if: steps.semrel.outputs.version != '' && startsWith(steps.semrel.outputs.version, '0.')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "v${{ steps.semrel.outputs.version }}" --prerelease
+
+  # ---------------------------------------------------------------------------
   # Desktop: Windows, Linux, macOS (arm64 + x86_64) via tauri-action.
   # Temporarily disabled to save CI minutes — only Android builds for now.
-  # Re-enable by removing the `if: false` line below.
+  # Re-enable by removing the `false &&` from its `if` below.
   # ---------------------------------------------------------------------------
   desktop:
-    if: false
+    needs: release
+    if: false && needs.release.outputs.version != ''
     strategy:
       fail-fast: false
       matrix:
@@ -49,6 +98,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
 
       - name: setup node
         uses: actions/setup-node@v7
@@ -81,9 +132,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__ # tauri-action replaces __VERSION__ with the app version.
-          releaseName: "OpenDraft v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
+          # The release already exists (semantic-release made it, with its
+          # notes); tauri-action only uploads the installers to it.
+          tagName: v${{ needs.release.outputs.version }}
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
@@ -92,12 +143,16 @@ jobs:
   # Android: builds the app bundle / apk. Signs it when keystore secrets exist.
   # ---------------------------------------------------------------------------
   android:
+    needs: release
+    if: needs.release.outputs.version != ''
     runs-on: ubuntu-latest
     env:
       NDK_VERSION: "27.3.13750724" # NDK r27 LTS (Google's recommended)
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
 
       - name: setup node
         uses: actions/setup-node@v7
@@ -178,8 +233,9 @@ jobs:
           path: android-artifacts/*
 
       - name: attach to release
-        if: env.ANDROID_KEYSTORE_BASE64 != '' && startsWith(github.ref, 'refs/tags/')
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: v${{ needs.release.outputs.version }}
           prerelease: true
           files: android-artifacts/*

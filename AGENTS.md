@@ -121,26 +121,27 @@ ni accionable.
   de versión, releases, fixes ya verificados). Dejá el cambio hecho y sin
   commitear, y pedí confirmación antes de commitear/pushear.
 
-## Release
+## Commits y release
 
-Sin CHANGELOG ni versionado semántico estricto (todo bump es de patch,
-`0.1.x`, mientras no se llegue a 1.0). Pasos, en orden:
-
-1. Incrementar la versión en los 5 lugares que la llevan: `package.json`,
-   `package-lock.json` (`version` de nivel superior y de `packages[""]`),
-   `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`
-   (entrada `name = "opendraft"`). Los 5 valores deben coincidir siempre.
-2. Verificar (`npm run typecheck` y `cargo check --manifest-path
-src-tauri/Cargo.toml` alcanza; no hace falta correr la suite completa solo
-   para el bump).
-3. Commitear solo esos 5 archivos: `chore: bump version to X.Y.Z`.
-4. Taggear ese commit como `vX.Y.Z` y pushear la rama **y** el tag
-   (`git push origin main && git push origin vX.Y.Z`).
-5. El push del tag dispara `.github/workflows/release.yml`, que compila
-   Windows/Linux/macOS (Intel+ARM)/Android y crea la GitHub Release (siempre
-   `prerelease: true` mientras no haya versión 1.0 estable) con los
-   instaladores adjuntos — no hay paso manual de "crear la release en
-   GitHub", lo hace el workflow.
+- **Todo commit sigue [Conventional Commits](https://www.conventionalcommits.org)**
+  (`feat:`, `fix:`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, `ci:`,
+  `chore:`, `style:`, `revert:`; `!` o `BREAKING CHANGE:` para cambios que
+  rompen). CI lo verifica con commitlint (`commitlint.config.js`) y la
+  versión sale de ahí.
+- El release es automático con **semantic-release** (`.releaserc.json`) en cada
+  push a `main` (`.github/workflows/release.yml`). Mientras estemos en `0.x`:
+  `feat`/`fix`/`perf` → patch (`0.1.x`), breaking → minor. `docs`, `chore`,
+  `ci`, etc. no generan versión ni build.
+- Al publicar, semantic-release actualiza la versión en los 5 lugares que la
+  llevan (`package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`,
+  `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, vía
+  `scripts/bump-version.mjs`), commitea `chore(release): vX.Y.Z [skip ci]`,
+  taggea `vX.Y.Z` y crea la GitHub Release con las notas (marcada
+  `prerelease` mientras no haya 1.0). Recién entonces corren los builds
+  (Android; escritorio está apagado con `if: false &&`) y adjuntan los
+  instaladores. **No bumpees versiones ni crees tags a mano.**
+- semantic-release se ejecuta en CI con `npx` y versiones fijadas, no como
+  devDependency (trae su propio npm, que ensucia `npm audit`).
 
 ## Verificación
 
