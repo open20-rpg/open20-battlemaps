@@ -102,7 +102,7 @@ export function useAssetSearch({
       scrollRef.current?.scrollTo({ top: 0 })
       return withLoading(t("loading.searchingLibrary"), () =>
         searchLibrary(browserKey, category, {
-          query: q,
+          query: q.trim(),
           exactness: exactnessRef.current,
           packId,
           tag,

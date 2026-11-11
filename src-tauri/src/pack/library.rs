@@ -101,6 +101,13 @@ fn main_part(category: &str) -> Option<&'static str> {
     }
 }
 
+/// Companion textures that belong to another item instead of being one: a
+/// wall's `<name>_end` end cap is drawn by the editor at the wall's open ends,
+/// so it must not show up as a wall of its own.
+fn is_companion_texture(category: &str, stem: &str) -> bool {
+    category == "walls" && stem.to_ascii_lowercase().ends_with("_end")
+}
+
 /// Walk `textures/<category>` of a pack and collect its files.
 fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<CacheItem> {
     let Ok(dir) = pack_dir(app, pack_id) else {
@@ -122,6 +129,9 @@ fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<C
                 .file_stem()
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_default();
+            if is_companion_texture(category, &stem) {
+                continue;
+            }
             // Grouped categories: keep only the main part, named after its folder.
             let name = if let Some(part) = main {
                 if !stem.eq_ignore_ascii_case(part) {
@@ -188,6 +198,12 @@ fn is_subsequence(q: &str, s: &str) -> bool {
     q.chars().all(|c| chars.any(|x| x == c))
 }
 
+/// The search text as matched: lowercase, without leading/trailing spaces
+/// (those are never part of a name the user means).
+fn normalize_query(query: &str) -> String {
+    query.trim().to_lowercase()
+}
+
 /// Match `name` against `query` with an exactness in [0,1]. Near the exact end
 /// only substring matches count; lower down, subsequence (fuzzy) matches too.
 fn matches(name_lower: &str, query_lower: &str, exactness: f32) -> bool {
@@ -241,7 +257,7 @@ pub(crate) fn search(
     }
     enabled.sort();
 
-    let q = filter.query.to_lowercase();
+    let q = normalize_query(&filter.query);
     let exactness = filter.exactness;
     let mut results: Vec<LibItemLite> = Vec::new();
 
@@ -394,6 +410,21 @@ mod tests {
         assert_eq!(split_asset_id("no-separator"), None);
         assert_eq!(split_asset_id("|textures/a.png"), None);
         assert_eq!(split_asset_id("p|../../etc/passwd"), None);
+    }
+
+    #[test]
+    fn wall_end_caps_are_companions_not_items() {
+        assert!(is_companion_texture("walls", "stone_wall_end"));
+        assert!(is_companion_texture("walls", "Stone_END"));
+        assert!(!is_companion_texture("walls", "stone_wall"));
+        assert!(!is_companion_texture("objects", "chair_end"));
+    }
+
+    #[test]
+    fn search_query_is_trimmed_and_lowercased() {
+        assert_eq!(normalize_query("  Chair "), "chair");
+        assert!(matches("wooden chair", &normalize_query(" chair  "), 1.0));
+        assert_eq!(normalize_query("   "), "");
     }
 
     #[test]
