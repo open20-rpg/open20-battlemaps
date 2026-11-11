@@ -139,6 +139,7 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
       value={value}
       labelKey={spec.labelKey}
       options={spec.options}
+      defaultValue={spec.default}
       onChange={onChange}
     />
   ),

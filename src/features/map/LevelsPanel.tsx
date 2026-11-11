@@ -82,7 +82,7 @@ export function LevelsPanel() {
               aria-label={t("levels.delete")}
               size="2xs"
               variant="ghost"
-              colorPalette="red"
+              colorPalette="danger"
               disabled={levels.length <= 1}
               onClick={() => removeLevel(level.id)}
             >

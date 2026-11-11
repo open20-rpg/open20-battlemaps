@@ -64,7 +64,7 @@ export function PrefabsControl({
               aria-label={t("tools.delete")}
               size="2xs"
               variant="ghost"
-              colorPalette="red"
+              colorPalette="danger"
               onClick={(e) => {
                 e.stopPropagation()
                 if (selected) onChange(null)

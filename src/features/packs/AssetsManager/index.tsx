@@ -175,7 +175,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       <Button
         size="xs"
         variant="subtle"
-        colorPalette="red"
+        colorPalette="danger"
         disabled={!hasSelection || busy}
         onClick={handleDelete}
       >

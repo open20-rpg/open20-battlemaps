@@ -66,6 +66,19 @@ const config = defineConfig({
         "panel.border": { value: "#34343c" },
         "panel.rowHover": { value: "#2a2a31" },
         "panel.rowSelected": { value: "#3a1a1c" },
+        // Destructive actions (Delete, Remove…): red text and icon on a
+        // neutral surface — never a red fill — so they don't read as the
+        // crimson brand (primary buttons, active tools, selections).
+        danger: {
+          solid: { value: "#d6333a" },
+          contrast: { value: "#ffffff" },
+          // Coral, not the brand's crimson: red text means "destructive" only.
+          fg: { value: "#ff7f6a" },
+          muted: { value: "#3a3a42" },
+          subtle: { value: "#2a2a30" },
+          emphasized: { value: "#44444d" },
+          focusRing: { value: "#ff7f6a" },
+        },
         // Full palette semantics, so `colorPalette="brand"` works on any recipe.
         brand: {
           solid: { value: "{colors.brand.600}" },
@@ -76,6 +89,8 @@ const config = defineConfig({
           emphasized: { value: "{colors.brand.700}" },
           focusRing: { value: "{colors.brand.500}" },
         },
+        // Neutral icon tint (placeholders, empty states).
+        "icon.muted": { value: "#8a8a90" },
       },
     },
   },

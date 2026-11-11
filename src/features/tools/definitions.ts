@@ -618,7 +618,7 @@ export const TOOL_TREE: ToolNode[] = [
       tool("referenceImage", "tools.referenceImage", LuImage, {
         params: [
           button("load", "tools.loadImage", LuImagePlus),
-          button("remove", "tools.removeImage", LuTrash2, "red"),
+          button("remove", "tools.removeImage", LuTrash2, "danger"),
           switchParam("visible", "tools.visible", true),
           sliderParam("opacity", "tools.opacity", 0.05, 1, 0.05, 0.5),
           sliderParam("width", "tools.imageWidth", 1, 300, 1, 30),
@@ -640,7 +640,7 @@ export const TOOL_TREE: ToolNode[] = [
         ],
         "edit",
       ),
-      button("delete", "tools.delete", LuTrash2, "red"),
+      button("delete", "tools.delete", LuTrash2, "danger"),
       font("font", "tools.font"),
       sliderParam("fontSize", "tools.fontSize", 8, 256, 1, 32),
       customColor("fontColor", "tools.fontColor", "#000000"),
