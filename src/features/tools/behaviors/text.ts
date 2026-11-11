@@ -30,12 +30,31 @@ const TEXT_KEYS = [
 const textParams = (params: Record<string, unknown>) =>
   Object.fromEntries(TEXT_KEYS.map((k) => [k, params[k]]))
 
+/**
+ * The inline editor's input (TextEditOverlay keeps one mounted). Phones and
+ * tablets only bring up the on-screen keyboard for a focus made while
+ * handling the tap itself, so the editor is focused right here, in the
+ * pointer handler that opens it, rather than once React has rendered it.
+ */
+let editorInput: HTMLInputElement | null = null
+
+export function registerTextEditorInput(input: HTMLInputElement | null): void {
+  editorInput = input
+}
+
+function openTextEdit(edit: TextEditState): void {
+  useEditorStore.getState().setTextEdit(edit)
+  editorInput?.focus({ preventScroll: true })
+}
+
 /** Apply the open inline editor: create/update the label (one line; empty deletes it). */
 export function commitTextEdit(): void {
   const editor = useEditorStore.getState()
   const edit = editor.textEdit
   if (!edit) return
   editor.setTextEdit(null)
+  // Closes the on-screen keyboard (the input stays mounted, hidden).
+  editorInput?.blur()
   const value = edit.value.replace(/\s*\n\s*/g, " ").trim()
   if (edit.entityId) {
     if (value) updateEntity(edit.entityId, { text: value })
@@ -62,6 +81,7 @@ export function commitTextEdit(): void {
 
 export function cancelTextEdit(): void {
   useEditorStore.getState().setTextEdit(null)
+  editorInput?.blur()
 }
 
 /**
@@ -104,7 +124,7 @@ export function createTextBehavior(): ToolBehavior {
       dragging = p
     },
     onPointerUp: () => {
-      if (pendingEdit) useEditorStore.getState().setTextEdit(pendingEdit)
+      if (pendingEdit) openTextEdit(pendingEdit)
       pendingEdit = null
       if (dragging) endGesture()
       dragging = null
