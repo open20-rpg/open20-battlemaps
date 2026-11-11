@@ -8,6 +8,8 @@ import { type MapEntity } from "../../map/model/types"
 import { TOOL_TREE, findToolPath } from "../definitions"
 import { type ToolParamSpec } from "../params"
 import { propertyPatches, sharedProperties } from "../properties"
+import { SELECT_KINDS, idsOfKind } from "../selectKinds"
+import { ButtonControl } from "./ButtonControl"
 
 /** Quiet time after the last change that closes the current undo step. */
 const EDIT_SETTLE_MS = 400
@@ -39,15 +41,33 @@ export function SelectionPropertiesControl({
 }) {
   const { t } = useTranslation()
   const selection = useEditorStore((s) => s.selection)
+  const select = useEditorStore((s) => s.select)
+  const activeLevel = useEditorStore((s) => s.activeLevel)
   const all = useMapStore((s) => s.map?.entities ?? NO_ENTITIES)
   const ids = new Set(selection)
   const selected = all.filter((e) => ids.has(e.id))
 
   if (selected.length === 0) {
+    // Nothing selected: offer "select all …" for every kind on the level.
+    const level = activeLevel ?? undefined
+    const onLevel = all.filter((e) => !e.level || !level || e.level === level)
+    const kinds = SELECT_KINDS.map((kind) => ({ kind, ids: idsOfKind(kind, onLevel) })).filter(
+      (k) => k.ids.length > 0,
+    )
     return (
-      <Text px="3" py="3" fontSize="xs" color="fg.muted">
-        {t("tools.selectHint")}
-      </Text>
+      <VStack align="stretch" gap="0" borderTopWidth="1px" borderColor="panel.border" mt="2">
+        <Text px="3" pt="3" pb="1" fontSize="xs" color="fg.muted">
+          {t("tools.selectHint")}
+        </Text>
+        {kinds.map(({ kind, ids }) => (
+          <ButtonControl
+            key={kind.id}
+            labelKey={kind.labelKey}
+            icon={kind.icon}
+            onClick={() => select(ids)}
+          />
+        ))}
+      </VStack>
     )
   }
   const first = selected[0]

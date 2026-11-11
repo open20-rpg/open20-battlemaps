@@ -103,6 +103,7 @@ const buildEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
     params: {
       floor: selection(ctx.params.floor),
       bevelCorners: ctx.params.bevelCorners !== false,
+      shadow: ctx.params.shadow !== false,
     },
   }),
   wallEntity(ctx, polygon, true, selection(ctx.params.wall)),
@@ -127,6 +128,7 @@ const patternEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
       customColor: ctx.params.customColor,
       rotation: paramNum(ctx.params.rotation, 0),
       outline: ctx.params.outline === true,
+      shadow: ctx.params.shadow !== false,
     },
   }),
 ]
@@ -151,6 +153,7 @@ const pathEntities = (ctx: ToolCtx, points: Vec2[]) => [
       blockLight: ctx.params.blockLight === true,
       transitionIn: ctx.params.transitionIn,
       transitionOut: ctx.params.transitionOut,
+      shadow: ctx.params.shadow !== false,
     },
   }),
 ]
@@ -181,6 +184,7 @@ function roofEntity(ctx: ToolCtx, polygon: Vec2[]): MapEntity {
       shade: ctx.params.shade !== false,
       sunDirection: paramNum(ctx.params.sunDirection, 45),
       shadeContrast: paramNum(ctx.params.shadeContrast, 0.3),
+      shadow: ctx.params.shadow !== false,
     },
   })
 }
@@ -252,7 +256,12 @@ export function portalAt(ctx: ToolCtx, p: Vec2): MapEntity | null {
     layer: LAYER.portal,
     position,
     rotation,
-    params: { asset, blockLight: ctx.params.blockLight === true, anchored },
+    params: {
+      asset,
+      blockLight: ctx.params.blockLight === true,
+      anchored,
+      shadow: ctx.params.shadow !== false,
+    },
   })
 }
 
