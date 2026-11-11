@@ -14,6 +14,7 @@ import {
   boundsOf,
   lengthFractions,
   resamplePolyline,
+  thinPolyline,
   sub,
   wallRuns,
   type WallOpening,
@@ -84,6 +85,9 @@ function spriteEntity(
   root.position.copyFrom(p)
   root.rotation = rad(entity.rotation)
   const scale = (entity.scale ?? 1) / TEXTURE_PX_PER_TILE
+  // Flips are in the sprite's own frame (applied before its rotation).
+  const sx = scale * (entity.flipX ? -1 : 1)
+  const sy = scale * (entity.flipY ? -1 : 1)
   const texture = env.tex(assetId, { color })
   if (!texture) {
     root.addChild(placeholder())
@@ -92,7 +96,7 @@ function spriteEntity(
   if (entity.params.shadow !== false) {
     const shadow = new Sprite(texture)
     shadow.anchor.set(0.5)
-    shadow.scale.set(scale)
+    shadow.scale.set(sx, sy)
     shadow.tint = 0x000000
     shadow.position.copyFrom(p)
     shadow.rotation = root.rotation
@@ -100,7 +104,7 @@ function spriteEntity(
   }
   const sprite = new Sprite(texture)
   sprite.anchor.set(0.5)
-  sprite.scale.set(scale)
+  sprite.scale.set(sx, sy)
   root.addChild(sprite)
   return root
 }
@@ -259,9 +263,15 @@ const ramp = (t: number) => Math.min(1, Math.max(0, t / PATH_TRANSITION))
 const pathRenderer: EntityRenderer = (e, env) => {
   const texture = env.tex(str(e.params.asset, ""))
   const smooth = Math.round(num(e.params.smoothness, 0) * 3)
-  const pts = resamplePolyline(smoothPolyline(e.points ?? [], smooth), 0.2)
-  const t = lengthFractions(pts)
   const width = num(e.params.width, 1)
+  // Thin the smoothed curve to the path's scale first (short segments next to
+  // a wide strip break its corner joins), then resample with collinear points
+  // only, so tapers/fades are gradual without adding corners.
+  const pts = resamplePolyline(
+    thinPolyline(smoothPolyline(e.points ?? [], smooth), width * 0.6),
+    0.2,
+  )
+  const t = lengthFractions(pts)
   const tIn = e.params.transitionIn
   const tOut = e.params.transitionOut
   const widths = t.map(
@@ -463,9 +473,12 @@ const textRenderer: EntityRenderer = (e, env) => {
 /** Renderers by tool id. Painted tools (cave, water, terrain, material) and lights are composited separately. */
 /**
  * A light's glow: its falloff texture (the Style, or a soft default) tinted
- * with its color and added on top of the map, the way Godot's additive 2D
- * lights brighten what they touch even when the scene is fully lit. The
- * ambient darkness itself is the lighting composite (lighting.ts).
+ * with its color and added on top of the map. Godot lights multiply the base
+ * by (ambient + lights), which can exceed 1 and so brightens a fully lit map;
+ * the lighting composite (lighting.ts) is clamped at 1, so this glow stands in
+ * for that overbright part. The scene fades it with the ambient brightness
+ * ({@link glowStrength}): on a dark map the lights show through the light map
+ * alone, as in Dungeondraft, instead of a colored haze.
  */
 const lightRenderer: EntityRenderer = (e, env) => {
   const root = new Container()
@@ -486,6 +499,20 @@ const lightRenderer: EntityRenderer = (e, env) => {
 
 /** Glow strength at intensity 1 (keeps a white-ambient map from washing out). */
 export const LIGHT_GLOW = 0.45
+
+/**
+ * How much of the light glow shows under an ambient color (0..1): full under
+ * white, gone as the ambient darkens. Cubed luminance so a dim map (where the
+ * light map already shows the lights) gets almost none.
+ */
+export function glowStrength(ambient: string): number {
+  const c = hexToPixiColor(ambient).color
+  const r = ((c >> 16) & 255) / 255
+  const g = ((c >> 8) & 255) / 255
+  const b = (c & 255) / 255
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  return lum ** 3
+}
 
 export const ENTITY_RENDERERS: Record<string, EntityRenderer> = {
   light: lightRenderer,

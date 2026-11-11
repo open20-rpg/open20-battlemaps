@@ -57,4 +57,20 @@ describe("strip geometry", () => {
     expect(stripTriangles([L[0], L[0], L[1]], false, 0.5)).toHaveLength(2)
     expect(stripTriangles([L[0]], false, 0.5)).toEqual([])
   })
+
+  it("keeps a closed outline when segments are shorter than the strip is wide", () => {
+    // A tight zigzag with a wide strip: corners can't be fully trimmed.
+    const zig = [
+      { x: 0, y: 0 },
+      { x: 0.3, y: 0.3 },
+      { x: 0.6, y: 0 },
+      { x: 0.9, y: 0.3 },
+    ]
+    const tris = stripTriangles(zig, false, 1)
+    // 3 rectangles + 2 fanned corners (4 triangles each).
+    expect(tris).toHaveLength(3 * 2 + 2 * 4)
+    expect(
+      tris.every((t) => [t.a, t.b, t.c].every((v) => Number.isFinite(v.x) && Number.isFinite(v.u))),
+    ).toBe(true)
+  })
 })

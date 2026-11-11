@@ -3,7 +3,7 @@ import { type DraftShape } from "../../../stores/editorStore"
 import { type ShadowStyle } from "../../../stores/settingsStore"
 import { type MapDocument, type MapEntity } from "../model/types"
 import { type AssetCache } from "./assets"
-import { ENTITY_RENDERERS, type RenderEnv } from "./entities"
+import { ENTITY_RENDERERS, glowStrength, type RenderEnv } from "./entities"
 import { lightingComposite } from "./lighting"
 import { drawOverlay } from "./overlay"
 import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
@@ -207,6 +207,8 @@ export class MapScene {
   private syncEntities(state: SceneState, onLevel: MapEntity[], assetsChanged: boolean): void {
     const seen = new Set<string>()
     const portals = onLevel.filter((e) => e.toolId === "portal")
+    // A view-level alpha, so changing the ambient doesn't rebuild every light.
+    const glow = glowStrength(state.map.environment.ambientLight)
     onLevel.forEach((entity, index) => {
       const render = ENTITY_RENDERERS[entity.toolId]
       if (!render) return
@@ -237,7 +239,9 @@ export class MapScene {
         })
       }
       const entry = this.entities.get(entity.id)
-      if (entry) entry.view.zIndex = zFor(entity.layer, index)
+      if (!entry) return
+      entry.view.zIndex = zFor(entity.layer, index)
+      if (entity.toolId === "light") entry.view.alpha = glow
     })
     for (const [id, entry] of this.entities) {
       if (seen.has(id)) continue
