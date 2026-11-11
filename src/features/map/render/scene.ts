@@ -200,6 +200,11 @@ export class MapScene {
         return s
       },
       colorable: (id) => !!id && this.assets.isColorable(id),
+      image: (url) => {
+        const t = this.assets.textureFromUrl(url)
+        if (!t && !this.assets.urlFailed(url)) track.complete = false
+        return t
+      },
       buildingWear: () => {
         const wear = state.map.buildingWear
         if (wear === "none") return undefined

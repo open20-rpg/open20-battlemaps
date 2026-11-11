@@ -1,6 +1,5 @@
 import { wearOverlay } from "./buildingWear"
 import {
-  BlurFilter,
   BufferImageSource,
   Container,
   Graphics,
@@ -11,15 +10,23 @@ import {
   type Renderer,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
-import { type BrushStroke, type MapEntity } from "../model/types"
+import { type BrushStroke, type MapEntity, type Vec2 } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
-import { type RenderEnv, selectionAsset } from "./entities"
+import { lineMesh, type RenderEnv, selectionAsset } from "./entities"
+import { distanceField, isoContours, rampAt, simplifyLoop, waterRamp } from "./fields"
+import { wallTriangles } from "./lineGeometry"
+import { WaterFilter } from "./waterFilter"
+import waterBorderUrl from "../../../assets/water/border.png"
+import waterRippleUrl from "../../../assets/water/ripple.png"
 import { softBrushTexture } from "./generated"
 import { LayerMaskFilter } from "./layerFilter"
 import { type TerrainData } from "../model/terrain"
 import { liveTerrain, weightsOf } from "../terrainLive"
 import { packWeights } from "./splat"
 import { TerrainFilter } from "./terrainFilter"
+
+const WATER_BORDER_URL: string = waterBorderUrl
+const WATER_RIPPLE_URL: string = waterRippleUrl
 
 /**
  * Painted layers (Cave, Water, Terrain Brush, Material): every stroke of a
@@ -287,36 +294,136 @@ function caveComposite(
   return composite(view, [floor, rim])
 }
 
-function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer): Composite {
-  const last = entities[entities.length - 1]
-  const deep = str(last.params.deepColor, "#3aa19a")
-  const shallow = str(last.params.shallowColor, "#8bceb0")
-  const blend = num(last.params.blendDistance, 1.5)
-  const masks: MapMask[] = []
-  const view = new Container()
+/** Border and ripple lines' widths, in tiles (their textures' heights at 256 px per tile). */
+const WATER_BORDER_WIDTH = 10 / 256
+const WATER_RIPPLE_WIDTH = 106 / 256
+/** How far inside the shore the ripple line runs, in tiles. */
+const WATER_RIPPLE_INSET = 96 / 256
 
-  if (last.params.disableBorder !== true) {
-    const border = new MapMask(renderer, map)
-    border.draw(shapesOf(entities, 0.06), true)
-    masks.push(border)
-    view.addChild(masked(mapFill(map, undefined, "#24343a"), border.sprite()))
-  }
+/** A hex color's channels (0–255). */
+function rgbOf(hex: string): [number, number, number] {
+  const c = hexToPixiColor(hex).color
+  return [(c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff]
+}
+
+/**
+ * Water, as Dungeondraft draws it (its WaterMesh and Water.shader): the
+ * painted area colored from shallow at the shore to deep by inner rings
+ * (0.333, 0.75, 1.5, 2, 4 tiles, up to Blend Distance — see waterRamp),
+ * the dark parts of what's beneath showing through (waterFilter.ts); unless
+ * the border is off, a thin border line on the shore and a ripple line
+ * 0.375 tiles inside it.
+ *
+ * Built from the area's mask: its distance field gives each pixel its ring
+ * color (Euclidean, where Dungeondraft offsets with square joins), and its
+ * iso-lines give the shore and ripple outlines.
+ */
+function waterComposite(
+  entities: MapEntity[],
+  map: MapBox,
+  renderer: Renderer,
+  env: RenderEnv,
+): Composite {
+  const last = entities[entities.length - 1]
+  const deep = rgbOf(str(last.params.deepColor, "#3aa19a"))
+  const shallow = rgbOf(str(last.params.shallowColor, "#8bceb0"))
+  const ramp = waterRamp(num(last.params.blendDistance, 1.5))
+  const view = new Container()
 
   const area = new MapMask(renderer, map)
   area.draw(shapesOf(entities), true)
-  // Deep water: the area shrunk by the blend distance, then blurred so it
-  // fades into the shallow edge.
-  const core = new MapMask(renderer, map)
-  const shrunk = new Container()
-  shrunk.addChild(...shapesOf(entities, -blend * 0.3))
-  shrunk.filters = [new BlurFilter({ strength: blend * core.res * 0.2 })]
-  core.draw([shrunk], true)
-  masks.push(area, core)
+  const res = area.res
+  const { pixels, width: W, height: H } = renderer.extract.pixels({ target: area.rt })
+  // Work only where the water is (plus a margin for the outlines).
+  let x0 = W
+  let y0 = H
+  let x1 = -1
+  let y1 = -1
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (pixels[(y * W + x) * 4 + 3] > 0) {
+        x0 = Math.min(x0, x)
+        y0 = Math.min(y0, y)
+        x1 = Math.max(x1, x)
+        y1 = Math.max(y1, y)
+      }
+    }
+  }
+  if (x1 < 0) return composite(view, [area])
+  x0 = Math.max(0, x0 - 2)
+  y0 = Math.max(0, y0 - 2)
+  x1 = Math.min(W - 1, x1 + 2)
+  y1 = Math.min(H - 1, y1 + 2)
+  const w = x1 - x0 + 1
+  const h = y1 - y0 + 1
+  const alpha = new Float32Array(w * h)
+  const inside = new Uint8Array(w * h)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = pixels[((y + y0) * W + x + x0) * 4 + 3] / 255
+      alpha[y * w + x] = a
+      inside[y * w + x] = a >= 0.5 ? 1 : 0
+    }
+  }
+  const dist = distanceField(inside, w, h)
 
-  view.addChild(masked(mapFill(map, undefined, shallow), area.sprite()))
-  view.addChild(masked(mapFill(map, undefined, deep), core.sprite()))
-  view.alpha = 0.92
-  return composite(view, masks)
+  // The body: each pixel its ring color, edges antialiased by the mask.
+  const body = new Uint8Array(w * h * 4)
+  for (let k = 0; k < w * h; k++) {
+    const a = alpha[k]
+    if (a <= 0) continue
+    const t = rampAt(ramp, dist[k] / res)
+    for (let c = 0; c < 3; c++) {
+      body[k * 4 + c] = Math.round((shallow[c] + (deep[c] - shallow[c]) * t) * a)
+    }
+    body[k * 4 + 3] = Math.round(a * 255)
+  }
+  const texture = new Texture({
+    source: new BufferImageSource({
+      resource: body,
+      width: w,
+      height: h,
+      alphaMode: "premultiplied-alpha",
+    }),
+  })
+  const sprite = new Sprite(texture)
+  // Mask pixel (px, py) is content (−map.width + px/res, py/res).
+  sprite.position.set(-map.width + x0 / res, y0 / res)
+  sprite.scale.set(1 / res)
+  const filter = new WaterFilter()
+  sprite.filters = [filter]
+  view.addChild(sprite)
+
+  if (last.params.disableBorder !== true) {
+    /** A pixel-space contour as map-space points. */
+    const toMap = (loop: Vec2[]) =>
+      simplifyLoop(loop, 0.35).map((p) => ({
+        x: map.width - (p.x + x0) / res,
+        y: (p.y + y0) / res,
+      }))
+    const line = (loops: Vec2[][], url: string, width: number) => {
+      const tex = env.image(url)
+      if (!tex) return
+      tex.source.style.addressMode = "repeat"
+      for (const loop of loops) {
+        const pts = toMap(loop)
+        if (pts.length < 3) continue
+        const tris = wallTriangles(pts, true, width, { bevel: true, normalizeUv: false })
+        view.addChild(lineMesh(tris, width * (tex.width / tex.height), tex, 0xffffff))
+      }
+    }
+    line(isoContours(dist, w, h, WATER_RIPPLE_INSET * res), WATER_RIPPLE_URL, WATER_RIPPLE_WIDTH)
+    line(isoContours(alpha, w, h, 0.5), WATER_BORDER_URL, WATER_BORDER_WIDTH)
+  }
+  const comp = composite(view, [area])
+  return {
+    ...comp,
+    dispose: () => {
+      comp.dispose()
+      filter.destroy()
+      texture.destroy(true)
+    },
+  }
 }
 
 /**

@@ -136,6 +136,8 @@ export function MapCanvas() {
         height: Math.max(1, el.clientHeight),
         backgroundAlpha: 0,
         antialias: true,
+        // Water reads what's drawn beneath it (waterFilter.ts).
+        useBackBuffer: true,
         autoDensity: true,
         resolution: window.devicePixelRatio || 1,
         // Render on demand (requestRender), not 60 times a second: an idle
