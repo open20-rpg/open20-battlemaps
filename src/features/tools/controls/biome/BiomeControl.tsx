@@ -44,7 +44,12 @@ export function BiomeControl({
   const setSlot = (index: number, texture: BiomeTexture) => {
     const next = stored.slice()
     next[index] = texture
-    onChange({ ...value, slotsByBiome: { ...value.slotsByBiome, [value.biome]: next } })
+    // The slot just given a texture becomes the one being painted with.
+    onChange({
+      ...value,
+      slotsByBiome: { ...value.slotsByBiome, [value.biome]: next },
+      selectedSlot: index,
+    })
   }
 
   return (
