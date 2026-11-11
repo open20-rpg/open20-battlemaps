@@ -3,6 +3,7 @@ import { useActionBinding } from "../../shortcuts/bindings"
 import { useTranslation } from "react-i18next"
 import { type ToolGroup, type ToolNode } from "../definitions"
 import { IconBar } from "./IconBar"
+import { TruncatedText } from "../../../ui/TruncatedText"
 
 interface GroupPanelProps {
   group: ToolGroup
@@ -42,9 +43,9 @@ export function GroupPanel({ group, expanded, selectedChildId, onSelect }: Group
         flexShrink={0}
       >
         <Icon as={group.icon} color="brand.fg" boxSize="4" />
-        <Text fontWeight="bold" fontSize="sm" truncate>
+        <TruncatedText fontWeight="bold" fontSize="sm">
           {t(group.nameKey)}
-        </Text>
+        </TruncatedText>
       </Flex>
       <VStack gap="1" p="2" align="stretch" overflowY="auto">
         {group.children.map((child) => {
@@ -64,9 +65,9 @@ export function GroupPanel({ group, expanded, selectedChildId, onSelect }: Group
               onClick={() => onSelect(child)}
             >
               <Icon as={child.icon} boxSize="5" flexShrink={0} />
-              <Text fontSize="sm" textAlign="left" truncate>
+              <TruncatedText fontSize="sm" textAlign="left">
                 {t(child.nameKey)}
-              </Text>
+              </TruncatedText>
               <ToolBinding toolId={child.id} />
             </Flex>
           )

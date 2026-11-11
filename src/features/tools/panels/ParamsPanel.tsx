@@ -6,6 +6,7 @@ import { Tooltip } from "../../../ui/chakra/tooltip"
 import { type ToolLeaf } from "../definitions"
 import { paramGrows, resolveParams, type ToolParamSpec } from "../params"
 import { ToolParamControl } from "../controls/ToolParamControl"
+import { TruncatedText } from "../../../ui/TruncatedText"
 
 /** Stable key for a param, so toggling visibility doesn't reshuffle others. */
 function paramKeyOf(spec: ToolParamSpec): string {
@@ -52,9 +53,9 @@ export function ParamsPanel({ tool, onHide }: { tool: ToolLeaf; onHide: () => vo
         flexShrink={0}
       >
         <Icon as={tool.icon} color="brand.fg" boxSize="4" />
-        <Text fontWeight="bold" fontSize="sm" truncate flex="1">
+        <TruncatedText fontWeight="bold" fontSize="sm" flex="1">
           {t(tool.nameKey)}
-        </Text>
+        </TruncatedText>
         <Tooltip content={t("tools.hideParams")} positioning={{ placement: "right" }} showArrow>
           <IconButton
             aria-label={t("tools.hideParams")}
