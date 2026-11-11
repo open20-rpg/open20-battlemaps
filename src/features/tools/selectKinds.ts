@@ -77,19 +77,26 @@ const KIND_OF_TOOL = new Map(SELECT_KINDS.flatMap((k) => k.toolIds.map((t) => [t
 
 /**
  * Whether the Select tool may pick `e` with the element filter `enabled`
- * (kind ids). Entities of no listed kind are always pickable. Locked
- * entities are skipped — or, with `locked`, are the only ones picked.
+ * (kind ids). Entities of no listed kind are always pickable, and so are
+ * floors left without their wall. Locked entities are skipped — or, with
+ * `locked`, are the only ones picked.
  */
 export function selectableBy(
   enabled: readonly string[],
   locked = false,
+  /** The level's entities: a floor whose wall is gone is pickable like a pattern. */
+  entities: readonly MapEntity[] = [],
 ): (e: MapEntity) => boolean {
   const on = new Set(enabled)
+  // Floors are filtered out by default because the wall around them stands
+  // for the room; one left without its wall has nothing else to pick it by.
+  const walled = new Set(entities.flatMap((w) => (w.toolId === "wall" && w.link ? [w.link] : [])))
+  const wallless = (e: MapEntity) => e.toolId === "build" && !(e.link && walled.has(e.link))
   return (e) => {
     if (!!e.locked !== locked) return false
     const k = KIND_OF_TOOL.get(e.toolId)
     if (!k) return isSelectable(e)
-    return on.has(k.id) && isSelectable(e, k.paint === true)
+    return (on.has(k.id) || wallless(e)) && isSelectable(e, k.paint === true)
   }
 }
 

@@ -60,4 +60,14 @@ describe("select by kind", () => {
     // Kinds not listed are always pickable.
     expect(selectableBy([])(e("x", "somethingElse"))).toBe(true)
   })
+
+  it("picks a floor left without its wall even with floors filtered out", () => {
+    const pick = (all: MapEntity[]) => selectableBy(SELECT_FILTER_DEFAULT, false, all)
+    const floor = e("f", "build", { link: "L", points: [{ x: 0, y: 0 }], closed: true })
+    const wall = e("w", "wall", { link: "L", points: [{ x: 0, y: 0 }], closed: true })
+    expect(pick([floor, wall])(floor)).toBe(false)
+    expect(pick([floor])(floor)).toBe(true)
+    // An unlinked floor (e.g. from an old map) has no wall standing for it either.
+    expect(pick([])(e("g", "build", { points: [{ x: 0, y: 0 }], closed: true }))).toBe(true)
+  })
 })

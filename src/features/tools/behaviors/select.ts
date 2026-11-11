@@ -200,7 +200,8 @@ export function ungroupSelection(ctx: ToolCtx): void {
 }
 
 /** What clicks and rubber bands may pick: the Select tool's element filter (locked ones alone with `locked`). */
-const pickable = (ctx: ToolCtx, locked = false) => selectableBy(elementFilter(ctx.params), locked)
+const pickable = (ctx: ToolCtx, locked = false) =>
+  selectableBy(elementFilter(ctx.params), locked, ctx.entities)
 
 /** Lock (or unlock) the selection in place. */
 export function lockSelection(ctx: ToolCtx, locked: boolean): void {

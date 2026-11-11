@@ -95,12 +95,9 @@ export function runShortcut(e: KeyboardEvent): boolean {
       if (key === "x") return (copySelection(), deleteSelection(), true)
       if (key === "v") return (pasteClipboard(), true)
       if (key === "a") {
-        const pick = selectableBy(elementFilter(getToolParams("select")))
-        useEditorStore.getState().select(
-          levelEntities()
-            .filter(pick)
-            .map((x) => x.id),
-        )
+        const onLevel = levelEntities()
+        const pick = selectableBy(elementFilter(getToolParams("select")), false, onLevel)
+        useEditorStore.getState().select(onLevel.filter(pick).map((x) => x.id))
         return true
       }
     }
