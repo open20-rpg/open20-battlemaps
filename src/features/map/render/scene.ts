@@ -1,4 +1,4 @@
-import { AlphaFilter, BlurFilter, Container, Sprite, type Renderer } from "pixi.js"
+import { AlphaFilter, BlurFilter, Container, Graphics, Sprite, type Renderer } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import { type ShadowStyle } from "../../../stores/settingsStore"
 import { type MapDocument, type MapEntity } from "../model/types"
@@ -19,6 +19,10 @@ export interface SceneState {
   shadowStyle: ShadowStyle
   textVisible: boolean
   terrainEnabled: boolean
+  /** Draw what lies past the map's edges (else the map clips its content). */
+  showOutside: boolean
+  /** Terrain Brush "Smooth Blending": how every terrain stroke blends (global). */
+  terrainSmooth: boolean
   draft: readonly DraftShape[]
   selection: readonly string[]
   /** Show the selection's transform handles (Select tool active). */
@@ -92,6 +96,11 @@ export class MapScene {
   private composites = new Map<string, CompositeView>()
   private lighting: CompositeView | null = null
   private reference: { url: string; sprite: Sprite } | null = null
+  /** The map's black ground, under everything. */
+  private base = new Graphics()
+  /** Clips the content to the map's rectangle (when outside is hidden). */
+  private clip = new Graphics()
+  private baseSize = ""
   private last: SceneState | null = null
   private unsubscribe: () => void
 
@@ -104,6 +113,8 @@ export class MapScene {
     this.shadowLayer.zIndex = zFor(SHADOW_LAYER, 0)
     this.shadowLayer.filters = [this.shadowBlur, this.shadowAlpha]
     this.content.addChild(this.shadowLayer)
+    this.base.zIndex = -Infinity
+    this.content.addChild(this.base, this.clip)
     this.overlay.scale.x = -1
     this.unsubscribe = assets.subscribe(() => {
       if (this.last) this.update(this.last, true)
@@ -138,6 +149,7 @@ export class MapScene {
       },
       textVisible: state.textVisible,
       lighting: state.lighting,
+      terrainSmooth: state.terrainSmooth,
       portals,
     }
   }
@@ -145,6 +157,7 @@ export class MapScene {
   update(state: SceneState, assetsChanged = false): void {
     this.last = state
     const onLevel = state.map.entities.filter((e) => !e.level || e.level === state.level)
+    this.syncBounds(state)
     this.syncReference(state)
     this.applyShadowStyle(state)
     this.syncEntities(state, onLevel, assetsChanged)
@@ -175,6 +188,24 @@ export class MapScene {
     this.shadowBlur.strength = style.blur * px
   }
 
+  /** Black ground under the map, and clipping of whatever spills past it. */
+  private syncBounds(state: SceneState): void {
+    const { width, height } = state.map
+    const size = `${width}x${height}:${state.showOutside}`
+    if (size === this.baseSize) return
+    this.baseSize = size
+    // Content space: the map spans x ∈ [−width, 0].
+    this.base.clear().rect(-width, 0, width, height).fill({ color: 0x000000 })
+    // The mask stays set (swapping a child mask on and off is fragile); showing
+    // the outside just widens it far past anything a map holds.
+    const pad = state.showOutside ? 1e5 : 0
+    this.clip
+      .clear()
+      .rect(-width - pad, -pad, width + 2 * pad, height + 2 * pad)
+      .fill({ color: 0xffffff })
+    this.content.mask = this.clip
+  }
+
   private syncReference(state: SceneState): void {
     const url = state.referenceUrl
     const img = state.map.referenceImage
@@ -191,7 +222,8 @@ export class MapScene {
         return
       }
       const sprite = new Sprite(tex)
-      sprite.zIndex = -Infinity
+      // Just above the black ground (which is at −Infinity).
+      sprite.zIndex = -Number.MAX_VALUE
       this.content.addChild(sprite)
       this.reference = { url, sprite }
     }
@@ -262,7 +294,7 @@ export class MapScene {
         }
         continue
       }
-      const inputs = [state.map.width, state.map.height, ...mine]
+      const inputs = [state.map.width, state.map.height, state.terrainSmooth, ...mine]
       if (current && sameInputs(current.inputs, inputs) && !(assetsChanged && !current.complete)) {
         continue
       }

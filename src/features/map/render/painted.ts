@@ -360,7 +360,8 @@ function terrainComposite(
       if (splat) splatOpacity(splat, stack)
       continue
     }
-    const smooth = e.params.smoothBlending === true
+    // Smooth Blending is one switch for the whole terrain, as in Dungeondraft.
+    const smooth = env.terrainSmooth
     const opacity = splat && splatOpacity(splat, stack)
     if (opacity) {
       // An imported Dungeondraft splat layer: exact per-texel coverage.

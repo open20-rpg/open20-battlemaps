@@ -96,7 +96,6 @@ export function createTerrainBehavior(): ToolBehavior {
           texture: selected,
           base,
           intensity: paramNum(ctx.params.intensity, 4),
-          smoothBlending: ctx.params.smoothBlending === true,
         }
       },
     }),

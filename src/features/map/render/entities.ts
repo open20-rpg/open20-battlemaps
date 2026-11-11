@@ -44,6 +44,8 @@ export interface RenderEnv {
   textVisible: boolean
   /** Lighting view toggle (light glows hide with it). */
   lighting: boolean
+  /** Terrain Brush Smooth Blending, applied to every terrain stroke. */
+  terrainSmooth: boolean
   /** Portals on the level (walls leave openings where they sit). */
   portals: readonly MapEntity[]
   /** Asset size in tiles (remembers misses like `tex`). */

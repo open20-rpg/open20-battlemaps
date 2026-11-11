@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
 /** The boolean view toggles surfaced by the view-controls bar. */
-export type ViewToggleKey = "grid" | "snap" | "lighting" | "shadows"
+export type ViewToggleKey = "grid" | "snap" | "lighting" | "shadows" | "outside"
 
 /**
  * Viewport display state: the on/off overlays (grid, snap, lighting) and the
@@ -15,6 +15,8 @@ interface ViewState {
   snap: boolean
   lighting: boolean
   shadows: boolean
+  /** Show what lies past the map's edges (otherwise the map clips it). */
+  outside: boolean
   /** Zoom as a whole percentage (one of ZOOM_LEVELS). */
   zoom: number
   /** Pan offset in screen px, relative to the map centered in the viewport. */
@@ -32,6 +34,7 @@ const DEFAULT_VIEW_STATE = {
   snap: true,
   lighting: true,
   shadows: true,
+  outside: false,
   zoom: 100,
   panX: 0,
   panY: 0,
