@@ -1,5 +1,6 @@
 import {
   BlurFilter,
+  BufferImageSource,
   Container,
   type Filter,
   Graphics,
@@ -15,6 +16,7 @@ import { TEXTURE_PX_PER_TILE } from "./assets"
 import { type RenderEnv, selectionAsset } from "./entities"
 import { softBrushTexture } from "./generated"
 import { naturalEdgeFilter } from "./naturalEdge"
+import { type SplatLayer } from "../format/dungeondraft"
 
 /**
  * Painted layers (Cave, Water, Terrain Brush, Material): every stroke of a
@@ -266,6 +268,31 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
 }
 
 /**
+ * An imported splat layer as a sprite over the map (content space). Splat
+ * texel t's center sits at Dungeondraft world t × 64 px = t/4 cells, and
+ * Dungeondraft x grows rightward like content space, so no flip is needed:
+ * the layer just spans the map, offset by half a texel. Linear filtering
+ * keeps the blend smooth between texels.
+ */
+function splatSprite(splat: SplatLayer, map: MapBox): Sprite {
+  const bytes = Uint8Array.from(atob(splat.data), (c) => c.charCodeAt(0))
+  // Premultiplied white with the coverage as alpha.
+  const rgba = new Uint8Array(bytes.length * 4)
+  bytes.forEach((v, i) => rgba.fill(v, i * 4, i * 4 + 4))
+  const source = new BufferImageSource({
+    resource: rgba,
+    width: splat.width,
+    height: splat.height,
+    scaleMode: "linear",
+  })
+  const sprite = new Sprite(new Texture({ source }))
+  sprite.position.set(-map.width - 0.125, -0.125)
+  sprite.width = splat.width / 4
+  sprite.height = splat.height / 4
+  return sprite
+}
+
+/**
  * How much one Terrain Brush stroke covers, from its Intensity (0.2–8): low
  * intensities need several passes to fully replace the texture underneath,
  * the default (4) almost does it in one, high ones fully.
@@ -314,8 +341,19 @@ function terrainComposite(
       for (const m of masks.values()) m.draw([], true)
       continue
     }
-    const strength = terrainStrength(num(e.params.intensity, 4))
     const smooth = e.params.smoothBlending === true
+    const splat = e.params.splat as SplatLayer | undefined
+    if (splat) {
+      // An imported Dungeondraft splat layer: exact per-texel coverage.
+      if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
+      const layer = splatSprite(splat, map)
+      if (!smooth) layer.filters = [natural]
+      const texture = layer.texture
+      masks.get(texId)?.draw([layer], false)
+      texture.destroy(true)
+      continue
+    }
+    const strength = terrainStrength(num(e.params.intensity, 4))
     for (const stroke of e.strokes ?? []) {
       if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
       const paint = (target: MapMask, erase: boolean) => {

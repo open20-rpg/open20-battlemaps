@@ -241,7 +241,10 @@
     "opacity": "Opacidad",
     "prefabList": "Prefabs guardados",
     "removeImage": "Quitar imagen",
-    "savePrefab": "Guardar selección como prefab"
+    "savePrefab": "Guardar selección como prefab",
+    "mirror": "Espejar",
+    "flipHorizontal": "Espejar horizontal (H)",
+    "flipVertical": "Espejar vertical (V)"
   },
   "biomes": {
     "barren": "Yermo",
@@ -332,8 +335,6 @@
     "forget": "Quitar de la lista"
   },
   "import": {
-    "mirroredObjects_one": "{{count}} objeto espejado se importó sin espejar",
-    "mirroredObjects_other": "{{count}} objetos espejados se importaron sin espejar",
     "builtinAssets_one": "{{count}} asset propio de Dungeondraft no está disponible",
     "builtinAssets_other": "{{count}} assets propios de Dungeondraft no están disponibles",
     "embeddedAssets_one": "{{count}} imagen incrustada no es compatible",

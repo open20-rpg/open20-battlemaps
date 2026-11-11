@@ -18,6 +18,7 @@ export function objectAt(ctx: ToolCtx, p: Vec2, assetId: string): MapEntity {
     position: p,
     rotation: paramNum(ctx.params.rotation, 0),
     scale: paramNum(ctx.params.scale, 1),
+    flipX: ctx.params.mirror === true || undefined,
     params: {
       asset: assetId,
       color: str(ctx.params.customColor, ""),

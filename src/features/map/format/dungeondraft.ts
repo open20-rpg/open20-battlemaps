@@ -28,7 +28,6 @@ import { argbToHex, parsePoolBytes, parsePoolInt, parsePoolVec2, parseVec2 } fro
 const PX = 256
 
 export type ImportWarningKey =
-  | "mirroredObjects"
   | "builtinAssets"
   | "embeddedAssets"
   | "waterHoles"
@@ -47,6 +46,8 @@ export interface ImportResult {
   currentLevel: number
   /** Features OpenDraft couldn't carry over, with how many times each occurred. */
   warnings: Partial<Record<ImportWarningKey, number>>
+  /** Terrain brush setup of the level the map opens on. */
+  terrain?: TerrainSetup
 }
 
 export class DungeondraftImportError extends Error {}
@@ -87,19 +88,13 @@ class Importer {
     return { x: this.width - v.x / PX, y: v.y / PX }
   }
 
-  /**
-   * Texture resource path → library asset id. Pack assets live under
-   * `res://packs/<id>/…`; anything else is Dungeondraft's built-in library
-   * (not available outside Dungeondraft) or an embedded image.
-   */
+  /** Texture resource path → library asset id, counting what won't resolve. */
   asset(res: unknown): string | undefined {
     const path = str(res)
     if (!path) return undefined
-    const m = /^res:\/\/packs\/([^/]+)\/(.+)$/.exec(path)
-    if (m) return `${m[1]}|${m[2]}`
     if (path.startsWith("embedded://")) this.warn("embeddedAssets")
-    else this.warn("builtinAssets")
-    return `dungeondraft|${path.replace(/^res:\/\//, "")}`
+    else if (!path.startsWith("res://packs/")) this.warn("builtinAssets")
+    return resToAssetId(path)
   }
 
   /** Apply a node transform (position, rotation rad, scale) to local points. */
@@ -112,6 +107,17 @@ class Importer {
       ),
     )
   }
+}
+
+/**
+ * Texture resource path → library asset id. Pack assets live under
+ * `res://packs/<id>/…`; anything else is Dungeondraft's built-in library (not
+ * available outside Dungeondraft) or an embedded image, kept under a
+ * `dungeondraft|` id that never resolves.
+ */
+export function resToAssetId(path: string): string {
+  const m = /^res:\/\/packs\/([^/]+)\/(.+)$/.exec(path)
+  return m ? `${m[1]}|${m[2]}` : `dungeondraft|${path.replace(/^res:\/\//, "")}`
 }
 
 const vec = (v: unknown, fallback: Vec2 = { x: 0, y: 0 }): Vec2 =>
@@ -170,6 +176,21 @@ const selection = (assetId: string | undefined, color = "#ffffff") => ({
   color,
 })
 
+/**
+ * A Godot node scale as OpenDraft sprite fields: negative components are
+ * mirrors (`mirror` is baked into scale.x < 0), magnitudes average into the
+ * uniform scale (Dungeondraft only ever scales props uniformly, give or take
+ * float noise).
+ */
+export function spriteScale(scale: Vec2): Pick<MapEntity, "scale" | "flipX" | "flipY"> {
+  const out: Pick<MapEntity, "scale" | "flipX" | "flipY"> = {
+    scale: (Math.abs(scale.x) + Math.abs(scale.y)) / 2 || 1,
+  }
+  if (scale.x < 0) out.flipX = true
+  if (scale.y < 0) out.flipY = true
+  return out
+}
+
 function portal(im: Importer, level: string, raw: Json, anchored: boolean): MapEntity {
   const scale = vec(raw.scale, { x: 1, y: 1 })
   return entity(level, {
@@ -177,7 +198,7 @@ function portal(im: Importer, level: string, raw: Json, anchored: boolean): MapE
     layer: 500,
     position: im.p(vec(raw.position)),
     rotation: deg(num(raw.rotation, 0)),
-    scale: Math.abs(scale.x) || 1,
+    ...spriteScale(scale),
     params: { asset: im.asset(raw.texture), blockLight: bool(raw.closed, false), anchored },
   })
 }
@@ -274,13 +295,12 @@ function objects(im: Importer, level: string, raw: Json): MapEntity[] {
     .map(obj)
     .map((o) => {
       const scale = vec(o.scale, { x: 1, y: 1 })
-      if (bool(o.mirror, false) || scale.x < 0) im.warn("mirroredObjects")
       return entity(level, {
         toolId: "object",
         layer: num(o.layer, 100),
         position: im.p(vec(o.position)),
         rotation: deg(num(o.rotation, 0)),
-        scale: Math.abs(scale.y) || 1,
+        ...spriteScale(scale),
         params: {
           asset: im.asset(o.texture),
           color: o.custom_color === undefined ? "" : argbToHex(o.custom_color),
@@ -460,15 +480,53 @@ function materials(im: Importer, level: string, raw: Json): MapEntity[] {
   return out
 }
 
+/** A terrain texture's coverage imported from a Dungeondraft splat. */
+export interface SplatLayer {
+  /** Texels per axis (4 per cell). */
+  width: number
+  height: number
+  /** Base64 of one byte per texel: this layer's opacity over the ones below. */
+  data: string
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let bin = ""
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  }
+  return btoa(bin)
+}
+
 /**
- * Terrain splat (RGBA weights, 4 texels per cell): texture 1 becomes the
- * base (a Fill), and every other texture is painted where its weight wins
- * the texel. Partial blends are approximated by that majority.
+ * Per-texture layer opacities from splat weights, for drawing the textures
+ * stacked bottom-up over the base: layer k's opacity is w_k / (w_1+…+w_k),
+ * which reproduces the weighted mix exactly once the layers are composited.
+ */
+export function splatLayers(weights: Uint8Array[], texels: number): Uint8Array[] {
+  const out = weights.slice(1).map(() => new Uint8Array(texels))
+  for (let t = 0; t < texels; t++) {
+    let sum = weights[0][t] ?? 0
+    for (let k = 1; k < weights.length; k++) {
+      const wk = weights[k][t] ?? 0
+      sum += wk
+      out[k - 1][t] = sum > 0 ? Math.round((wk / sum) * 255) : 0
+    }
+  }
+  return out
+}
+
+/**
+ * Terrain splat (RGBA weights, 4 texels per cell, up to 8 textures with
+ * `splat2`): texture 1 is the base (a Fill); every other texture becomes a
+ * coverage layer carrying the exact (normalized) weights, so blends look as
+ * in Dungeondraft instead of being rounded to the dominant texture.
  */
 function terrain(im: Importer, level: string, raw: Json): MapEntity[] {
   const t = obj(raw.terrain)
-  const tex = (i: number) => (str(t[`texture_${i}`]) ? im.asset(t[`texture_${i}`]) : undefined)
-  const base = tex(1)
+  const ids = Array.from({ length: 8 }, (_, i) =>
+    str(t[`texture_${i + 1}`]) ? im.asset(t[`texture_${i + 1}`]) : undefined,
+  )
+  const base = ids[0]
   if (!base) return []
   const out: MapEntity[] = [
     entity(level, {
@@ -480,42 +538,64 @@ function terrain(im: Importer, level: string, raw: Json): MapEntity[] {
   ]
   const w = im.width * 4
   const h = im.height * 4
+  const texels = w * h
   const splats = [tryParse(parsePoolBytes, t.splat), tryParse(parsePoolBytes, t.splat2)]
+  // One weight plane per texture slot, in slot order.
+  const weights: Uint8Array[] = []
+  const slots: number[] = []
   splats.forEach((bytes, splatIndex) => {
     if (!bytes) return
     for (let channel = 0; channel < 4; channel++) {
-      const slot = splatIndex * 4 + channel + 1
-      const texture = tex(slot)
-      if (!texture || slot === 1) continue
-      const strokes: BrushStroke[] = []
-      for (let y = 0; y < h; y++) {
-        let start = -1
-        for (let x = 0; x <= w; x++) {
-          const at = (y * w + x) * 4
-          const on = x < w && (bytes[at + channel] ?? 0) >= 128
-          if (on && start < 0) start = x
-          if (!on && start >= 0) {
-            // texel = world/64 + 0.5, so texel t's center sits at world t × 64.
-            strokes.push({
-              points: [im.p({ x: start * 64, y: y * 64 }), im.p({ x: (x - 1) * 64, y: y * 64 })],
-              radius: 0.18,
-            })
-            start = -1
-          }
-        }
-      }
-      if (strokes.length === 0) continue
-      out.push(
-        entity(level, {
-          toolId: "terrainBrush",
-          layer: -500,
-          strokes,
-          params: { texture, base, intensity: 8, smoothBlending: true },
-        }),
-      )
+      const slot = splatIndex * 4 + channel
+      if (!ids[slot]) continue
+      const plane = new Uint8Array(texels)
+      for (let i = 0; i < texels; i++) plane[i] = bytes[i * 4 + channel] ?? 0
+      weights.push(plane)
+      slots.push(slot)
     }
   })
+  if (weights.length < 2) return out
+  const smooth = bool(t.smooth_blending, false)
+  splatLayers(weights, texels).forEach((layer, k) => {
+    if (!layer.some((v) => v > 0)) return
+    const splat: SplatLayer = { width: w, height: h, data: toBase64(layer) }
+    out.push(
+      entity(level, {
+        toolId: "terrainBrush",
+        layer: -500,
+        strokes: [],
+        params: { texture: ids[slots[k + 1]], base, splat, smoothBlending: smooth },
+      }),
+    )
+  })
   return out
+}
+
+/** The terrain brush setup a map was saved with (slots, blending, visibility). */
+export interface TerrainSetup {
+  /** Asset ids of texture slots 1..8 (null for empty slots). */
+  slots: (string | null)[]
+  expanded: boolean
+  smoothBlending: boolean
+  enabled: boolean
+}
+
+function terrainSetup(raw: Json): TerrainSetup | undefined {
+  const t = obj(raw.terrain)
+  if (!str(t.texture_1)) return undefined
+  const expanded = bool(t.expand_slots, false)
+  const count = expanded ? 8 : 4
+  // Built-in textures still count: an unresolvable slot reads better than a shifted one.
+  const slots = Array.from({ length: count }, (_, i) => {
+    const res = str(t[`texture_${i + 1}`])
+    return res ? resToAssetId(res) : null
+  })
+  return {
+    slots,
+    expanded,
+    smoothBlending: bool(t.smooth_blending, false),
+    enabled: bool(t.enabled, true),
+  }
 }
 
 /** Water bodies: the polygon tree's odd-depth nodes (even depths are holes). */
@@ -621,11 +701,13 @@ export function importDungeondraftMap(text: string): ImportResult {
     .map((m) => str(obj(m).id))
     .filter((id): id is string => !!id)
   const grid = str(obj(world.grid).color)
+  const currentLevel = Math.max(0, Math.min(levels.length - 1, num(editor.current_level, 0)))
   return {
     doc,
     packs,
     gridColor: grid ? argbToHex(grid) : undefined,
-    currentLevel: Math.max(0, Math.min(levels.length - 1, num(editor.current_level, 0))),
+    currentLevel,
     warnings: im.warnings,
+    terrain: terrainSetup(obj(obj(world.levels)[levelKeys[currentLevel] ?? ""])),
   }
 }

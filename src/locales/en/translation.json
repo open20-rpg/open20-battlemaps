@@ -241,7 +241,10 @@
     "opacity": "Opacity",
     "prefabList": "Saved prefabs",
     "removeImage": "Remove image",
-    "savePrefab": "Save selection as prefab"
+    "savePrefab": "Save selection as prefab",
+    "mirror": "Mirror",
+    "flipHorizontal": "Mirror horizontally (H)",
+    "flipVertical": "Mirror vertically (V)"
   },
   "biomes": {
     "barren": "Barren",
@@ -332,8 +335,6 @@
     "forget": "Remove from the list"
   },
   "import": {
-    "mirroredObjects_one": "{{count}} mirrored object was imported unmirrored",
-    "mirroredObjects_other": "{{count}} mirrored objects were imported unmirrored",
     "builtinAssets_one": "{{count}} Dungeondraft built-in asset is unavailable",
     "builtinAssets_other": "{{count}} Dungeondraft built-in assets are unavailable",
     "embeddedAssets_one": "{{count}} embedded image isn't supported",

@@ -48,6 +48,9 @@ export interface MapEntity {
   rotation: number
   /** Uniform scale multiplier (objects, portals). Defaults to 1. */
   scale?: number
+  /** Sprite mirrored left↔right / top↔bottom, in its own frame (before rotation). */
+  flipX?: boolean
+  flipY?: boolean
   /** Vertices of polylines/polygons (walls, paths, floors, patterns, roofs), absolute. */
   points?: Vec2[]
   /** Whether `points` form a closed polygon (vs. an open polyline). */

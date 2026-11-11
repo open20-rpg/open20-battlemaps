@@ -552,3 +552,43 @@ export function lengthFractions(points: readonly Vec2[]): number[] {
   const total = cumulative[cumulative.length - 1] || 1
   return cumulative.map((c) => c / total)
 }
+
+/**
+ * Mirror an entity across the vertical (`"x"`, left↔right on screen) or
+ * horizontal (`"y"`, top↔bottom) line through `center`. Every coordinate is
+ * reflected; sprite-like entities also toggle their own flip and reverse
+ * their rotation, so they look exactly mirrored in place.
+ */
+export function flipEntity(entity: MapEntity, center: Vec2, axis: "x" | "y"): MapEntity {
+  const reflect = (p: Vec2): Vec2 =>
+    axis === "x" ? { x: 2 * center.x - p.x, y: p.y } : { x: p.x, y: 2 * center.y - p.y }
+  const sprite = !entity.points && !entity.strokes
+  return {
+    ...entity,
+    position: reflect(entity.position),
+    rotation: sprite ? normalizeDegrees(-entity.rotation) : entity.rotation,
+    flipX: sprite && axis === "x" ? !entity.flipX : entity.flipX,
+    flipY: sprite && axis === "y" ? !entity.flipY : entity.flipY,
+    points: entity.points?.map(reflect),
+    strokes: entity.strokes?.map((s) => ({ ...s, points: s.points.map(reflect) })),
+  }
+}
+
+/**
+ * Drop points closer than `minDist` to the previously kept one (the first and
+ * last points always stay). A strip whose segments are shorter than its own
+ * width can't miter its corners cleanly, so curves are thinned to the
+ * strip's scale before being drawn.
+ */
+export function thinPolyline(points: readonly Vec2[], minDist: number): Vec2[] {
+  if (points.length <= 2) return [...points]
+  const out: Vec2[] = [points[0]]
+  for (let i = 1; i < points.length - 1; i++) {
+    if (dist(points[i], out[out.length - 1]) >= minDist) out.push(points[i])
+  }
+  const last = points[points.length - 1]
+  // Keep the true end; if the previous kept point is too close, replace it.
+  if (out.length > 1 && dist(out[out.length - 1], last) < minDist) out.pop()
+  out.push(last)
+  return out
+}

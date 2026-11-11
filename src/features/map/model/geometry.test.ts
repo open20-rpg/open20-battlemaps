@@ -22,6 +22,8 @@ import {
   scaleEntity,
   isStretchable,
   isSelectable,
+  flipEntity,
+  thinPolyline,
   transformEntity,
   normalizeDegrees,
   resamplePolyline,
@@ -395,5 +397,48 @@ describe("polyline sampling", () => {
     expect(f[0]).toBe(0)
     expect(f[4]).toBeCloseTo(0.5)
     expect(f[8]).toBe(1)
+  })
+})
+
+describe("flipping", () => {
+  it("mirrors sprites in place: position reflected, flip toggled, rotation reversed", () => {
+    const chair = { ...obj("c", 3, 1), rotation: 30 }
+    const f = flipEntity(chair, { x: 2, y: 0 }, "x")
+    expect(f.position).toEqual({ x: 1, y: 1 })
+    expect(f.flipX).toBe(true)
+    expect(f.rotation).toBe(-30)
+    expect(flipEntity(f, { x: 2, y: 0 }, "x")).toMatchObject({
+      position: { x: 3, y: 1 },
+      flipX: false,
+      rotation: 30,
+    })
+    expect(flipEntity(chair, { x: 0, y: 2 }, "y")).toMatchObject({
+      position: { x: 3, y: 3 },
+      flipY: true,
+    })
+  })
+
+  it("reflects polyline points without flipping them", () => {
+    const wall: MapEntity = {
+      ...obj("w", 0, 0),
+      points: [
+        { x: 0, y: 0 },
+        { x: 4, y: 1 },
+      ],
+    }
+    const f = flipEntity(wall, { x: 2, y: 0 }, "x")
+    expect(f.points).toEqual([
+      { x: 4, y: 0 },
+      { x: 0, y: 1 },
+    ])
+    expect(f.flipX).toBeUndefined()
+  })
+})
+
+describe("thinning", () => {
+  it("drops points closer than the strip scale, keeping both ends", () => {
+    const pts = [0, 0.1, 0.2, 0.5, 0.9, 1].map((x) => ({ x, y: 0 }))
+    expect(thinPolyline(pts, 0.4).map((p) => p.x)).toEqual([0, 0.5, 1])
+    expect(thinPolyline(pts.slice(0, 2), 5)).toHaveLength(2)
   })
 })

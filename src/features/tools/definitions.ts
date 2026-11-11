@@ -8,6 +8,8 @@ import {
   LuDoorOpen,
   LuDraftingCompass,
   LuDroplets,
+  LuFlipHorizontal2,
+  LuFlipVertical2,
   LuGrid3X3,
   LuHouse,
   LuImage,
@@ -445,6 +447,7 @@ export const TOOL_TREE: ToolNode[] = [
           sorting("over"),
           sliderParam("rotation", "tools.rotation", -180, 180, 1, 0),
           sliderParam("scale", "tools.scale", 0.1, 4, 0.01, 1),
+          switchParam("mirror", "tools.mirror", false),
           shadow(true),
           switchParam("blockLight", "tools.blockLight", false),
           customColor(),
@@ -551,7 +554,12 @@ export const TOOL_TREE: ToolNode[] = [
       { kind: "prefabs", paramKey: "prefab", labelKey: "tools.prefabList", default: null },
     ],
   }),
-  tool("select", "tools.select", LuMousePointer2),
+  tool("select", "tools.select", LuMousePointer2, {
+    params: [
+      button("flipH", "tools.flipHorizontal", LuFlipHorizontal2),
+      button("flipV", "tools.flipVertical", LuFlipVertical2),
+    ],
+  }),
 ]
 
 /** Find the chain of nodes leading to (and including) the node with `id`. */
