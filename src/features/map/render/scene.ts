@@ -11,6 +11,8 @@ import {
   type ShadowKind,
 } from "./entities"
 import { ShadowTintFilter } from "./shadowFilter"
+import { PostProcessFilter } from "./postProcessFilter"
+import { isNeutral, type PostProcess } from "../../../lib/postProcess"
 import { lightingComposite } from "./lighting"
 import { drawOverlay } from "./overlay"
 import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
@@ -24,6 +26,8 @@ export interface SceneState {
   shadows: boolean
   /** How shadows look (an app preference, not part of the map). */
   shadowStyle: ShadowStyle
+  /** Color adjustments over the whole map (on screen and in exports). */
+  postProcess: PostProcess
   textVisible: boolean
   terrainEnabled: boolean
   /** Draw what lies past the map's edges (else the map clips its content). */
@@ -102,6 +106,7 @@ export class MapScene {
   >
   private shadowBlur = new BlurFilter({ strength: 0, quality: 3 })
   private shadowTint = new ShadowTintFilter()
+  private post = new PostProcessFilter()
   /** Px per tile the shadow blur is computed for (export overrides the zoom's). */
   private shadowPxPerTile: number | null = null
   private entities = new Map<string, EntityView>()
@@ -177,6 +182,7 @@ export class MapScene {
     this.syncBounds(state)
     this.syncReference(state)
     this.applyShadowStyle(state)
+    this.applyPostProcess(state)
     this.syncEntities(state, onLevel, assetsChanged)
     this.syncComposites(state, onLevel, assetsChanged)
     this.syncLighting(state, onLevel, assetsChanged)
@@ -204,6 +210,17 @@ export class MapScene {
     // Blur works in output pixels, so convert the tile radius at the current scale.
     const px = this.shadowPxPerTile ?? tileSizeForZoom(state.zoom)
     this.shadowBlur.strength = style.blur * px
+  }
+
+  /** One filter pass over the map content, only while something is adjusted. */
+  private applyPostProcess(state: SceneState): void {
+    const pp = state.postProcess
+    if (isNeutral(pp)) {
+      if (this.content.filters) this.content.filters = null
+      return
+    }
+    this.post.set(pp)
+    if (!this.content.filters) this.content.filters = [this.post]
   }
 
   /** Black ground under the map, and clipping of whatever spills past it. */
@@ -377,6 +394,7 @@ export class MapScene {
     for (const e of this.entities.values()) destroyView(e)
     this.shadowBlur.destroy()
     this.shadowTint.destroy()
+    this.post.destroy()
     for (const c of this.composites.values()) c.comp.dispose()
     this.lighting?.comp.dispose()
     this.reference?.sprite.destroy()

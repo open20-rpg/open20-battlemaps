@@ -1,4 +1,5 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog"
+import { POST_FILTERS, type PostProcess } from "../../../lib/postProcess"
 import { useEditorStore } from "../../../stores/editorStore"
 import { useSettingsStore, type Prefab, type ShadowStyle } from "../../../stores/settingsStore"
 import { useToolsStore } from "../../../stores/toolsStore"
@@ -196,6 +197,29 @@ export function createShadowSettingsBehavior(): ToolBehavior {
     onAction: (ctx, action) => {
       if (action !== "reset") return
       useSettingsStore.getState().resetShadowStyle()
+      mirror(ctx.toolId)
+    },
+  }
+}
+
+/** Post-processing: color adjustments over the rendered map (an app setting the params mirror). */
+export function createPostProcessingBehavior(): ToolBehavior {
+  const mirror = (toolId: string) =>
+    useToolsStore.getState().setToolParams(toolId, { ...useSettingsStore.getState().postProcess })
+  return {
+    onActivate: (ctx) => mirror(ctx.toolId),
+    onParamsChange: (_ctx, patch) => {
+      const next: Partial<PostProcess> = {}
+      for (const key of ["brightness", "contrast", "saturation", "threshold"] as const) {
+        if (typeof patch[key] === "number") next[key] = patch[key]
+      }
+      const filter = POST_FILTERS.find((f) => f === patch.filter)
+      if (filter) next.filter = filter
+      if (Object.keys(next).length > 0) useSettingsStore.getState().setPostProcess(next)
+    },
+    onAction: (ctx, action) => {
+      if (action !== "reset") return
+      useSettingsStore.getState().resetPostProcess()
       mirror(ctx.toolId)
     },
   }

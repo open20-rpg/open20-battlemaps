@@ -270,7 +270,19 @@
     "selectRoofs": "Todos los techos",
     "selectWater": "Toda el agua",
     "selectLights": "Todas las luces",
-    "selectTexts": "Todos los textos"
+    "selectTexts": "Todos los textos",
+    "postProcessing": "Postprocesado",
+    "brightness": "Brillo",
+    "contrast": "Contraste",
+    "saturation": "Saturación",
+    "postFilter": "Filtro",
+    "postFilter_none": "Ninguno",
+    "postFilter_grayscale": "B/N",
+    "postFilter_sepia": "Sepia",
+    "postFilter_threshold": "Impresión",
+    "postFilter_invert": "Invertir",
+    "threshold": "Umbral",
+    "resetPostProcessing": "Restablecer"
   },
   "biomes": {
     "barren": "Yermo",

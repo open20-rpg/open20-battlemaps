@@ -270,7 +270,19 @@
     "selectRoofs": "All roofs",
     "selectWater": "All water",
     "selectLights": "All lights",
-    "selectTexts": "All texts"
+    "selectTexts": "All texts",
+    "postProcessing": "Post-processing",
+    "brightness": "Brightness",
+    "contrast": "Contrast",
+    "saturation": "Saturation",
+    "postFilter": "Filter",
+    "postFilter_none": "None",
+    "postFilter_grayscale": "B/W",
+    "postFilter_sepia": "Sepia",
+    "postFilter_threshold": "Print",
+    "postFilter_invert": "Invert",
+    "threshold": "Threshold",
+    "resetPostProcessing": "Reset"
   },
   "biomes": {
     "barren": "Barren",
