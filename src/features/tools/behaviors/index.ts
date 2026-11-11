@@ -8,7 +8,11 @@ import {
   createWaterBehavior,
 } from "./paint"
 import { createSelectBehavior } from "./select"
-import { createPrefabsBehavior, createReferenceImageBehavior } from "./settings"
+import {
+  createPrefabsBehavior,
+  createReferenceImageBehavior,
+  createShadowSettingsBehavior,
+} from "./settings"
 import {
   createBuildBehavior,
   createPathBehavior,
@@ -49,6 +53,7 @@ export const TOOL_BEHAVIORS: Record<string, ToolBehavior> = {
   environment: environmentBehavior,
   light: createLightBehavior(),
   referenceImage: createReferenceImageBehavior(),
+  shadowSettings: createShadowSettingsBehavior(),
   text: createTextBehavior(),
   prefabs: createPrefabsBehavior(),
   select: createSelectBehavior(),

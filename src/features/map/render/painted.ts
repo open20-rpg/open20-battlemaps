@@ -16,6 +16,7 @@ import { TEXTURE_PX_PER_TILE } from "./assets"
 import { type RenderEnv, selectionAsset } from "./entities"
 import { softBrushTexture } from "./generated"
 import { naturalEdgeFilter } from "./naturalEdge"
+import { opaqueFilter } from "./opaque"
 import { type SplatLayer } from "../format/dungeondraft"
 import { SPLAT_UPSAMPLE, SplatStack, decodeBase64, upsampleWeights } from "./splat"
 
@@ -205,6 +206,16 @@ function composite(view: Container, masks: Iterable<MapMask>): Composite {
 }
 
 /** A texture fill, or the flat `color` while the texture is loading/unset. */
+/** A terrain texture over the whole map, opaque whatever its alpha (see opaque.ts). */
+function terrainFill(map: MapBox, texture: Texture | undefined, color: string): Container {
+  const fill = textureOrColor(map, texture, color)
+  if (texture) fill.filters = [opaqueFilter()]
+  // Wrapped, so a mask on it applies after the filter.
+  const c = new Container()
+  c.addChild(fill)
+  return c
+}
+
 function textureOrColor(map: MapBox, texture: Texture | undefined, color: string): Container {
   return mapFill(map, texture, texture ? undefined : color)
 }
@@ -392,9 +403,9 @@ function terrainComposite(
   scratch.destroy()
   natural.destroy()
   const view = new Container()
-  if (base) view.addChild(textureOrColor(map, env.tex(base), "#6b7a4a"))
+  if (base) view.addChild(terrainFill(map, env.tex(base), "#6b7a4a"))
   for (const [texId, m] of masks) {
-    view.addChild(masked(textureOrColor(map, env.tex(texId), "#9a8a6a"), m.sprite()))
+    view.addChild(masked(terrainFill(map, env.tex(texId), "#9a8a6a"), m.sprite()))
   }
   return composite(view, masks.values())
 }
