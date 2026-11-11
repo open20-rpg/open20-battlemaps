@@ -61,6 +61,19 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
     }
 
     let pressedButton: number | null = null
+    /** Where the pointer last hovered the map (null once it left). */
+    let hover: PointerInfo | null = null
+    /**
+     * Re-run the tool's hover at the pointer's last place: after the wheel or
+     * a key changes a param (brush size, rotation…), its cursor and preview
+     * update at once instead of on the next move. Not mid-drag (a replayed
+     * move would paint or drag).
+     */
+    const refreshHover = () => {
+      if (!hover || pressedButton !== null || rulerFrom) return
+      const a = active()
+      a?.behavior.onPointerMove?.(a.ctx, hover)
+    }
     /** Where a ruler measure started (ruler mode drags measure, not use the tool). */
     let rulerFrom: { x: number; y: number } | null = null
 
@@ -86,6 +99,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       const info = toMap(e, pressedButton ?? -1)
       if (!info) return
       useEditorStore.getState().setPointer({ x: info.x, y: info.y })
+      hover = { ...info, buttons: 0 }
       if (rulerFrom) {
         useEditorStore.getState().setRuler({ from: rulerFrom, to: { x: info.x, y: info.y } })
         return
@@ -106,7 +120,10 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       const a = active()
       if (info && a) a.behavior.onPointerUp?.(a.ctx, info)
     }
-    const onPointerLeave = () => useEditorStore.getState().setPointer(null)
+    const onPointerLeave = () => {
+      hover = null
+      useEditorStore.getState().setPointer(null)
+    }
     const onDoubleClick = (e: MouseEvent) => {
       const info = toMap(e, 0)
       const a = active()
@@ -129,6 +146,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       if (!info || !a) return
       const handled = a.behavior.onWheel?.(a.ctx, { ...info, buttons: 0, dir, horizontal })
       if (!handled) nudgeBrush(dir)
+      refreshHover()
     }
     // Right-click is a tool action (finish a polyline, erase), not a menu.
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
@@ -139,9 +157,13 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       const a = active()
       if (a?.behavior.onKeyDown?.(a.ctx, e)) {
         e.preventDefault()
+        refreshHover()
         return
       }
-      if (runShortcut(e)) e.preventDefault()
+      if (runShortcut(e)) {
+        e.preventDefault()
+        refreshHover()
+      }
     }
 
     // Let the previous tool wrap up when the selection changes.

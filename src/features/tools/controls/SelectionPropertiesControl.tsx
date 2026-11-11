@@ -94,7 +94,7 @@ export function SelectionPropertiesControl({
         props.map((prop) => (
           <Box key={prop.spec.paramKey}>
             {renderControl(prop.spec, prop.read(first), (value) =>
-              applyLive(propertyPatches(selected, prop.spec.paramKey, value)),
+              applyLive(propertyPatches(selected, prop.spec.paramKey, value, all)),
             )}
           </Box>
         ))

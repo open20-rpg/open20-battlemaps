@@ -308,7 +308,8 @@
     "wear_dust": "Dust",
     "wear_grime": "Grime",
     "wear_noise": "Noise",
-    "wear_scratched": "Scratched"
+    "wear_scratched": "Scratched",
+    "assetProperty": "Asset"
   },
   "biomes": {
     "barren": "Barren",

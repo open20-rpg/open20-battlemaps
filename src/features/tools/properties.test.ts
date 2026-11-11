@@ -18,7 +18,8 @@ describe("entity properties", () => {
     expect(keys([entity("a", "object")])).toEqual(
       ENTITY_PROPERTIES.object.map((p) => p.spec.paramKey),
     )
-    expect(keys([entity("a", "wall")])).toEqual(["shadow"])
+    expect(keys([entity("a", "wall")])).toEqual(["bevelCorners", "shadow", "wall"])
+    expect(keys([entity("a", "build")])).toEqual(["bevelCorners", "shadow", "floor"])
     expect(keys([entity("a", "terrainBrush")])).toEqual([])
   })
 
@@ -31,7 +32,13 @@ describe("entity properties", () => {
       "shadow",
       "blockLight",
     ])
-    expect(keys([entity("a", "object"), entity("b", "light")])).toEqual(["rotation", "shadow"])
+    // Asset browsers only for one kind of element.
+    expect(keys([entity("a", "object"), entity("b", "object")])).toContain("asset")
+    expect(keys([entity("a", "object"), entity("b", "light")])).toEqual([
+      "rotation",
+      "shadow",
+      "color",
+    ])
   })
 
   it("reads fields and params with defaults", () => {
@@ -56,5 +63,23 @@ describe("entity properties", () => {
     expect(propertyPatches([a], "flipX", false).get("a")).toEqual({ flipX: undefined })
     expect(propertyPatches([a], "layer", 300).get("a")).toEqual({ layer: 300 })
     expect(propertyPatches([a], "range", 3).size).toBe(0)
+  })
+
+  it("writes painted layers' style to the whole layer of the level", () => {
+    const w1 = entity("w1", "water", { level: "L" })
+    const w2 = entity("w2", "water", { level: "L" })
+    const w3 = entity("w3", "water", { level: "M" })
+    const patches = propertyPatches([w1], "deepColor", "#112233", [w1, w2, w3])
+    expect([...patches.keys()].sort()).toEqual(["w1", "w2"])
+  })
+
+  it("edits plain asset ids through a browser selection", () => {
+    const o = entity("o", "object", { params: { asset: "p|chair" } })
+    const prop = ENTITY_PROPERTIES.object.find((p) => p.spec.paramKey === "asset")
+    expect(prop?.read(o)).toEqual({ assets: ["p|chair"], color: "#ffffff" })
+    expect(prop?.write(o, { assets: ["p|table"], color: "#ffffff" })).toEqual({
+      params: { asset: "p|table" },
+    })
+    expect(prop?.write(o, { assets: [], color: "#ffffff" })).toEqual({})
   })
 })

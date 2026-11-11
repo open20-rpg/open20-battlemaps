@@ -157,7 +157,7 @@ const customColor = (
 })
 
 /** Deep/Shallow water swatches offered by the Water Brush color pickers. */
-const WATER_PRESETS = ["#3aa19a", "#8bceb0", "#ffcc55", "#3c8ab8"]
+export const WATER_PRESETS = ["#3aa19a", "#8bceb0", "#ffcc55", "#3c8ab8"]
 
 /** Shadow color swatches (Settings › Shadows). */
 const SHADOW_PRESETS = ["#000000", "#1b1530", "#2b1d12", "#0f2a2e"]
@@ -232,6 +232,12 @@ const editPoints = (def: boolean, labelKey = "tools.editPoints"): ToolParamSpec 
 })
 
 /** Path in/out transition styles (a segmented choice). */
+export const ROOF_TYPES: SegmentedChoice[] = [
+  { value: "gable", labelKey: "tools.gable" },
+  { value: "hip", labelKey: "tools.hip" },
+  { value: "dormer", labelKey: "tools.dormer" },
+]
+
 export const PATH_TRANSITIONS: SegmentedChoice[] = [
   { value: "none", labelKey: "tools.transNone" },
   { value: "fade", labelKey: "tools.transFade" },
@@ -377,16 +383,7 @@ export const TOOL_TREE: ToolNode[] = [
             "quickbox",
           ),
           sorting("over"),
-          segmented(
-            "type",
-            "tools.type",
-            [
-              { value: "gable", labelKey: "tools.gable" },
-              { value: "hip", labelKey: "tools.hip" },
-              { value: "dormer", labelKey: "tools.dormer" },
-            ],
-            "gable",
-          ),
+          segmented("type", "tools.type", ROOF_TYPES, "gable"),
           // Embedded roofs browser (no separate library); roofs carry no color.
           assetPicker(
             "style",

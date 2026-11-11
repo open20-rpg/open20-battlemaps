@@ -308,7 +308,8 @@
     "wear_dust": "Polvo",
     "wear_grime": "Mugre",
     "wear_noise": "Ruido",
-    "wear_scratched": "Rayado"
+    "wear_scratched": "Rayado",
+    "assetProperty": "Recurso"
   },
   "biomes": {
     "barren": "Yermo",
