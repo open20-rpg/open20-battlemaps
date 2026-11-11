@@ -1,6 +1,6 @@
 import { memo, useState } from "react"
 import { LuBan, LuImageOff } from "react-icons/lu"
-import { itemImageUrl, type LibItem } from "../api"
+import { itemImageUrl, type LibItem, type ThumbColoring } from "../api"
 import { cellStyle, imgStyle, listCellStyle, listImgStyle, nullCellStyle } from "./constants"
 
 // -- one thumbnail cell --------------------------------------------------------
@@ -9,11 +9,13 @@ export const ThumbCell = memo(function ThumbCell({
   item,
   idx,
   color,
+  coloring,
   selected,
 }: {
   item?: LibItem
   idx: number
   color: string
+  coloring: ThumbColoring
   selected: boolean
 }) {
   const [errored, setErrored] = useState(false)
@@ -27,7 +29,7 @@ export const ThumbCell = memo(function ThumbCell({
     >
       {item && !errored ? (
         <img
-          src={itemImageUrl(item.thumb, item.colorable, color)}
+          src={itemImageUrl(item.thumb, item.colorable, color, coloring)}
           alt=""
           draggable={false}
           decoding="async"
@@ -48,11 +50,13 @@ export const ListCell = memo(function ListCell({
   item,
   idx,
   color,
+  coloring,
   selected,
 }: {
   item?: LibItem
   idx: number
   color: string
+  coloring: ThumbColoring
   selected: boolean
 }) {
   const [errored, setErrored] = useState(false)
@@ -66,7 +70,7 @@ export const ListCell = memo(function ListCell({
     >
       {item && !errored ? (
         <img
-          src={itemImageUrl(item.thumb, item.colorable, color)}
+          src={itemImageUrl(item.thumb, item.colorable, color, coloring)}
           alt=""
           draggable={false}
           decoding="async"

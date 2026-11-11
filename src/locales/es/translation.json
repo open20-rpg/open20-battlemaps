@@ -309,7 +309,8 @@
     "wear_grime": "Mugre",
     "wear_noise": "Ruido",
     "wear_scratched": "Rayado",
-    "assetProperty": "Recurso"
+    "assetProperty": "Recurso",
+    "restoreColor": "Restaurar el color por defecto"
   },
   "biomes": {
     "barren": "Yermo",

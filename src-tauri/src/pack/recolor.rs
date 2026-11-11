@@ -139,49 +139,84 @@ pub(crate) fn pack_colorable_set(app: &AppHandle, pack_id: &str) -> Arc<HashSet<
     arc
 }
 
-/// Is this pixel part of the recolorable (red) region, per the pack thresholds?
-fn is_colorable_pixel(r: u8, g: u8, b: u8, cfg: &ColorCfg) -> bool {
-    // Red must lead the other channels.
-    if r < g || r < b {
-        return false;
+impl Default for ColorCfg {
+    /// Dungeondraft's own thresholds (CustomColors.shader).
+    fn default() -> Self {
+        ColorCfg {
+            enabled: true,
+            min_redness: 0.1,
+            min_saturation: 0.0,
+            red_tolerance: 0.04,
+        }
     }
-    let rf = r as f32 / 255.0;
-    let redness = rf - (g.max(b) as f32 / 255.0);
-    if redness < cfg.min_redness {
-        return false;
-    }
-    // HSV saturation (maxc = r here, and r > 0 because redness > 0).
-    let minc = r.min(g).min(b);
-    let sat = (r - minc) as f32 / r as f32;
-    if sat < cfg.min_saturation {
-        return false;
-    }
-    // How far the "red" is allowed to tint toward green/blue.
-    (g as i32 - b as i32).abs() as f32 / 255.0 <= cfg.red_tolerance
 }
 
-/// Recolor a PNG's colorable (red) pixels to `color` (RGBA), preserving shading
-/// (the red brightness becomes the new colour's brightness). Returns PNG bytes.
-fn recolor_png(bytes: &[u8], color: [u8; 4], cfg: &ColorCfg) -> Option<Vec<u8>> {
+/// How an image takes its color (the `mode` query parameter).
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Mode {
+    /// Colorable objects (CustomColors.shader), with the pack's thresholds.
+    Object,
+    /// "custom_color" tilesets and colorable patterns (TilesetCustomColor.shader).
+    Tileset,
+    /// Walls and "normal" tilesets: the whole image multiplied by the color
+    /// (Wall/Tileset shaders; used for their thumbnails).
+    Tint,
+}
+
+fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
+    let t = ((x - e0) / (e1 - e0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+/// One pixel (straight RGBA, 0–1) recolored by `tint` as Dungeondraft does.
+fn recolor_pixel(o: [f32; 4], tint: [f32; 4], mode: Mode, cfg: &ColorCfg) -> [f32; 4] {
+    let [r, g, b, a] = o;
+    let redness = r - (g + b) * 0.5;
+    match mode {
+        Mode::Tint => [r * tint[0], g * tint[1], b * tint[2], a],
+        Mode::Tileset => {
+            if redness <= 0.0 {
+                return o;
+            }
+            let k = smoothstep(0.0, 0.5, redness);
+            let mix = |x: f32, y: f32| x + (y - x) * k;
+            [
+                mix(r, tint[0] * r),
+                mix(g, tint[1] * r),
+                mix(b, tint[2] * r),
+                a,
+            ]
+        }
+        Mode::Object => {
+            let is_red = (g - b).abs() <= cfg.red_tolerance;
+            let sat_ok = 1.0 - (g + b) * 0.5 >= cfg.min_saturation;
+            if !(is_red && sat_ok && redness > cfg.min_redness) {
+                return o;
+            }
+            let mut texel = [r * tint[0], r * tint[1], r * tint[2]];
+            let l = 0.299 * r + 0.587 * g + 0.114 * b;
+            if l > 0.333 {
+                let k = l - 0.333;
+                for c in &mut texel {
+                    *c += (1.0 - *c) * k;
+                }
+            }
+            [texel[0], texel[1], texel[2], a * tint[3]]
+        }
+    }
+}
+
+/// Recolor a PNG as Dungeondraft's shader would draw it with `color`. Returns PNG bytes.
+fn recolor_png(bytes: &[u8], color: [u8; 4], mode: Mode, cfg: &ColorCfg) -> Option<Vec<u8>> {
     let mut img = image::load_from_memory(bytes).ok()?.to_rgba8();
-    let (cr, cg, cb, ca) = (
-        color[0] as f32,
-        color[1] as f32,
-        color[2] as f32,
-        color[3] as f32 / 255.0,
-    );
+    let f = |v: u8| v as f32 / 255.0;
+    let tint = [f(color[0]), f(color[1]), f(color[2]), f(color[3])];
     for px in img.pixels_mut() {
-        let [r, g, b, a] = px.0;
-        if a == 0 || !is_colorable_pixel(r, g, b, cfg) {
+        if px.0[3] == 0 {
             continue;
         }
-        let lum = r.max(g).max(b) as f32 / 255.0; // brightness from the red shade
-        px.0 = [
-            (cr * lum) as u8,
-            (cg * lum) as u8,
-            (cb * lum) as u8,
-            (a as f32 * ca) as u8,
-        ];
+        let out = recolor_pixel(px.0.map(f), tint, mode, cfg);
+        px.0 = out.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
     }
     let mut out = std::io::Cursor::new(Vec::new());
     image::DynamicImage::ImageRgba8(img)
@@ -250,18 +285,27 @@ fn build_recolor_response(
         return not_found();
     };
 
-    // Optional ?color=... → recolor if the owning pack has a colorable config.
-    let color = uri.query().and_then(|q| {
-        q.split('&')
-            .find_map(|kv| kv.strip_prefix("color="))
-            .and_then(|v| urlencoding::decode(v).ok())
-            .and_then(|v| parse_hex_color(&v))
-    });
+    // Optional ?color=…[&mode=tileset] → recolored as Dungeondraft would.
+    // The frontend only asks for colorable assets (see library.rs).
+    let param = |key: &str| {
+        uri.query().and_then(|q| {
+            q.split('&')
+                .find_map(|kv| kv.strip_prefix(key))
+                .and_then(|v| urlencoding::decode(v).ok())
+                .map(|v| v.into_owned())
+        })
+    };
+    let color = param("color=").and_then(|v| parse_hex_color(&v));
+    let mode = match param("mode=").as_deref() {
+        Some("tileset") => Mode::Tileset,
+        Some("tint") => Mode::Tint,
+        _ => Mode::Object,
+    };
     let recolored = color.and_then(|c| {
         let rel = canon.strip_prefix(&root).ok()?;
         let pack_id = rel.iter().next()?.to_string_lossy().into_owned();
-        let cfg = pack_color_cfg(app, &pack_id)?;
-        recolor_png(&bytes, c, &cfg)
+        let cfg = pack_color_cfg(app, &pack_id).unwrap_or_default();
+        recolor_png(&bytes, c, mode, &cfg)
     });
 
     let (body, ctype) = match recolored {
@@ -279,6 +323,27 @@ fn build_recolor_response(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recolors_like_dungeondraft() {
+        let cfg = ColorCfg::default();
+        let green = [0.0, 1.0, 0.0, 1.0];
+        // Objects: pure red takes the tint (scaled by the red), others don't.
+        let red = recolor_pixel([1.0, 0.0, 0.0, 1.0], green, Mode::Object, &cfg);
+        assert_eq!(red, [0.0, 1.0, 0.0, 1.0]);
+        let grey = [0.5, 0.5, 0.5, 1.0];
+        assert_eq!(recolor_pixel(grey, green, Mode::Object, &cfg), grey);
+        // Uneven green/blue isn't red (|g − b| > 0.04).
+        let orange = [1.0, 0.5, 0.0, 1.0];
+        assert_eq!(recolor_pixel(orange, green, Mode::Object, &cfg), orange);
+        // Tilesets: full red (redness ≥ 0.5) becomes tint × r; half-red blends.
+        let t = recolor_pixel([0.8, 0.0, 0.0, 1.0], green, Mode::Tileset, &cfg);
+        assert!((t[1] - 0.8).abs() < 1e-6 && t[0].abs() < 1e-6);
+        assert_eq!(recolor_pixel(grey, green, Mode::Tileset, &cfg), grey);
+        // Tint: everything multiplied.
+        let t = recolor_pixel(grey, [0.5, 1.0, 0.0, 1.0], Mode::Tint, &cfg);
+        assert_eq!(t, [0.25, 0.5, 0.0, 1.0]);
+    }
 
     #[test]
     fn parse_hex_color_variants() {

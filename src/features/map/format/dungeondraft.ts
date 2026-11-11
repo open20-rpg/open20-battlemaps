@@ -253,26 +253,41 @@ function walls(im: Importer, level: string, raw: Json): MapEntity[] {
   return out
 }
 
-/** Floors: shape polygons, each filled with the tileset most of its cells use. */
+/**
+ * Floors: shape polygons, each filled with the tileset most of its cells
+ * use, tinted with the color most of those cells have (Dungeondraft keeps a
+ * color per cell, `tiles.colors`).
+ */
 function floors(im: Importer, level: string, raw: Json): MapEntity[] {
   const tiles = obj(raw.tiles)
   const cells = tryParse(parsePoolInt, tiles.cells ?? raw.tiles) ?? []
   const lookup = obj(tiles.lookup)
+  const colors = arr(tiles.colors)
   const polygons = arr(obj(raw.shapes).polygons)
     .map((p) => tryParse(parsePoolVec2, p))
     .filter((p): p is Vec2[] => !!p && p.length > 2)
   const covered = new Set<number>()
   const out = polygons.map((poly) => {
     const counts = new Map<string, number>()
+    /** Per tileset path: how many of its cells have each color. */
+    const tints = new Map<string, Map<string, number>>()
     cells.forEach((tile, i) => {
       if (tile < 0) return
       const center = { x: ((i % im.width) + 0.5) * PX, y: (Math.floor(i / im.width) + 0.5) * PX }
       if (!pointInPolygon(center, poly)) return
       covered.add(i)
       const path = str(lookup[String(tile)])
-      if (path) counts.set(path, (counts.get(path) ?? 0) + 1)
+      if (!path) return
+      counts.set(path, (counts.get(path) ?? 0) + 1)
+      const color = argbToHex(colors[i], "#ffffff")
+      const byColor = tints.get(path) ?? new Map<string, number>()
+      byColor.set(color, (byColor.get(color) ?? 0) + 1)
+      tints.set(path, byColor)
     })
-    const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    const mostOf = <K>(m: Map<K, number> | undefined) =>
+      m ? [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] : undefined
+    const best = mostOf(counts)
+    const tint = mostOf(best ? tints.get(best) : undefined) ?? "#ffffff"
     const pts = poly.map((q) => im.p(q))
     return entity(level, {
       toolId: "build",
@@ -280,7 +295,7 @@ function floors(im: Importer, level: string, raw: Json): MapEntity[] {
       points: pts,
       closed: true,
       position: pts[0],
-      params: { floor: selection(best ? im.asset(best) : undefined), bevelCorners: true },
+      params: { floor: selection(best ? im.asset(best) : undefined, tint), bevelCorners: true },
     })
   })
   const loose = cells.filter((tile, i) => tile >= 0 && !covered.has(i)).length

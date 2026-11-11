@@ -1,7 +1,7 @@
 import { Texture } from "pixi.js"
 import i18n from "../../../i18n"
 import { withLoading } from "../../../stores/loadingStore"
-import { recolorUrl, thumbUrl } from "../../library/api"
+import { recolorUrl, thumbUrl, type RecolorMode } from "../../library/api"
 import { resolveAssets, type ResolvedAsset } from "../api"
 
 /**
@@ -24,6 +24,8 @@ export interface TextureRequest {
   suffix?: string
   /** Recolor colorable assets to this hex color. */
   color?: string
+  /** Which red-region recolor (tilesets and patterns use their own). */
+  recolorMode?: Exclude<RecolorMode, "tint">
 }
 
 type Listener = () => void
@@ -95,6 +97,14 @@ export class AssetCache {
     })
   }
 
+  /**
+   * Whether an asset is recolored by its red regions (Colorable objects,
+   * "custom_color" tilesets) rather than tinted. False until resolved.
+   */
+  isColorable(id: string): boolean {
+    return this.resolved.get(id)?.colorable === true
+  }
+
   /** Whether an id is known to be missing (pack/file not installed). */
   isMissing(id: string): boolean {
     return this.resolved.get(id) === null
@@ -132,7 +142,9 @@ export class AssetCache {
     }
     if (!res?.path) return undefined
     const path = req.part || req.suffix ? relatedPath(res.path, req) : res.path
-    return res.colorable && req.color ? recolorUrl(path, req.color) : thumbUrl(path)
+    return res.colorable && req.color
+      ? recolorUrl(path, req.color, req.recolorMode)
+      : thumbUrl(path)
   }
 
   private queueResolve(id: string): void {

@@ -11,6 +11,11 @@ export type Shape = "rectangle" | "ellipse" | "path" | "brush"
 export interface AssetSelection {
   assets: string[]
   color: string
+  /**
+   * The picked asset's own default color (walls and tilesets, from its pack):
+   * what picking it set the color to, and what "restore" goes back to.
+   */
+  defaultColor?: string
 }
 
 /**

@@ -14,7 +14,8 @@ use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
-use super::recolor::{pack_color_cfg, pack_colorable_set, ColorCfg};
+use super::assetdefs::pack_asset_defs;
+use super::recolor::{pack_colorable_set, ColorCfg};
 use super::registry::{pack_dir, read_registry};
 use super::Result;
 
@@ -43,8 +44,11 @@ pub struct LibItem {
     thumb: String,
     /// Absolute path to the full-size texture (for the hover preview panel).
     full: String,
-    /// Whether this asset can be recolored (tagged Colorable + pack enables it).
+    /// Whether this asset is recolored by its red regions (tagged Colorable,
+    /// or a "custom_color" tileset) instead of tinted.
     colorable: bool,
+    /// Its default tint (walls and tilesets, from the pack's definitions).
+    default_color: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -68,6 +72,8 @@ pub struct LibraryState {
     pub(crate) color_cfg: Mutex<HashMap<String, Option<ColorCfg>>>,
     /// packId -> tag name -> texture rel-paths (see `tags.rs`).
     pub(crate) tags: Mutex<HashMap<String, Arc<super::tags::TagMap>>>,
+    /// packId -> tileset/wall definitions (see `assetdefs.rs`).
+    pub(crate) defs: Mutex<HashMap<String, Arc<super::assetdefs::AssetDefs>>>,
 }
 
 /// Drop all cached indexes/results (call when packs are added/removed/toggled).
@@ -88,6 +94,21 @@ pub(crate) fn clear_library(app: &AppHandle) {
     if let Ok(mut t) = state.tags.lock() {
         t.clear();
     };
+    if let Ok(mut d) = state.defs.lock() {
+        d.clear();
+    };
+}
+
+/// How an asset takes a color (see `recolor.rs`): its default tint from the
+/// pack's definitions, and whether it's recolored by its red regions (a
+/// Colorable-tagged object, or a "custom_color" tileset) rather than tinted.
+fn color_info(app: &AppHandle, pack_id: &str, rel: &str) -> (bool, Option<String>) {
+    let def = pack_asset_defs(app, pack_id)
+        .get(rel)
+        .cloned()
+        .unwrap_or_default();
+    let colorable = def.custom_color || pack_colorable_set(app, pack_id).contains(rel);
+    (colorable, def.default_color)
 }
 
 /// Some categories group several part textures per item inside a subfolder
@@ -337,14 +358,14 @@ pub(crate) fn get_items(
         // Some packs ship no pre-baked thumbnails; fall back to the texture
         // itself (the webview scales it down to the cell size).
         let image = if thumb.is_file() { thumb } else { full.clone() };
-        let colorable = pack_color_cfg(app, &lite.pack_id).is_some()
-            && pack_colorable_set(app, &lite.pack_id).contains(&lite.rel_path);
+        let (colorable, default_color) = color_info(app, &lite.pack_id, &lite.rel_path);
         out.push(LibItem {
             id: format!("{}|{}", lite.pack_id, lite.rel_path),
             name: lite.name.clone(),
             thumb: image.to_string_lossy().into_owned(),
             full: full.to_string_lossy().into_owned(),
             colorable,
+            default_color,
         });
     }
     Ok(out)
@@ -421,8 +442,7 @@ pub(crate) fn resolve(app: &AppHandle, ids: &[String]) -> Vec<ResolvedAsset> {
                 if !full.starts_with(&dir) {
                     return None;
                 }
-                let colorable = pack_color_cfg(app, pack_id).is_some()
-                    && pack_colorable_set(app, pack_id).contains(&rel);
+                let (colorable, _) = color_info(app, pack_id, &rel);
                 Some((full.to_string_lossy().into_owned(), colorable))
             });
             ResolvedAsset {

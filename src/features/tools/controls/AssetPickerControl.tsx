@@ -1,10 +1,14 @@
-import { Box, Flex, Text } from "@chakra-ui/react"
-import { LuChevronDown } from "react-icons/lu"
+import { Box, Flex, IconButton, Text } from "@chakra-ui/react"
+import { LuChevronDown, LuRotateCcw } from "react-icons/lu"
+import { Tooltip } from "../../../ui/chakra/tooltip"
 import { useTranslation } from "react-i18next"
 import { AssetSelector } from "../../library/AssetSelector"
 import { ColorPickerPopover } from "../../../ui/ColorPickerPopover"
 import { type AssetCategory } from "../../../lib/categories"
 import { type AssetSelection } from "../params"
+
+/** What "restore" sets when the asset has no default color of its own. */
+const DEFAULT_ASSET_COLOR = "#ffffff"
 
 /**
  * Asset-picker param: an embedded asset browser (search + grid, same as the
@@ -55,46 +59,76 @@ export function AssetPickerControl({
         color={gridColor}
         select={select}
         selectedIds={value.assets}
-        onSelectionChange={(ids) => onChange({ ...value, assets: ids })}
+        onSelectionChange={(ids, picked) => {
+          // As in Dungeondraft, a wall or tileset brings its own default color.
+          const def = showColorSwatch ? (picked?.defaultColor ?? undefined) : undefined
+          onChange(
+            def
+              ? { ...value, assets: ids, color: def, defaultColor: def }
+              : { ...value, assets: ids },
+          )
+        }}
         showPreview
         showSearch={false}
         allowNull={allowNull}
       />
       {/* Own color selector below the browser (unless colored externally). */}
       {showColorSwatch && (
-        <Box px="3" py="2.5" borderTopWidth="1px" borderColor="panel.border" flexShrink={0}>
-          <ColorPickerPopover
-            value={value.color}
-            onCommit={(c) => onChange({ ...value, color: c })}
-          >
-            <Flex
-              as="button"
-              w="full"
-              h="30px"
-              align="center"
-              justify="flex-end"
-              pr="1.5"
-              bg={value.color}
-              borderWidth="1px"
-              borderColor="panel.border"
-              borderRadius="md"
-              cursor="pointer"
-              overflow="hidden"
-              _hover={{ borderColor: "brand.fg" }}
+        <Flex
+          px="3"
+          py="2.5"
+          gap="2"
+          align="center"
+          borderTopWidth="1px"
+          borderColor="panel.border"
+          flexShrink={0}
+        >
+          <Box flex="1" minW="0">
+            <ColorPickerPopover
+              value={value.color}
+              onCommit={(c) => onChange({ ...value, color: c })}
             >
               <Flex
+                as="button"
+                w="full"
+                h="30px"
                 align="center"
-                justify="center"
-                boxSize="20px"
-                borderRadius="sm"
-                bg="blackAlpha.500"
-                color="white"
+                justify="flex-end"
+                pr="1.5"
+                bg={value.color}
+                borderWidth="1px"
+                borderColor="panel.border"
+                borderRadius="md"
+                cursor="pointer"
+                overflow="hidden"
+                _hover={{ borderColor: "brand.fg" }}
               >
-                <LuChevronDown size={14} />
+                <Flex
+                  align="center"
+                  justify="center"
+                  boxSize="20px"
+                  borderRadius="sm"
+                  bg="blackAlpha.500"
+                  color="white"
+                >
+                  <LuChevronDown size={14} />
+                </Flex>
               </Flex>
-            </Flex>
-          </ColorPickerPopover>
-        </Box>
+            </ColorPickerPopover>
+          </Box>
+          <Tooltip content={t("tools.restoreColor")} showArrow>
+            <IconButton
+              aria-label={t("tools.restoreColor")}
+              size="xs"
+              variant="ghost"
+              onClick={() =>
+                onChange({ ...value, color: value.defaultColor ?? DEFAULT_ASSET_COLOR })
+              }
+            >
+              <LuRotateCcw />
+            </IconButton>
+          </Tooltip>
+        </Flex>
       )}
     </Flex>
   )

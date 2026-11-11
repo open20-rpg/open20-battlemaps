@@ -49,6 +49,11 @@ export interface RenderEnv {
   portals: readonly MapEntity[]
   /** Asset size in tiles (remembers misses like `tex`). */
   size: (id: string | undefined) => { w: number; h: number } | undefined
+  /**
+   * Whether an asset is recolored by its red regions (Colorable objects,
+   * "custom_color" tilesets) rather than tinted by its color.
+   */
+  colorable: (id: string | undefined) => boolean
   /** The map's building wear texture (buildingWear.ts): none, or once loaded (remembers misses like `tex`). */
   buildingWear: () => Texture | undefined
 }
@@ -252,9 +257,11 @@ function capTriangles(
  * geometry tinted black, so it follows the wall's real shape.
  */
 const wallRenderer: EntityRenderer = (e, env) => {
+  // Dungeondraft multiplies walls (and their ends) by the wall's color.
   const { id, color } = selectionAsset(e.params.wall)
-  const texture = env.tex(id, { color })
-  const cap = env.tex(id, { color, suffix: "_end" })
+  const texture = env.tex(id)
+  const cap = env.tex(id, { suffix: "_end" })
+  const tint = color && texture ? hexToPixiColor(color).color : undefined
   const width = texture ? texture.height / TEXTURE_PX_PER_TILE : WALL_WIDTH
   const runs = wallRuns(e.points ?? [], !!e.closed, portalOpenings(env))
   const opts = { bevel: e.params.bevelCorners !== false, normalizeUv: true }
@@ -282,7 +289,7 @@ const wallRenderer: EntityRenderer = (e, env) => {
 
   const root = new Container()
   if (castsShadow(e)) env.castShadow(draw(0x000000), "walls")
-  root.addChild(draw(undefined, env.buildingWear()))
+  root.addChild(draw(tint, env.buildingWear()))
   return root
 }
 
@@ -312,6 +319,9 @@ const pathRenderer: EntityRenderer = (e, env) => {
  * A polygon filled with a tiling texture (floors, patterns). The texture is
  * laid out on the map grid (not the shape) so adjacent fills line up.
  */
+/** Floor tiles take the building wear at half scale (Dungeondraft's Tileset shader). */
+const FLOOR_WEAR_STRETCH = 2
+
 function tiledPolygon(
   points: Vec2[],
   texture: Texture | undefined,
@@ -344,18 +354,23 @@ function tiledPolygon(
   const mask = new Graphics().poly(flat, true).fill({ color: 0xffffff })
   const body = new Container()
   body.addChild(fill)
-  if (wear) body.addChild(wearOverlay(wear, x0, y0, w, h))
+  if (wear) body.addChild(wearOverlay(wear, x0, y0, w, h, FLOOR_WEAR_STRETCH))
   root.addChild(body, mask)
   body.mask = mask
   return root
 }
 
+/**
+ * Floors, as Dungeondraft's tilesets: a "normal" one is multiplied by the
+ * floor's color, a "custom_color" one has its red regions take it.
+ */
 const floorRenderer: EntityRenderer = (e, env) => {
   const { id, color } = selectionAsset(e.params.floor)
+  const red = env.colorable(id)
   return tiledPolygon(
     e.points ?? [],
-    env.tex(id, { color }),
-    undefined,
+    env.tex(id, red ? { color, recolorMode: "tileset" } : undefined),
+    red ? undefined : color,
     0,
     0x8a7a62,
     env.buildingWear(),
@@ -366,12 +381,14 @@ const patternRenderer: EntityRenderer = (e, env) => {
   if (castsShadow(e) && (e.points?.length ?? 0) > 2) {
     env.castShadow(polygonSilhouette(e.points ?? []), "patterns")
   }
+  // Colorable patterns' red regions take the color; others are multiplied by it.
   const { id } = selectionAsset(e.params.pattern)
   const color = str(e.params.customColor, "#ffffff")
+  const red = env.colorable(id)
   const root = tiledPolygon(
     e.points ?? [],
-    env.tex(id, { color }),
-    id ? undefined : color,
+    env.tex(id, red ? { color, recolorMode: "tileset" } : undefined),
+    red ? undefined : color,
     num(e.params.rotation, 0),
     hexToPixiColor(color).color,
   )

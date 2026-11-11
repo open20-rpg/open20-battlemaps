@@ -11,12 +11,13 @@ import { Box, Flex, Text } from "@chakra-ui/react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useTranslation } from "react-i18next"
 import { usePreviewStore } from "../../../stores/previewStore"
-import { itemImageUrl } from "../api"
+import { itemImageUrl, type LibItem, type ThumbColoring } from "../api"
 import { ListCell, NullCell, ThumbCell } from "./cells"
 import {
   CELL,
   GAP,
   LIST_CATEGORIES,
+  TINTED_CATEGORIES,
   LIST_ROW_EST,
   THUMB_CSS,
   fillerStyle,
@@ -41,7 +42,8 @@ export interface AssetSelectorProps {
   select?: "single" | "multi"
   /** Selected item ids (controlled). */
   selectedIds?: string[]
-  onSelectionChange?: (ids: string[]) => void
+  /** `picked`: the item a single click chose (e.g. to apply its default color). */
+  onSelectionChange?: (ids: string[], picked?: LibItem) => void
   /** Drive the shared hover/press preview panel (used by the Library). */
   showPreview?: boolean
   /** Show the search box + exactness slider (hidden for param pickers). */
@@ -52,6 +54,26 @@ export interface AssetSelectorProps {
   tag?: string
   /** Only show these asset ids. */
   onlyIds?: string[]
+}
+
+/** Each category's (stable) thumbnail coloring. */
+const COLORINGS = new Map<string, ThumbColoring>()
+
+/**
+ * How a category's thumbnails take the color: walls and tilesets are tinted
+ * (Dungeondraft multiplies them); colorable ones — and objects — have their
+ * red regions recolored, tilesets by their own rule.
+ */
+function coloringOf(category: string): ThumbColoring {
+  let c = COLORINGS.get(category)
+  if (!c) {
+    c = {
+      tint: TINTED_CATEGORIES.has(category),
+      recolorMode: category === "tilesets" ? "tileset" : "object",
+    }
+    COLORINGS.set(category, c)
+  }
+  return c
 }
 
 export function AssetSelector({
@@ -68,6 +90,7 @@ export function AssetSelector({
   onlyIds,
 }: AssetSelectorProps) {
   const { t } = useTranslation()
+  const coloring = coloringOf(category)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [cols, setCols] = useState(1)
@@ -131,14 +154,14 @@ export function AssetSelector({
           item
             ? {
                 name: item.name,
-                thumbUrl: itemImageUrl(item.thumb, item.colorable, color),
-                fullUrl: itemImageUrl(item.full, item.colorable, color),
+                thumbUrl: itemImageUrl(item.thumb, item.colorable, color, coloring),
+                fullUrl: itemImageUrl(item.full, item.colorable, color, coloring),
               }
             : null,
         )
       }
     },
-    [items, setPreview, showPreview, color],
+    [items, setPreview, showPreview, color, coloring],
   )
 
   const clearAll = useCallback(() => {
@@ -166,7 +189,7 @@ export function AssetSelector({
       if (!item) return
 
       if (select === "single") {
-        onSelectionChange([item.id])
+        onSelectionChange([item.id], item)
         anchorIdx.current = idx
         return
       }
@@ -188,7 +211,7 @@ export function AssetSelector({
         onSelectionChange([...next])
         anchorIdx.current = idx
       } else {
-        onSelectionChange([item.id])
+        onSelectionChange([item.id], item)
         anchorIdx.current = idx
       }
     },
@@ -295,6 +318,7 @@ export function AssetSelector({
                         idx={idx}
                         item={item}
                         color={color}
+                        coloring={coloring}
                         selected={item ? selectedSet.has(item.id) : false}
                       />
                     )
@@ -321,6 +345,7 @@ export function AssetSelector({
                         idx={idx}
                         item={item}
                         color={color}
+                        coloring={coloring}
                         selected={item ? selectedSet.has(item.id) : false}
                       />
                     )

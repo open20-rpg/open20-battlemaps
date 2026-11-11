@@ -17,7 +17,8 @@ import { TEXTURE_PX_PER_TILE } from "./assets"
 /**
  * Building wear: the grime Dungeondraft multiplies over walls (and their
  * ends), floor tiles and caves (Map Settings → Building Wear). It's laid in
- * world coordinates, one texture pixel per world pixel, repeating — so its
+ * world coordinates, one texture pixel per world pixel (two on floor tiles,
+ * as Dungeondraft's Tileset shader), repeating — so its
  * blotches run across walls whatever their direction and never line up with
  * the bricks — and only ever darkens (the textures are light gray to
  * white). Ours are original 2048 px seamless textures in the same spirit
@@ -107,12 +108,14 @@ export function wearOverlay(
   y: number,
   w: number,
   h: number,
+  /** World px per texture px: 1 on walls and caves, 2 on floor tiles (as Dungeondraft). */
+  stretch = 1,
 ): TilingSprite {
   wear.source.style.addressMode = "repeat"
   const t = new TilingSprite({ texture: wear, width: w, height: h })
   t.position.set(x, y)
-  t.tileScale.set(1 / TEXTURE_PX_PER_TILE)
-  t.tilePosition.set(-x * TEXTURE_PX_PER_TILE, -y * TEXTURE_PX_PER_TILE)
+  t.tileScale.set(stretch / TEXTURE_PX_PER_TILE)
+  t.tilePosition.set((-x * TEXTURE_PX_PER_TILE) / stretch, (-y * TEXTURE_PX_PER_TILE) / stretch)
   t.blendMode = "multiply"
   return t
 }

@@ -199,6 +199,7 @@ export class MapScene {
         if (!s && !this.assets.isMissing(id)) track.complete = false
         return s
       },
+      colorable: (id) => !!id && this.assets.isColorable(id),
       buildingWear: () => {
         const wear = state.map.buildingWear
         if (wear === "none") return undefined

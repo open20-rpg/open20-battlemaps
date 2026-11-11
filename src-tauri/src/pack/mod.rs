@@ -13,6 +13,7 @@
 //! - [`tags`]: pack tag groups (Library "Tags" tab).
 //! - [`commands`]: the thin `#[tauri::command]` facade.
 
+mod assetdefs;
 mod commands;
 mod format;
 mod install;

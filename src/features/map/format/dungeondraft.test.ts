@@ -35,6 +35,16 @@ const MAP = {
         tiles: {
           cells: "PoolIntArray( 3, 3, -1, 7, 3, 3, -1, -1, -1, -1, -1, -1 )",
           lookup: { "3": `${PACK}/tilesets/wood.png`, "7": `${PACK}/tilesets/stone.png` },
+          // Most wood cells are tan; one is white.
+          colors: [
+            "ffb08850",
+            "ffffffff",
+            "ffffffff",
+            "ffffffff",
+            "ffb08850",
+            "ffb08850",
+            ...Array(6).fill("ffffffff"),
+          ],
         },
         walls: [
           {
@@ -163,7 +173,10 @@ describe("Dungeondraft import", () => {
   it("fills floor shapes with their majority tileset and reports loose tiles", () => {
     const [floor] = byTool("build")
     expect(floor.points).toHaveLength(4)
-    expect(floor.params.floor).toMatchObject({ assets: ["abcd1234|textures/tilesets/wood.png"] })
+    expect(floor.params.floor).toMatchObject({
+      assets: ["abcd1234|textures/tilesets/wood.png"],
+      color: "#b08850",
+    })
     expect(run().warnings.looseTiles).toBe(1)
   })
 

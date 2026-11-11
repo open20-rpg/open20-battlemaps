@@ -7,8 +7,13 @@ export interface LibItem {
   thumb: string
   /** Absolute path to the full-size texture (for the hover preview). */
   full: string
-  /** Whether this asset can be recolored (tagged Colorable + pack enables it). */
+  /**
+   * Recolored by its red regions (a Colorable object, a "custom_color"
+   * tileset) rather than tinted by the color.
+   */
   colorable: boolean
+  /** Default tint (walls and tilesets), from the pack's definitions. */
+  defaultColor?: string | null
 }
 
 /** What a library search matches (mirrors `SearchFilter` in src-tauri). */
@@ -67,11 +72,39 @@ export function thumbUrl(path: string): string {
  * `recolor://` protocol. Only use for colorable assets — the backend recolors
  * the red region; the URL is stable per (path,color) so the webview caches it.
  */
-export function recolorUrl(path: string, color: string): string {
-  return `${convertFileSrc(path, "recolor")}?color=${color.replace(/^#/, "")}`
+export function recolorUrl(path: string, color: string, mode: RecolorMode = "object"): string {
+  const base = `${convertFileSrc(path, "recolor")}?color=${color.replace(/^#/, "")}`
+  return mode === "object" ? base : `${base}&mode=${mode}`
 }
 
-/** The URL to display for a library item, recolored if colorable + a color is set. */
-export function itemImageUrl(path: string, colorable: boolean, color?: string): string {
-  return colorable && color ? recolorUrl(path, color) : thumbUrl(path)
+/**
+ * How Dungeondraft colors an image: its two red-region recolors — objects'
+ * (CustomColors.shader), "custom_color" tilesets' and colorable patterns'
+ * (TilesetCustomColor) — or a plain multiply (walls, "normal" tilesets).
+ */
+export type RecolorMode = "object" | "tileset" | "tint"
+
+/** How a browser colors its thumbnails (see AssetSelector). */
+export interface ThumbColoring {
+  /** Multiply non-colorable thumbnails by the color (walls, tilesets). */
+  tint: boolean
+  /** The red-region recolor colorable ones get. */
+  recolorMode: Exclude<RecolorMode, "tint">
+}
+
+const isWhite = (color: string) => /^#?f{6}(ff)?$/i.test(color)
+
+/**
+ * The URL to display for a library item: recolored if colorable, multiplied
+ * by the color when the browser tints, as is otherwise.
+ */
+export function itemImageUrl(
+  path: string,
+  colorable: boolean,
+  color?: string,
+  coloring: ThumbColoring = { tint: false, recolorMode: "object" },
+): string {
+  if (!color) return thumbUrl(path)
+  if (colorable) return recolorUrl(path, color, coloring.recolorMode)
+  return coloring.tint && !isWhite(color) ? recolorUrl(path, color, "tint") : thumbUrl(path)
 }

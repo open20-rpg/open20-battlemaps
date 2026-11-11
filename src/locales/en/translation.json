@@ -309,7 +309,8 @@
     "wear_grime": "Grime",
     "wear_noise": "Noise",
     "wear_scratched": "Scratched",
-    "assetProperty": "Asset"
+    "assetProperty": "Asset",
+    "restoreColor": "Restore the default color"
   },
   "biomes": {
     "barren": "Barren",

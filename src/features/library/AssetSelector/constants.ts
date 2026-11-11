@@ -8,6 +8,10 @@ export const LIST_ROW_EST = 40 // avg natural thumb height, used to estimate lis
 // single column at natural size instead of the fixed square grid.
 export const LIST_CATEGORIES = new Set(["walls", "paths"])
 
+// Categories Dungeondraft tints by the chosen color (multiplied), unless the
+// asset is colorable (its red regions take the color instead).
+export const TINTED_CATEGORIES = new Set(["walls", "tilesets"])
+
 export const cellStyle: CSSProperties = {
   width: CELL,
   height: CELL,
