@@ -71,9 +71,10 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
      * (for tools that ask, see ToolBehavior.longPressRightClick) — the left
      * press is released first.
      */
-    let longPress: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null
+    let longPress: { x: number; y: number } | null = null
+    let longPressTimer: ReturnType<typeof setTimeout> | undefined
     const cancelLongPress = () => {
-      if (longPress) clearTimeout(longPress.timer)
+      clearTimeout(longPressTimer)
       longPress = null
     }
     /** Where the pointer last hovered the map (null once it left). */
@@ -111,7 +112,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       a.behavior.onPointerDown?.(a.ctx, info)
       if (e.pointerType === "touch" && e.button === 0 && a.behavior.longPressRightClick?.(a.ctx)) {
         cancelLongPress()
-        const timer = setTimeout(() => {
+        longPressTimer = setTimeout(() => {
           longPress = null
           if (pressedButton !== 0) return
           pressedButton = null
@@ -123,7 +124,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
           right.behavior.onPointerDown?.(right.ctx, click)
           right.behavior.onPointerUp?.(right.ctx, { ...click, buttons: 0 })
         }, LONG_PRESS_MS)
-        longPress = { timer, x: e.clientX, y: e.clientY }
+        longPress = { x: e.clientX, y: e.clientY }
       }
     }
     const onPointerMove = (e: PointerEvent) => {
@@ -260,7 +261,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       el.removeEventListener("wheel", onWheel)
       window.removeEventListener("keydown", onKeyDown)
       cancelAnimationFrame(wheelFrame)
-      cancelLongPress()
+      clearTimeout(longPressTimer)
     }
   }, [ref])
 }
