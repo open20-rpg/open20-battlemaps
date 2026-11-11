@@ -100,12 +100,28 @@ export function MapCanvas() {
     if (!el) return
     let disposed = false
     const app = new Application()
+    // Follow the container's size (window resizes, panels opening), then repaint.
+    const resizer = new ResizeObserver(() => {
+      if (!appRef.current) return
+      app.renderer.resize(Math.max(1, el.clientWidth), Math.max(1, el.clientHeight))
+      requestRender()
+    })
+    resizer.observe(el)
+    let frame = 0
+    const requestRender = () => {
+      if (frame || disposed) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        if (!disposed) app.render()
+      })
+    }
 
     app
       .init({
         // The painted-layer filters (natural terrain edges) ship GLSL only.
         preference: "webgl",
-        resizeTo: el,
+        width: Math.max(1, el.clientWidth),
+        height: Math.max(1, el.clientHeight),
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
@@ -125,17 +141,7 @@ export function MapCanvas() {
         const world = new Container()
         const mapBg = new Graphics()
         const grid = new Graphics()
-        let frame = 0
-        const requestRender = () => {
-          if (frame || disposed) return
-          frame = requestAnimationFrame(() => {
-            frame = 0
-            if (!disposed) app.render()
-          })
-        }
         requestRenderRef.current = requestRender
-        // Window resizes (resizeTo) change the canvas: repaint.
-        app.renderer.on("resize", requestRender)
         const scene = new MapScene(app.renderer, assetCache, requestRender)
         world.addChild(mapBg, scene.content, grid, scene.overlay)
         app.stage.addChild(world)
@@ -150,6 +156,8 @@ export function MapCanvas() {
 
     return () => {
       disposed = true
+      cancelAnimationFrame(frame)
+      resizer.disconnect()
       setActiveRenderer(null)
       sceneRef.current?.destroy()
       sceneRef.current = null
