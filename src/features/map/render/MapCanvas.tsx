@@ -129,7 +129,9 @@ export function MapCanvas() {
       if (frame || disposed) return
       frame = requestAnimationFrame(() => {
         frame = 0
-        if (!disposed) app.render()
+        if (disposed) return
+        sceneRef.current?.prerender()
+        app.render()
       })
     }
 

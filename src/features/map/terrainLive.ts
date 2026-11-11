@@ -1,4 +1,5 @@
 import { decodeWeights, encodeWeights, type TerrainData } from "./model/terrain"
+import { type TexelRect } from "./render/splat"
 
 /**
  * Terrain weights while a brush stroke is in progress. Painting runs at
@@ -27,6 +28,9 @@ interface Live {
 
 let live: Live | null = null
 let version = 0
+/** Texels painted since the renderer last caught up, and whether it must redo everything. */
+let dirty: TexelRect | null = null
+let dirtyAll = false
 const listeners = new Set<() => void>()
 
 /** Start painting `entityId`'s terrain: a private copy of its weights. */
@@ -43,7 +47,21 @@ export function liveTerrain(entityId: string): Uint8Array | null {
 /** Bumped on every painted tick (the renderer re-uploads when it changes). */
 export const liveTerrainVersion = (): number => version
 
-export function touchLiveTerrain(): void {
+/**
+ * Announce a painted tick; `rect` is what it changed (the renderer then
+ * redraws just that), none means everything.
+ */
+export function touchLiveTerrain(rect?: TexelRect): void {
+  if (!rect) dirtyAll = true
+  else
+    dirty = dirty
+      ? {
+          x0: Math.min(dirty.x0, rect.x0),
+          y0: Math.min(dirty.y0, rect.y0),
+          x1: Math.max(dirty.x1, rect.x1),
+          y1: Math.max(dirty.y1, rect.y1),
+        }
+      : rect
   version++
   for (const fn of listeners) fn()
 }
@@ -56,6 +74,17 @@ export function endLiveTerrain(data: TerrainData): TerrainData | null {
   live = null
   touchLiveTerrain()
   return next
+}
+
+/**
+ * What was painted since the last call: a rectangle, or null when it all
+ * has to be redrawn.
+ */
+export function takeLiveDirty(): TexelRect | null {
+  const rect = dirtyAll ? null : dirty
+  dirty = null
+  dirtyAll = false
+  return rect
 }
 
 export function subscribeLiveTerrain(fn: () => void): () => void {

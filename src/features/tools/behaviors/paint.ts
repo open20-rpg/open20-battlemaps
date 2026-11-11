@@ -15,6 +15,7 @@ import {
 import { isHeld } from "../../shortcuts/held"
 import { brushCursorRadius, brushRadius, STAMP_SPACING } from "../../map/render/cells"
 import { beginLiveTerrain, endLiveTerrain, touchLiveTerrain } from "../../map/terrainLive"
+import { type TexelRect } from "../../map/render/splat"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type BiomeSelection, type Shape } from "../params"
 import { brushController, makeEntity, paramNum, shapeController } from "./shared"
@@ -154,6 +155,13 @@ function ensureTerrain(ctx: ToolCtx): MapEntity | undefined {
 /** Painting runs this many ticks at most per frame (after a stall, don't flood). */
 const MAX_TICKS_PER_FRAME = 10
 
+const unionRect = (a: TexelRect, b: TexelRect): TexelRect => ({
+  x0: Math.min(a.x0, b.x0),
+  y0: Math.min(a.y0, b.y0),
+  x1: Math.max(a.x1, b.x1),
+  y1: Math.max(a.y1, b.y1),
+})
+
 /**
  * Terrain Brush, as Dungeondraft paints: while the button is held, a stamp
  * lands at the pointer on every 60 Hz tick — even standing still, so lingering
@@ -178,31 +186,33 @@ export function createTerrainBehavior(): ToolBehavior {
     frame: number
   } | null = null
 
-  const stamp = () => {
-    if (!stroke) return
+  /** One stamp at the pointer; what it covered (a texel more each way: weights are filtered). */
+  const stamp = (): TexelRect | undefined => {
+    if (!stroke) return undefined
     const { bytes, data, mask, pos, size, mapWidth, slot, delta } = stroke
-    blendTowards(
-      bytes,
-      data.width,
-      data.height,
-      mask,
-      stampOrigin(pos, size, mapWidth),
-      slot,
-      delta,
-    )
+    const origin = stampOrigin(pos, size, mapWidth)
+    blendTowards(bytes, data.width, data.height, mask, origin, slot, delta)
+    return {
+      x0: origin.x - 1,
+      y0: origin.y - 1,
+      x1: origin.x + mask.side + 1,
+      y1: origin.y + mask.side + 1,
+    }
   }
   const loop = (now: number) => {
     if (!stroke) return
     stroke.acc += Math.max(0, now - stroke.last) / 1000
     stroke.last = now
     let ticks = 0
+    let painted: TexelRect | undefined
     while (stroke.acc >= TERRAIN_TICK && ticks < MAX_TICKS_PER_FRAME) {
-      stamp()
+      const r = stamp()
+      if (r) painted = painted ? unionRect(painted, r) : r
       stroke.acc -= TERRAIN_TICK
       ticks++
     }
     if (ticks === MAX_TICKS_PER_FRAME) stroke.acc = 0
-    if (ticks > 0) touchLiveTerrain()
+    if (painted) touchLiveTerrain(painted)
     stroke.frame = requestAnimationFrame(loop)
   }
   const finish = () => {
@@ -243,8 +253,7 @@ export function createTerrainBehavior(): ToolBehavior {
         frame: 0,
       }
       // The first frame paints right away, as Dungeondraft's first _Update does.
-      stamp()
-      touchLiveTerrain()
+      touchLiveTerrain(stamp())
       if (typeof requestAnimationFrame === "function") stroke.frame = requestAnimationFrame(loop)
     },
     onPointerMove: (ctx, e) => {

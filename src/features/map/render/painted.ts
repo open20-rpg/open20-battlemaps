@@ -40,8 +40,9 @@ import { softBrushTexture } from "./generated"
 import { LayerMaskFilter } from "./layerFilter"
 import { type TerrainData } from "../model/terrain"
 import { liveTerrain, weightsOf } from "../terrainLive"
-import { packWeights } from "./splat"
-import { TerrainFilter } from "./terrainFilter"
+import { packWeights, type TexelRect } from "./splat"
+import { TerrainLayer } from "./terrainMesh"
+import { takeLiveDirty } from "../terrainLive"
 
 const WATER_BORDER_URL: string = waterBorderUrl
 const WATER_RIPPLE_URL: string = waterRippleUrl
@@ -59,6 +60,10 @@ export interface Composite {
   dispose: () => void
   /** Re-read live data in place (terrain while a stroke is painted). */
   refresh?: () => void
+  /** Update screen caches before the screen is rendered. */
+  prerender?: () => void
+  /** Draw for an export (true) or the screen (false). */
+  setDirect?: (on: boolean) => void
 }
 
 export interface MapBox {
@@ -506,19 +511,21 @@ function waterComposite(
 /**
  * Terrain: one splat per level (slot weights, 4 texels per tile — see
  * model/terrain.ts), blended in one pass by Dungeondraft's formula
- * (terrainFilter.ts). The weights are packed three slots per RGB texture,
+ * (terrainMesh.ts). The weights are packed three slots per RGB texture,
  * filtered bilinearly like Dungeondraft's splat; while a stroke is being
  * painted they're re-packed from the live buffer on every tick (refresh).
  */
 function terrainComposite(
   entities: MapEntity[],
   map: MapBox,
-  _renderer: Renderer,
+  renderer: Renderer,
   env: RenderEnv,
 ): Composite {
-  const view = new Container()
   const entity = [...entities].reverse().find((e) => e.params.terrain)
-  if (!entity) return { view, dispose: () => view.destroy() }
+  if (!entity) {
+    const view = new Container()
+    return { view, dispose: () => view.destroy() }
+  }
   const data = entity.params.terrain as TerrainData
   const sources = [0, 1, 2].map(
     () =>
@@ -531,36 +538,42 @@ function terrainComposite(
         alphaMode: "premultiplied-alpha",
       }),
   )
-  const pack = () => {
+  const pack = (rect?: TexelRect) => {
     packWeights(
       liveTerrain(entity.id) ?? weightsOf(data),
       sources.map((src) => src.resource as Uint8Array),
+      data.width,
+      rect,
     )
     for (const src of sources) src.update()
   }
   pack()
   const [w0, w1, w2] = sources.map((source) => new Texture({ source }))
   const weights: [Texture, Texture, Texture] = [w0, w1, w2]
-  const area = new Sprite(Texture.WHITE)
-  area.position.set(-map.width, 0)
-  area.width = map.width
-  area.height = map.height
-  const filter = new TerrainFilter(area, {
-    textures: data.slots.map((id) => (id ? env.tex(id) : undefined)),
-    weights,
-    smooth: env.terrainSmooth,
-    map,
-  })
-  area.filters = [filter]
-  view.addChild(area)
+  const layer = new TerrainLayer(
+    renderer,
+    {
+      textures: data.slots.map((id) => (id ? env.tex(id) : undefined)),
+      weights,
+      smooth: env.terrainSmooth,
+      map,
+    },
+    data,
+  )
   return {
-    view,
+    view: layer.view,
     dispose: () => {
-      view.destroy({ children: true })
-      filter.destroy()
+      layer.destroy()
       for (const t of weights) t.destroy(true)
     },
-    refresh: pack,
+    // A stroke painted: re-pack and redraw just what it touched.
+    refresh: () => {
+      const rect = takeLiveDirty() ?? undefined
+      pack(rect)
+      layer.invalidate(rect)
+    },
+    prerender: () => layer.prerender(),
+    setDirect: (on) => layer.setDirect(on),
   }
 }
 

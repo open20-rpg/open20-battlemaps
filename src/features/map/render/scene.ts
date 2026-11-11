@@ -521,6 +521,7 @@ export class MapScene {
       current?.comp.dispose()
       const track = { complete: true }
       const comp = build(mine, state.map, this.renderer, this.env(state, track))
+      if (this.exporting) comp.setDirect?.(true)
       comp.view.zIndex = zFor(paintedLayer(toolId, mine), -1)
       this.content.addChild(comp.view)
       this.composites.set(toolId, {
@@ -567,6 +568,7 @@ export class MapScene {
    */
   beginExport(pxPerTile: number, look: ExportLook): void {
     this.exporting = { pxPerTile, look }
+    for (const c of this.composites.values()) c.comp.setDirect?.(true)
     this.shadowPxPerTile = pxPerTile
     this.base.visible = !look.transparent
     if (this.last) this.update(this.last)
@@ -575,10 +577,16 @@ export class MapScene {
   endExport(): void {
     if (!this.exporting) return
     this.exporting = null
+    for (const c of this.composites.values()) c.comp.setDirect?.(false)
     this.shadowPxPerTile = null
     this.base.visible = true
     if (this.last) this.update(this.last)
     this.onDirty()
+  }
+
+  /** Bring screen caches (the terrain) up to date: call right before rendering the screen. */
+  prerender(): void {
+    for (const c of this.composites.values()) c.comp.prerender?.()
   }
 
   destroy(): void {

@@ -26,4 +26,13 @@ describe("terrain height blending", () => {
     expect([...out[1]]).toEqual([40, 50, 60, 255])
     expect([...out[2]]).toEqual([70, 80, 0, 255])
   })
+
+  it("packs only a rectangle of texels when given one", () => {
+    // 2 × 2 texels, slot 0 at 10/20/30/40.
+    const weights = new Uint8Array(4 * 8)
+    for (let t = 0; t < 4; t++) weights[t * 8] = (t + 1) * 10
+    const out = [0, 1, 2].map(() => new Uint8Array(16))
+    packWeights(weights, out, 2, { x0: 1, y0: 1, x1: 2, y1: 2 })
+    expect([out[0][0], out[0][4], out[0][8], out[0][12]]).toEqual([0, 0, 0, 40])
+  })
 })
