@@ -31,7 +31,7 @@ export interface UseAssetSearchOptions {
   select?: "single" | "multi"
   /** Selected item ids (controlled). */
   selectedIds?: string[]
-  onSelectionChange?: (ids: string[]) => void
+  onSelectionChange?: (ids: string[], picked?: LibItem) => void
   /** Scroll container of the virtualized grid (reset to top on a new search). */
   scrollRef: RefObject<HTMLDivElement | null>
 }
@@ -75,7 +75,7 @@ export function useAssetSearch({
   const nullOffset = allowNull ? 1 : 0
 
   // Single-select must always hold one item: when nothing is selected, default
-  // to the first result. It runs when page 0 of a search arrives (the only
+  // to the first result (as if it were clicked). It runs when page 0 of a search arrives (the only
   // moment that can make it possible), not from an effect watching the
   // selection — so it never hands the parent an item from a stale result set
   // (e.g. right after a pack was disabled). Skipped when null is allowed (empty
@@ -90,7 +90,8 @@ export function useAssetSearch({
     if (select !== "single" || allowNull || !onSelectionChange) return
     if ((selectedIds?.length ?? 0) > 0) return
     const first = items.current.get(0)
-    if (first) onSelectionChange([first.id])
+    // Passed like a click's pick, so it brings its default color too.
+    if (first) onSelectionChange([first.id], first)
   }, [])
 
   // A primitive key, so a new-but-equal ids array doesn't re-run the search.
