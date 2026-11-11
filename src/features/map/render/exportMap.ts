@@ -28,42 +28,41 @@ export interface ExportOptions {
   grid: boolean
 }
 
-/** Side of the square blocks the export renders one per frame (px). */
-export const EXPORT_TILE_PX = 2048
+/** Most RGBA bytes one band carries (the export holds one band at a time). */
+export const EXPORT_BAND_BYTES = 16 * 1024 * 1024
 
-/** The export's block grid: `[x, y, width, height]` per block, row by row. */
-export function exportTiles(
-  width: number,
-  height: number,
-  tile = EXPORT_TILE_PX,
-): [number, number, number, number][] {
-  const out: [number, number, number, number][] = []
-  for (let y = 0; y < height; y += tile) {
-    for (let x = 0; x < width; x += tile) {
-      out.push([x, y, Math.min(tile, width - x), Math.min(tile, height - y)])
-    }
-  }
+/** The export's bands: `[y, height]` per band, top to bottom, each ≤ EXPORT_BAND_BYTES. */
+export function exportBands(width: number, height: number): [number, number][] {
+  const rows = Math.max(1, Math.floor(EXPORT_BAND_BYTES / (width * 4)))
+  const out: [number, number][] = []
+  for (let y = 0; y < height; y += rows) out.push([y, Math.min(rows, height - y)])
   return out
 }
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
 /**
- * Render the open map to PNG bytes without freezing the UI: the image is
- * rendered in {@link EXPORT_TILE_PX} blocks, one per frame (each block reads
- * back only its own pixels), assembled on a 2D canvas and encoded with the
- * asynchronous `toBlob`. The live scene content joins the export stage only
- * for the instant each block renders, so the editor never shows it missing.
+ * Render the open map for a PNG export without freezing the UI or holding
+ * the whole image: it's rendered in full-width bands (see exportBands), one
+ * per frame, and each band's RGBA rows go to `sink` (the backend, which
+ * encodes them into the file as they arrive). The live scene content joins
+ * the export stage only for the instant each band renders, so the editor
+ * never shows it missing.
  */
-export async function renderMapPng(opts: ExportOptions): Promise<Uint8Array> {
+export async function renderMapRows(
+  opts: ExportOptions,
+  begin: (width: number, height: number) => Promise<void>,
+  sink: (rows: Uint8Array) => Promise<void>,
+): Promise<void> {
   const map = useMapStore.getState().map
   if (!map || !active) throw new Error("No map is open")
   const { renderer, scene } = active
   const ppt = exportPxPerTile(opts.pxPerTile, map.width, map.height)
   const width = map.width * ppt
   const height = map.height * ppt
+  await begin(width, height)
 
-  const bg = new Graphics().rect(0, 0, map.width, map.height).fill({ color: 0x2b2b2f })
+  const bg = new Graphics().rect(0, 0, map.width, map.height).fill({ color: 0x000000 })
   const grid = new Graphics()
   if (opts.grid) {
     const p = getToolParams("mapSettings")
@@ -76,20 +75,14 @@ export async function renderMapPng(opts: ExportOptions): Promise<Uint8Array> {
       400,
     )
   }
-  const out = document.createElement("canvas")
-  out.width = width
-  out.height = height
-  const ctx = out.getContext("2d")
-  if (!ctx) throw new Error("No 2D canvas")
-
   const stage = new Container()
   // Mimic the world container: mirrored x with the origin at the map's
   // top-right corner (see viewport.ts), scaled to `ppt`.
   stage.scale.set(-ppt, ppt)
   try {
-    for (const [x, y, w, h] of exportTiles(width, height)) {
-      const rt = RenderTexture.create({ width: w, height: h })
-      stage.position.set(width - x, -y)
+    for (const [y, h] of exportBands(width, height)) {
+      const rt = RenderTexture.create({ width, height: h })
+      stage.position.set(width, -y)
       const content = scene.content
       const parent = content.parent
       const index = parent ? parent.getChildIndex(content) : -1
@@ -101,9 +94,9 @@ export async function renderMapPng(opts: ExportOptions): Promise<Uint8Array> {
         stage.removeChildren()
         if (parent) parent.addChildAt(content, index)
       }
-      const block = renderer.extract.canvas({ target: rt }) as HTMLCanvasElement
-      ctx.drawImage(block, x, y)
+      const { pixels } = renderer.extract.pixels({ target: rt })
       rt.destroy(true)
+      await sink(new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength))
       await nextFrame()
     }
   } finally {
@@ -111,7 +104,4 @@ export async function renderMapPng(opts: ExportOptions): Promise<Uint8Array> {
     bg.destroy()
     grid.destroy()
   }
-  const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, "image/png"))
-  if (!blob) throw new Error("PNG encoding failed")
-  return new Uint8Array(await blob.arrayBuffer())
 }

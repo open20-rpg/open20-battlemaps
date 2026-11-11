@@ -1,5 +1,6 @@
 #[cfg(target_os = "android")]
 mod android_fs;
+mod export;
 mod fonts;
 mod map;
 mod pack;
@@ -10,6 +11,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(pack::LibraryState::default())
+        .manage(export::ExportState::default())
         .register_asynchronous_uri_scheme_protocol("recolor", pack::recolor_protocol)
         .invoke_handler(tauri::generate_handler![
             pack::install_packs,
@@ -29,7 +31,9 @@ pub fn run() {
             fonts::list_system_fonts,
             map::save_map,
             map::load_map,
-            map::save_bytes,
+            export::export_begin,
+            export::export_rows,
+            export::export_end,
             map::read_image_file,
         ])
         .run(tauri::generate_context!())

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { glowStrength, roofShade, shadeColor, smoothPolyline } from "./entities"
-import { exportPxPerTile, exportTiles } from "./exportMap"
+import { EXPORT_BAND_BYTES, exportBands, exportPxPerTile } from "./exportMap"
 import { maskResolution, paintedLayer } from "./painted"
 import { mapToScreen, panToPlace, screenToMap } from "./viewport"
 
@@ -35,13 +35,15 @@ describe("export", () => {
     expect(exportPxPerTile(256, 100, 40)).toBe(81)
   })
 
-  it("splits the export into blocks covering the image exactly", () => {
-    const tiles = exportTiles(5000, 2100, 2048)
-    expect(tiles).toHaveLength(3 * 2)
-    expect(tiles[2]).toEqual([4096, 0, 904, 2048])
-    expect(tiles[5]).toEqual([4096, 2048, 904, 52])
-    const area = tiles.reduce((a, [, , w, h]) => a + w * h, 0)
-    expect(area).toBe(5000 * 2100)
+  it("splits the export into full-width bands, each within the byte budget", () => {
+    const bands = exportBands(8192, 8192)
+    // 16 MB / (8192 px × 4 bytes) = 512 rows per band.
+    expect(bands[0]).toEqual([0, 512])
+    expect(bands).toHaveLength(16)
+    expect(bands.every(([, h]) => 8192 * h * 4 <= EXPORT_BAND_BYTES)).toBe(true)
+    const tail = exportBands(1000, 5000)
+    expect(tail.reduce((a, [, h]) => a + h, 0)).toBe(5000)
+    expect(tail.at(-1)?.[0]).toBe(4194)
   })
 })
 
