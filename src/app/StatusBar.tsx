@@ -2,6 +2,7 @@ import { Box, Flex, HStack, Icon, Portal, Spinner, Text, VStack } from "@chakra-
 import { useTranslation } from "react-i18next"
 import { LuCircleCheck } from "react-icons/lu"
 import { Tooltip } from "../ui/chakra/tooltip"
+import { BrandMark } from "./BrandMark"
 import { STATUS_BAR_HEIGHT } from "../ui/layout"
 import { useIsLoading, useLoadingStore } from "../stores/loadingStore"
 import { useHasMap } from "../stores/mapStore"
@@ -82,6 +83,7 @@ export function StatusBar() {
         color="menubar.fgMuted"
       >
         {/* App identity on the far left */}
+        <BrandMark variant="battleMaps" boxSize="3.5" mr="1.5" color="menubar.fg" />
         <Text fontWeight="medium" color="menubar.fgMuted">
           {t("about.version", { version: __APP_VERSION__ })}
         </Text>

@@ -1,6 +1,7 @@
-import { Button, Flex, Icon, Stack, Text } from "@chakra-ui/react"
+import { Button, Flex, Stack, Text } from "@chakra-ui/react"
 import { Trans, useTranslation } from "react-i18next"
-import { LuGem, LuMap } from "react-icons/lu"
+import { LuGem } from "react-icons/lu"
+import { BrandMark } from "./BrandMark"
 
 /** Shown in place of the editor while no map is open. */
 export function EmptyState({ onOpenAssets }: { onOpenAssets: () => void }) {
@@ -19,7 +20,7 @@ export function EmptyState({ onOpenAssets }: { onOpenAssets: () => void }) {
         backgroundSize: "28px 28px",
       }}
     >
-      <Icon as={LuMap} boxSize="16" opacity={0.35} />
+      <BrandMark variant="battleMaps" boxSize="20" color="fg" />
       <Stack gap="1" align="center">
         <Text fontSize="lg" fontWeight="medium">
           {t("canvas.title")}

@@ -122,6 +122,9 @@ ni accionable.
 - `src/stores/` — estado global. `src/ui/` — genéricos sin dominio (Modal,
   FloatingWindow, ColorPickerPopover; `ui/chakra/` son snippets de Chakra,
   tratarlos como código vendored). `src/lib/` — utilidades puras sin React.
+- `src/assets/brand/` — logos de Open20 y de Battle Maps (SVG fuente) e íconos;
+  en la UI se dibujan con `app/BrandMark.tsx`. Los íconos de todas las
+  plataformas salen de `npx tauri icon src/assets/brand/battle-maps-icon.svg`.
 - `src/locales/{es,en}/translation.json` — traducciones; `i18n.ts` solo config.
 
 ## Convenciones
