@@ -5,7 +5,6 @@ import {
   DungeondraftImportError,
   importDungeondraftMap,
   resToAssetId,
-  splatLayers,
   spriteScale,
 } from "./dungeondraft"
 import miniMap from "./__fixtures__/mini.dungeondraft_map?raw"
@@ -204,12 +203,13 @@ describe("Dungeondraft import", () => {
     })
     expect(terrain[1].params.texture).toBe("abcd1234|textures/terrain/dirt.png")
     expect(terrain[1].strokes).toEqual([])
-    const splat = terrain[1].params.splat as { width: number; height: number; data: string }
+    const splat = terrain[1].params.splat as { width: number; height: number; weights: string }
     expect([splat.width, splat.height]).toEqual([16, 12])
-    // Texel (0,0) is all dirt; the rest none.
-    const bytes = Uint8Array.from(atob(splat.data), (c) => c.charCodeAt(0))
-    expect(bytes[0]).toBe(255)
-    expect(bytes[1]).toBe(0)
+    // Texel (0,0) is all dirt; the rest grass (the base keeps its weights).
+    const bytes = (s: unknown) =>
+      Uint8Array.from(atob((s as { weights: string }).weights), (c) => c.charCodeAt(0))
+    expect([...bytes(splat).subarray(0, 2)]).toEqual([255, 0])
+    expect([...bytes(terrain[0].params.splat).subarray(0, 2)]).toEqual([0, 255])
     const [lake] = byTool("water")
     expect(lake.params).toMatchObject({ deepColor: "#112233", disableBorder: true })
     expect(run().warnings.waterHoles).toBe(1)
@@ -244,15 +244,6 @@ describe("bitmaps", () => {
 })
 
 describe("terrain and sprites", () => {
-  it("normalizes splat weights into stacked layer opacities", () => {
-    // Texel: 50% base, 25% / 25% for textures 2 and 3.
-    const [l2, l3] = splatLayers([Uint8Array.of(128), Uint8Array.of(64), Uint8Array.of(64)], 1)
-    // Layer 2 over base: 64/192 ≈ 1/3; layer 3 over both: 64/256 = 1/4.
-    expect(l2[0]).toBe(85)
-    expect(l3[0]).toBe(64)
-    expect(splatLayers([Uint8Array.of(0), Uint8Array.of(0)], 1)[0][0]).toBe(0)
-  })
-
   it("reads the terrain brush setup of the opening level", () => {
     const r = run()
     expect(r.terrain).toBeUndefined() // the map opens on level 1, which has no terrain
