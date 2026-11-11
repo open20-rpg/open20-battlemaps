@@ -53,11 +53,10 @@ describe("select by kind", () => {
     expect(pick(e("o", "object"))).toBe(true)
     expect(pick(e("l", "light"))).toBe(false)
     const stroke = { points: [{ x: 0, y: 0 }], radius: 1 }
-    expect(pick(e("t", "terrainBrush", { strokes: [stroke] }))).toBe(false)
-    const withTerrain = selectableBy([...SELECT_FILTER_DEFAULT, "terrain"])
-    expect(withTerrain(e("t", "terrainBrush", { strokes: [stroke] }))).toBe(true)
-    // A Terrain Fill has no shape: never pickable.
-    expect(withTerrain(e("f", "terrainBrush", { strokes: [] }))).toBe(false)
+    expect(pick(e("c", "cave", { strokes: [stroke] }))).toBe(true)
+    expect(selectableBy([])(e("c", "cave", { strokes: [stroke] }))).toBe(false)
+    // The terrain (a blend map, no shapes) is never pickable.
+    expect(pick(e("t", "terrainBrush", { strokes: [] }))).toBe(false)
     // Kinds not listed are always pickable.
     expect(selectableBy([])(e("x", "somethingElse"))).toBe(true)
   })

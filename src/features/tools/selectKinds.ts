@@ -2,7 +2,6 @@ import { type IconType } from "react-icons"
 import {
   LuBox,
   LuBrickWall,
-  LuBrush,
   LuDoorOpen,
   LuDroplets,
   LuGrid3X3,
@@ -21,7 +20,9 @@ import { type MapEntity } from "../map/model/types"
 /**
  * Kinds of map elements, as data, for the Select tool: its element filter
  * (which kinds clicks and rubber bands can pick) and the "Select all …"
- * buttons it offers while nothing is selected.
+ * buttons it offers while nothing is selected. The terrain isn't one: it's
+ * a per-level blend map (as in Dungeondraft), with no shapes to pick —
+ * it's repainted or erased with its own brush.
  */
 export interface SelectKind {
   id: string
@@ -65,7 +66,6 @@ export const SELECT_KINDS: SelectKind[] = [
   kind("water", LuDroplets, ["water"]),
   kind("lights", LuLightbulb, ["light"], false),
   kind("texts", LuType, ["text"]),
-  kind("terrain", LuBrush, ["terrainBrush"], false, true),
   kind("caves", LuMountainSnow, ["cave"], true, true),
   kind("materials", LuPaintbrush, ["material"], true, true),
 ]
