@@ -18,7 +18,7 @@ import { softBrushTexture } from "./generated"
 import { naturalEdgeFilter } from "./naturalEdge"
 import { opaqueFilter } from "./opaque"
 import { type SplatLayer } from "../format/dungeondraft"
-import { SPLAT_UPSAMPLE, SplatStack, decodeBase64, upsampleWeights } from "./splat"
+import { SPLAT_UPSAMPLE, SplatStack, decodeBase64, sharpenWeights, upsampleWeights } from "./splat"
 
 /**
  * Painted layers (Cave, Water, Terrain Brush, Material): every stroke of a
@@ -303,17 +303,52 @@ function splatSprite(opacity: Uint8Array, splat: SplatLayer, scale: number, map:
   return sprite
 }
 
-/** A splat layer's opacity: normalized against the stack, or legacy precomputed. */
-function splatOpacity(
-  splat: SplatLayer,
-  stack: SplatStack,
-): { opacity: Uint8Array; scale: number } | null {
-  if (splat.weights) {
-    const weights = decodeBase64(splat.weights)
-    const up = upsampleWeights(weights, splat.width, splat.height, SPLAT_UPSAMPLE)
-    return { opacity: stack.push(up), scale: SPLAT_UPSAMPLE }
+interface SplatOpacity {
+  opacity: Uint8Array
+  /** Opacity pixels per splat texel. */
+  scale: number
+}
+
+/**
+ * Each imported splat layer's opacity over the ones below. Layers after one
+ * Fill (the imported base and its layers) blend together: their weights are
+ * upsampled, sharpened as a set when Smooth Blending is off, then stacked.
+ * Legacy saves carry precomputed opacities.
+ */
+function splatOpacities(entities: MapEntity[], smooth: boolean): Map<MapEntity, SplatOpacity> {
+  const out = new Map<MapEntity, SplatOpacity>()
+  let run: { e: MapEntity; splat: SplatLayer; weights: Float32Array }[] = []
+  const flush = () => {
+    if (run.length > 0 && !smooth) {
+      const { splat } = run[0]
+      const planes = run.map((r) => r.weights)
+      sharpenWeights(planes, splat.width * SPLAT_UPSAMPLE, 4 * SPLAT_UPSAMPLE)
+    }
+    const stack = new SplatStack()
+    for (const r of run) {
+      const opacity = stack.push(r.weights)
+      if (r.e.params.fill !== true) out.set(r.e, { opacity, scale: SPLAT_UPSAMPLE })
+    }
+    run = []
   }
-  return splat.data ? { opacity: decodeBase64(splat.data), scale: 1 } : null
+  for (const e of entities) {
+    if (e.params.fill === true) flush()
+    const splat = e.params.splat as SplatLayer | undefined
+    if (!splat) continue
+    if (splat.weights) {
+      const weights = upsampleWeights(
+        decodeBase64(splat.weights),
+        splat.width,
+        splat.height,
+        SPLAT_UPSAMPLE,
+      )
+      run.push({ e, splat, weights })
+    } else if (splat.data) {
+      out.set(e, { opacity: decodeBase64(splat.data), scale: 1 })
+    }
+  }
+  flush()
+  return out
 }
 
 /**
@@ -355,8 +390,9 @@ function terrainComposite(
   const scratch = new MapMask(renderer, map)
   const natural = naturalEdgeFilter(scratch.res)
   let base: string | undefined
-  // Weights of the imported splat layers stacked so far (from the last Fill).
-  let stack = new SplatStack()
+  // Smooth Blending is one switch for the whole terrain, as in Dungeondraft.
+  const smooth = env.terrainSmooth
+  const imported = splatOpacities(entities, smooth)
   for (const e of entities) {
     const texId = str(e.params.texture, "")
     if (!texId) continue
@@ -366,19 +402,14 @@ function terrainComposite(
     if (e.params.fill === true) {
       base = texId
       for (const m of masks.values()) m.draw([], true)
-      stack = new SplatStack()
-      // An imported base carries its weights: they count in the blend.
-      if (splat) splatOpacity(splat, stack)
       continue
     }
-    // Smooth Blending is one switch for the whole terrain, as in Dungeondraft.
-    const smooth = env.terrainSmooth
-    const opacity = splat && splatOpacity(splat, stack)
-    if (opacity) {
-      // An imported Dungeondraft splat layer: exact per-texel coverage.
+    const opacity = imported.get(e)
+    if (splat && opacity) {
+      // An imported Dungeondraft splat layer: exact per-texel coverage
+      // (already sharpened when Smooth Blending is off).
       if (!masks.has(texId)) masks.set(texId, new MapMask(renderer, map))
       const layer = splatSprite(opacity.opacity, splat, opacity.scale, map)
-      if (!smooth) layer.filters = [natural]
       const texture = layer.texture
       masks.get(texId)?.draw([layer], false)
       texture.destroy(true)
