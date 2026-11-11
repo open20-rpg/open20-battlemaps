@@ -251,7 +251,9 @@
     "shadowOffsetX": "Offset X (tiles)",
     "shadowOffsetY": "Offset Y (tiles)",
     "shadowOpacity": "Opacity",
-    "resetShadows": "Reset"
+    "resetShadows": "Reset",
+    "group": "Group (Ctrl+G)",
+    "ungroup": "Ungroup (Ctrl+Shift+G)"
   },
   "biomes": {
     "barren": "Barren",

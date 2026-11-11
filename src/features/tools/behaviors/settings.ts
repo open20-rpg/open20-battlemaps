@@ -16,6 +16,7 @@ import {
   translateEntity,
   type AssetSizeOf,
 } from "../../map/model/geometry"
+import { regroup } from "../../map/model/groups"
 import { type MapEntity, type ReferenceImage, type Vec2 } from "../../map/model/types"
 import { paramNum } from "./shared"
 import { type ToolBehavior, type ToolCtx } from "./types"
@@ -118,7 +119,7 @@ export function prefabFrom(
 
 /** Copies of a prefab's entities centered at `p` on the level, with fresh ids. */
 export function instantiatePrefab(prefab: Prefab, p: Vec2, level: string): MapEntity[] {
-  return prefab.entities.map((e) => ({ ...translateEntity(e, p), id: newId(), level }))
+  return regroup(prefab.entities).map((e) => ({ ...translateEntity(e, p), id: newId(), level }))
 }
 
 /** Save the current selection as a prefab (Prefabs panel "Save selection"). */

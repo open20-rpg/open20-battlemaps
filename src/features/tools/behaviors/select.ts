@@ -12,6 +12,7 @@ import {
   flipEntity,
   isSelectable,
   isStretchable,
+  newId,
   scaleEntity,
   selectionBounds,
   transformEntity,
@@ -19,6 +20,7 @@ import {
   type Rect,
   type ScaleHandle,
 } from "../../map/model/geometry"
+import { expandGroups, hasGroups } from "../../map/model/groups"
 import { screenAngle } from "./structures"
 import { screenTiles } from "./shared"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
@@ -157,6 +159,23 @@ export function flipSelection(ctx: ToolCtx, axis: "x" | "y"): void {
   updateEntities(new Map(selected.map((e) => [e.id, flipEntity(e, center, axis)])))
 }
 
+/** Join the selection into one group (replacing any groups it had). */
+export function groupSelection(ctx: ToolCtx): void {
+  const ids = new Set(useEditorStore.getState().selection)
+  const selected = ctx.entities.filter((e) => ids.has(e.id))
+  if (selected.length < 2) return
+  const group = newId()
+  updateEntities(new Map(selected.map((e) => [e.id, { group }])))
+}
+
+/** Dissolve the groups of the selection; the members stay selected. */
+export function ungroupSelection(ctx: ToolCtx): void {
+  const ids = new Set(useEditorStore.getState().selection)
+  const grouped = ctx.entities.filter((e) => ids.has(e.id) && e.group)
+  if (grouped.length === 0) return
+  updateEntities(new Map(grouped.map((e) => [e.id, { group: undefined }])))
+}
+
 /** Entities whose bounds intersect the rubber band. */
 export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
   const band = rectFromCorners(a, b)
@@ -208,11 +227,13 @@ export function createSelectBehavior(): ToolBehavior {
       const hit = hitTest(ctx.entities, e, ctx.sizeOf, isSelectable)
       const { selection } = editor()
       if (hit) {
+        // A group member picks the whole group.
+        const picked = expandGroups([hit.id], ctx.entities)
         if (e.shiftKey) {
-          editor().toggleSelect([hit.id])
+          editor().toggleSelect(picked)
           return
         }
-        if (!selection.includes(hit.id)) editor().select([hit.id])
+        if (!selection.includes(hit.id)) editor().select(picked)
         beginGesture()
         mode = { kind: "move", from: ctx.snap(e, 0.5), moved: { x: 0, y: 0 } }
         return
@@ -252,7 +273,10 @@ export function createSelectBehavior(): ToolBehavior {
       if (mode?.kind === "move" || mode?.kind === "transform" || mode?.kind === "vertex")
         endGesture()
       if (mode?.kind === "band") {
-        const ids = entitiesInRect(ctx, mode.from, mode.to).map((x) => x.id)
+        const ids = expandGroups(
+          entitiesInRect(ctx, mode.from, mode.to).map((x) => x.id),
+          ctx.entities,
+        )
         if (e.shiftKey) editor().toggleSelect(ids)
         else editor().select(ids)
         editor().setDraft([])
@@ -262,10 +286,22 @@ export function createSelectBehavior(): ToolBehavior {
     onAction: (ctx, action) => {
       if (action === "flipH") flipSelection(ctx, "x")
       if (action === "flipV") flipSelection(ctx, "y")
+      if (action === "group") groupSelection(ctx)
+      if (action === "ungroup") ungroupSelection(ctx)
     },
-    isActionDisabled: () => editor().selection.length === 0,
+    isActionDisabled: (ctx, action) => {
+      const selected = selectedOf(ctx)
+      if (action === "group") return selected.length < 2
+      if (action === "ungroup") return !hasGroups(selected)
+      return selected.length === 0
+    },
     onKeyDown: (ctx, e) => {
       const key = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && key === "g") {
+        if (e.shiftKey) ungroupSelection(ctx)
+        else groupSelection(ctx)
+        return true
+      }
       if (
         !e.ctrlKey &&
         !e.metaKey &&

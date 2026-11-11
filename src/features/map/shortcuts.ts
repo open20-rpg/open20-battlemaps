@@ -7,6 +7,7 @@ import { TOOL_BY_ID } from "../tools/definitions"
 import { VIEW_CONTROLS, ZOOM_LEVELS } from "../viewport/controls"
 import { addEntities, redo, removeEntities, undo } from "./commands"
 import { isSelectable, newId, translateEntity } from "./model/geometry"
+import { regroup } from "./model/groups"
 
 /** Pasted copies land offset by this much (tiles) so they don't hide the originals. */
 const PASTE_OFFSET = 1
@@ -27,7 +28,7 @@ export function copySelection(): void {
 export function pasteClipboard(): void {
   const { clipboard, activeLevel, select } = useEditorStore.getState()
   if (clipboard.length === 0) return
-  const copies = clipboard.map((e) => ({
+  const copies = regroup(clipboard).map((e) => ({
     ...translateEntity(e, { x: -PASTE_OFFSET, y: PASTE_OFFSET }),
     id: newId(),
     level: activeLevel ?? e.level,

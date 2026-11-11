@@ -60,8 +60,13 @@ const MAP = {
             texture: `${PACK}/objects/chair.png`,
             layer: 100,
             custom_color: "ffff0000",
+            prefab_id: "4",
           },
-          { position: "Vector2( 0, 0 )", texture: "res://textures/objects/barrel.png" },
+          {
+            position: "Vector2( 0, 0 )",
+            texture: "res://textures/objects/barrel.png",
+            prefab_id: "4",
+          },
         ],
         paths: [
           {
@@ -167,6 +172,9 @@ describe("Dungeondraft import", () => {
     expect(chair.params.color).toBe("#ff0000")
     expect(barrel.params.asset).toBe("dungeondraft|textures/objects/barrel.png")
     expect(run().warnings).toMatchObject({ builtinAssets: 1 })
+    // Same prefab_id → same group.
+    expect(chair.group).toBe("dd-4")
+    expect(barrel.group).toBe(chair.group)
   })
 
   it("converts paths, lights, roofs and texts", () => {

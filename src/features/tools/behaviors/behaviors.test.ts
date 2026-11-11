@@ -441,6 +441,32 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()[0].rotation % 15).toBeCloseTo(0)
   })
 
+  it("Select picks whole groups; Group / Ungroup (one undo step each)", () => {
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
+    down("object", 2, 2)
+    down("object", 6, 6)
+    down("object", 10, 10)
+    useToolsStore.getState().selectToolById("select")
+    const [a, b, c] = entities().map((e) => e.id)
+    useEditorStore.getState().select([a, b])
+    expect(isToolActionDisabled("select", "ungroup")).toBe(true)
+    runToolAction("select", "group")
+    expect(entities()[0].group).toBeDefined()
+    expect(entities()[1].group).toBe(entities()[0].group)
+    // Clicking one member selects the group; the loose one stays alone.
+    useEditorStore.getState().select([])
+    down("select", 6, 6)
+    up("select", 6, 6)
+    expect([...useEditorStore.getState().selection].sort()).toEqual([a, b].sort())
+    useEditorStore.getState().select([c])
+    expect(isToolActionDisabled("select", "group")).toBe(true)
+    useEditorStore.getState().select([a, b])
+    runToolAction("select", "ungroup")
+    expect(entities().every((e) => !e.group)).toBe(true)
+    undo()
+    expect(entities()[0].group).toBeDefined()
+  })
+
   it("Select mirrors the selection with H/V and the panel buttons", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"], mirror: true })
     down("object", 2, 2)
