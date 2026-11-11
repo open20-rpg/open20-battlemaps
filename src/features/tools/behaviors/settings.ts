@@ -18,6 +18,7 @@ import {
 } from "../../map/model/geometry"
 import { regroup } from "../../map/model/groups"
 import { type MapEntity, type ReferenceImage, type Vec2 } from "../../map/model/types"
+import { SHADOW_KINDS } from "../../map/render/entities"
 import { paramNum } from "./shared"
 import { type ToolBehavior, type ToolCtx } from "./types"
 
@@ -185,6 +186,10 @@ export function createShadowSettingsBehavior(): ToolBehavior {
       const next: Partial<ShadowStyle> = {}
       for (const key of ["blur", "offsetX", "offsetY", "opacity"] as const) {
         if (typeof patch[key] === "number") next[key] = patch[key]
+      }
+      if (typeof patch.color === "string") next.color = patch.color
+      for (const key of SHADOW_KINDS) {
+        if (typeof patch[key] === "boolean") next[key] = patch[key]
       }
       if (Object.keys(next).length > 0) useSettingsStore.getState().setShadowStyle(next)
     },

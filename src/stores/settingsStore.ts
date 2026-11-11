@@ -24,6 +24,15 @@ export interface ShadowStyle {
   offsetY: number
   /** 0..1 */
   opacity: number
+  /** Shadow color ("#rrggbb"). */
+  color: string
+  /** Which things cast shadows (each still needs its own Shadow switch on). */
+  objects: boolean
+  walls: boolean
+  portals: boolean
+  paths: boolean
+  patterns: boolean
+  roofs: boolean
 }
 
 export const DEFAULT_SHADOW_STYLE: ShadowStyle = {
@@ -31,6 +40,13 @@ export const DEFAULT_SHADOW_STYLE: ShadowStyle = {
   offsetX: 0.06,
   offsetY: 0.08,
   opacity: 0.35,
+  color: "#000000",
+  objects: true,
+  walls: true,
+  portals: true,
+  paths: true,
+  patterns: true,
+  roofs: true,
 }
 
 /** How many recently opened/saved map paths to remember. */
@@ -118,6 +134,18 @@ export const useSettingsStore = create<SettingsState>()(
       removeRecentMap: (path) =>
         set((s) => ({ recentMaps: s.recentMaps.filter((p) => p !== path) })),
     }),
-    { name: "opendraft.settings", version: 1 },
+    {
+      name: "opendraft.settings",
+      version: 1,
+      // Settings saved before a shadow option existed get its default.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<SettingsState>
+        return {
+          ...current,
+          ...saved,
+          shadowStyle: { ...DEFAULT_SHADOW_STYLE, ...saved.shadowStyle },
+        }
+      },
+    },
   ),
 )

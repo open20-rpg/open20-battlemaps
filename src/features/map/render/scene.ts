@@ -1,9 +1,16 @@
-import { AlphaFilter, BlurFilter, Container, Graphics, Sprite, type Renderer } from "pixi.js"
+import { BlurFilter, Container, Graphics, Sprite, type Renderer } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import { type ShadowStyle } from "../../../stores/settingsStore"
 import { type MapDocument, type MapEntity } from "../model/types"
 import { type AssetCache } from "./assets"
-import { ENTITY_RENDERERS, glowStrength, type RenderEnv } from "./entities"
+import {
+  ENTITY_RENDERERS,
+  SHADOW_KINDS,
+  glowStrength,
+  type RenderEnv,
+  type ShadowKind,
+} from "./entities"
+import { ShadowTintFilter } from "./shadowFilter"
 import { lightingComposite } from "./lighting"
 import { drawOverlay } from "./overlay"
 import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
@@ -88,8 +95,13 @@ export class MapScene {
    * shadow style never redraws an entity.
    */
   private shadowLayer = new Container()
+  /** One sub-layer per shadow kind, so each can be switched off on its own. */
+  private shadowKinds = Object.fromEntries(SHADOW_KINDS.map((k) => [k, new Container()])) as Record<
+    ShadowKind,
+    Container
+  >
   private shadowBlur = new BlurFilter({ strength: 0, quality: 3 })
-  private shadowAlpha = new AlphaFilter({ alpha: 1 })
+  private shadowTint = new ShadowTintFilter()
   /** Px per tile the shadow blur is computed for (export overrides the zoom's). */
   private shadowPxPerTile: number | null = null
   private entities = new Map<string, EntityView>()
@@ -113,7 +125,8 @@ export class MapScene {
     this.content.scale.x = -1
     this.content.sortableChildren = true
     this.shadowLayer.zIndex = zFor(SHADOW_LAYER, 0)
-    this.shadowLayer.filters = [this.shadowBlur, this.shadowAlpha]
+    this.shadowLayer.filters = [this.shadowBlur, this.shadowTint]
+    this.shadowLayer.addChild(...SHADOW_KINDS.map((k) => this.shadowKinds[k]))
     this.content.addChild(this.shadowLayer)
     this.base.zIndex = -Infinity
     this.content.addChild(this.base, this.clip)
@@ -145,11 +158,11 @@ export class MapScene {
         if (!s && !this.assets.isMissing(id)) track.complete = false
         return s
       },
-      castShadow: (shadow) => {
+      castShadow: (shadow, kind) => {
         // Editor-only renders (overlay ghosts) cast nothing.
         if (!shadows) return shadow.destroy({ children: true })
         shadows.push(shadow)
-        this.shadowLayer.addChild(shadow)
+        this.shadowKinds[kind].addChild(shadow)
       },
       textVisible: state.textVisible,
       lighting: state.lighting,
@@ -186,7 +199,8 @@ export class MapScene {
     this.shadowLayer.visible = state.shadows && style.opacity > 0
     // Content space isn't mirrored: +x is right, +y is down on screen.
     this.shadowLayer.position.set(style.offsetX, style.offsetY)
-    this.shadowAlpha.alpha = style.opacity
+    this.shadowTint.setStyle(style.color, style.opacity)
+    for (const k of SHADOW_KINDS) this.shadowKinds[k].visible = style[k]
     // Blur works in output pixels, so convert the tile radius at the current scale.
     const px = this.shadowPxPerTile ?? tileSizeForZoom(state.zoom)
     this.shadowBlur.strength = style.blur * px
@@ -362,7 +376,7 @@ export class MapScene {
     this.unsubscribe()
     for (const e of this.entities.values()) destroyView(e)
     this.shadowBlur.destroy()
-    this.shadowAlpha.destroy()
+    this.shadowTint.destroy()
     for (const c of this.composites.values()) c.comp.dispose()
     this.lighting?.comp.dispose()
     this.reference?.sprite.destroy()

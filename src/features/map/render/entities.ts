@@ -39,7 +39,7 @@ export interface RenderEnv {
    * not offset). The scene draws every shadow in one layer and applies the
    * user's shadow style (offset, softness, opacity) and the view toggle there.
    */
-  castShadow: (shadow: Container) => void
+  castShadow: (shadow: Container, kind: ShadowKind) => void
   /** Text tool's "Visible" toggle. */
   textVisible: boolean
   /** Lighting view toggle (light glows hide with it). */
@@ -50,6 +50,23 @@ export interface RenderEnv {
   portals: readonly MapEntity[]
   /** Asset size in tiles (remembers misses like `tex`). */
   size: (id: string | undefined) => { w: number; h: number } | undefined
+}
+
+/** What casts a shadow (each kind can be turned off in the shadow settings). */
+export const SHADOW_KINDS = ["objects", "walls", "portals", "paths", "patterns", "roofs"] as const
+export type ShadowKind = (typeof SHADOW_KINDS)[number]
+
+/** Whether an entity casts its shadow (on unless its Shadow switch is off). */
+const castsShadow = (e: MapEntity) => e.params.shadow !== false
+
+/** A black silhouette of a polygon (content space), for shadows. */
+function polygonSilhouette(points: Vec2[]): Graphics {
+  return new Graphics()
+    .poly(
+      points.flatMap((p) => [-p.x, p.y]),
+      true,
+    )
+    .fill({ color: 0x000000 })
 }
 
 export type EntityRenderer = (entity: MapEntity, env: RenderEnv) => Container
@@ -81,6 +98,7 @@ function spriteEntity(
   env: RenderEnv,
   assetId: string | undefined,
   color?: string,
+  shadowKind: ShadowKind = "objects",
 ): Container {
   const root = new Container()
   const p = toContent(entity.position)
@@ -95,14 +113,14 @@ function spriteEntity(
     root.addChild(placeholder())
     return root
   }
-  if (entity.params.shadow !== false) {
+  if (castsShadow(entity)) {
     const shadow = new Sprite(texture)
     shadow.anchor.set(0.5)
     shadow.scale.set(sx, sy)
     shadow.tint = 0x000000
     shadow.position.copyFrom(p)
     shadow.rotation = root.rotation
-    env.castShadow(shadow)
+    env.castShadow(shadow, shadowKind)
   }
   const sprite = new Sprite(texture)
   sprite.anchor.set(0.5)
@@ -114,9 +132,8 @@ function spriteEntity(
 const objectRenderer: EntityRenderer = (e, env) =>
   spriteEntity(e, env, str(e.params.asset, ""), str(e.params.color, ""))
 
-// Portals sit in the wall opening; no drop shadow.
 const portalRenderer: EntityRenderer = (e, env) =>
-  spriteEntity({ ...e, params: { ...e.params, shadow: false } }, env, str(e.params.asset, ""))
+  spriteEntity(e, env, str(e.params.asset, ""), undefined, "portals")
 
 /** Chaikin corner cutting; `iterations` 0 keeps the polyline as is. */
 export function smoothPolyline(points: Vec2[], iterations: number): Vec2[] {
@@ -246,7 +263,7 @@ const wallRenderer: EntityRenderer = (e, env) => {
   }
 
   const root = new Container()
-  if (e.params.shadow !== false) env.castShadow(draw(0x000000))
+  if (castsShadow(e)) env.castShadow(draw(0x000000), "walls")
   root.addChild(draw())
   return root
 }
@@ -283,6 +300,8 @@ const pathRenderer: EntityRenderer = (e, env) => {
       Math.max(0.02, tOut === "growth" ? ramp(1 - f) : 1),
   )
   const alphas = t.map((f) => (tIn === "fade" ? ramp(f) : 1) * (tOut === "fade" ? ramp(1 - f) : 1))
+  if (castsShadow(e))
+    env.castShadow(strip(pts, false, widths, texture, 0, 0x000000, alphas), "paths")
   return strip(pts, false, widths, texture, 0x7a6a52, undefined, alphas)
 }
 
@@ -329,6 +348,9 @@ const floorRenderer: EntityRenderer = (e, env) => {
 }
 
 const patternRenderer: EntityRenderer = (e, env) => {
+  if (castsShadow(e) && (e.points?.length ?? 0) > 2) {
+    env.castShadow(polygonSilhouette(e.points ?? []), "patterns")
+  }
   const { id } = selectionAsset(e.params.pattern)
   const color = str(e.params.customColor, "#ffffff")
   const root = tiledPolygon(
@@ -370,6 +392,7 @@ const roofRenderer: EntityRenderer = (e, env) => {
   const root = new Container()
   const pts = e.points ?? []
   if (pts.length < 3) return root
+  if (castsShadow(e)) env.castShadow(polygonSilhouette(pts), "roofs")
   const b = boundsOf(pts)
   const type = str(e.params.type, "gable")
   const { id } = selectionAsset(e.params.style)

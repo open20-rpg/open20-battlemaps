@@ -18,7 +18,8 @@ describe("entity properties", () => {
     expect(keys([entity("a", "object")])).toEqual(
       ENTITY_PROPERTIES.object.map((p) => p.spec.paramKey),
     )
-    expect(keys([entity("a", "wall")])).toEqual([])
+    expect(keys([entity("a", "wall")])).toEqual(["shadow"])
+    expect(keys([entity("a", "terrainBrush")])).toEqual([])
   })
 
   it("keeps only the properties every selected entity has", () => {
@@ -27,6 +28,7 @@ describe("entity properties", () => {
       "scale",
       "flipX",
       "flipY",
+      "shadow",
       "blockLight",
     ])
     expect(keys([entity("a", "object"), entity("b", "light")])).toEqual(["rotation", "shadow"])

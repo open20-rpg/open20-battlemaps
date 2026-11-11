@@ -64,7 +64,10 @@ const transition = (paramKey: string, labelKey: string) =>
 export const ENTITY_PROPERTIES: Record<string, EntityProperty[]> = {
   object: [layer, rotation, scale, flipX, flipY, shadow, blockLight],
   scatter: [layer, rotation, scale, flipX, flipY, shadow],
-  portal: [rotation, scale, flipX, flipY, blockLight],
+  portal: [rotation, scale, flipX, flipY, blockLight, shadow],
+  wall: [shadow],
+  pattern: [layer, shadow],
+  roof: [shadow],
   light: [
     param(slider("range", "tools.range", 0.5, 20, 0.1)),
     param(slider("intensity", "tools.intensity", 0.5, 3, 0.1)),
@@ -83,6 +86,7 @@ export const ENTITY_PROPERTIES: Record<string, EntityProperty[]> = {
     param(slider("width", "tools.width", 0.1, 5, 0.01)),
     param(slider("smoothness", "tools.smoothness", 0, 1, 0.1)),
     blockLight,
+    shadow,
     transition("transitionIn", "tools.transitionIn"),
     transition("transitionOut", "tools.transitionOut"),
   ],

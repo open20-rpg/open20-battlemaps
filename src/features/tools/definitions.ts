@@ -158,6 +158,9 @@ const customColor = (
 /** Deep/Shallow water swatches offered by the Water Brush color pickers. */
 const WATER_PRESETS = ["#3aa19a", "#8bceb0", "#ffcc55", "#3c8ab8"]
 
+/** Shadow color swatches (Settings › Shadows). */
+const SHADOW_PRESETS = ["#000000", "#1b1530", "#2b1d12", "#0f2a2e"]
+
 /** Light color swatches offered by the Light Tool color picker. */
 export const LIGHT_PRESETS = ["#eccd8b", "#eaefca", "#80beff", "#ffad58", "#4dd569"]
 const objectLayer = (def: number): ToolParamSpec => ({
@@ -283,6 +286,7 @@ export const TOOL_TREE: ToolNode[] = [
       tool("build", "tools.build", LuHouse, {
         shortcut: { key: "b" },
         params: [
+          shadow(true),
           shape("rectangle"),
           editPoints(false),
           bevelCorners(true),
@@ -304,6 +308,7 @@ export const TOOL_TREE: ToolNode[] = [
       tool("portal", "tools.portal", LuDoorOpen, {
         shortcut: { key: "d" },
         params: [
+          shadow(true),
           switchParam("blockLight", "tools.blockLight", false),
           switchParam("anchored", "tools.anchored", true),
           // Anchored portals snap in 180° flips; freestanding ones rotate freely.
@@ -340,6 +345,7 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("pattern", "tools.pattern", LuGrid3X3, {
         params: [
+          shadow(true),
           shape("rectangle"),
           editPoints(false),
           sliderParam("rotation", "tools.rotation", -180, 180, 1, 0),
@@ -364,6 +370,7 @@ export const TOOL_TREE: ToolNode[] = [
       tool("roof", "tools.roof", LuTriangle, {
         shortcut: { key: "r" },
         params: [
+          shadow(true),
           segmented(
             "mode",
             "tools.mode",
@@ -440,6 +447,7 @@ export const TOOL_TREE: ToolNode[] = [
         shortcut: { key: "p" },
         library: "paths",
         params: [
+          shadow(true),
           editPoints(false, "tools.editPath"),
           objectLayer(100),
           sorting("over"),
@@ -557,6 +565,13 @@ export const TOOL_TREE: ToolNode[] = [
             DEFAULT_SHADOW_STYLE.offsetY,
           ),
           sliderParam("opacity", "tools.shadowOpacity", 0, 1, 0.05, DEFAULT_SHADOW_STYLE.opacity),
+          customColor("color", "tools.shadowColor", DEFAULT_SHADOW_STYLE.color, SHADOW_PRESETS),
+          switchParam("objects", "tools.shadowObjects", DEFAULT_SHADOW_STYLE.objects),
+          switchParam("walls", "tools.shadowWalls", DEFAULT_SHADOW_STYLE.walls),
+          switchParam("portals", "tools.shadowPortals", DEFAULT_SHADOW_STYLE.portals),
+          switchParam("paths", "tools.shadowPaths", DEFAULT_SHADOW_STYLE.paths),
+          switchParam("patterns", "tools.shadowPatterns", DEFAULT_SHADOW_STYLE.patterns),
+          switchParam("roofs", "tools.shadowRoofs", DEFAULT_SHADOW_STYLE.roofs),
           button("reset", "tools.resetShadows", LuRotateCcw),
         ],
       }),
