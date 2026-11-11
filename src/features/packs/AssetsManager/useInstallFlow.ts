@@ -33,9 +33,23 @@ export function useInstallFlow(onInstalled: (packs: InstalledPack[]) => void) {
     }
   })
 
+  // Coalesce bursts of progress events into at most one UI update per frame:
+  // applying each one as it arrives would queue a React render per event and
+  // keep the main thread from handling input until the queue drains.
   useEffect(() => {
-    const unlisten = onInstallProgress((p) => handleProgress(p))
+    let latest: InstallProgress | null = null
+    let frame = 0
+    const flush = () => {
+      frame = 0
+      if (latest) handleProgress(latest)
+      latest = null
+    }
+    const unlisten = onInstallProgress((p) => {
+      latest = p
+      if (!frame) frame = requestAnimationFrame(flush)
+    })
     return () => {
+      cancelAnimationFrame(frame)
       unlisten.then((fn) => fn())
     }
   }, [])
