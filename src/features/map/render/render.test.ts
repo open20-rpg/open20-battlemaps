@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { glowStrength, roofShade, shadeColor, smoothPolyline } from "./entities"
+import { glowStrength, roofShade, shadeColor } from "./entities"
 import { EXPORT_BAND_BYTES, exportBands, exportPxPerTile } from "./exportMap"
 import { maskResolution, paintedLayer } from "./painted"
 import { mapToScreen, panToPlace, screenToMap } from "./viewport"
@@ -58,19 +58,6 @@ describe("renderers", () => {
     expect(roofShade(45, 45, 0.4)).toBeCloseTo(1)
     expect(roofShade(225, 45, 0.4)).toBeCloseTo(0.6)
     expect(shadeColor(0xffffff, 0.5)).toBe(0x808080)
-  })
-
-  it("smooths polylines with Chaikin, keeping the endpoints", () => {
-    const pts = [
-      { x: 0, y: 0 },
-      { x: 4, y: 0 },
-      { x: 4, y: 4 },
-    ]
-    expect(smoothPolyline(pts, 0)).toBe(pts)
-    const smooth = smoothPolyline(pts, 2)
-    expect(smooth.length).toBeGreaterThan(pts.length)
-    expect(smooth[0]).toEqual(pts[0])
-    expect(smooth[smooth.length - 1]).toEqual(pts[2])
   })
 
   it("sizes painted masks within GPU limits and maps tools to layers", () => {

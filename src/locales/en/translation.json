@@ -417,8 +417,6 @@
     "looseTiles_other": "{{count}} floor tiles outside rooms were ignored",
     "levelAmbient_one": "{{count}} level's ambient light was unified with the first level's",
     "levelAmbient_other": "{{count}} levels' ambient light was unified with the first level's",
-    "pathLoops_one": "{{count}} closed path became open",
-    "pathLoops_other": "{{count}} closed paths became open",
     "traceImageSize_one": "check the reference image size",
     "traceImageSize_other": "check the reference image size"
   },

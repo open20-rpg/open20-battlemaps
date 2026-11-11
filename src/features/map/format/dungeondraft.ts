@@ -40,7 +40,6 @@ export type ImportWarningKey =
   | "waterHoles"
   | "looseTiles"
   | "levelAmbient"
-  | "pathLoops"
   | "traceImageSize"
 
 export interface ImportResult {
@@ -341,14 +340,9 @@ function paths(im: Importer, level: string, raw: Json): MapEntity[] {
     .flatMap((pa) => {
       const local = tryParse(parsePoolVec2, pa.edit_points) ?? []
       if (local.length < 2) return []
-      let pts = im
+      const pts = im
         .local(local, vec(pa.position), num(pa.rotation, 0), vec(pa.scale, { x: 1, y: 1 }))
         .map((q) => im.p(q))
-      if (bool(pa.loop, false)) {
-        // Open20 Battle Maps paths are open: close the loop by returning to the start.
-        im.warn("pathLoops")
-        pts = [...pts, pts[0]]
-      }
       const transition = (fade: unknown, grow: unknown) =>
         bool(fade, false) ? "fade" : bool(grow, false) ? "growth" : "none"
       return [
@@ -357,6 +351,7 @@ function paths(im: Importer, level: string, raw: Json): MapEntity[] {
           ...grouped(pa),
           layer: num(pa.layer, 100),
           points: pts,
+          ...(bool(pa.loop, false) ? { closed: true } : {}),
           position: pts[0],
           params: {
             asset: im.asset(pa.texture),

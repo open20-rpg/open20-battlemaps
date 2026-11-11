@@ -229,7 +229,7 @@ export function entityBounds(entity: MapEntity, sizeOf: AssetSizeOf): Rect {
  * closed wall encloses a room, and clicking inside the room must reach what
  * is in it (furniture, the floor), not the wall around it.
  */
-const OUTLINE_ONLY_TOOLS = new Set(["wall"])
+const OUTLINE_ONLY_TOOLS = new Set(["wall", "path"])
 
 /** Whether `p` falls on the entity (hit test used by the Select tool). */
 export function entityHit(
@@ -576,33 +576,6 @@ export function normalizeDegrees(deg: number): number {
 }
 
 /**
- * Subdivide a polyline so no segment is longer than `maxStep` (tiles), so
- * per-vertex effects along it (path tapers and fades) change gradually.
- */
-export function resamplePolyline(points: readonly Vec2[], maxStep: number): Vec2[] {
-  if (points.length < 2) return [...points]
-  const out: Vec2[] = [points[0]]
-  for (let i = 0; i + 1 < points.length; i++) {
-    const a = points[i]
-    const b = points[i + 1]
-    const steps = Math.max(1, Math.ceil(dist(a, b) / maxStep))
-    for (let k = 1; k <= steps; k++) {
-      out.push({ x: a.x + ((b.x - a.x) * k) / steps, y: a.y + ((b.y - a.y) * k) / steps })
-    }
-  }
-  return out
-}
-
-/** Fraction (0..1) of the polyline's length at each point. */
-export function lengthFractions(points: readonly Vec2[]): number[] {
-  const cumulative = [0]
-  for (let i = 1; i < points.length; i++)
-    cumulative.push(cumulative[i - 1] + dist(points[i - 1], points[i]))
-  const total = cumulative[cumulative.length - 1] || 1
-  return cumulative.map((c) => c / total)
-}
-
-/**
  * Mirror an entity across the vertical (`"x"`, left↔right on screen) or
  * horizontal (`"y"`, top↔bottom) line through `center`. Every coordinate is
  * reflected; sprite-like entities also toggle their own flip and reverse
@@ -621,25 +594,6 @@ export function flipEntity(entity: MapEntity, center: Vec2, axis: "x" | "y"): Ma
     points: entity.points?.map(reflect),
     strokes: entity.strokes?.map((s) => ({ ...s, points: s.points.map(reflect) })),
   }
-}
-
-/**
- * Drop points closer than `minDist` to the previously kept one (the first and
- * last points always stay). A strip whose segments are shorter than its own
- * width can't miter its corners cleanly, so curves are thinned to the
- * strip's scale before being drawn.
- */
-export function thinPolyline(points: readonly Vec2[], minDist: number): Vec2[] {
-  if (points.length <= 2) return [...points]
-  const out: Vec2[] = [points[0]]
-  for (let i = 1; i < points.length - 1; i++) {
-    if (dist(points[i], out[out.length - 1]) >= minDist) out.push(points[i])
-  }
-  const last = points[points.length - 1]
-  // Keep the true end; if the previous kept point is too close, replace it.
-  if (out.length > 1 && dist(out[out.length - 1], last) < minDist) out.pop()
-  out.push(last)
-  return out
 }
 
 /**

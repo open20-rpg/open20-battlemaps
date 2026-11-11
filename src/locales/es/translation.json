@@ -417,8 +417,6 @@
     "looseTiles_other": "{{count}} baldosas fuera de habitaciones se ignoraron",
     "levelAmbient_one": "la luz ambiente de {{count}} nivel se unificó con la del primero",
     "levelAmbient_other": "la luz ambiente de {{count}} niveles se unificó con la del primero",
-    "pathLoops_one": "{{count}} camino cerrado se convirtió en abierto",
-    "pathLoops_other": "{{count}} caminos cerrados se convirtieron en abiertos",
     "traceImageSize_one": "revisá el tamaño de la imagen de referencia",
     "traceImageSize_other": "revisá el tamaño de la imagen de referencia"
   },

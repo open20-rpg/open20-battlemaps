@@ -10,16 +10,14 @@ import {
   TilingSprite,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
+import { boundsOf, sub, wallRuns, type WallOpening } from "../model/geometry"
 import {
-  boundsOf,
-  lengthFractions,
-  resamplePolyline,
-  thinPolyline,
-  sub,
-  wallRuns,
-  type WallOpening,
-} from "../model/geometry"
-import { stripTriangles, type StripTriangle } from "./stripGeometry"
+  pathTriangles,
+  pathWidths,
+  smoothPath,
+  wallTriangles,
+  type LineTriangle,
+} from "./lineGeometry"
 import { type MapEntity, type Vec2 } from "../model/types"
 import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
 import { lightFalloffTexture } from "./generated"
@@ -135,53 +133,31 @@ const objectRenderer: EntityRenderer = (e, env) =>
 const portalRenderer: EntityRenderer = (e, env) =>
   spriteEntity(e, env, str(e.params.asset, ""), undefined, "portals")
 
-/** Chaikin corner cutting; `iterations` 0 keeps the polyline as is. */
-export function smoothPolyline(points: Vec2[], iterations: number): Vec2[] {
-  let pts = points
-  for (let k = 0; k < iterations && pts.length > 2; k++) {
-    const next: Vec2[] = [pts[0]]
-    for (let i = 0; i + 1 < pts.length; i++) {
-      const a = pts[i]
-      const b = pts[i + 1]
-      next.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 })
-      next.push({ x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 })
-    }
-    next.push(pts[pts.length - 1])
-    pts = next
-  }
-  return pts
-}
-
 /**
- * A strip along a polyline (walls, paths): see stripGeometry.ts for how
- * corners keep the texture continuous. Textured strips repeat the texture at
- * its own aspect ratio (one repeat = `width` × texture aspect), so it's never
- * stretched; untextured ones fill with `color`. Per-point `widths`/`alphas`
- * drive path tapers and fades (triangles are grouped by opacity, one mesh
- * per group).
+ * Draw line triangles (walls, paths: see lineGeometry.ts). Textured lines
+ * repeat the texture along their length at its own aspect ratio: one
+ * repeat every `repeat` tiles (the texture's width at the line's scale), so
+ * it's never stretched lengthwise; untextured ones fill with `color`.
+ * Triangles are grouped by opacity (path fades), one mesh per group.
  */
-export function strip(
-  points: Vec2[],
-  closed: boolean,
-  width: number | readonly number[],
+export function lineMesh(
+  tris: readonly LineTriangle[],
+  repeat: number,
   texture: Texture | undefined,
   color: number,
   /** Tint over the texture/color (e.g. black for a shadow). */
   tint?: number,
-  alphas?: readonly number[],
 ): Container {
   const root = new Container()
-  const tris = stripTriangles(points, closed, width, alphas)
-  if (tris.length === 0) return root
-  const groups = new Map<number, StripTriangle[]>()
+  const groups = new Map<number, LineTriangle[]>()
   for (const t of tris) {
-    const key = Math.round(t.alpha * 20) / 20
+    const key = Math.round(t.alpha * 32) / 32
     if (key <= 0) continue
-    groups.set(key, [...(groups.get(key) ?? []), t])
+    const group = groups.get(key)
+    if (group) group.push(t)
+    else groups.set(key, [t])
   }
-  const baseWidth = typeof width === "number" ? width : Math.max(...width)
   if (texture) texture.source.style.addressMode = "repeat"
-  const repeat = texture ? baseWidth * (texture.width / texture.height) : 1
   for (const [alpha, group] of groups) {
     if (!texture) {
       const g = new Graphics()
@@ -190,18 +166,22 @@ export function strip(
       root.addChild(g)
       continue
     }
-    const positions: number[] = []
-    const uvs: number[] = []
+    const positions = new Float32Array(group.length * 6)
+    const uvs = new Float32Array(group.length * 6)
+    let k = 0
     for (const t of group) {
       for (const v of [t.a, t.b, t.c]) {
-        positions.push(-v.x, v.y)
-        uvs.push(v.u / repeat, v.v)
+        positions[k] = -v.x
+        positions[k + 1] = v.y
+        uvs[k] = v.u / repeat
+        uvs[k + 1] = v.v
+        k += 2
       }
     }
     const geometry = new MeshGeometry({
-      positions: new Float32Array(positions),
-      uvs: new Float32Array(uvs),
-      indices: Uint32Array.from({ length: positions.length / 2 }, (_, k) => k),
+      positions,
+      uvs,
+      indices: Uint32Array.from({ length: group.length * 3 }, (_, i) => i),
     })
     const mesh = new Mesh({ geometry, texture })
     mesh.alpha = alpha
@@ -210,6 +190,10 @@ export function strip(
   }
   return root
 }
+
+/** Repeat length (tiles) of a line texture drawn `width` tiles wide. */
+const repeatOf = (texture: Texture | undefined, width: number) =>
+  texture ? width * (texture.width / texture.height) : 1
 
 /** Default wall thickness in tiles when no wall texture is set. */
 export const WALL_WIDTH = 0.25
@@ -223,21 +207,35 @@ function portalOpenings(env: RenderEnv): WallOpening[] {
   })
 }
 
-/** A wall's end-cap sprite at `at`, facing along `dir` (map space). */
-function endCap(texture: Texture, at: Vec2, dir: Vec2, width: number, tint?: number): Sprite {
+/**
+ * A wall's end-cap sprite centered on `at`, turned along the wall's
+ * direction `dir` there (map space) and, at the wall's start, mirrored —
+ * as Dungeondraft places them.
+ */
+function endCap(
+  texture: Texture,
+  at: Vec2,
+  dir: Vec2,
+  width: number,
+  start: boolean,
+  tint?: number,
+): Sprite {
   const cap = new Sprite(texture)
   if (tint !== undefined) cap.tint = tint
   cap.anchor.set(0.5)
   cap.position.set(-at.x, at.y)
   // Content space mirrors x, so the direction's x flips too.
   cap.rotation = Math.atan2(dir.y, -dir.x)
-  cap.scale.set(width / texture.height)
+  const k = width / texture.height
+  cap.scale.set(start ? -k : k, k)
   return cap
 }
 
 /**
- * Walls: each continuous run (split only where portals open the wall) is one
- * mitered strip, so corners join cleanly. Open ends get the pack's
+ * Walls, as Dungeondraft draws them: each continuous run (split where
+ * portals open the wall) is one line as wide as the texture is tall, its
+ * corners beveled (Bevel Corners, the default) or mitered, the texture
+ * wrapping around them (see lineGeometry.ts). Open ends get the pack's
  * `<name>_end` cap texture when it has one. The drop shadow is the same
  * geometry tinted black, so it follows the wall's real shape.
  */
@@ -247,18 +245,21 @@ const wallRenderer: EntityRenderer = (e, env) => {
   const cap = env.tex(id, { color, suffix: "_end" })
   const width = texture ? texture.height / TEXTURE_PX_PER_TILE : WALL_WIDTH
   const runs = wallRuns(e.points ?? [], !!e.closed, portalOpenings(env))
+  const opts = { bevel: e.params.bevelCorners !== false, normalizeUv: true }
+  const meshes = runs.map((run) => wallTriangles(run.points, run.closed, width, opts))
+  const repeat = repeatOf(texture, width)
 
   const draw = (tint?: number): Container => {
     const layer = new Container()
-    for (const run of runs) {
-      layer.addChild(strip(run.points, run.closed, width, texture, 0x3b3631, tint))
-      if (cap && !run.closed) {
-        const pts = run.points
-        const n = pts.length
-        layer.addChild(endCap(cap, pts[0], sub(pts[0], pts[1]), width, tint))
-        layer.addChild(endCap(cap, pts[n - 1], sub(pts[n - 1], pts[n - 2]), width, tint))
+    runs.forEach((run, i) => {
+      layer.addChild(lineMesh(meshes[i], repeat, texture, 0x3b3631, tint))
+      const pts = run.points
+      const n = pts.length
+      if (cap && !run.closed && n > 1) {
+        layer.addChild(endCap(cap, pts[0], sub(pts[1], pts[0]), width, true, tint))
+        layer.addChild(endCap(cap, pts[n - 1], sub(pts[n - 1], pts[n - 2]), width, false, tint))
       }
-    }
+    })
     return layer
   }
 
@@ -268,41 +269,24 @@ const wallRenderer: EntityRenderer = (e, env) => {
   return root
 }
 
-/** Fraction of a path's length its in/out transitions span. */
-const PATH_TRANSITION = 0.1
-
-/** A transition's ramp (0 at the path's end, 1 once `PATH_TRANSITION` in). */
-const ramp = (t: number) => Math.min(1, Math.max(0, t / PATH_TRANSITION))
-
 /**
- * Paths: the edit points smoothed (Smoothness), resampled so tapers and
- * fades are gradual, then drawn as a strip. Transitions follow Dungeondraft:
- * "fade" ramps opacity and "growth" ramps width over the first/last 10%.
+ * Paths, as Dungeondraft builds them: the edit points smoothed (Chaikin,
+ * Smoothness), a 5-vertex section per point (lineGeometry.ts), the texture
+ * repeated at the path's base width. Growth/shrink ease the width from 0
+ * over a third of the points; fades ramp the opacity over the first/last
+ * 10% of the length. Loops are opened at their closing midpoint.
  */
 const pathRenderer: EntityRenderer = (e, env) => {
   const texture = env.tex(str(e.params.asset, ""))
-  const smooth = Math.round(num(e.params.smoothness, 0) * 3)
   const width = num(e.params.width, 1)
-  // Thin the smoothed curve to the path's scale first (short segments next to
-  // a wide strip break its corner joins), then resample with collinear points
-  // only, so tapers/fades are gradual without adding corners.
-  const pts = resamplePolyline(
-    thinPolyline(smoothPolyline(e.points ?? [], smooth), width * 0.6),
-    0.2,
-  )
-  const t = lengthFractions(pts)
+  const pts = smoothPath(e.points ?? [], num(e.params.smoothness, 0), !!e.closed)
   const tIn = e.params.transitionIn
   const tOut = e.params.transitionOut
-  const widths = t.map(
-    (f) =>
-      width *
-      Math.max(0.02, tIn === "growth" ? ramp(f) : 1) *
-      Math.max(0.02, tOut === "growth" ? ramp(1 - f) : 1),
-  )
-  const alphas = t.map((f) => (tIn === "fade" ? ramp(f) : 1) * (tOut === "fade" ? ramp(1 - f) : 1))
-  if (castsShadow(e))
-    env.castShadow(strip(pts, false, widths, texture, 0, 0x000000, alphas), "paths")
-  return strip(pts, false, widths, texture, 0x7a6a52, undefined, alphas)
+  const widths = pathWidths(pts.length, width, tIn === "growth", tOut === "growth")
+  const tris = pathTriangles(pts, widths, tIn === "fade", tOut === "fade")
+  const repeat = repeatOf(texture, width)
+  if (castsShadow(e)) env.castShadow(lineMesh(tris, repeat, texture, 0, 0x000000), "paths")
+  return lineMesh(tris, repeat, texture, 0x7a6a52)
 }
 
 /**

@@ -25,11 +25,8 @@ import {
   isStretchable,
   isSelectable,
   flipEntity,
-  thinPolyline,
   transformEntity,
   normalizeDegrees,
-  resamplePolyline,
-  lengthFractions,
 } from "./geometry"
 import { createDocument, normalizeDocument, type MapEntity, type Vec2 } from "./types"
 
@@ -451,25 +448,6 @@ describe("lights", () => {
   })
 })
 
-describe("polyline sampling", () => {
-  it("subdivides long segments and measures length fractions", () => {
-    const pts = resamplePolyline(
-      [
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-        { x: 1, y: 1 },
-      ],
-      0.25,
-    )
-    expect(pts).toHaveLength(9)
-    expect(pts[4]).toEqual({ x: 1, y: 0 })
-    const f = lengthFractions(pts)
-    expect(f[0]).toBe(0)
-    expect(f[4]).toBeCloseTo(0.5)
-    expect(f[8]).toBe(1)
-  })
-})
-
 describe("flipping", () => {
   it("mirrors sprites in place: position reflected, flip toggled, rotation reversed", () => {
     const chair = { ...obj("c", 3, 1), rotation: 30 }
@@ -502,14 +480,6 @@ describe("flipping", () => {
       { x: 0, y: 1 },
     ])
     expect(f.flipX).toBeUndefined()
-  })
-})
-
-describe("thinning", () => {
-  it("drops points closer than the strip scale, keeping both ends", () => {
-    const pts = [0, 0.1, 0.2, 0.5, 0.9, 1].map((x) => ({ x, y: 0 }))
-    expect(thinPolyline(pts, 0.4).map((p) => p.x)).toEqual([0, 0.5, 1])
-    expect(thinPolyline(pts.slice(0, 2), 5)).toHaveLength(2)
   })
 })
 
