@@ -262,7 +262,12 @@ export function createTerrainBehavior(): ToolBehavior {
       // everything painted with it, as in Dungeondraft.
       if (!("biome" in patch) || stroke) return
       const existing = terrainOf(ctx.entities)
-      if (!existing) return
+      // The level's first terrain: as soon as slot 1 has a texture, the whole
+      // ground is filled with it (instead of waiting for the first stroke).
+      if (!existing) {
+        if (brushSlots(ctx.params).ids[0]) ensureTerrain(ctx)
+        return
+      }
       const data = existing.params.terrain as TerrainData
       const { ids } = brushSlots(ctx.params)
       if (sameSlots(data.slots, ids)) return

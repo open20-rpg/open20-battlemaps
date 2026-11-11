@@ -26,7 +26,7 @@ export interface ExportLook {
   shadows: boolean
   /** Apply the map's color adjustments (post-processing). */
   postProcess: boolean
-  /** No black ground: what's unpainted stays transparent. */
+  /** No ground color: what's unpainted stays transparent. */
   transparent: boolean
 }
 
@@ -109,6 +109,9 @@ const SHADOW_LAYER = -150
  * us exactly which ones need a new view. Painted tools and lighting are
  * composites rebuilt when any of their inputs change.
  */
+/** The map's bare ground, under everything (parchment, until terrain covers it). */
+export const MAP_GROUND_COLOR = 0xd8cba6
+
 export class MapScene {
   /** Map content, un-mirrored (scale.x = -1) — see entities.ts. */
   readonly content = new Container()
@@ -134,7 +137,7 @@ export class MapScene {
   private composites = new Map<string, CompositeView>()
   private lighting: CompositeView | null = null
   private reference: { url: string; sprite: Sprite } | null = null
-  /** The map's black ground, under everything. */
+  /** The map's bare ground (MAP_GROUND_COLOR), under everything. */
   private base = new Graphics()
   /**
    * Compare levels: the level below drawn faded under the active one
@@ -168,7 +171,7 @@ export class MapScene {
     this.base.zIndex = -Infinity
     this.compare.sortableChildren = true
     this.compare.alpha = 0.35
-    // Above the black ground and the reference image, under everything else.
+    // Above the bare ground and the reference image, under everything else.
     this.compare.zIndex = -Number.MAX_VALUE / 2
     this.content.addChild(this.base, this.clip, this.compare)
     this.overlay.scale.x = -1
@@ -344,7 +347,7 @@ export class MapScene {
     if (size === this.baseSize) return
     this.baseSize = size
     // Content space: the map spans x ∈ [−width, 0].
-    this.base.clear().rect(-width, 0, width, height).fill({ color: 0x000000 })
+    this.base.clear().rect(-width, 0, width, height).fill({ color: MAP_GROUND_COLOR })
     // The mask stays set (swapping a child mask on and off is fragile); showing
     // the outside just widens it far past anything a map holds.
     const pad = state.showOutside ? 1e5 : 0
@@ -371,7 +374,7 @@ export class MapScene {
         return
       }
       const sprite = new Sprite(tex)
-      // Just above the black ground (which is at −Infinity).
+      // Just above the bare ground (which is at −Infinity).
       sprite.zIndex = -Number.MAX_VALUE
       this.content.addChild(sprite)
       this.reference = { url, sprite }

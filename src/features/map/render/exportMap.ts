@@ -3,7 +3,7 @@ import { useMapStore } from "../../../stores/mapStore"
 import { getToolParams } from "../../../stores/toolsStore"
 import { SAMPLE_MAX_PX, supportsTransparency, type ExportFormat } from "../exportFormat"
 import { drawGrid, type GridStyle } from "./grid"
-import { type ExportLook, type MapScene } from "./scene"
+import { MAP_GROUND_COLOR, type ExportLook, type MapScene } from "./scene"
 
 /**
  * PNG export. The live canvas registers its renderer + scene here so the
@@ -83,7 +83,7 @@ async function exportStage<T>(
   const transparent = opts.transparent && supportsTransparency(opts.format.kind)
 
   const bg = new Graphics()
-  if (!transparent) bg.rect(0, 0, map.width, map.height).fill({ color: 0x000000 })
+  if (!transparent) bg.rect(0, 0, map.width, map.height).fill({ color: MAP_GROUND_COLOR })
   const grid = new Graphics()
   if (opts.grid) {
     const p = getToolParams("mapSettings")

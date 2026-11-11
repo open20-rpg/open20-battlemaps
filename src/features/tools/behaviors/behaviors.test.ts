@@ -460,6 +460,23 @@ describe("painting", () => {
     expect(entities()[0]).toMatchObject({ toolId: "water", closed: true })
   })
 
+  it("Giving slot 1 its texture fills the level's ground with it right away", () => {
+    useToolsStore.getState().selectToolById("terrainBrush")
+    const biome = {
+      biome: "settlement",
+      slotsByBiome: { settlement: [{ id: "p|t0", name: "a", thumb: "" }] },
+      unlocked: false,
+      selectedSlot: 0,
+    }
+    setParams("terrainBrush", { biome })
+    act("terrainBrush", (b, c) => b.onParamsChange?.(c, { biome }))
+    const [terrain] = entities()
+    expect(terrain.toolId).toBe("terrainBrush")
+    const data = terrain.params.terrain as TerrainData
+    expect(data.slots[0]).toBe("p|t0")
+    expect(decodeWeights(data.weights)[0]).toBe(255)
+  })
+
   it("Terrain needs a texture in the selected slot; Fill covers the map", () => {
     useToolsStore.getState().selectToolById("terrainBrush")
     down("terrainBrush", 1, 1)
