@@ -2,6 +2,8 @@ import { useMapStore } from "../../stores/mapStore"
 import { useToolsStore } from "../../stores/toolsStore"
 import { TOOL_BY_ID } from "../tools/definitions"
 import type { AssetSelection, BiomeSelection, ToolParamValues } from "../tools/params"
+import { LIBRARY_PARAM, libraryAssetsOf } from "../tools/params"
+import type { MapDocument, MapEntity } from "./model/types"
 import { removeEntities } from "./commands"
 
 /** The packId prefix of a library item id ("{packId}|{relPath}"). */
@@ -37,10 +39,11 @@ export function getUsedPackIds(): Set<string> {
   const used = new Set<string>()
   const map = useMapStore.getState().map
   for (const entity of map?.entities ?? []) {
-    for (const id of packIdsInParams(entity.toolId, entity.params)) used.add(id)
+    for (const id of entityAssetIds(entity)) used.add(packIdOf(id))
   }
   for (const [toolId, values] of Object.entries(useToolsStore.getState().paramsByTool)) {
     for (const id of packIdsInParams(toolId, values)) used.add(id)
+    for (const id of libraryAssetsOf(values)) used.add(packIdOf(id))
   }
   return used
 }
@@ -60,17 +63,19 @@ export function isPackUsed(packId: string): boolean {
 export function clearPackReferences(packId: string): void {
   const map = useMapStore.getState().map
   if (map) {
-    const staleIds = map.entities
-      .filter((e) => packIdsInParams(e.toolId, e.params).has(packId))
-      .map((e) => e.id)
+    const usesPack = (e: MapEntity) => entityAssetIds(e).some((id) => packIdOf(id) === packId)
+    const staleIds = map.entities.filter(usesPack).map((e) => e.id)
     if (staleIds.length > 0) removeEntities(staleIds)
   }
 
   const { paramsByTool, setToolParams } = useToolsStore.getState()
   for (const [toolId, values] of Object.entries(paramsByTool)) {
-    if (!packIdsInParams(toolId, values).has(packId)) continue
+    const library = libraryAssetsOf(values)
+    const libraryHit = library.some((id) => packIdOf(id) === packId)
+    if (!libraryHit && !packIdsInParams(toolId, values).has(packId)) continue
 
     const patch: ToolParamValues = {}
+    if (libraryHit) patch[LIBRARY_PARAM] = library.filter((id) => packIdOf(id) !== packId)
     for (const spec of TOOL_BY_ID.get(toolId)?.params ?? []) {
       const value = values[spec.paramKey]
       if (spec.kind === "assetPicker") {
@@ -97,4 +102,30 @@ export function clearPackReferences(packId: string): void {
     }
     if (Object.keys(patch).length > 0) setToolParams(toolId, patch)
   }
+}
+
+/** Every asset id an entity references (a single `asset`, or `{ assets }` selections). */
+export function entityAssetIds(entity: MapEntity): string[] {
+  const out: string[] = []
+  for (const value of Object.values(entity.params)) {
+    if (typeof value === "string" && value.includes("|")) out.push(value)
+    else if (
+      value &&
+      typeof value === "object" &&
+      Array.isArray((value as AssetSelection).assets)
+    ) {
+      for (const id of (value as AssetSelection).assets) if (typeof id === "string") out.push(id)
+    }
+  }
+  return out
+}
+
+/** Asset ids of `category` used by the map's entities (Library "Used" tab), sorted. */
+export function usedAssetIds(map: MapDocument | null, category: string): string[] {
+  const marker = `|textures/${category}/`
+  const ids = new Set<string>()
+  for (const e of map?.entities ?? []) {
+    for (const id of entityAssetIds(e)) if (id.includes(marker)) ids.add(id)
+  }
+  return [...ids].sort()
 }

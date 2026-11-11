@@ -2,6 +2,18 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { loadUserPresets } from "../lib/colors"
 import { loadUserTemplates, type MapTemplate } from "../lib/templates"
+import { type MapEntity } from "../features/map/model/types"
+
+/** A saved group of entities (Prefabs tool), stored relative to its center. */
+export interface Prefab {
+  id: string
+  /** User-given name; empty means unnamed (the UI shows a numbered label). */
+  name: string
+  entities: MapEntity[]
+}
+
+/** How many recently opened/saved map paths to remember. */
+export const MAX_RECENT_MAPS = 10
 
 /**
  * User preferences and user-created data, persisted under a single versioned
@@ -15,10 +27,20 @@ interface SettingsState {
   colorPresets: string[]
   /** User-defined map templates (shown after the built-in ones). */
   userTemplates: MapTemplate[]
+  /** Saved prefabs, reusable across maps. */
+  prefabs: Prefab[]
+  /** Recently opened/saved map files (most recent first). */
+  recentMaps: string[]
   setPanelAlpha: (alpha: number) => void
   addColorPreset: (color: string) => void
   addTemplate: (tpl: MapTemplate) => void
   removeTemplate: (id: string) => void
+  addPrefab: (prefab: Prefab) => void
+  renamePrefab: (id: string, name: string) => void
+  removePrefab: (id: string) => void
+  /** Move `path` to the top of the recent list. */
+  pushRecentMap: (path: string) => void
+  removeRecentMap: (path: string) => void
 }
 
 /**
@@ -30,6 +52,8 @@ function readLegacy(): Partial<
   Pick<SettingsState, "panelAlpha" | "colorPresets" | "userTemplates">
 > {
   const out: ReturnType<typeof readLegacy> = {}
+  // No storage outside a browser (e.g. unit tests): nothing to migrate.
+  if (typeof localStorage === "undefined") return out
   const alpha = Number(localStorage.getItem("opendraft.panel-alpha"))
   if (Number.isFinite(alpha) && alpha > 0) out.panelAlpha = alpha
   const presets = loadUserPresets()
@@ -45,6 +69,8 @@ export const useSettingsStore = create<SettingsState>()(
       panelAlpha: 0.8,
       colorPresets: [],
       userTemplates: [],
+      prefabs: [],
+      recentMaps: [],
       ...readLegacy(),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),
       addColorPreset: (color) =>
@@ -54,6 +80,16 @@ export const useSettingsStore = create<SettingsState>()(
       addTemplate: (tpl) => set((s) => ({ userTemplates: [...s.userTemplates, tpl] })),
       removeTemplate: (id) =>
         set((s) => ({ userTemplates: s.userTemplates.filter((t) => t.id !== id) })),
+      addPrefab: (prefab) => set((s) => ({ prefabs: [...s.prefabs, prefab] })),
+      renamePrefab: (id, name) =>
+        set((s) => ({ prefabs: s.prefabs.map((p) => (p.id === id ? { ...p, name } : p)) })),
+      removePrefab: (id) => set((s) => ({ prefabs: s.prefabs.filter((p) => p.id !== id) })),
+      pushRecentMap: (path) =>
+        set((s) => ({
+          recentMaps: [path, ...s.recentMaps.filter((p) => p !== path)].slice(0, MAX_RECENT_MAPS),
+        })),
+      removeRecentMap: (path) =>
+        set((s) => ({ recentMaps: s.recentMaps.filter((p) => p !== path) })),
     }),
     { name: "opendraft.settings", version: 1 },
   ),

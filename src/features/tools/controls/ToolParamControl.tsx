@@ -1,5 +1,9 @@
 import type { ReactNode } from "react"
+import { useEditorStore } from "../../../stores/editorStore"
+import { useMapStore } from "../../../stores/mapStore"
 import { useToolsStore } from "../../../stores/toolsStore"
+import { LevelsPanel } from "../../map/LevelsPanel"
+import { isToolActionDisabled, notifyParamsChange, runToolAction } from "../behaviors"
 import {
   type ParamKind,
   type ParamValueByKind,
@@ -19,6 +23,7 @@ import { AssetPickerControl } from "./AssetPickerControl"
 import { BiomeControl } from "./biome/BiomeControl"
 import { ButtonControl } from "./ButtonControl"
 import { FontControl } from "./FontControl"
+import { PrefabsControl } from "./PrefabsControl"
 
 interface RenderArgs<K extends ParamKind> {
   toolId: string
@@ -111,20 +116,48 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
       />
     )
   },
-  biome: ({ spec, value, onChange }) => (
-    <BiomeControl value={value} labelKey={spec.labelKey} onChange={onChange} />
+  biome: ({ toolId, spec, value, onChange }) => (
+    <BiomeControl
+      value={value}
+      labelKey={spec.labelKey}
+      onChange={onChange}
+      onFill={() => runToolAction(toolId, "fill")}
+    />
   ),
-  button: ({ spec }) => (
+  button: ({ toolId, spec }) => <ActionButton toolId={toolId} spec={spec} />,
+  font: ({ spec, value, onChange }) => (
+    <FontControl value={value} labelKey={spec.labelKey} onChange={onChange} />
+  ),
+  levels: () => <LevelsPanel />,
+  prefabs: ({ spec, value, onChange }) => (
+    <PrefabsControl value={value} labelKey={spec.labelKey} onChange={onChange} />
+  ),
+}
+
+/**
+ * A button param bound to its tool's action. Whether it's enabled usually
+ * depends on the document/selection (e.g. Delete needs a selected text), so
+ * it re-evaluates whenever those change.
+ */
+function ActionButton({
+  toolId,
+  spec,
+}: {
+  toolId: string
+  spec: Extract<ToolParamSpec, { kind: "button" }>
+}) {
+  useEditorStore((s) => s.selection)
+  useMapStore((s) => s.map)
+  const disabled = spec.disabled || isToolActionDisabled(toolId, spec.paramKey)
+  return (
     <ButtonControl
       labelKey={spec.labelKey}
       icon={spec.icon}
       colorPalette={spec.colorPalette}
-      disabled={spec.disabled}
+      disabled={disabled}
+      onClick={() => runToolAction(toolId, spec.paramKey)}
     />
-  ),
-  font: ({ spec, value, onChange }) => (
-    <FontControl value={value} labelKey={spec.labelKey} onChange={onChange} />
-  ),
+  )
 }
 
 // TS can't correlate `spec.kind` with the renderer picked by it (the union
@@ -149,7 +182,11 @@ export function ToolParamControl({
   values: ToolParamValues
 }) {
   const setToolParams = useToolsStore((s) => s.setToolParams)
-  const onChange = (value: unknown) => setToolParams(toolId, { [spec.paramKey]: value })
+  const onChange = (value: unknown) => {
+    const patch = { [spec.paramKey]: value }
+    setToolParams(toolId, patch)
+    notifyParamsChange(toolId, patch)
+  }
   return renderParam({
     toolId,
     spec,

@@ -2,9 +2,10 @@
 
 Clon de Dungeondraft: editor de mapas de rol de escritorio. Tauri v2 (Rust) +
 React 19 + TypeScript + Chakra UI v3 + Zustand. Compatible con packs
-`.dungeondraft_pack`. El editor de mapas real (canvas) todavía no existe; hoy
-hay gestión de packs, librería de assets, el sistema de herramientas/params y
-los view controls (grid/snap/lighting/shadows/zoom) de la barra izquierda.
+`.dungeondraft_pack`. Hay gestión de packs, librería de assets (All/Used/Tags),
+el editor de mapas (canvas PixiJS con las 20 herramientas, niveles, undo/redo,
+copiar/pegar, prefabs, imagen de referencia, export PNG, mapas recientes) y los
+view controls (grid/snap/lighting/shadows/zoom) de la barra izquierda.
 
 ## Comandos
 
@@ -27,16 +28,23 @@ ni accionable.
 ## Arquitectura (invariantes — no romper)
 
 - **Estados globales separados por dominio** en `src/stores/` (Zustand): map,
-  tools, packs, settings, preview, loading, modalStack. Nunca fusionarlos ni
+  mapFile, editor (selección, nivel activo, borradores de la herramienta —
+  sesión, fuera de undo/redo), view, tools, packs, settings, preview, loading,
+  modalStack. Nunca fusionarlos ni
   crear un store "app". La comunicación de _estado_ entre features pasa por
   stores; una feature puede componer componentes públicos de otra (ej. el
   asset picker de tools usa `library/AssetSelector`) importando el archivo
   directo — sin barrels (`index.ts` re-export): empeoran el tree-shaking.
 - **Herramientas data-driven**: `features/tools/definitions.ts` define la
   paleta como datos (`TOOL_TREE`); `features/tools/behaviors/` define el
-  comportamiento por id (registry, hoy vacío hasta que llegue el editor). Para
-  agregar/modificar una herramienta editá datos y behavior — NO agregues JSX
-  ad-hoc ni cases especiales en los panels.
+  comportamiento por id (`TOOL_BEHAVIORS`: puntero, teclado, `onAction` de los
+  botones, `onParamsChange`, `onActivate`/`onDeactivate`). Los gestos comunes
+  (polilínea por clics, rectángulo/elipse, pincel, editar vértices) son
+  controladores reutilizables en `behaviors/shared.ts`. Para agregar/modificar
+  una herramienta editá datos y behavior — NO agregues JSX ad-hoc ni cases
+  especiales en los panels. Las herramientas que usan la Library (Object,
+  Scatter, Path) declaran `library` + `librarySelect` y guardan la elección en
+  el param reservado `LIBRARY_PARAM`.
 - Un nuevo tipo de parámetro = nuevo kind en `ToolParamSpec`
   (`features/tools/params.ts`, con su tipo de valor en `ParamValueByKind`) +
   control presentacional en `tools/controls/` + entrada en `RENDERERS` de
@@ -59,11 +67,19 @@ ni accionable.
   llevan). Un `kind` nuevo = nueva variante en la union + su widget en
   `ViewControlsBar`.
 - **El mapa se muta solo vía comandos** (`features/map/commands/`), nunca
-  `setState` directo al mapStore: es lo que sostiene undo/redo (zundo).
-- **El futuro viewport no es React**: el documento (`features/map/model/`) se
-  dibujará con un motor imperativo suscripto al store
-  (`useMapStore.subscribe`). Nada de entidades del mapa como componentes React
-  ni estado del documento en `useState`.
+  `setState` directo al mapStore: es lo que sostiene undo/redo (zundo). Un
+  arrastre que muta en vivo (pincel, mover) va entre `beginGesture()` y
+  `endGesture()` para que sea un único paso de undo.
+- **El viewport no es React**: `features/map/render/` es un motor imperativo
+  (PixiJS) — `MapScene` reconcilia el documento contra el árbol de Pixi
+  suscripto a los stores (`useMapStore.subscribe`, sin re-renders de React).
+  Renderers por tool en `entities.ts`; las herramientas pintadas (cueva, agua,
+  terreno, material) se componen con máscaras en `painted.ts`; luces en
+  `lighting.ts`; borradores/selección en `overlay.ts`. El mapa x está espejado
+  (ver `viewport.ts`): los renderers dibujan en "content space" (−x, y). Nada
+  de entidades del mapa como componentes React ni estado del documento en
+  `useState`. Las texturas se piden por asset id a `assetCache`
+  (`render/assets.ts`, 256 px = 1 casilla).
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para

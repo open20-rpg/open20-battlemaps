@@ -24,9 +24,13 @@ pub fn run() {
             pack::packs_with_category,
             pack::get_library_items,
             pack::release_library_search,
+            pack::library_tags,
+            pack::resolve_assets,
             fonts::list_system_fonts,
             map::save_map,
             map::load_map,
+            map::save_binary,
+            map::read_image_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

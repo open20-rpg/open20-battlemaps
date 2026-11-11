@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next"
 import { LuLayoutGrid, LuPaintBucket } from "react-icons/lu"
 import { thumbUrl } from "../../../library/api"
 import { Tooltip } from "../../../../ui/chakra/tooltip"
-import { toaster } from "../../../../ui/chakra/toaster-instance"
 import { BIOME_MAX_SLOTS, type BiomeSelection, type BiomeTexture } from "../../params"
 import { BIOMES } from "./biomes"
 import { TexturePickerPanel } from "./TexturePickerPanel"
@@ -14,17 +13,19 @@ import { TexturePickerPanel } from "./TexturePickerPanel"
  * Biome selector for the Terrain Brush: a fixed biome dropdown plus terrain
  * texture slots. Clicking a slot's thumbnail/name area selects it (the brush
  * and Fill act on the selected slot); its button opens a floating browser to
- * pick the texture. The "unlock 4 more slots" toggle reveals slots 5–8. The
- * Fill action awaits the map engine, so it currently only signals "coming soon".
+ * pick the texture. The "unlock 4 more slots" toggle reveals slots 5–8. Fill
+ * (covering the map with the selected slot) is the tool's action, passed in.
  */
 export function BiomeControl({
   value,
   labelKey,
   onChange,
+  onFill,
 }: {
   value: BiomeSelection
   labelKey: string
   onChange: (value: BiomeSelection) => void
+  onFill: () => void
 }) {
   const { t } = useTranslation()
   const [openSlot, setOpenSlot] = useState<number | null>(null)
@@ -45,8 +46,6 @@ export function BiomeControl({
     next[index] = texture
     onChange({ ...value, slotsByBiome: { ...value.slotsByBiome, [value.biome]: next } })
   }
-  const fill = () =>
-    toaster.create({ title: t("toast.soon", { label: t("tools.fill") }), type: "info" })
 
   return (
     <Flex direction="column" flex="1" minH="0" px="3" py="1.5" gap="2">
@@ -122,7 +121,13 @@ export function BiomeControl({
         })}
       </VStack>
 
-      <Button variant="subtle" size="sm" onClick={fill} flexShrink={0}>
+      <Button
+        variant="subtle"
+        size="sm"
+        onClick={onFill}
+        disabled={!slots[selectedSlot]}
+        flexShrink={0}
+      >
         <LuPaintBucket />
         {t("tools.fill")}
       </Button>

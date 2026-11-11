@@ -23,13 +23,14 @@
   },
   "toast": {
     "noRecent": "No hay archivos recientes",
-    "soon": "{{label}}: próximamente",
     "newMap": "Nuevo mapa",
     "openMap": "Abrir mapa",
     "mapSaved": "Mapa guardado",
     "mapSaveError": "No se pudo guardar el mapa: {{error}}",
     "mapOpenError": "No se pudo abrir el mapa: {{error}}",
-    "missingPacks": "{{count}} paquete(s) usados por este mapa no están instalados"
+    "missingPacks": "{{count}} paquete(s) usados por este mapa no están instalados",
+    "exported": "Imagen exportada",
+    "exportError": "No se pudo exportar: {{error}}"
   },
   "prefs": {
     "title": "Preferencias",
@@ -142,7 +143,7 @@
     "text": "Texto",
     "prefabs": "Prefabricados",
     "select": "Seleccionar",
-    "emptyParams": "Parámetros de la herramienta (próximamente).",
+    "emptyParams": "Esta herramienta no tiene parámetros.",
     "hideParams": "Ocultar parámetros",
     "customColor": "Color personalizado",
     "pickCustomColor": "Elegir color personalizado",
@@ -222,7 +223,19 @@
     "noTexture": "Sin textura",
     "pickTexture": "Elegir textura",
     "terrainTextures": "Texturas de Terreno",
-    "noTerrainPacks": "Ningún pack instalado incluye texturas de terreno."
+    "noTerrainPacks": "Ningún pack instalado incluye texturas de terreno.",
+    "noPrefabs": "No hay prefabs. Seleccioná elementos con la herramienta Seleccionar y guardalos.",
+    "prefabCount_one": "{{count}} elemento",
+    "prefabCount_other": "{{count}} elementos",
+    "prefabUnnamed": "Prefab {{n}}",
+    "textPlaceholder": "Escribí el texto…",
+    "imageWidth": "Ancho (casillas)",
+    "loadImage": "Cargar imagen",
+    "materialAsset": "Material",
+    "opacity": "Opacidad",
+    "prefabList": "Prefabs guardados",
+    "removeImage": "Quitar imagen",
+    "savePrefab": "Guardar selección como prefab"
   },
   "biomes": {
     "barren": "Yermo",
@@ -261,7 +274,9 @@
     "exact": "Exacta",
     "results": "{{count}} resultados",
     "empty": "Sin resultados",
-    "comingSoon": "Próximamente"
+    "loadingTags": "Cargando etiquetas…",
+    "noTags": "Los paquetes activos no tienen etiquetas para esta categoría.",
+    "noneUsed": "Todavía no hay recursos de esta categoría en el mapa."
   },
   "status": {
     "ready": "Listo",
@@ -277,12 +292,36 @@
     "updatingPacks": "Actualizando activos",
     "deletingAssets": "Eliminando activos",
     "searchingLibrary": "Buscando en la biblioteca",
-    "loadingFonts": "Cargando fuentes"
+    "loadingFonts": "Cargando fuentes",
+    "exporting": "Exportando imagen"
   },
   "mapFile": {
     "discardTitle": "¿Descartar los cambios sin guardar?",
     "discardBody": "Este mapa tiene cambios sin guardar. Si continúas, se perderán.",
     "discardConfirm": "Descartar",
     "discardCancel": "Cancelar"
+  },
+  "export": {
+    "title": "Exportar imagen",
+    "cancel": "Cancelar",
+    "export": "Exportar",
+    "resolution": "Resolución",
+    "pxPerTile": "{{px}} px por casilla",
+    "includeGrid": "Incluir la cuadrícula",
+    "size": "Tamaño: {{w}} × {{h}} px",
+    "capped": "reducido para no superar el máximo"
+  },
+  "levels": {
+    "title": "Niveles",
+    "add": "Agregar nivel",
+    "delete": "Eliminar nivel",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "select": "Editar este nivel",
+    "unnamed": "Nivel {{n}}"
+  },
+  "recent": {
+    "title": "Mapas recientes",
+    "forget": "Quitar de la lista"
   }
 }

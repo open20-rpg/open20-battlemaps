@@ -1,4 +1,4 @@
-import { create } from "zustand"
+import { create, useStore } from "zustand"
 import { temporal } from "zundo"
 import { type MapDocument } from "../features/map/model/types"
 
@@ -23,3 +23,11 @@ export const useMapStore = create<MapState>()(
 )
 
 export const useHasMap = (): boolean => useMapStore((s) => s.map !== null)
+
+/** Whether there's a document change to undo (reactive, for the menu). */
+export const useCanUndo = (): boolean =>
+  useStore(useMapStore.temporal, (s) => s.pastStates.length > 0)
+
+/** Whether there's an undone change to redo (reactive, for the menu). */
+export const useCanRedo = (): boolean =>
+  useStore(useMapStore.temporal, (s) => s.futureStates.length > 0)

@@ -1,0 +1,341 @@
+import { useEditorStore, type DraftShape } from "../../../stores/editorStore"
+import { useViewStore } from "../../../stores/viewStore"
+import {
+  addEntity,
+  beginGesture,
+  endGesture,
+  updateEntities,
+  updateEntity,
+} from "../../map/commands"
+import {
+  appendSample,
+  dist,
+  ellipsePolygon,
+  nearestVertex,
+  rectPolygon,
+} from "../../map/model/geometry"
+import { type MapEntity, type Vec2 } from "../../map/model/types"
+import { newId } from "../../map/model/geometry"
+import { tileSizeForZoom } from "../../map/render/viewport"
+import { type Shape } from "../params"
+import { type PointerInfo, type ToolBehavior, type ToolCtx } from "./types"
+
+/**
+ * Reusable interaction controllers. Each one is a set of ToolBehavior
+ * handlers driving a common gesture (click out a polyline, drag a shape,
+ * paint a brush stroke, drag vertices), parameterized by what to commit.
+ * Their in-progress state lives in module closures and is mirrored to the
+ * editor store's draft so the overlay can draw it.
+ */
+
+const setDraft = (draft: DraftShape[]) => useEditorStore.getState().setDraft(draft)
+
+/** A distance of `px` screen pixels in tiles at the current zoom. */
+export function screenTiles(px: number): number {
+  return px / tileSizeForZoom(useViewStore.getState().zoom)
+}
+
+/** Fill the fields every new entity needs (id, level, defaults). */
+export function makeEntity(
+  ctx: ToolCtx,
+  fields: Partial<MapEntity> & Pick<MapEntity, "layer">,
+): MapEntity {
+  return {
+    id: newId(),
+    toolId: ctx.toolId,
+    level: ctx.level,
+    position: { x: 0, y: 0 },
+    rotation: 0,
+    params: {},
+    ...fields,
+  }
+}
+
+const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v : fallback)
+
+/** Drop consecutive duplicates (a double-click adds the same point twice). */
+export function dedupe(points: Vec2[]): Vec2[] {
+  return points.filter((p, i) => i === 0 || dist(p, points[i - 1]) > 1e-6)
+}
+
+// -- polyline ----------------------------------------------------------------
+
+export interface PolylineOptions {
+  /** Minimum vertices for a valid result (2 for lines, 3 for polygons). */
+  minPoints: number
+  /** Whether the result is a closed polygon. */
+  closed: boolean
+  /** Snap step in tiles (grid corners by default). */
+  step?: number
+  commit: (ctx: ToolCtx, points: Vec2[]) => void
+}
+
+/**
+ * Click to add vertices; double-click, Enter or right-click finishes
+ * (clicking the first vertex also closes a polygon); Backspace removes the
+ * last vertex; Escape cancels.
+ */
+export function polylineController(
+  opts: PolylineOptions,
+): Required<
+  Pick<
+    ToolBehavior,
+    "onPointerDown" | "onPointerMove" | "onDoubleClick" | "onKeyDown" | "onDeactivate"
+  >
+> {
+  let points: Vec2[] = []
+  let hover: Vec2 | null = null
+  const show = () => {
+    const pts = hover ? [...points, hover] : points
+    setDraft(
+      points.length > 0
+        ? [{ kind: "polyline", points: pts, closed: opts.closed && pts.length > 2 }]
+        : [],
+    )
+  }
+  const finish = (ctx: ToolCtx) => {
+    const pts = dedupe(points)
+    points = []
+    hover = null
+    setDraft([])
+    if (pts.length >= opts.minPoints) opts.commit(ctx, pts)
+  }
+  const cancel = () => {
+    points = []
+    hover = null
+    setDraft([])
+  }
+  return {
+    onPointerDown: (ctx, e) => {
+      if (e.button === 2) {
+        finish(ctx)
+        return
+      }
+      const p = ctx.snap(e, opts.step ?? 1)
+      if (opts.closed && points.length >= opts.minPoints && dist(p, points[0]) < screenTiles(10)) {
+        finish(ctx)
+        return
+      }
+      points = [...points, p]
+      show()
+    },
+    onPointerMove: (ctx, e) => {
+      hover = ctx.snap(e, opts.step ?? 1)
+      if (points.length > 0) show()
+    },
+    onDoubleClick: (ctx) => finish(ctx),
+    onKeyDown: (ctx, e) => {
+      if (points.length === 0) return false
+      if (e.key === "Enter") finish(ctx)
+      else if (e.key === "Escape") cancel()
+      else if (e.key === "Backspace") {
+        points = points.slice(0, -1)
+        show()
+      } else return false
+      return true
+    },
+    onDeactivate: (ctx) => finish(ctx),
+  }
+}
+
+// -- shapes ------------------------------------------------------------------
+
+/** Polygon for a dragged shape (rectangle/ellipse) between two corners. */
+export function shapePolygon(shape: Shape | null, a: Vec2, b: Vec2): Vec2[] {
+  return shape === "ellipse" ? ellipsePolygon(a, b) : rectPolygon(a, b)
+}
+
+/**
+ * Drag out a rectangle/ellipse (`shape` param) or, for the "path" shape,
+ * click out a polygon. Commits the resulting closed polygon.
+ */
+export function shapeController(
+  commit: (ctx: ToolCtx, polygon: Vec2[]) => void,
+): Required<
+  Pick<
+    ToolBehavior,
+    | "onPointerDown"
+    | "onPointerMove"
+    | "onPointerUp"
+    | "onDoubleClick"
+    | "onKeyDown"
+    | "onDeactivate"
+  >
+> {
+  const poly = polylineController({ minPoints: 3, closed: true, commit })
+  let start: Vec2 | null = null
+  let current: Vec2 | null = null
+  const shapeOf = (ctx: ToolCtx) => (ctx.params.shape as Shape | null) ?? "rectangle"
+  const show = (ctx: ToolCtx) => {
+    if (!start || !current) return setDraft([])
+    setDraft([{ kind: "polygon", points: shapePolygon(shapeOf(ctx), start, current) }])
+  }
+  return {
+    onPointerDown: (ctx, e) => {
+      if (shapeOf(ctx) === "path") return poly.onPointerDown(ctx, e)
+      if (e.button !== 0) return
+      start = ctx.snap(e)
+      current = start
+      show(ctx)
+    },
+    onPointerMove: (ctx, e) => {
+      if (shapeOf(ctx) === "path") return poly.onPointerMove(ctx, e)
+      if (!start) return
+      current = ctx.snap(e)
+      show(ctx)
+    },
+    onPointerUp: (ctx) => {
+      if (shapeOf(ctx) === "path" || !start || !current) return
+      const a = start
+      const b = current
+      start = current = null
+      setDraft([])
+      if (Math.abs(a.x - b.x) > 1e-6 && Math.abs(a.y - b.y) > 1e-6) {
+        commit(ctx, shapePolygon(shapeOf(ctx), a, b))
+      }
+    },
+    onDoubleClick: (ctx, e) => {
+      if (shapeOf(ctx) === "path") poly.onDoubleClick(ctx, e)
+    },
+    onKeyDown: (ctx, e) => {
+      if (shapeOf(ctx) === "path") return poly.onKeyDown(ctx, e)
+      if (e.key === "Escape" && start) {
+        start = current = null
+        setDraft([])
+        return true
+      }
+      return false
+    },
+    onDeactivate: (ctx) => {
+      poly.onDeactivate(ctx)
+      start = current = null
+      setDraft([])
+    },
+  }
+}
+
+// -- brush -------------------------------------------------------------------
+
+export interface BrushOptions {
+  /** Brush radius in tiles for the current params. */
+  radius: (ctx: ToolCtx) => number
+  /** Whether this stroke removes area (e.g. Cave "Blast Open" or right-drag). */
+  erase?: (ctx: ToolCtx, e: PointerInfo) => boolean
+  /** Snapshot of params stored on the stroke entity. */
+  params: (ctx: ToolCtx) => Record<string, unknown>
+  layer: (ctx: ToolCtx) => number
+  /** Return false to refuse painting (e.g. no texture slot set). */
+  canPaint?: (ctx: ToolCtx) => boolean
+}
+
+/** Paint strokes: each press-drag-release is one undoable stroke entity. */
+export function brushController(
+  opts: BrushOptions,
+): Required<
+  Pick<ToolBehavior, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onDeactivate">
+> {
+  let strokeId: string | null = null
+  let points: Vec2[] = []
+  const cursor = (ctx: ToolCtx, p: Vec2) =>
+    setDraft([{ kind: "circle", center: p, radius: opts.radius(ctx) }])
+  const end = () => {
+    if (strokeId) endGesture()
+    strokeId = null
+    points = []
+  }
+  return {
+    onPointerDown: (ctx, e) => {
+      if (opts.canPaint && !opts.canPaint(ctx)) return
+      const p = { x: e.x, y: e.y }
+      beginGesture()
+      const entity = makeEntity(ctx, {
+        layer: opts.layer(ctx),
+        position: p,
+        strokes: [
+          { points: [p], radius: opts.radius(ctx), erase: opts.erase?.(ctx, e) || undefined },
+        ],
+        params: opts.params(ctx),
+      })
+      strokeId = entity.id
+      points = [p]
+      addEntity(entity)
+    },
+    onPointerMove: (ctx, e) => {
+      const p = { x: e.x, y: e.y }
+      cursor(ctx, p)
+      if (!strokeId || !e.buttons) return
+      const radius = opts.radius(ctx)
+      const next = appendSample(points, p, Math.max(0.05, radius * 0.25))
+      if (next === points) return
+      points = next
+      const entity = ctx.map.entities.find((x) => x.id === strokeId)
+      const stroke = entity?.strokes?.[0]
+      if (stroke) updateEntity(strokeId, { strokes: [{ ...stroke, points }] })
+    },
+    onPointerUp: () => end(),
+    onDeactivate: () => {
+      end()
+      setDraft([])
+    },
+  }
+}
+
+// -- vertex editing ----------------------------------------------------------
+
+/**
+ * Edit-points mode: drag existing vertices of entities made by `toolIds`.
+ * Shows every editable vertex as a handle; one drag is one undo step.
+ */
+export function editPointsController(
+  toolIds: readonly string[],
+  step = 1,
+): Required<
+  Pick<ToolBehavior, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onDeactivate">
+> & {
+  /** Draw the vertex handles (e.g. right when edit mode is turned on). */
+  show: (ctx: ToolCtx) => void
+} {
+  let target: { id: string; index: number } | null = null
+  const tools = new Set(toolIds)
+  const editable = (ctx: ToolCtx) =>
+    ctx.entities.filter((e) => tools.has(e.toolId) && e.points && e.points.length > 0)
+  const showHandles = (ctx: ToolCtx) =>
+    setDraft([{ kind: "handles", points: editable(ctx).flatMap((e) => e.points ?? []) }])
+  return {
+    show: showHandles,
+    onPointerDown: (ctx, e) => {
+      const tol = screenTiles(8)
+      for (const entity of editable(ctx).reverse()) {
+        const index = nearestVertex(entity.points ?? [], e, tol)
+        if (index !== undefined) {
+          target = { id: entity.id, index }
+          beginGesture()
+          return
+        }
+      }
+    },
+    onPointerMove: (ctx, e) => {
+      if (target && e.buttons) {
+        const entity = ctx.map.entities.find((x) => x.id === target?.id)
+        if (entity?.points) {
+          const points = entity.points.slice()
+          points[target.index] = ctx.snap(e, step)
+          updateEntities(new Map([[entity.id, { points }]]))
+        }
+      }
+      showHandles(ctx)
+    },
+    onPointerUp: () => {
+      if (target) endGesture()
+      target = null
+    },
+    onDeactivate: () => {
+      if (target) endGesture()
+      target = null
+      setDraft([])
+    },
+  }
+}
+
+/** Read a numeric param with a fallback. */
+export const paramNum = num

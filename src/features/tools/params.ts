@@ -76,6 +76,10 @@ export interface ParamValueByKind {
   button: null
   /** Selected font family ("" = default). */
   font: string
+  /** The Levels list edits the document directly; it holds no tool value. */
+  levels: null
+  /** Selected prefab id (null = none). */
+  prefabs: string | null
 }
 
 export type ParamKind = keyof ParamValueByKind
@@ -140,6 +144,10 @@ export type ToolParamSpec =
     })
   /** OS font-family selector (Text tool). */
   | (BaseSpec<"font"> & { labelKey: string })
+  /** The map's level (floor) list: add, rename, reorder, delete, pick the active one. */
+  | BaseSpec<"levels">
+  /** Saved prefabs list; picks the one the Prefabs tool stamps. */
+  | (BaseSpec<"prefabs"> & { labelKey: string })
 
 /**
  * Cross-field rule run right after a param change: given the already-merged
@@ -178,7 +186,7 @@ export function getParam<K extends ParamKind>(
  * when several are present); everything else stays compact.
  */
 export function paramGrows(spec: ToolParamSpec): boolean {
-  return spec.kind === "assetPicker" || spec.kind === "biome"
+  return spec.kind === "assetPicker" || spec.kind === "biome" || spec.kind === "prefabs"
 }
 
 /**
@@ -196,3 +204,16 @@ export const shapeVsEditPoints =
       return { ...merged, shape: defaultShape }
     return merged
   }
+
+/**
+ * Reserved param key holding the asset ids picked in the Library panel for a
+ * tool that browses it (Object, Scatter, Path). It has no spec (the Library
+ * panel is its control), so it isn't defaulted by `resolveParams`; read it
+ * with {@link libraryAssetsOf}.
+ */
+export const LIBRARY_PARAM = "libraryAssets"
+
+export function libraryAssetsOf(values: ToolParamValues): string[] {
+  const v = values[LIBRARY_PARAM]
+  return Array.isArray(v) ? v.filter((id): id is string => typeof id === "string") : []
+}

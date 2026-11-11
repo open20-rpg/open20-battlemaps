@@ -1,26 +1,26 @@
 import { Box, Button, Icon } from "@chakra-ui/react"
 import { type IconType } from "react-icons"
 import { useTranslation } from "react-i18next"
-import { toaster } from "../../../ui/chakra/toaster-instance"
 
 /**
- * A command button param (e.g. Text's Delete). Its action awaits the map/text
- * engine, so for now it only signals "coming soon". `disabled` will later gate
- * it on selection state; it is always enabled today.
+ * A command button param (Text's Delete, Reference Image's Load…). What it
+ * does is the tool behavior's business: the wiring passes `onClick` and
+ * whether it's currently `disabled`.
  */
 export function ButtonControl({
   labelKey,
   icon,
   colorPalette,
   disabled = false,
+  onClick,
 }: {
   labelKey: string
   icon: IconType
   colorPalette?: string
   disabled?: boolean
+  onClick: () => void
 }) {
   const { t } = useTranslation()
-  const label = t(labelKey)
   return (
     <Box px="3" py="1.5">
       <Button
@@ -29,10 +29,10 @@ export function ButtonControl({
         colorPalette={colorPalette}
         disabled={disabled}
         width="full"
-        onClick={() => toaster.create({ title: t("toast.soon", { label }), type: "info" })}
+        onClick={onClick}
       >
         <Icon as={icon} />
-        {label}
+        {t(labelKey)}
       </Button>
     </Box>
   )

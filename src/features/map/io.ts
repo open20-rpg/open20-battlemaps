@@ -1,13 +1,17 @@
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog"
-import { invoke } from "@tauri-apps/api/core"
 import { useMapStore } from "../../stores/mapStore"
 import { useMapFileStore } from "../../stores/mapFileStore"
 import { useViewStore } from "../../stores/viewStore"
 import { useToolsStore } from "../../stores/toolsStore"
 import { usePacksStore } from "../../stores/packsStore"
+import { useSettingsStore } from "../../stores/settingsStore"
 import { setPackEnabled } from "../packs/api"
 import { TOOL_BY_ID } from "../tools/definitions"
 import { resolveParams, type ToolParamValues } from "../tools/params"
+import i18n from "../../i18n"
+import { withLoading } from "../../stores/loadingStore"
+import { loadMapFile, saveBinaryFile, saveMapFile } from "./api"
+import { renderMapPng, type ExportOptions } from "./render/exportMap"
 import { loadMap } from "./commands"
 import { getUsedPackIds } from "./packUsage"
 import type { MapDocument } from "./model/types"
@@ -157,8 +161,9 @@ async function applySaveFile(file: OpdrFile): Promise<string[]> {
 
 async function writeMapTo(path: string): Promise<void> {
   const file = buildSaveFile()
-  await invoke("save_map", { path, contents: JSON.stringify(file, null, 2) })
+  await saveMapFile(path, JSON.stringify(file, null, 2))
   useMapFileStore.getState().setSaved(path)
+  useSettingsStore.getState().pushRecentMap(path)
 }
 
 /** Prompt for a destination and write the current map there. False if cancelled. */
@@ -179,13 +184,37 @@ export async function saveMap(): Promise<boolean> {
   return saveMapAs()
 }
 
-/** Prompt for a `.opdr` file and load it, replacing the current session. */
-export async function openMapFlow(): Promise<OpenMapResult> {
-  const selected = await openDialog({ filters: OPDR_FILTERS, multiple: false })
+/**
+ * Load a `.opdr` file, replacing the current session: `path` when given (a
+ * recent map), otherwise whatever the user picks in the open dialog.
+ */
+export async function openMapFlow(path?: string): Promise<OpenMapResult> {
+  const selected = path ?? (await openDialog({ filters: OPDR_FILTERS, multiple: false }))
   if (!selected || Array.isArray(selected)) return { opened: false, missingPacks: [] }
-  const raw = await invoke<string>("load_map", { path: selected })
+  let raw: string
+  try {
+    raw = await loadMapFile(selected)
+  } catch (err) {
+    // A recent entry whose file is gone shouldn't stay in the list.
+    if (path) useSettingsStore.getState().removeRecentMap(path)
+    throw err
+  }
   const file = parseSaveFile(raw)
   const missingPacks = await applySaveFile(file)
   useMapFileStore.getState().setLoaded(selected, file.meta.createdAt, file.meta.appVersion)
+  useSettingsStore.getState().pushRecentMap(selected)
   return { opened: true, missingPacks }
+}
+
+const PNG_FILTERS = [{ name: "PNG", extensions: ["png"] }]
+
+/** Prompt for a destination and export the map as a PNG. False if cancelled. */
+export async function exportPngFlow(opts: ExportOptions): Promise<boolean> {
+  const path = await saveDialog({ filters: PNG_FILTERS, defaultPath: "map.png" })
+  if (!path) return false
+  await withLoading(i18n.t("loading.exporting"), async () => {
+    const data = await renderMapPng(opts)
+    await saveBinaryFile(path, data)
+  })
+  return true
 }

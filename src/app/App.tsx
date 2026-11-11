@@ -1,27 +1,26 @@
-import { useEffect, useState } from "react"
+import { useEffect, useEffectEvent, useState } from "react"
 import { Box, Flex } from "@chakra-ui/react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
-import { useTranslation } from "react-i18next"
 import { MenuBar } from "./MenuBar"
 import { StatusBar, STATUS_BAR_HEIGHT } from "./StatusBar"
 import { EmptyState } from "./EmptyState"
 import { PreferencesDialog } from "./dialogs/PreferencesDialog"
 import { AboutDialog } from "./dialogs/AboutDialog"
+import { RecentMapsDialog } from "./dialogs/RecentMapsDialog"
+import { ExportDialog } from "../features/map/ExportDialog"
 import { AssetsManager } from "../features/packs/AssetsManager"
 import { NewMapDialog } from "../features/map/NewMapDialog"
 import { MapEditor } from "../features/map/MapEditor"
-import { closeMap, createMap } from "../features/map/commands"
+import { closeMap, createMap, redo, undo } from "../features/map/commands"
 import { useMapFile } from "../features/map/useMapFile"
 import { ToolsPanel } from "../features/tools/ToolsPanel"
 import { LibraryPanel } from "../features/library/LibraryPanel"
 import { Toaster } from "../ui/chakra/toaster"
-import { toaster } from "../ui/chakra/toaster-instance"
-import { useHasMap } from "../stores/mapStore"
+import { useCanRedo, useCanUndo, useHasMap } from "../stores/mapStore"
 import { useActiveTool, useToolsStore } from "../stores/toolsStore"
 import { useSettingsStore } from "../stores/settingsStore"
 
 export default function App() {
-  const { t } = useTranslation()
   const hasMap = useHasMap()
   const resetTools = useToolsStore((s) => s.reset)
   const activeTool = useActiveTool()
@@ -42,11 +41,25 @@ export default function App() {
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [newMapOpen, setNewMapOpen] = useState(false)
+  const [recentOpen, setRecentOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const canUndo = useCanUndo()
+  const canRedo = useCanRedo()
 
-  const notImplemented = (label: string) =>
-    toaster.create({ title: t("toast.soon", { label }), type: "info" })
+  const { handleSave, handleSaveAs, handleOpen, handleOpenPath, guarded } = useMapFile()
 
-  const { handleSave, handleSaveAs, handleOpen, guarded } = useMapFile()
+  // Ctrl/Cmd+S saves (the rest of the editor shortcuts live in the canvas).
+  const onSaveShortcut = useEffectEvent((e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && hasMap) {
+      e.preventDefault()
+      void (e.shiftKey ? handleSaveAs() : handleSave())
+    }
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => onSaveShortcut(e)
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
 
   return (
     <Flex direction="column" h="100vh" pb={STATUS_BAR_HEIGHT} bg="app.bg">
@@ -56,14 +69,18 @@ export default function App() {
         onToggleAssets={() => setAssetsOpen((v) => !v)}
         onOpenPreferences={() => setPrefsOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
-        onOpenRecent={() => toaster.create({ title: t("toast.noRecent"), type: "info" })}
+        onOpenRecent={() => setRecentOpen(true)}
         onExit={() => getCurrentWindow().close()}
         onNew={guarded(() => setNewMapOpen(true))}
         onOpen={handleOpen}
         onCloseMap={guarded(closeMap)}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
-        onComingSoon={notImplemented}
+        onExport={() => setExportOpen(true)}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
 
       {/* Editor canvas with the sticky tools panel overlaid on the left */}
@@ -87,6 +104,12 @@ export default function App() {
 
       <PreferencesDialog open={prefsOpen} onClose={() => setPrefsOpen(false)} />
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <RecentMapsDialog
+        open={recentOpen}
+        onClose={() => setRecentOpen(false)}
+        onOpen={handleOpenPath}
+      />
+      {exportOpen && <ExportDialog open onClose={() => setExportOpen(false)} />}
 
       <Toaster />
     </Flex>

@@ -23,13 +23,14 @@
   },
   "toast": {
     "noRecent": "No recent files",
-    "soon": "{{label}}: coming soon",
     "newMap": "New map",
     "openMap": "Open map",
     "mapSaved": "Map saved",
     "mapSaveError": "Couldn't save the map: {{error}}",
     "mapOpenError": "Couldn't open the map: {{error}}",
-    "missingPacks": "{{count}} pack(s) used by this map aren't installed"
+    "missingPacks": "{{count}} pack(s) used by this map aren't installed",
+    "exported": "Image exported",
+    "exportError": "Could not export: {{error}}"
   },
   "prefs": {
     "title": "Preferences",
@@ -142,7 +143,7 @@
     "text": "Text",
     "prefabs": "Prefabs",
     "select": "Select",
-    "emptyParams": "Tool parameters (coming soon).",
+    "emptyParams": "This tool has no parameters.",
     "hideParams": "Hide parameters",
     "customColor": "Custom Color",
     "pickCustomColor": "Pick a custom color",
@@ -222,7 +223,19 @@
     "noTexture": "No texture",
     "pickTexture": "Choose texture",
     "terrainTextures": "Terrain Textures",
-    "noTerrainPacks": "No installed packs include terrain textures."
+    "noTerrainPacks": "No installed packs include terrain textures.",
+    "noPrefabs": "No prefabs yet. Select items with the Select tool and save them.",
+    "prefabCount_one": "{{count}} item",
+    "prefabCount_other": "{{count}} items",
+    "prefabUnnamed": "Prefab {{n}}",
+    "textPlaceholder": "Type the text…",
+    "imageWidth": "Width (tiles)",
+    "loadImage": "Load image",
+    "materialAsset": "Material",
+    "opacity": "Opacity",
+    "prefabList": "Saved prefabs",
+    "removeImage": "Remove image",
+    "savePrefab": "Save selection as prefab"
   },
   "biomes": {
     "barren": "Barren",
@@ -261,7 +274,9 @@
     "exact": "Exact",
     "results": "{{count}} results",
     "empty": "No results",
-    "comingSoon": "Coming soon"
+    "loadingTags": "Loading tags…",
+    "noTags": "The enabled packs have no tags for this category.",
+    "noneUsed": "No assets of this category are on the map yet."
   },
   "status": {
     "ready": "Ready",
@@ -277,12 +292,36 @@
     "updatingPacks": "Updating packs",
     "deletingAssets": "Deleting assets",
     "searchingLibrary": "Searching library",
-    "loadingFonts": "Loading fonts"
+    "loadingFonts": "Loading fonts",
+    "exporting": "Exporting image"
   },
   "mapFile": {
     "discardTitle": "Discard unsaved changes?",
     "discardBody": "This map has unsaved changes. Continuing will discard them.",
     "discardConfirm": "Discard",
     "discardCancel": "Cancel"
+  },
+  "export": {
+    "title": "Export image",
+    "cancel": "Cancel",
+    "export": "Export",
+    "resolution": "Resolution",
+    "pxPerTile": "{{px}} px per tile",
+    "includeGrid": "Include the grid",
+    "size": "Size: {{w}} × {{h}} px",
+    "capped": "reduced to stay within the maximum"
+  },
+  "levels": {
+    "title": "Levels",
+    "add": "Add level",
+    "delete": "Delete level",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "select": "Edit this level",
+    "unnamed": "Level {{n}}"
+  },
+  "recent": {
+    "title": "Recent maps",
+    "forget": "Remove from the list"
   }
 }

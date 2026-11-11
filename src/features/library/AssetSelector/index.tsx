@@ -48,6 +48,10 @@ export interface AssetSelectorProps {
   showSearch?: boolean
   /** Show an empty first cell that selects "no asset" (empty selection). */
   allowNull?: boolean
+  /** Only show textures in this pack tag. */
+  tag?: string
+  /** Only show these asset ids. */
+  onlyIds?: string[]
 }
 
 export function AssetSelector({
@@ -60,6 +64,8 @@ export function AssetSelector({
   showPreview = false,
   showSearch = true,
   allowNull = false,
+  tag,
+  onlyIds,
 }: AssetSelectorProps) {
   const { t } = useTranslation()
 
@@ -83,6 +89,8 @@ export function AssetSelector({
   } = useAssetSearch({
     browserKey,
     category,
+    tag,
+    onlyIds,
     allowNull,
     select,
     selectedIds,

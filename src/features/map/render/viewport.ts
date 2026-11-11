@@ -74,3 +74,34 @@ export function computeWorldTransform(
     pan: { x: originX - centerX, y: originY - centerY },
   }
 }
+
+/**
+ * Inverse of {@link computeWorldTransform}: a point in container (screen) px
+ * to map tile coordinates. Uses the same clamped transform the canvas shows.
+ */
+export function screenToMap(
+  screen: { x: number; y: number },
+  containerWidth: number,
+  containerHeight: number,
+  mapWidth: number,
+  mapHeight: number,
+  zoom: number,
+  pan: { x: number; y: number },
+): { x: number; y: number } {
+  const t = computeWorldTransform(containerWidth, containerHeight, mapWidth, mapHeight, zoom, pan)
+  return { x: (screen.x - t.x) / t.scaleX, y: (screen.y - t.y) / t.scaleY }
+}
+
+/** Map tile coordinates to container (screen) px — the forward of {@link screenToMap}. */
+export function mapToScreen(
+  p: { x: number; y: number },
+  containerWidth: number,
+  containerHeight: number,
+  mapWidth: number,
+  mapHeight: number,
+  zoom: number,
+  pan: { x: number; y: number },
+): { x: number; y: number } {
+  const t = computeWorldTransform(containerWidth, containerHeight, mapWidth, mapHeight, zoom, pan)
+  return { x: t.x + p.x * t.scaleX, y: t.y + p.y * t.scaleY }
+}

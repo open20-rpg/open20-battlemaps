@@ -10,6 +10,7 @@
 //! - [`install`]: streaming extraction with progress events.
 //! - [`library`]: asset-browser search over installed packs.
 //! - [`recolor`]: `recolor://` protocol and colorable-asset support.
+//! - [`tags`]: pack tag groups (Library "Tags" tab).
 //! - [`commands`]: the thin `#[tauri::command]` facade.
 
 mod commands;
@@ -18,6 +19,7 @@ mod install;
 mod library;
 mod recolor;
 mod registry;
+mod tags;
 
 pub use commands::*;
 pub use library::LibraryState;

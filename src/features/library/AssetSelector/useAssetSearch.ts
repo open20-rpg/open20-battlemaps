@@ -20,6 +20,10 @@ export interface UseAssetSearchOptions {
   category: string
   /** Scope the search to one pack (omit for all enabled packs). */
   packId?: string
+  /** Only textures in this pack tag. */
+  tag?: string
+  /** Only these asset ids (comma-joined key keeps the search stable across renders). */
+  onlyIds?: string[]
   /** Whether display slot 0 is the "no asset" cell (shifts real items by one). */
   allowNull: boolean
   /** Selection mode; needed for the single-select default described below. */
@@ -40,6 +44,8 @@ export function useAssetSearch({
   browserKey,
   category,
   packId,
+  tag,
+  onlyIds,
   allowNull,
   select,
   selectedIds,
@@ -86,20 +92,29 @@ export function useAssetSearch({
     if (first) onSelectionChange([first.id])
   }, [])
 
+  // A primitive key, so a new-but-equal ids array doesn't re-run the search.
+  const idsKey = onlyIds ? onlyIds.join("\n") : null
+
   const runSearch = useCallback(
     (q: string) => {
       items.current.clear()
       requestedPages.current.clear()
       scrollRef.current?.scrollTo({ top: 0 })
       return withLoading(t("loading.searchingLibrary"), () =>
-        searchLibrary(browserKey, category, q, exactnessRef.current, packId).then((res) => {
+        searchLibrary(browserKey, category, {
+          query: q,
+          exactness: exactnessRef.current,
+          packId,
+          tag,
+          ids: idsKey === null ? undefined : idsKey ? idsKey.split("\n") : [],
+        }).then((res) => {
           setTotal(res.total)
           setSearchGen((n) => n + 1)
           bump()
         }),
       )
     },
-    [browserKey, category, packId, t, scrollRef],
+    [browserKey, category, packId, tag, idsKey, t, scrollRef],
   )
 
   // Reset the query box when the category changes (panel opens/switches),

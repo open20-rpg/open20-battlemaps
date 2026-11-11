@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 use super::recolor::{pack_color_cfg, pack_colorable_set, ColorCfg};
@@ -65,6 +65,8 @@ pub struct LibraryState {
     pub(crate) colorable: Mutex<HashMap<String, Arc<HashSet<String>>>>,
     /// packId -> parsed `custom_color_overrides` (None once loaded = pack has none).
     pub(crate) color_cfg: Mutex<HashMap<String, Option<ColorCfg>>>,
+    /// packId -> tag name -> texture rel-paths (see `tags.rs`).
+    pub(crate) tags: Mutex<HashMap<String, Arc<super::tags::TagMap>>>,
 }
 
 /// Drop all cached indexes/results (call when packs are added/removed/toggled).
@@ -81,6 +83,9 @@ pub(crate) fn clear_library(app: &AppHandle) {
     }
     if let Ok(mut c) = state.color_cfg.lock() {
         c.clear();
+    };
+    if let Ok(mut t) = state.tags.lock() {
+        t.clear();
     };
 }
 
@@ -198,14 +203,30 @@ fn matches(name_lower: &str, query_lower: &str, exactness: f32) -> bool {
     is_subsequence(query_lower, name_lower)
 }
 
+/// What a library search matches. Deserialized straight from the frontend
+/// (`searchLibrary` in `features/library/api.ts`).
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchFilter {
+    #[serde(default)]
+    pub query: String,
+    /// 0 = fuzzy (subsequence) … 1 = exact substring.
+    #[serde(default)]
+    pub exactness: f32,
+    /// Scope to a single pack (e.g. the terrain picker).
+    pub pack_id: Option<String>,
+    /// Only textures in this pack tag (Library "Tags" tab).
+    pub tag: Option<String>,
+    /// Only these asset ids (Library "Used" tab).
+    pub ids: Option<HashSet<String>>,
+}
+
 /// Run a library search over all enabled packs and cache the results.
 pub(crate) fn search(
     app: &AppHandle,
     key: String,
     category: &str,
-    query: &str,
-    exactness: f32,
-    pack_id: Option<&str>,
+    filter: &SearchFilter,
 ) -> Result<LibrarySearch> {
     let state = app.state::<LibraryState>();
     let reg = read_registry(app);
@@ -215,12 +236,13 @@ pub(crate) fn search(
         .map(|(id, _)| id.clone())
         .collect();
     // Optionally scope the search to a single pack (e.g. the terrain picker).
-    if let Some(pid) = pack_id {
+    if let Some(pid) = &filter.pack_id {
         enabled.retain(|id| id == pid);
     }
     enabled.sort();
 
-    let q = query.to_lowercase();
+    let q = filter.query.to_lowercase();
+    let exactness = filter.exactness;
     let mut results: Vec<LibItemLite> = Vec::new();
 
     for pack_id in &enabled {
@@ -235,7 +257,26 @@ pub(crate) fn search(
                 built
             }
         };
+        // Restrict to one tag's textures (Library "Tags" tab) when requested.
+        let tagged = filter
+            .tag
+            .as_deref()
+            .map(|t| super::tags::pack_tags(app, pack_id).get(t).cloned());
         for item in index.iter() {
+            if let Some(allowed) = &tagged {
+                if !allowed
+                    .as_ref()
+                    .is_some_and(|set| set.contains(&item.rel_path))
+                {
+                    continue;
+                }
+            }
+            // Restrict to explicit asset ids (Library "Used" tab).
+            if let Some(ids) = &filter.ids {
+                if !ids.contains(&format!("{pack_id}|{}", item.rel_path)) {
+                    continue;
+                }
+            }
             if matches(&item.name_lower, &q, exactness) {
                 results.push(LibItemLite {
                     pack_id: pack_id.clone(),
@@ -292,8 +333,74 @@ pub(crate) fn get_items(
     Ok(out)
 }
 
+/// A placed asset resolved to its file on disk (for rendering map entities).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedAsset {
+    id: String,
+    /// Absolute path to the texture, or None if the pack/file is missing.
+    path: Option<String>,
+    colorable: bool,
+}
+
+/// Split a library item id (`{packId}|{relPath}`) into its parts.
+pub(crate) fn split_asset_id(id: &str) -> Option<(&str, &str)> {
+    let (pack, rel) = id.split_once('|')?;
+    if pack.is_empty() || rel.is_empty() || rel.split('/').any(|seg| seg == "..") {
+        return None;
+    }
+    Some((pack, rel))
+}
+
+/// Resolve asset ids to their texture files (missing packs/files resolve to None).
+pub(crate) fn resolve(app: &AppHandle, ids: &[String]) -> Vec<ResolvedAsset> {
+    ids.iter()
+        .map(|id| {
+            let found = split_asset_id(id).and_then(|(pack_id, rel)| {
+                let dir = pack_dir(app, pack_id).ok()?;
+                let full = dir.join(rel);
+                if !full.is_file() || !full.starts_with(&dir) {
+                    return None;
+                }
+                let colorable = pack_color_cfg(app, pack_id).is_some()
+                    && pack_colorable_set(app, pack_id).contains(rel);
+                Some((full.to_string_lossy().into_owned(), colorable))
+            });
+            ResolvedAsset {
+                id: id.clone(),
+                path: found.as_ref().map(|(p, _)| p.clone()),
+                colorable: found.is_some_and(|(_, c)| c),
+            }
+        })
+        .collect()
+}
+
 /// Drop a browser instance's cached results (call when the browser unmounts).
 pub(crate) fn release(app: &AppHandle, key: &str) {
     let state = app.state::<LibraryState>();
     state.results.lock().unwrap().remove(key);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn splits_asset_ids() {
+        assert_eq!(
+            split_asset_id("pack1|textures/objects/a.png"),
+            Some(("pack1", "textures/objects/a.png"))
+        );
+        assert_eq!(split_asset_id("no-separator"), None);
+        assert_eq!(split_asset_id("|textures/a.png"), None);
+        assert_eq!(split_asset_id("p|../../etc/passwd"), None);
+    }
+
+    #[test]
+    fn fuzzy_matching_respects_exactness() {
+        assert!(matches("wooden chair", "chair", 1.0));
+        assert!(!matches("wooden chair", "wdchr", 0.9));
+        assert!(matches("wooden chair", "wdchr", 0.5));
+        assert!(matches("anything", "", 1.0));
+    }
 }

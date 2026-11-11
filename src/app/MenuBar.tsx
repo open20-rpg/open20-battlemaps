@@ -63,8 +63,11 @@ export interface MenuBarProps {
   onCloseMap: () => void
   onSave: () => void
   onSaveAs: () => void
-  /** Placeholder handler for not-yet-implemented actions. */
-  onComingSoon: (label: string) => void
+  onExport: () => void
+  onUndo: () => void
+  onRedo: () => void
+  canUndo: boolean
+  canRedo: boolean
 }
 
 export function MenuBar(props: MenuBarProps) {
@@ -160,19 +163,19 @@ export function MenuBar(props: MenuBarProps) {
         icon={LuUpload}
         label={t("menu.export")}
         disabled={!props.mapOpen}
-        onClick={() => props.onComingSoon(t("menu.export"))}
+        onClick={props.onExport}
       />
       <BarButton
         icon={LuUndo2}
         label={t("menu.undo")}
-        disabled={!props.mapOpen}
-        onClick={() => props.onComingSoon(t("menu.undo"))}
+        disabled={!props.mapOpen || !props.canUndo}
+        onClick={props.onUndo}
       />
       <BarButton
         icon={LuRedo2}
         label={t("menu.redo")}
-        disabled={!props.mapOpen}
-        onClick={() => props.onComingSoon(t("menu.redo"))}
+        disabled={!props.mapOpen || !props.canRedo}
+        onClick={props.onRedo}
       />
       <BarButton
         icon={LuGem}

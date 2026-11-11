@@ -4,12 +4,38 @@ import { Application, Container, Graphics } from "pixi.js"
 import { useMapStore } from "../../../stores/mapStore"
 import { useViewStore } from "../../../stores/viewStore"
 import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
+import { useEditorStore } from "../../../stores/editorStore"
 import { drawGrid, type GridStyle } from "./grid"
 import { computeWorldTransform } from "./viewport"
 import { useViewportGestures } from "./useViewportGestures"
+import { assetCache } from "./assets"
+import { MapScene, type SceneState } from "./scene"
+import { referenceImageUrl, subscribeReferenceImages } from "./referenceImages"
+import { setActiveRenderer } from "./exportMap"
 
-/** Fill color for the map rect until real layers render into it. */
+/** Fill color of the map rect under every layer. */
 const MAP_BG = 0x2b2b2f
+
+/** Gather everything the scene draws from the stores. */
+function sceneState(): SceneState | null {
+  const map = useMapStore.getState().map
+  if (!map) return null
+  const view = useViewStore.getState()
+  const editor = useEditorStore.getState()
+  const ref = map.referenceImage
+  return {
+    map,
+    level: editor.activeLevel,
+    lighting: view.lighting,
+    shadows: view.shadows,
+    textVisible: getToolParams("text").visible !== false,
+    terrainEnabled: getToolParams("terrainBrush").enable !== false,
+    draft: editor.draft,
+    selection: editor.selection,
+    zoom: view.zoom,
+    referenceUrl: ref ? referenceImageUrl(ref.path) : null,
+  }
+}
 
 /**
  * The map viewport, rendered with PixiJS (WebGL) for performance/memory
@@ -32,6 +58,7 @@ export function MapCanvas() {
   const worldRef = useRef<Container | null>(null)
   const mapBgRef = useRef<Graphics | null>(null)
   const gridRef = useRef<Graphics | null>(null)
+  const sceneRef = useRef<MapScene | null>(null)
   // Flips once the async Pixi init resolves, just to trigger the render that
   // lets the effects below see the now-populated refs.
   const [ready, setReady] = useState(false)
@@ -84,17 +111,23 @@ export function MapCanvas() {
         const world = new Container()
         const mapBg = new Graphics()
         const grid = new Graphics()
-        world.addChild(mapBg, grid)
+        const scene = new MapScene(app.renderer, assetCache)
+        world.addChild(mapBg, scene.content, grid, scene.overlay)
         app.stage.addChild(world)
         appRef.current = app
         worldRef.current = world
         mapBgRef.current = mapBg
         gridRef.current = grid
+        sceneRef.current = scene
+        setActiveRenderer({ renderer: app.renderer, scene })
         setReady(true)
       })
 
     return () => {
       disposed = true
+      setActiveRenderer(null)
+      sceneRef.current?.destroy()
+      sceneRef.current = null
       if (appRef.current) {
         appRef.current.destroy(true, { children: true })
         appRef.current = null
@@ -112,6 +145,37 @@ export function MapCanvas() {
     renderer.on("resize", onResize)
     return () => {
       renderer.off("resize", onResize)
+    }
+  }, [ready])
+
+  // Keep the scene in sync with the document, editor and view stores. This
+  // is imperative (store subscriptions, not React state) so editing the map
+  // never re-renders React components.
+  useEffect(() => {
+    const scene = sceneRef.current
+    if (!ready || !scene) return
+    let frame = 0
+    const schedule = () => {
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        const state = sceneState()
+        if (state) scene.update(state)
+      })
+    }
+    schedule()
+    const unsubMap = useMapStore.subscribe(schedule)
+    const unsubEditor = useEditorStore.subscribe(schedule)
+    const unsubView = useViewStore.subscribe(schedule)
+    const unsubTools = useToolsStore.subscribe(schedule)
+    const unsubRef = subscribeReferenceImages(schedule)
+    return () => {
+      cancelAnimationFrame(frame)
+      unsubMap()
+      unsubEditor()
+      unsubView()
+      unsubTools()
+      unsubRef()
     }
   }, [ready])
 

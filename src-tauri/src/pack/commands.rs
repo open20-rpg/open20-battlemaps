@@ -10,7 +10,7 @@ use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
 use super::install::install_one;
-use super::library::{self, clear_library, LibItem, LibrarySearch};
+use super::library::{self, clear_library, LibItem, LibrarySearch, ResolvedAsset, SearchFilter};
 use super::registry::{
     build_installed, pack_dir, packs_root, read_registry, write_registry, InstalledPack, PackReg,
 };
@@ -248,15 +248,11 @@ pub async fn search_library(
     app: AppHandle,
     key: String,
     category: String,
-    query: String,
-    exactness: f32,
-    pack_id: Option<String>,
+    filter: SearchFilter,
 ) -> Result<LibrarySearch> {
-    tauri::async_runtime::spawn_blocking(move || {
-        library::search(&app, key, &category, &query, exactness, pack_id.as_deref())
-    })
-    .await
-    .map_err(|e| PackError::Other(e.to_string()))?
+    tauri::async_runtime::spawn_blocking(move || library::search(&app, key, &category, &filter))
+        .await
+        .map_err(|e| PackError::Other(e.to_string()))?
 }
 
 /// List enabled packs that ship textures for a category (per-pack browsers).
@@ -282,4 +278,20 @@ pub fn get_library_items(
 #[tauri::command]
 pub fn release_library_search(app: AppHandle, key: String) {
     library::release(&app, &key);
+}
+
+/// Tag names available for a category across enabled packs (Library Tags tab).
+#[tauri::command]
+pub async fn library_tags(app: AppHandle, category: String) -> Result<Vec<String>> {
+    tauri::async_runtime::spawn_blocking(move || super::tags::tags_for_category(&app, &category))
+        .await
+        .map_err(|e| PackError::Other(e.to_string()))
+}
+
+/// Resolve placed asset ids to texture files (for drawing map entities).
+#[tauri::command]
+pub async fn resolve_assets(app: AppHandle, ids: Vec<String>) -> Result<Vec<ResolvedAsset>> {
+    tauri::async_runtime::spawn_blocking(move || library::resolve(&app, &ids))
+        .await
+        .map_err(|e| PackError::Other(e.to_string()))
 }

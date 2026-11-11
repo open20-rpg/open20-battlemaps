@@ -11,6 +11,19 @@ export interface LibItem {
   colorable: boolean
 }
 
+/** What a library search matches (mirrors `SearchFilter` in src-tauri). */
+export interface SearchFilter {
+  query: string
+  /** 0 = fuzzy (subsequence) … 1 = exact substring. */
+  exactness: number
+  /** Scope the search to a single pack (omit for all enabled packs). */
+  packId?: string
+  /** Only textures in this pack tag (Library "Tags" tab). */
+  tag?: string
+  /** Only these asset ids (Library "Used" tab). */
+  ids?: string[]
+}
+
 /**
  * Run a search over all enabled packs for the given category (e.g. "objects").
  * The backend caches the full result set under `key` (a per-browser id, so
@@ -19,12 +32,14 @@ export interface LibItem {
 export function searchLibrary(
   key: string,
   category: string,
-  query: string,
-  exactness: number,
-  /** Scope the search to a single pack (omit for all enabled packs). */
-  packId?: string,
+  filter: SearchFilter,
 ): Promise<{ total: number }> {
-  return invoke("search_library", { key, category, query, exactness, packId })
+  return invoke("search_library", { key, category, filter })
+}
+
+/** Tag names available for a category across enabled packs. */
+export function libraryTags(category: string): Promise<string[]> {
+  return invoke("library_tags", { category })
 }
 
 /** List enabled packs that ship textures for a category (for per-pack browsers). */

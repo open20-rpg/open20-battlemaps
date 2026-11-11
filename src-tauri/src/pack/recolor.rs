@@ -71,7 +71,7 @@ struct ColorableOnly {
 /// Remove JSON5-style trailing commas (`,` right before `]`/`}`) while respecting
 /// string literals, so the (large) Dungeondraft tags files parse with strict,
 /// fast serde_json instead of the much slower json5 parser.
-fn strip_trailing_commas(s: &str) -> String {
+pub(crate) fn strip_trailing_commas(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut in_str = false;
     let mut esc = false;

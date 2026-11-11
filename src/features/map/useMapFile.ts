@@ -45,9 +45,9 @@ export function useMapFile() {
     }
   }
 
-  const handleOpen = guarded(async () => {
+  const openMap = async (path?: string): Promise<void> => {
     try {
-      const { opened, missingPacks } = await openMapFlow()
+      const { opened, missingPacks } = await openMapFlow(path)
       if (opened && missingPacks.length > 0) {
         toaster.create({
           title: t("toast.missingPacks", { count: missingPacks.length }),
@@ -57,7 +57,11 @@ export function useMapFile() {
     } catch (err) {
       toaster.create({ title: t("toast.mapOpenError", { error: String(err) }), type: "error" })
     }
-  })
+  }
 
-  return { handleSave, handleSaveAs, handleOpen, guarded }
+  const handleOpen = guarded(() => openMap())
+  /** Open a specific file (Recent maps), behind the same unsaved-changes guard. */
+  const handleOpenPath = (path: string) => guarded(() => openMap(path))()
+
+  return { handleSave, handleSaveAs, handleOpen, handleOpenPath, guarded }
 }

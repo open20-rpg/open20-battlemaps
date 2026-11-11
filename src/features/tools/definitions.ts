@@ -11,6 +11,7 @@ import {
   LuGrid3X3,
   LuHouse,
   LuImage,
+  LuImagePlus,
   LuLayers,
   LuLightbulb,
   LuMap,
@@ -19,6 +20,7 @@ import {
   LuMousePointer2,
   LuPaintBucket,
   LuRoute,
+  LuSave,
   LuSettings2,
   LuShapes,
   LuSparkles,
@@ -83,6 +85,11 @@ export interface ToolLeaf {
   icon: IconType
   /** If set, the Library panel opens on the right, filtered to this category. */
   library?: AssetCategory
+  /**
+   * How many Library items the tool uses (stored under LIBRARY_PARAM): one
+   * (Object, Path) or several to pick from at random (Scatter).
+   */
+  librarySelect?: "single" | "multi"
   /** Parameter controls shown in this tool's panel, in order. */
   params?: ToolParamSpec[]
   /** Cross-field rule applied after any of this tool's params changes. */
@@ -106,6 +113,7 @@ const tool = (
   icon: IconType,
   opts?: {
     library?: AssetCategory
+    librarySelect?: "single" | "multi"
     params?: ToolParamSpec[]
     normalizeParams?: ParamNormalizer
   },
@@ -115,6 +123,7 @@ const tool = (
   nameKey,
   icon,
   library: opts?.library,
+  librarySelect: opts?.library ? (opts.librarySelect ?? "single") : undefined,
   params: opts?.params,
   normalizeParams: opts?.normalizeParams,
 })
@@ -402,7 +411,11 @@ export const TOOL_TREE: ToolNode[] = [
         ],
       }),
       tool("material", "tools.material", LuPaintBucket, {
-        params: [objectLayer(-400), brushSize(1, 5, 1, 2)],
+        params: [
+          objectLayer(-400),
+          brushSize(1, 5, 1, 2),
+          assetPicker("material", "tools.materialAsset", "tilesets", "single", "#ffffff"),
+        ],
       }),
       tool("path", "tools.path", LuRoute, {
         library: "paths",
@@ -439,6 +452,7 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("scatter", "tools.scatter", LuSprayCan, {
         library: "objects",
+        librarySelect: "multi",
         params: [
           objectLayer(100),
           sorting("over"),
@@ -497,8 +511,18 @@ export const TOOL_TREE: ToolNode[] = [
           customColor("gridLineColor", "tools.gridLineColor", "#00000080"),
         ],
       }),
-      tool("levelSettings", "tools.levelSettings", LuLayers),
-      tool("referenceImage", "tools.referenceImage", LuImage),
+      tool("levelSettings", "tools.levelSettings", LuLayers, {
+        params: [{ kind: "levels", paramKey: "levels", default: null }],
+      }),
+      tool("referenceImage", "tools.referenceImage", LuImage, {
+        params: [
+          button("load", "tools.loadImage", LuImagePlus),
+          button("remove", "tools.removeImage", LuTrash2, "red"),
+          switchParam("visible", "tools.visible", true),
+          sliderParam("opacity", "tools.opacity", 0.05, 1, 0.05, 0.5),
+          sliderParam("width", "tools.imageWidth", 1, 300, 1, 30),
+        ],
+      }),
     ],
   },
   tool("text", "tools.text", LuType, {
@@ -521,7 +545,12 @@ export const TOOL_TREE: ToolNode[] = [
       switchParam("textBox", "tools.textBox", false),
     ],
   }),
-  tool("prefabs", "tools.prefabs", LuBoxes),
+  tool("prefabs", "tools.prefabs", LuBoxes, {
+    params: [
+      button("save", "tools.savePrefab", LuSave),
+      { kind: "prefabs", paramKey: "prefab", labelKey: "tools.prefabList", default: null },
+    ],
+  }),
   tool("select", "tools.select", LuMousePointer2),
 ]
 

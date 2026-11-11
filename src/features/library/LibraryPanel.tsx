@@ -1,24 +1,63 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Flex, Icon, Tabs, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuLibrary } from "react-icons/lu"
 import { AssetSelector } from "./AssetSelector"
+import { libraryTags } from "./api"
 import { selectActiveTool, useToolsStore } from "../../stores/toolsStore"
+import { useMapStore } from "../../stores/mapStore"
+import { withLoading } from "../../stores/loadingStore"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import { type AssetCategory } from "../../lib/categories"
+import { usedAssetIds } from "../map/packUsage"
+import { LIBRARY_PARAM, libraryAssetsOf } from "../tools/params"
+import { Select } from "../../ui/Select"
 
 // -- the sticky Library panel --------------------------------------------------
 
+/**
+ * The Library on the right: browse a category's assets across enabled packs
+ * (All), only those already placed on the map (Used) or a pack tag (Tags).
+ * For tools that place library items (Object, Scatter, Path) the browser is
+ * selectable and the pick is stored in the tool's params.
+ */
 export function LibraryPanel({ category }: { category: AssetCategory }) {
   const { t } = useTranslation()
   const [tab, setTab] = useState("all")
 
+  const tool = useToolsStore(selectActiveTool)
+  const toolId = tool?.id
+  const select = tool?.librarySelect
+  const setToolParams = useToolsStore((s) => s.setToolParams)
   // Colorable items are shown recolored with the active tool's custom color.
   const color = useToolsStore((s) => {
-    const tool = selectActiveTool(s)
-    const stored = tool ? s.paramsByTool[tool.id]?.customColor : undefined
+    const stored = toolId ? s.paramsByTool[toolId]?.customColor : undefined
     return typeof stored === "string" ? stored : DEFAULT_CUSTOM_COLOR
   })
+  // Selected as a joined string: a store selector must return a stable value
+  // (a fresh array each call makes useSyncExternalStore loop forever).
+  const selectedKey = useToolsStore((s) =>
+    toolId ? libraryAssetsOf(s.paramsByTool[toolId] ?? {}).join("\n") : "",
+  )
+  // Stable array identity per selection (the selector memoizes on it).
+  const selection = useMemo(() => (selectedKey ? selectedKey.split("\n") : []), [selectedKey])
+  const onSelectionChange =
+    select && toolId
+      ? (ids: string[]) => setToolParams(toolId, { [LIBRARY_PARAM]: ids })
+      : undefined
+
+  const map = useMapStore((s) => s.map)
+  const usedKey = usedAssetIds(map, category).join("\n")
+  const used = useMemo(() => (usedKey ? usedKey.split("\n") : []), [usedKey])
+
+  const shared = {
+    category,
+    color,
+    select,
+    selectedIds: selection,
+    onSelectionChange,
+    showPreview: true,
+  }
 
   return (
     <Flex
@@ -59,6 +98,8 @@ export function LibraryPanel({ category }: { category: AssetCategory }) {
         flexDirection="column"
         flex="1"
         minH="0"
+        lazyMount
+        unmountOnExit
       >
         <Tabs.List flexShrink={0} px="2">
           <Tabs.Trigger value="all">{t("library.tabAll")}</Tabs.Trigger>
@@ -67,24 +108,76 @@ export function LibraryPanel({ category }: { category: AssetCategory }) {
         </Tabs.List>
 
         <Tabs.Content value="all" flex="1" minH="0" p="0" display="flex" flexDirection="column">
-          <AssetSelector
-            browserKey={`library:${category}`}
-            category={category}
-            color={color}
-            showPreview
-          />
+          <AssetSelector browserKey={`library:${category}`} {...shared} />
         </Tabs.Content>
-        <Tabs.Content value="used" flex="1" minH="0">
-          <Flex h="full" align="center" justify="center" color="fg.muted" fontSize="sm">
-            {t("library.comingSoon")}
-          </Flex>
+        <Tabs.Content value="used" flex="1" minH="0" p="0" display="flex" flexDirection="column">
+          {used.length === 0 ? (
+            <Flex flex="1" align="center" justify="center" color="fg.muted" fontSize="sm" p="6">
+              <Text textAlign="center">{t("library.noneUsed")}</Text>
+            </Flex>
+          ) : (
+            <AssetSelector browserKey={`library-used:${category}`} onlyIds={used} {...shared} />
+          )}
         </Tabs.Content>
-        <Tabs.Content value="tags" flex="1" minH="0">
-          <Flex h="full" align="center" justify="center" color="fg.muted" fontSize="sm">
-            {t("library.comingSoon")}
-          </Flex>
+        <Tabs.Content value="tags" flex="1" minH="0" p="0" display="flex" flexDirection="column">
+          <TagBrowser category={category} shared={shared} />
         </Tabs.Content>
       </Tabs.Root>
+    </Flex>
+  )
+}
+
+type SharedSelectorProps = Omit<Parameters<typeof AssetSelector>[0], "browserKey">
+
+/** The Tags tab: pick a pack tag, browse its assets. */
+function TagBrowser({
+  category,
+  shared,
+}: {
+  category: AssetCategory
+  shared: SharedSelectorProps
+}) {
+  const { t } = useTranslation()
+  const [tags, setTags] = useState<{ category: string; names: string[] } | null>(null)
+  const [tag, setTag] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void withLoading(t("loading.searchingLibrary"), () => libraryTags(category))
+      .then((names) => {
+        if (!cancelled) setTags({ category, names })
+      })
+      .catch(() => {
+        if (!cancelled) setTags({ category, names: [] })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [category, t])
+
+  // Results for another category are stale until the new list arrives.
+  const names = tags?.category === category ? tags.names : []
+  const current = tag && names.includes(tag) ? tag : (names[0] ?? null)
+
+  if (names.length === 0) {
+    return (
+      <Flex flex="1" align="center" justify="center" color="fg.muted" fontSize="sm" p="6">
+        <Text textAlign="center">{tags ? t("library.noTags") : t("library.loadingTags")}</Text>
+      </Flex>
+    )
+  }
+  return (
+    <Flex direction="column" flex="1" minH="0">
+      <Flex px="3" pt="2.5" flexShrink={0}>
+        <Select
+          value={current ?? ""}
+          items={names.map((name) => ({ value: name, label: name }))}
+          onChange={setTag}
+        />
+      </Flex>
+      {current && (
+        <AssetSelector browserKey={`library-tag:${category}`} tag={current} {...shared} />
+      )}
     </Flex>
   )
 }
