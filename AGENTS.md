@@ -114,7 +114,9 @@ ni accionable.
   unitario junto al archivo (`*.test.ts` / `#[cfg(test)]`).
 - **Commits a nombre de quien los hace** (el `user.name` y
   `user.email` configurados en git). No agregues trailers de co-autoría ni de asistentes
-  (`Co-Authored-By` u otros).
+  (`Co-Authored-By` u otros). Única excepción: los commits
+  `chore(release): vX.Y.Z` que crea semantic-release en CI van a nombre de
+  `semantic-release-bot`, y está bien así — no los reescribas.
 - Nunca trabajes en worktrees, siempre sobre la rama principal.
 - **Nunca hagas `git commit` ni `git push` sin permiso explícito para ese
   cambio puntual** — ni siquiera en tareas que impliquen git de por sí (bump
