@@ -1,5 +1,5 @@
 import { buildToolCtx } from "./context"
-import { createLightBehavior, environmentBehavior } from "./effects"
+import { createLightBehavior, environmentBehavior, mapSettingsBehavior } from "./effects"
 import { createScatterBehavior, objectBehavior } from "./objects"
 import {
   createCaveBehavior,
@@ -52,6 +52,7 @@ export const TOOL_BEHAVIORS: Record<string, ToolBehavior> = {
   object: objectBehavior,
   scatter: createScatterBehavior(),
   environment: environmentBehavior,
+  mapSettings: mapSettingsBehavior,
   light: createLightBehavior(),
   referenceImage: createReferenceImageBehavior(),
   shadowSettings: createShadowSettingsBehavior(),

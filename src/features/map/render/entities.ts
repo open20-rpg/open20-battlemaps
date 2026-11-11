@@ -21,6 +21,7 @@ import {
 import { type MapEntity, type Vec2 } from "../model/types"
 import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
 import { lightFalloffTexture } from "./generated"
+import { wearOverlay, wornMesh } from "./buildingWear"
 
 /**
  * Per-entity renderers, keyed by the tool that created the entity. They draw
@@ -48,6 +49,8 @@ export interface RenderEnv {
   portals: readonly MapEntity[]
   /** Asset size in tiles (remembers misses like `tex`). */
   size: (id: string | undefined) => { w: number; h: number } | undefined
+  /** The map's building wear texture (buildingWear.ts): none, or once loaded (remembers misses like `tex`). */
+  buildingWear: () => Texture | undefined
 }
 
 /** What casts a shadow (each kind can be turned off in the shadow settings). */
@@ -147,6 +150,8 @@ export function lineMesh(
   color: number,
   /** Tint over the texture/color (e.g. black for a shadow). */
   tint?: number,
+  /** Building wear multiplied over the texture, in world coordinates (walls only). */
+  wear?: Texture,
 ): Container {
   const root = new Container()
   const groups = new Map<number, LineTriangle[]>()
@@ -183,7 +188,7 @@ export function lineMesh(
       uvs,
       indices: Uint32Array.from({ length: group.length * 3 }, (_, i) => i),
     })
-    const mesh = new Mesh({ geometry, texture })
+    const mesh = wear ? wornMesh(geometry, texture, wear) : new Mesh({ geometry, texture })
     mesh.alpha = alpha
     if (tint !== undefined) mesh.tint = tint
     root.addChild(mesh)
@@ -208,27 +213,33 @@ function portalOpenings(env: RenderEnv): WallOpening[] {
 }
 
 /**
- * A wall's end-cap sprite centered on `at`, turned along the wall's
- * direction `dir` there (map space) and, at the wall's start, mirrored —
- * as Dungeondraft places them.
+ * A wall end's cap: its `<name>_end` texture centered on `at`, as wide as
+ * the wall, turned along the wall's direction `dir` there (map space) and,
+ * at the wall's start, mirrored — as Dungeondraft places them. Built as a
+ * quad (u 0…1 across the texture) so the wall wear covers it too.
  */
-function endCap(
+function capTriangles(
   texture: Texture,
   at: Vec2,
   dir: Vec2,
   width: number,
   start: boolean,
-  tint?: number,
-): Sprite {
-  const cap = new Sprite(texture)
-  if (tint !== undefined) cap.tint = tint
-  cap.anchor.set(0.5)
-  cap.position.set(-at.x, at.y)
-  // Content space mirrors x, so the direction's x flips too.
-  cap.rotation = Math.atan2(dir.y, -dir.x)
-  const k = width / texture.height
-  cap.scale.set(start ? -k : k, k)
-  return cap
+): LineTriangle[] {
+  const l = Math.hypot(dir.x, dir.y) || 1
+  const d = { x: dir.x / l, y: dir.y / l }
+  const n = { x: -d.y, y: d.x }
+  const w = width * (texture.width / texture.height)
+  const s = start ? -1 : 1
+  const v = (u: number, vv: number) => ({
+    x: at.x + d.x * (u - 0.5) * w * s + n.x * (0.5 - vv) * width,
+    y: at.y + d.y * (u - 0.5) * w * s + n.y * (0.5 - vv) * width,
+    u,
+    v: vv,
+  })
+  return [
+    { a: v(0, 0), b: v(0, 1), c: v(1, 0), alpha: 1 },
+    { a: v(0, 1), b: v(1, 1), c: v(1, 0), alpha: 1 },
+  ]
 }
 
 /**
@@ -236,7 +247,8 @@ function endCap(
  * portals open the wall) is one line as wide as the texture is tall, its
  * corners beveled (Bevel Corners, the default) or mitered, the texture
  * wrapping around them (see lineGeometry.ts). Open ends get the pack's
- * `<name>_end` cap texture when it has one. The drop shadow is the same
+ * `<name>_end` cap texture when it has one. The map's building wear
+ * (buildingWear.ts) is multiplied over walls and caps. The drop shadow is the same
  * geometry tinted black, so it follows the wall's real shape.
  */
 const wallRenderer: EntityRenderer = (e, env) => {
@@ -249,23 +261,28 @@ const wallRenderer: EntityRenderer = (e, env) => {
   const meshes = runs.map((run) => wallTriangles(run.points, run.closed, width, opts))
   const repeat = repeatOf(texture, width)
 
-  const draw = (tint?: number): Container => {
+  const caps = cap
+    ? runs.flatMap((run) => {
+        const pts = run.points
+        const n = pts.length
+        if (run.closed || n < 2) return []
+        return [
+          ...capTriangles(cap, pts[0], sub(pts[1], pts[0]), width, true),
+          ...capTriangles(cap, pts[n - 1], sub(pts[n - 1], pts[n - 2]), width, false),
+        ]
+      })
+    : []
+
+  const draw = (tint?: number, wear?: Texture): Container => {
     const layer = new Container()
-    runs.forEach((run, i) => {
-      layer.addChild(lineMesh(meshes[i], repeat, texture, 0x3b3631, tint))
-      const pts = run.points
-      const n = pts.length
-      if (cap && !run.closed && n > 1) {
-        layer.addChild(endCap(cap, pts[0], sub(pts[1], pts[0]), width, true, tint))
-        layer.addChild(endCap(cap, pts[n - 1], sub(pts[n - 1], pts[n - 2]), width, false, tint))
-      }
-    })
+    for (const tris of meshes) layer.addChild(lineMesh(tris, repeat, texture, 0x3b3631, tint, wear))
+    if (cap && caps.length) layer.addChild(lineMesh(caps, 1, cap, 0x3b3631, tint, wear))
     return layer
   }
 
   const root = new Container()
   if (castsShadow(e)) env.castShadow(draw(0x000000), "walls")
-  root.addChild(draw())
+  root.addChild(draw(undefined, env.buildingWear()))
   return root
 }
 
@@ -301,6 +318,8 @@ function tiledPolygon(
   tint: string | undefined,
   rotation: number,
   fallbackColor: number,
+  /** Building wear multiplied over the fill (floors). */
+  wear?: Texture,
 ): Container {
   const root = new Container()
   if (points.length < 3) return root
@@ -323,14 +342,24 @@ function tiledPolygon(
   fill.tileRotation = rad(rotation)
   if (tint) fill.tint = hexToPixiColor(tint).color
   const mask = new Graphics().poly(flat, true).fill({ color: 0xffffff })
-  root.addChild(fill, mask)
-  fill.mask = mask
+  const body = new Container()
+  body.addChild(fill)
+  if (wear) body.addChild(wearOverlay(wear, x0, y0, w, h))
+  root.addChild(body, mask)
+  body.mask = mask
   return root
 }
 
 const floorRenderer: EntityRenderer = (e, env) => {
   const { id, color } = selectionAsset(e.params.floor)
-  return tiledPolygon(e.points ?? [], env.tex(id, { color }), undefined, 0, 0x8a7a62)
+  return tiledPolygon(
+    e.points ?? [],
+    env.tex(id, { color }),
+    undefined,
+    0,
+    0x8a7a62,
+    env.buildingWear(),
+  )
 }
 
 const patternRenderer: EntityRenderer = (e, env) => {

@@ -58,7 +58,8 @@
     "removeTemplate": "Remove template",
     "editPacks": "Edit asset pack selection",
     "ok": "OK",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "disableBuildingWear": "Disable building wear"
   },
   "newTemplate": {
     "title": "New Template",
@@ -301,7 +302,13 @@
     "elementFilter": "Element filter",
     "resetToggles": "Reset filter",
     "lock": "Lock",
-    "unlock": "Unlock"
+    "unlock": "Unlock",
+    "buildingWear": "Building wear",
+    "wear_none": "None",
+    "wear_dust": "Dust",
+    "wear_grime": "Grime",
+    "wear_noise": "Noise",
+    "wear_scratched": "Scratched"
   },
   "biomes": {
     "barren": "Barren",

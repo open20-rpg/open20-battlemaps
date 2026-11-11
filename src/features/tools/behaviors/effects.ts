@@ -5,10 +5,11 @@ import {
   beginGesture,
   endGesture,
   moveEntities,
+  setBuildingWear,
   setEnvironment,
 } from "../../map/commands"
 import { dist, normalizeDegrees } from "../../map/model/geometry"
-import { type MapEntity, type Vec2 } from "../../map/model/types"
+import { isBuildingWear, type MapEntity, type Vec2 } from "../../map/model/types"
 import { makeEntity, nudgeParam, paramNum, screenTiles } from "./shared"
 import { type ToolBehavior, type ToolCtx } from "./types"
 
@@ -26,6 +27,22 @@ export const environmentBehavior: ToolBehavior = {
   },
   onParamsChange: (_ctx, patch) => {
     if (typeof patch.ambientLight === "string") setEnvironment({ ambientLight: patch.ambientLight })
+  },
+}
+
+/**
+ * Map Settings: its Building Wear param mirrors the document's
+ * `buildingWear` (loaded on activation, written back as an undoable command).
+ */
+export const mapSettingsBehavior: ToolBehavior = {
+  onActivate: (ctx) => {
+    if (ctx.params.buildingWear !== ctx.map.buildingWear) {
+      useToolsStore.getState().setToolParams(ctx.toolId, { buildingWear: ctx.map.buildingWear })
+    }
+  },
+  onParamsChange: (ctx, patch) => {
+    const wear = patch.buildingWear
+    if (isBuildingWear(wear) && wear !== ctx.map.buildingWear) setBuildingWear(wear)
   },
 }
 

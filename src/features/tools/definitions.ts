@@ -1,3 +1,4 @@
+import { BUILDING_WEARS, DEFAULT_BUILDING_WEAR } from "../map/model/types"
 import { type IconType } from "react-icons"
 import {
   LuBox,
@@ -531,6 +532,13 @@ export const TOOL_TREE: ToolNode[] = [
             "narrow",
           ),
           customColor("gridLineColor", "tools.gridLineColor", "#00000080"),
+          // Mirrors the document's buildingWear (behaviors/effects.ts).
+          segmented(
+            "buildingWear",
+            "tools.buildingWear",
+            BUILDING_WEARS.map((w) => ({ value: w, labelKey: `tools.wear_${w}` })),
+            DEFAULT_BUILDING_WEAR,
+          ),
         ],
       }),
       // How drop shadows look in Open20 Battle Maps (not part of Dungeondraft's format):

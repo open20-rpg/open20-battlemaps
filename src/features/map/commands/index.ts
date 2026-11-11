@@ -7,7 +7,9 @@ import { useEditorStore } from "../../../stores/editorStore"
 import { translateEntity } from "../model/geometry"
 import {
   createDocument,
+  DEFAULT_BUILDING_WEAR,
   normalizeDocument,
+  type BuildingWear,
   type MapDocument,
   type MapEntity,
   type MapEnvironment,
@@ -36,8 +38,12 @@ function edit(fn: (map: MapDocument) => MapDocument): void {
   useMapFileStore.getState().markDirty()
 }
 
-export function createMap(width: number, height: number): void {
-  const doc = createDocument(width, height)
+export function createMap(
+  width: number,
+  height: number,
+  buildingWear: BuildingWear = DEFAULT_BUILDING_WEAR,
+): void {
+  const doc = createDocument(width, height, buildingWear)
   useMapStore.setState({ map: doc })
   // A fresh document starts with a clean history.
   useMapStore.temporal.getState().clear()
@@ -124,6 +130,11 @@ export function moveEntities(ids: readonly string[], delta: Vec2): void {
 
 export function setEnvironment(patch: Partial<MapEnvironment>): void {
   edit((map) => ({ ...map, environment: { ...map.environment, ...patch } }))
+}
+
+/** The map's building wear (Map Settings). */
+export function setBuildingWear(buildingWear: BuildingWear): void {
+  edit((map) => ({ ...map, buildingWear }))
 }
 
 export function setReferenceImage(image: ReferenceImage | null): void {

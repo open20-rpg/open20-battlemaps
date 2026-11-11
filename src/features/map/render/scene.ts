@@ -1,7 +1,7 @@
 import { BlurFilter, Container, Graphics, Sprite, type Renderer } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import { type ShadowStyle } from "../../../stores/settingsStore"
-import { type MapDocument, type MapEntity, type Vec2 } from "../model/types"
+import { type BuildingWear, type MapDocument, type MapEntity, type Vec2 } from "../model/types"
 import { type AssetCache } from "./assets"
 import {
   ENTITY_RENDERERS,
@@ -15,6 +15,7 @@ import { PostProcessFilter } from "./postProcessFilter"
 import { liveTerrainVersion } from "../terrainLive"
 import { DEFAULT_POST_PROCESS, isNeutral, type PostProcess } from "../../../lib/postProcess"
 import { lightingComposite } from "./lighting"
+import { BUILDING_WEAR_URLS } from "./buildingWear"
 import { drawOverlay } from "./overlay"
 import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
 import { tileSizeForZoom } from "./viewport"
@@ -66,6 +67,8 @@ interface EntityView {
   /** Render inputs that, if changed, require a redraw. */
   textVisible: boolean
   lighting: boolean
+  /** The map's building wear it was drawn with (walls and floors use it). */
+  wear: BuildingWear
   view: Container
   /** Drop-shadow silhouettes it cast (they live in the shared shadow layer). */
   shadows: Container[]
@@ -195,6 +198,14 @@ export class MapScene {
         const s = this.assets.size(id)
         if (!s && !this.assets.isMissing(id)) track.complete = false
         return s
+      },
+      buildingWear: () => {
+        const wear = state.map.buildingWear
+        if (wear === "none") return undefined
+        const url = BUILDING_WEAR_URLS[wear]
+        const t = this.assets.textureFromUrl(url)
+        if (!t && !this.assets.urlFailed(url)) track.complete = false
+        return t
       },
       castShadow: (shadow, kind) => {
         // Editor-only renders (overlay ghosts) cast nothing.
@@ -387,6 +398,7 @@ export class MapScene {
         !sameInputs(current.deps, deps) ||
         current.textVisible !== state.textVisible ||
         current.lighting !== state.lighting ||
+        current.wear !== state.map.buildingWear ||
         (assetsChanged && !current.complete)
       if (stale) {
         if (current) destroyView(current)
@@ -399,6 +411,7 @@ export class MapScene {
           deps,
           textVisible: state.textVisible,
           lighting: state.lighting,
+          wear: state.map.buildingWear,
           view,
           shadows,
           complete: track.complete,
@@ -428,7 +441,13 @@ export class MapScene {
         }
         continue
       }
-      const inputs = [state.map.width, state.map.height, state.terrainSmooth, ...mine]
+      const inputs = [
+        state.map.width,
+        state.map.height,
+        state.terrainSmooth,
+        state.map.buildingWear,
+        ...mine,
+      ]
       if (current && sameInputs(current.inputs, inputs) && !(assetsChanged && !current.complete)) {
         // Same document, but a stroke in progress may have painted since.
         const live = liveTerrainVersion()

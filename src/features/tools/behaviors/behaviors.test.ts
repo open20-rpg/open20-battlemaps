@@ -5,7 +5,7 @@ import { useSettingsStore } from "../../../stores/settingsStore"
 import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
 import { canUndo, closeMap, createMap, undo } from "../../map/commands"
-import { type MapEntity } from "../../map/model/types"
+import { normalizeDocument, type MapEntity } from "../../map/model/types"
 import { LIBRARY_PARAM } from "../params"
 import { buildToolCtx } from "./context"
 import { getToolBehavior, isToolActionDisabled, runToolAction } from "./index"
@@ -175,6 +175,25 @@ describe("object & scatter", () => {
     expect(e?.rotation).toBe(15)
     expect(e?.scale).toBe(2)
     expect(scatterSpacing(-1)).toBe(0.25)
+  })
+})
+
+describe("map settings", () => {
+  it("Building Wear mirrors the document's (undoable)", () => {
+    const wear = () => useMapStore.getState().map?.buildingWear
+    expect(wear()).toBe("grime")
+    useToolsStore.getState().selectToolById("mapSettings")
+    act("mapSettings", (b, c) => b.onActivate?.(c))
+    act("mapSettings", (b, c) => b.onParamsChange?.(c, { buildingWear: "scratched" }))
+    expect(wear()).toBe("scratched")
+    undo()
+    expect(wear()).toBe("grime")
+    closeMap()
+    createMap(5, 5, "none")
+    expect(wear()).toBe("none")
+    act("mapSettings", (b, c) => b.onActivate?.(c))
+    expect(getToolParams("mapSettings").buildingWear).toBe("none")
+    expect(normalizeDocument({ width: 2, height: 2 }).buildingWear).toBe("grime")
   })
 })
 

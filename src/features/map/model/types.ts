@@ -104,6 +104,18 @@ export interface ReferenceImage {
   width: number
 }
 
+/**
+ * Building wear: the grime multiplied over walls (and their ends), floors
+ * and caves, as Dungeondraft's Map Settings → Building Wear. "none" turns it off.
+ */
+export const BUILDING_WEARS = ["none", "dust", "grime", "noise", "scratched"] as const
+export type BuildingWear = (typeof BUILDING_WEARS)[number]
+/** Dungeondraft's default for new maps. */
+export const DEFAULT_BUILDING_WEAR: BuildingWear = "grime"
+
+export const isBuildingWear = (v: unknown): v is BuildingWear =>
+  typeof v === "string" && (BUILDING_WEARS as readonly string[]).includes(v)
+
 export interface MapDocument {
   /** Dimensions in tiles. */
   width: number
@@ -111,14 +123,20 @@ export interface MapDocument {
   entities: MapEntity[]
   levels: MapLevel[]
   environment: MapEnvironment
+  buildingWear: BuildingWear
   referenceImage?: ReferenceImage | null
 }
 
 export const DEFAULT_LEVEL_ID = "level-1"
 export const DEFAULT_AMBIENT_LIGHT = "#ffffff"
 
-export function createDocument(width: number, height: number): MapDocument {
+export function createDocument(
+  width: number,
+  height: number,
+  buildingWear: BuildingWear = DEFAULT_BUILDING_WEAR,
+): MapDocument {
   return {
+    buildingWear,
     width: Math.max(1, Math.round(width)),
     height: Math.max(1, Math.round(height)),
     entities: [],
@@ -144,6 +162,7 @@ export function normalizeDocument(
     ...doc,
     levels,
     environment: { ...base.environment, ...doc.environment },
+    buildingWear: isBuildingWear(doc.buildingWear) ? doc.buildingWear : base.buildingWear,
     referenceImage: doc.referenceImage ?? null,
     entities: (doc.entities ?? []).map((e) => (e.level ? e : { ...e, level: fallbackLevel })),
   }

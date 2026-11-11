@@ -4,6 +4,7 @@ import {
   bitAt,
   bitmapRuns,
   DungeondraftImportError,
+  buildingWear,
   importDungeondraftMap,
   PATH_WIDTH_TILES,
   pathWidthMultipliers,
@@ -291,5 +292,16 @@ describe("terrain and sprites", () => {
     expect(spriteScale({ x: 0.943732, y: 0.943314 }).scale).toBeCloseTo(0.9435)
     expect(resToAssetId("res://packs/P1/textures/a.png")).toBe("P1|textures/a.png")
     expect(resToAssetId("res://textures/b.png")).toBe("dungeondraft|textures/b.png")
+  })
+})
+
+describe("building wear", () => {
+  it("reads world.building_wear by its texture's name", () => {
+    expect(buildingWear("res://textures/building_wear/scratched.png")).toBe("scratched")
+    expect(buildingWear("res://textures/building_wear/Dust.png")).toBe("dust")
+    expect(buildingWear("")).toBe("none")
+    expect(buildingWear(null)).toBe("none")
+    expect(buildingWear(undefined)).toBe("grime")
+    expect(buildingWear("res://packs/x/odd.png")).toBe("grime")
   })
 })

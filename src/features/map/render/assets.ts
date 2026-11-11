@@ -111,6 +111,11 @@ export class AssetCache {
     return !!url && this.textures.get(url) === "error"
   }
 
+  /** Whether an image loaded by URL (textureFromUrl) failed for good. */
+  urlFailed(url: string): boolean {
+    return this.textures.get(url) === "error"
+  }
+
   /** Register an already-loaded image (data URL, e.g. the reference image). */
   textureFromUrl(url: string): Texture | undefined {
     const cached = this.textures.get(url)

@@ -9,6 +9,9 @@ import {
 } from "../model/terrain"
 import {
   createDocument,
+  DEFAULT_BUILDING_WEAR,
+  isBuildingWear,
+  type BuildingWear,
   type BrushStroke,
   type MapDocument,
   type MapEntity,
@@ -369,6 +372,21 @@ function paths(im: Importer, level: string, raw: Json): MapEntity[] {
     })
 }
 
+/**
+ * The map's building wear from `world.building_wear`: the texture path
+ * Dungeondraft stores (empty/null = None), by its file name (dust, grime,
+ * noise, scratched). A file of another name keeps the default grime.
+ */
+export function buildingWear(raw: unknown): BuildingWear {
+  if (raw === undefined) return DEFAULT_BUILDING_WEAR
+  if (typeof raw !== "string" || raw === "") return "none"
+  const stem = raw
+    .replace(/^.*[\\/]/, "")
+    .replace(/\.[^.]+$/, "")
+    .toLowerCase()
+  return isBuildingWear(stem) ? stem : DEFAULT_BUILDING_WEAR
+}
+
 /** Param an imported path carries its width in tiles in, until pathWidthMultipliers converts it. */
 export const PATH_WIDTH_TILES = "importedWidthTiles"
 
@@ -672,6 +690,7 @@ export function importDungeondraftMap(text: string): ImportResult {
   // Rooms (a floor and the wall around it) move and reshape together.
   doc.entities = linkRooms(entities)
   doc.environment = { ambientLight: ambient ?? "#ffffff" }
+  doc.buildingWear = buildingWear(world.building_wear)
 
   const editor = obj(header.editor_state)
   const trace = obj(editor.trace_image)

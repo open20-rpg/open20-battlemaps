@@ -1,3 +1,4 @@
+import { wearOverlay } from "./buildingWear"
 import {
   BlurFilter,
   BufferImageSource,
@@ -246,14 +247,24 @@ function caveComposite(
   const rim = new MapMask(renderer, map)
   rim.draw(shapesOf(entities, CAVE_WALL), true)
 
+  // The map's building wear multiplies over the cave's ground and walls.
+  const wear = env.buildingWear()
+  const worn = (fill: Container): Container => {
+    if (!wear) return fill
+    const c = new Container()
+    c.addChild(fill, wearOverlay(wear, -map.width, 0, map.width, map.height))
+    return c
+  }
   const view = new Container()
   view.addChild(
     masked(
-      textureOrColor(map, env.tex(id, { part: "wall", color: wallColor }), wallColor),
+      worn(textureOrColor(map, env.tex(id, { part: "wall", color: wallColor }), wallColor)),
       rim.sprite(),
     ),
   )
-  view.addChild(masked(textureOrColor(map, env.tex(id, { color: ground }), ground), floor.sprite()))
+  view.addChild(
+    masked(worn(textureOrColor(map, env.tex(id, { color: ground }), ground)), floor.sprite()),
+  )
   return composite(view, [floor, rim])
 }
 

@@ -58,7 +58,8 @@
     "removeTemplate": "Eliminar plantilla",
     "editPacks": "Editar selección de paquetes de activos",
     "ok": "Aceptar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "disableBuildingWear": "Desactivar el desgaste de edificios"
   },
   "newTemplate": {
     "title": "Nueva Plantilla",
@@ -301,7 +302,13 @@
     "elementFilter": "Filtro de elementos",
     "resetToggles": "Restablecer filtro",
     "lock": "Bloquear",
-    "unlock": "Desbloquear"
+    "unlock": "Desbloquear",
+    "buildingWear": "Desgaste de edificios",
+    "wear_none": "Ninguno",
+    "wear_dust": "Polvo",
+    "wear_grime": "Mugre",
+    "wear_noise": "Ruido",
+    "wear_scratched": "Rayado"
   },
   "biomes": {
     "barren": "Yermo",

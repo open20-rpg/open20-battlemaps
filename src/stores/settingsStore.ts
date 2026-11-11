@@ -81,6 +81,9 @@ interface SettingsState {
   resetShortcuts: () => void
   /** Map post-processing (Settings › Post-processing). */
   postProcess: PostProcess
+  /** New Map's "Disable building wear": new maps start without wear (remembered). */
+  disableBuildingWear: boolean
+  setDisableBuildingWear: (disable: boolean) => void
   setPostProcess: (patch: Partial<PostProcess>) => void
   resetPostProcess: () => void
   setPanelAlpha: (alpha: number) => void
@@ -113,6 +116,8 @@ export const useSettingsStore = create<SettingsState>()(
       setShortcutPreset: (shortcutPreset) => set({ shortcutPreset, shortcutOverrides: {} }),
       resetShortcuts: () => set({ shortcutOverrides: {} }),
       postProcess: DEFAULT_POST_PROCESS,
+      disableBuildingWear: false,
+      setDisableBuildingWear: (disableBuildingWear) => set({ disableBuildingWear }),
       setPostProcess: (patch) => set((s) => ({ postProcess: { ...s.postProcess, ...patch } })),
       resetPostProcess: () => set({ postProcess: DEFAULT_POST_PROCESS }),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),

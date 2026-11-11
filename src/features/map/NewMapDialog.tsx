@@ -1,6 +1,7 @@
 import { useState } from "react"
 import {
   Button,
+  Checkbox,
   Field,
   HStack,
   IconButton,
@@ -14,11 +15,13 @@ import { LuGem, LuMinus, LuPlus } from "react-icons/lu"
 import { Modal } from "../../ui/Modal"
 import { useTemplates } from "./useTemplates"
 import { DEFAULT_TEMPLATES } from "../../lib/templates"
+import { useSettingsStore } from "../../stores/settingsStore"
+import { DEFAULT_BUILDING_WEAR, type BuildingWear } from "./model/types"
 
 interface NewMapDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreate: (width: number, height: number) => void
+  onCreate: (width: number, height: number, buildingWear: BuildingWear) => void
   onOpenAssets: () => void
 }
 
@@ -47,6 +50,8 @@ function NewMapDialogContent({ open, onOpenChange, onCreate, onOpenAssets }: New
   const [tplHeight, setTplHeight] = useState(20)
 
   const selected = templates.find((tpl) => tpl.id === selectedId)
+  const disableWear = useSettingsStore((s) => s.disableBuildingWear)
+  const setDisableWear = useSettingsStore((s) => s.setDisableBuildingWear)
 
   const selectTemplate = (id: string) => {
     setSelectedId(id)
@@ -86,7 +91,7 @@ function NewMapDialogContent({ open, onOpenChange, onCreate, onOpenAssets }: New
   }
 
   const handleOk = () => {
-    onCreate(clampTile(width), clampTile(height))
+    onCreate(clampTile(width), clampTile(height), disableWear ? "none" : DEFAULT_BUILDING_WEAR)
     onOpenChange(false)
   }
 
@@ -173,6 +178,16 @@ function NewMapDialogContent({ open, onOpenChange, onCreate, onOpenAssets }: New
               />
             </Field.Root>
           </HStack>
+
+          <Checkbox.Root
+            size="sm"
+            checked={disableWear}
+            onCheckedChange={(e) => setDisableWear(e.checked === true)}
+          >
+            <Checkbox.HiddenInput />
+            <Checkbox.Control />
+            <Checkbox.Label>{t("newMap.disableBuildingWear")}</Checkbox.Label>
+          </Checkbox.Root>
 
           {/* Shortcut to the assets panel */}
           <Button variant="outline" size="sm" onClick={onOpenAssets}>
