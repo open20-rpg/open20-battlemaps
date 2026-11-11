@@ -21,6 +21,7 @@ import {
   type ScaleHandle,
 } from "../../map/model/geometry"
 import { expandGroups, hasGroups } from "../../map/model/groups"
+import { vertexPatches, withLinked } from "../../map/model/links"
 import { elementFilter, selectableBy } from "../selectKinds"
 import { screenAngle } from "./structures"
 import { screenTiles, wheelDegrees } from "./shared"
@@ -65,7 +66,14 @@ export function handleAt(
   const h = transformHandles(box, screenTiles(1), isStretchable(selected))
   const grab = screenTiles(HANDLE_GRAB_PX)
   const start = { x: p.x, y: p.y }
-  const originals = [...selected]
+  // Linked partners (a room's wall with its floor) transform along.
+  const ids = new Set(
+    withLinked(
+      selected.map((e) => e.id),
+      ctx.entities,
+    ),
+  )
+  const originals = ctx.entities.filter((e) => ids.has(e.id))
   if (dist(p, h.rotate) <= grab) {
     const center = { x: box.x + box.w / 2, y: box.y + box.h / 2 }
     return { kind: "rotate", center, start, originals }
@@ -157,7 +165,12 @@ export function flipSelection(ctx: ToolCtx, axis: "x" | "y"): void {
   const box = selectionBounds(selected, ctx.sizeOf)
   if (!box) return
   const center = { x: box.x + box.w / 2, y: box.y + box.h / 2 }
-  updateEntities(new Map(selected.map((e) => [e.id, flipEntity(e, center, axis)])))
+  const flipped = new Set(withLinked([...ids], ctx.entities))
+  updateEntities(
+    new Map(
+      ctx.entities.filter((e) => flipped.has(e.id)).map((e) => [e.id, flipEntity(e, center, axis)]),
+    ),
+  )
 }
 
 /** Join the selection into one group (replacing any groups it had). */
@@ -270,9 +283,7 @@ export function createSelectBehavior(): ToolBehavior {
         const { id, index } = mode
         const entity = ctx.entities.find((x) => x.id === id)
         if (!entity?.points) return
-        const points = entity.points.slice()
-        points[index] = ctx.snap(e, 0.5)
-        updateEntities(new Map([[id, { points }]]))
+        updateEntities(vertexPatches(entity, index, ctx.snap(e, 0.5), ctx.entities))
         return
       }
       if (mode.kind === "transform") {
@@ -286,7 +297,7 @@ export function createSelectBehavior(): ToolBehavior {
         const p = ctx.snap(e, 0.5)
         const total = { x: p.x - mode.from.x, y: p.y - mode.from.y }
         const step = { x: total.x - mode.moved.x, y: total.y - mode.moved.y }
-        moveEntities(editor().selection, step)
+        moveEntities(withLinked(editor().selection, ctx.entities), step)
         mode.moved = total
       } else {
         mode.to = { x: e.x, y: e.y }

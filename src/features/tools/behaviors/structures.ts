@@ -16,6 +16,7 @@ import {
   segmentsOf,
 } from "../../map/model/geometry"
 import { bridgeHoles, subtractPolygon } from "../../map/model/clip"
+import { sameOutline } from "../../map/model/links"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { isHeld } from "../../shortcuts/held"
 import { type AssetSelection } from "../params"
@@ -152,25 +153,26 @@ export function createWallBehavior(): ToolBehavior {
   )
 }
 
-/** A room: the floor polygon plus the wall around it. */
-const buildEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
-  makeEntity(ctx, {
-    toolId: "build",
-    layer: LAYER.floor,
-    points: polygon,
-    closed: true,
-    position: polygon[0],
-    params: {
-      floor: selection(ctx.params.floor),
-      bevelCorners: ctx.params.bevelCorners !== false,
-      shadow: ctx.params.shadow !== false,
-    },
-  }),
-  wallEntity(ctx, polygon, true, selection(ctx.params.wall)),
-]
-
-const samePolygon = (a: readonly Vec2[], b: readonly Vec2[]) =>
-  a.length === b.length && a.every((p) => b.some((q) => dist(p, q) < 1e-6))
+/** A room: the floor polygon plus the wall around it, linked (they move and reshape together). */
+const buildEntities = (ctx: ToolCtx, polygon: Vec2[]) => {
+  const link = newId()
+  return [
+    makeEntity(ctx, {
+      link,
+      toolId: "build",
+      layer: LAYER.floor,
+      points: polygon,
+      closed: true,
+      position: polygon[0],
+      params: {
+        floor: selection(ctx.params.floor),
+        bevelCorners: ctx.params.bevelCorners !== false,
+        shadow: ctx.params.shadow !== false,
+      },
+    }),
+    { ...wallEntity(ctx, polygon, true, selection(ctx.params.wall)), link },
+  ]
+}
 
 /**
  * Cut `cut` out of the level's `toolId` polygons (Alt with Build/Pattern),
@@ -197,7 +199,10 @@ export function subtractShape(ctx: ToolCtx, toolId: string, cut: Vec2[]): void {
     const wall =
       toolId === "build"
         ? ctx.entities.find(
-            (w) => w.toolId === "wall" && w.closed && samePolygon(w.points ?? [], e.points ?? []),
+            (w) =>
+              w.toolId === "wall" &&
+              w.closed &&
+              ((!!e.link && w.link === e.link) || sameOutline(w.points ?? [], e.points ?? [])),
           )
         : undefined
     if (wall)

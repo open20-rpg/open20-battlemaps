@@ -11,16 +11,19 @@ export function expandGroups(ids: readonly string[], entities: readonly MapEntit
 }
 
 /**
- * Copies keep their grouping among themselves but must not join the
- * originals' groups: give every group in `entities` a fresh id.
+ * Copies keep their groups and links among themselves but must not join
+ * the originals': give every group and link in `entities` a fresh id.
  */
 export function regroup(entities: readonly MapEntity[]): MapEntity[] {
   const fresh = new Map<string, string>()
-  return entities.map((e) => {
-    if (!e.group) return e
-    if (!fresh.has(e.group)) fresh.set(e.group, newId())
-    return { ...e, group: fresh.get(e.group) }
-  })
+  const renew = (id: string | undefined) => {
+    if (!id) return undefined
+    if (!fresh.has(id)) fresh.set(id, newId())
+    return fresh.get(id)
+  }
+  return entities.map((e) =>
+    e.group || e.link ? { ...e, group: renew(e.group), link: renew(e.link) } : e,
+  )
 }
 
 /** Whether any of `entities` belongs to a group. */

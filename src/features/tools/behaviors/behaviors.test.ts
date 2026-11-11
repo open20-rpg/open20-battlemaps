@@ -16,6 +16,7 @@ import { instantiatePrefab, prefabFrom } from "./settings"
 import { nearestWall, screenAngle } from "./structures"
 import { type PointerInfo } from "./types"
 import { pressKey, releaseAll } from "../../shortcuts/held"
+import { runShortcut } from "../../map/shortcuts"
 
 const at = (x: number, y: number, extra: Partial<PointerInfo> = {}): PointerInfo => ({
   x,
@@ -247,6 +248,44 @@ describe("walls, build, portals", () => {
     ])
     undo()
     expect(entities()).toHaveLength(2)
+  })
+
+  it("a room's floor and wall move and reshape together, but delete apart", () => {
+    useToolsStore.getState().selectToolById("build")
+    down("build", 0, 0)
+    move("build", 4, 4)
+    up("build", 4, 4)
+    const [floor, wall] = entities()
+    expect(floor.link).toBeDefined()
+    expect(wall.link).toBe(floor.link)
+    useToolsStore.getState().selectToolById("select")
+    setParams("select", { filter: ["floors"] })
+    // Drag the floor by its middle: the wall comes along.
+    down("select", 2, 2)
+    move("select", 3, 2)
+    up("select", 3, 2)
+    expect(useEditorStore.getState().selection).toEqual([floor.id])
+    const byId = (id: string) => entities().find((x) => x.id === id)
+    expect(byId(wall.id)?.points?.[0]).toEqual({ x: 1, y: 0 })
+    // Drag a floor vertex (the selection's points): the wall's moves too.
+    down("select", 5, 4)
+    move("select", 6, 5)
+    up("select", 6, 5)
+    expect(byId(wall.id)?.points).toContainEqual({ x: 6, y: 5 })
+    // Flip: both mirror.
+    runToolAction("select", "flipH")
+    expect(byId(wall.id)?.points).toEqual(byId(floor.id)?.points)
+    // Deleting the floor keeps the wall.
+    useEditorStore.getState().select([floor.id])
+    runShortcut({
+      key: "Delete",
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    } as KeyboardEvent)
+    expect(byId(floor.id)).toBeUndefined()
+    expect(byId(wall.id)).toBeDefined()
   })
 
   it("Alt cuts the shape out of rooms (walls rebuilt) and patterns; Water gets an eraser", () => {

@@ -1,3 +1,4 @@
+import { linkRooms } from "../model/links"
 import { boundsOf, newId, pointInPolygon, rotateAround, textSize } from "../model/geometry"
 import {
   TERRAIN_SLOTS,
@@ -643,7 +644,8 @@ export function importDungeondraftMap(text: string): ImportResult {
     )
   }
   if (levels.length > 0) doc.levels = levels
-  doc.entities = entities
+  // Rooms (a floor and the wall around it) move and reshape together.
+  doc.entities = linkRooms(entities)
   doc.environment = { ambientLight: ambient ?? "#ffffff" }
 
   const editor = obj(header.editor_state)

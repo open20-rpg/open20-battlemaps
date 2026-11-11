@@ -17,6 +17,7 @@ import {
   rectPolygon,
   tangentArc,
 } from "../../map/model/geometry"
+import { vertexPatches } from "../../map/model/links"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { newId } from "../../map/model/geometry"
 import { tileSizeForZoom } from "../../map/render/viewport"
@@ -416,9 +417,7 @@ export function editPointsController(
       const points = entity?.points
       // Keep a usable shape: 2 points for a line, 3 for a polygon.
       if (!entity || !points || points.length <= (entity.closed ? 3 : 2)) return true
-      updateEntities(
-        new Map([[entity.id, { points: points.filter((_, i) => i !== selected?.index) }]]),
-      )
+      updateEntities(vertexPatches(entity, selected.index, null, ctx.entities))
       selected = null
       showHandles(ctx)
       return true
@@ -426,11 +425,9 @@ export function editPointsController(
     onPointerMove: (ctx, e) => {
       if (target && e.buttons) {
         const entity = ctx.map.entities.find((x) => x.id === target?.id)
-        if (entity?.points) {
-          const points = entity.points.slice()
-          points[target.index] = ctx.snap(e, step)
-          updateEntities(new Map([[entity.id, { points }]]))
-        }
+        // A room's floor and wall move the vertex together.
+        if (entity?.points)
+          updateEntities(vertexPatches(entity, target.index, ctx.snap(e, step), ctx.map.entities))
       }
       showHandles(ctx)
     },

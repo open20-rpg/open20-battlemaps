@@ -63,6 +63,13 @@ export interface MapEntity {
    */
   group?: string
   /**
+   * Link id: entities sharing it are one shape drawn twice (a room's floor
+   * and the wall around it, made together by Build). Moving, transforming
+   * or editing the points of one changes the others the same way; each can
+   * still be selected and deleted on its own.
+   */
+  link?: string
+  /**
    * Locked in place: clicks, rubber bands and Select All skip it; only an
    * Alt rubber band (which picks locked entities alone) selects it.
    */
