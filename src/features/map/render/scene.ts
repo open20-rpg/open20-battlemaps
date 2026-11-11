@@ -1,7 +1,7 @@
 import { BlurFilter, Container, Graphics, Sprite, type Renderer } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import { type ShadowStyle } from "../../../stores/settingsStore"
-import { type MapDocument, type MapEntity } from "../model/types"
+import { type MapDocument, type MapEntity, type Vec2 } from "../model/types"
 import { type AssetCache } from "./assets"
 import {
   ENTITY_RENDERERS,
@@ -36,6 +36,11 @@ export interface SceneState {
   /** Terrain Brush "Smooth Blending": how every terrain stroke blends (global). */
   terrainSmooth: boolean
   draft: readonly DraftShape[]
+  /** Pinned guide point and the ruler's measure (editor session). */
+  guide: Vec2 | null
+  ruler: { from: Vec2; to: Vec2 } | null
+  /** Level shown faded under the active one (Compare levels), if any. */
+  compareLevel: string | null
   selection: readonly string[]
   /** Show the selection's transform handles (Select tool active). */
   transformHandles: boolean
@@ -118,6 +123,15 @@ export class MapScene {
   private reference: { url: string; sprite: Sprite } | null = null
   /** The map's black ground, under everything. */
   private base = new Graphics()
+  /**
+   * Compare levels: the level below drawn faded under the active one
+   * (its objects, walls, paths… — not its painted layers or lights).
+   */
+  private compare = new Container()
+  private compareViews = new Map<
+    string,
+    { entity: MapEntity; view: Container; complete: boolean }
+  >()
   /** Clips the content to the map's rectangle (when outside is hidden). */
   private clip = new Graphics()
   private baseSize = ""
@@ -137,7 +151,11 @@ export class MapScene {
     this.shadowLayer.addChild(...SHADOW_KINDS.map((k) => this.shadowKinds[k]))
     this.content.addChild(this.shadowLayer)
     this.base.zIndex = -Infinity
-    this.content.addChild(this.base, this.clip)
+    this.compare.sortableChildren = true
+    this.compare.alpha = 0.35
+    // Above the black ground and the reference image, under everything else.
+    this.compare.zIndex = -Number.MAX_VALUE / 2
+    this.content.addChild(this.base, this.clip, this.compare)
     this.overlay.scale.x = -1
     this.unsubscribe = assets.subscribe(() => {
       if (!this.last) return
@@ -187,6 +205,7 @@ export class MapScene {
     this.applyShadowStyle(state)
     this.applyPostProcess(state)
     this.syncEntities(state, onLevel, assetsChanged)
+    this.syncCompare(state, assetsChanged)
     this.syncComposites(state, onLevel, assetsChanged)
     this.syncLighting(state, onLevel, assetsChanged)
     const byId = new Map(onLevel.map((e) => [e.id, e]))
@@ -194,7 +213,22 @@ export class MapScene {
     const track = { complete: true }
     drawOverlay(
       this.overlay,
-      state.draft,
+      [
+        ...state.draft,
+        ...(state.guide
+          ? [
+              {
+                kind: "guide" as const,
+                point: state.guide,
+                width: state.map.width,
+                height: state.map.height,
+              },
+            ]
+          : []),
+        ...(state.ruler
+          ? [{ kind: "measure" as const, a: state.ruler.from, b: state.ruler.to }]
+          : []),
+      ],
       selected,
       (id) => this.assets.size(id),
       state.zoom,
@@ -213,6 +247,34 @@ export class MapScene {
     // Blur works in output pixels, so convert the tile radius at the current scale.
     const px = this.shadowPxPerTile ?? tileSizeForZoom(state.zoom)
     this.shadowBlur.strength = style.blur * px
+  }
+
+  private syncCompare(state: SceneState, assetsChanged: boolean): void {
+    const below = state.compareLevel
+      ? state.map.entities.filter((e) => e.level === state.compareLevel)
+      : []
+    const seen = new Set<string>()
+    below.forEach((entity, index) => {
+      const render = ENTITY_RENDERERS[entity.toolId]
+      if (!render) return
+      seen.add(entity.id)
+      const current = this.compareViews.get(entity.id)
+      if (current?.entity !== entity || (assetsChanged && !current.complete)) {
+        current?.view.destroy({ children: true })
+        const track = { complete: true }
+        // No shadows: a faded level casting shadows on the active one would mislead.
+        const view = render(entity, { ...this.env(state, track), castShadow: (s) => s.destroy() })
+        this.compare.addChild(view)
+        this.compareViews.set(entity.id, { entity, view, complete: track.complete })
+      }
+      const entry = this.compareViews.get(entity.id)
+      if (entry) entry.view.zIndex = zFor(entity.layer, index)
+    })
+    for (const [id, entry] of this.compareViews) {
+      if (seen.has(id)) continue
+      entry.view.destroy({ children: true })
+      this.compareViews.delete(id)
+    }
   }
 
   /** One filter pass over the map content, only while something is adjusted. */

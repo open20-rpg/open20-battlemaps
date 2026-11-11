@@ -105,3 +105,24 @@ export function mapToScreen(
   const t = computeWorldTransform(containerWidth, containerHeight, mapWidth, mapHeight, zoom, pan)
   return { x: t.x + p.x * t.scaleX, y: t.y + p.y * t.scaleY }
 }
+
+/**
+ * The pan that puts map point `p` at `screen` (container px) at `zoom`: how
+ * zooming keeps whatever is under the cursor (or between two fingers) still.
+ * Unclamped; the world transform clamps it like any other pan.
+ */
+export function panToPlace(
+  p: { x: number; y: number },
+  screen: { x: number; y: number },
+  containerWidth: number,
+  containerHeight: number,
+  mapWidth: number,
+  mapHeight: number,
+  zoom: number,
+): { x: number; y: number } {
+  const tileSize = tileSizeForZoom(zoom)
+  const centerX = (containerWidth + mapWidth * tileSize) / 2
+  const centerY = (containerHeight - mapHeight * tileSize) / 2
+  // Origin (map top-right corner) such that origin + p·scale = screen; x is mirrored.
+  return { x: screen.x + p.x * tileSize - centerX, y: screen.y - p.y * tileSize - centerY }
+}

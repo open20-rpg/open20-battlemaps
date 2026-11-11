@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { DEFAULT_POST_PROCESS, type PostProcess } from "../lib/postProcess"
+import { type PresetId } from "../features/shortcuts/actions"
 import { persist } from "zustand/middleware"
 import { type MapTemplate } from "../lib/templates"
 import { type MapEntity } from "../features/map/model/types"
@@ -71,6 +72,13 @@ interface SettingsState {
   shadowStyle: ShadowStyle
   setShadowStyle: (patch: Partial<ShadowStyle>) => void
   resetShadowStyle: () => void
+  /** Keyboard/mouse shortcuts: a preset, plus the user's changes per action. */
+  shortcutPreset: PresetId
+  shortcutOverrides: Record<string, string[]>
+  setShortcutBindings: (actionId: string, bindings: string[]) => void
+  setShortcutPreset: (preset: PresetId) => void
+  /** Back to the preset's bindings (drops every change). */
+  resetShortcuts: () => void
   /** Map post-processing (Settings › Post-processing). */
   postProcess: PostProcess
   setPostProcess: (patch: Partial<PostProcess>) => void
@@ -98,6 +106,12 @@ export const useSettingsStore = create<SettingsState>()(
       shadowStyle: DEFAULT_SHADOW_STYLE,
       setShadowStyle: (patch) => set((s) => ({ shadowStyle: { ...s.shadowStyle, ...patch } })),
       resetShadowStyle: () => set({ shadowStyle: DEFAULT_SHADOW_STYLE }),
+      shortcutPreset: "dungeondraft",
+      shortcutOverrides: {},
+      setShortcutBindings: (actionId, bindings) =>
+        set((s) => ({ shortcutOverrides: { ...s.shortcutOverrides, [actionId]: bindings } })),
+      setShortcutPreset: (shortcutPreset) => set({ shortcutPreset, shortcutOverrides: {} }),
+      resetShortcuts: () => set({ shortcutOverrides: {} }),
       postProcess: DEFAULT_POST_PROCESS,
       setPostProcess: (patch) => set((s) => ({ postProcess: { ...s.postProcess, ...patch } })),
       resetPostProcess: () => set({ postProcess: DEFAULT_POST_PROCESS }),

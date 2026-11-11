@@ -1,5 +1,5 @@
 import { Flex, Icon, Text, VStack } from "@chakra-ui/react"
-import { formatShortcut } from "../../../lib/shortcuts"
+import { useActionBinding } from "../../shortcuts/bindings"
 import { useTranslation } from "react-i18next"
 import { type ToolGroup, type ToolNode } from "../definitions"
 import { IconBar } from "./IconBar"
@@ -67,15 +67,22 @@ export function GroupPanel({ group, expanded, selectedChildId, onSelect }: Group
               <Text fontSize="sm" textAlign="left" truncate>
                 {t(child.nameKey)}
               </Text>
-              {child.type === "tool" && child.shortcut && (
-                <Text ml="auto" fontSize="xs" color="fg.muted" flexShrink={0}>
-                  {formatShortcut(child.shortcut)}
-                </Text>
-              )}
+              <ToolBinding toolId={child.id} />
             </Flex>
           )
         })}
       </VStack>
     </VStack>
+  )
+}
+
+/** The shortcut that selects a tool, shown at the end of its row (if it has one). */
+function ToolBinding({ toolId }: { toolId: string }) {
+  const binding = useActionBinding(`tool:${toolId}`)
+  if (!binding) return null
+  return (
+    <Text ml="auto" fontSize="xs" color="fg.muted" flexShrink={0}>
+      {binding}
+    </Text>
   )
 }

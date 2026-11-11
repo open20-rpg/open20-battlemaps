@@ -2,9 +2,19 @@ import { describe, expect, it } from "vitest"
 import { glowStrength, roofShade, shadeColor, smoothPolyline } from "./entities"
 import { exportPxPerTile, exportTiles } from "./exportMap"
 import { maskResolution, paintedLayer } from "./painted"
-import { mapToScreen, screenToMap } from "./viewport"
+import { mapToScreen, panToPlace, screenToMap } from "./viewport"
 
 describe("viewport", () => {
+  it("zooming keeps the point under the cursor in place", () => {
+    const size = [800, 600, 30, 20] as const
+    const cursor = { x: 610, y: 140 }
+    const under = screenToMap(cursor, ...size, 100, { x: 40, y: -25 })
+    const pan = panToPlace(under, cursor, ...size, 200)
+    const after = screenToMap(cursor, ...size, 200, pan)
+    expect(after.x).toBeCloseTo(under.x)
+    expect(after.y).toBeCloseTo(under.y)
+  })
+
   it("screenToMap inverts mapToScreen (mirrored x)", () => {
     const args = [800, 600, 30, 20, 150, { x: 40, y: -25 }] as const
     const p = { x: 7.25, y: 3.5 }

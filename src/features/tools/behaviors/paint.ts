@@ -12,21 +12,22 @@ import {
   stampOrigin,
   type TerrainData,
 } from "../../map/model/terrain"
+import { isHeld } from "../../shortcuts/held"
 import { beginLiveTerrain, endLiveTerrain, touchLiveTerrain } from "../../map/terrainLive"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type BiomeSelection, type Shape } from "../params"
 import { brushController, makeEntity, paramNum, shapeController } from "./shared"
 import { type PointerInfo, type ToolBehavior, type ToolCtx } from "./types"
 
-/** Right-dragging with any brush erases. */
-const rightButton = (_ctx: ToolCtx, e: PointerInfo) => e.button === 2
+/** A brush erases while the invert shortcut (Alt) is held, or when dragged with the right button. */
+const inverted = (_ctx: ToolCtx, e: PointerInfo) => e.button === 2 || isHeld("invert")
 
 /** Cave: dig (or blast open) cave floor; walls form around the dug area. */
 export function createCaveBehavior(): ToolBehavior {
   return {
     ...brushController({
       radius: (ctx) => paramNum(ctx.params.brushSize, 1),
-      erase: (ctx, e) => ctx.params.brushMode === "blast" || e.button === 2,
+      erase: (ctx, e) => ctx.params.brushMode === "blast" || inverted(ctx, e),
       layer: () => -300,
       params: (ctx) => ({
         groundColor: ctx.params.groundColor,
@@ -48,7 +49,7 @@ export function createWaterBehavior(): ToolBehavior {
   })
   const brush = brushController({
     radius: (ctx) => paramNum(ctx.params.brushSize, 1),
-    erase: rightButton,
+    erase: inverted,
     layer: () => 0,
     params,
   })
@@ -273,7 +274,7 @@ export function createMaterialBehavior(): ToolBehavior {
   return {
     ...brushController({
       radius: (ctx) => paramNum(ctx.params.brushSize, 2) / 2,
-      erase: rightButton,
+      erase: inverted,
       layer: (ctx) => paramNum(ctx.params.layer, -400),
       params: (ctx) => ({ material: ctx.params.material }),
     }),

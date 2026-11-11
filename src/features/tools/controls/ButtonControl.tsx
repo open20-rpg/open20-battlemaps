@@ -12,9 +12,12 @@ export function ButtonControl({
   icon,
   colorPalette,
   disabled = false,
+  binding,
   onClick,
 }: {
   labelKey: string
+  /** Its keyboard shortcut, shown after the label. */
+  binding?: string
   icon: IconType
   colorPalette?: string
   disabled?: boolean
@@ -32,7 +35,7 @@ export function ButtonControl({
         onClick={onClick}
       >
         <Icon as={icon} />
-        {t(labelKey)}
+        {binding ? `${t(labelKey)} (${binding})` : t(labelKey)}
       </Button>
     </Box>
   )

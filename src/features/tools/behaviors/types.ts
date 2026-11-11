@@ -15,6 +15,13 @@ export interface PointerInfo {
   ctrlKey: boolean
 }
 
+/** A wheel notch over the map: `dir` +1 up (away from the user), −1 down. */
+export interface WheelInfo extends PointerInfo {
+  dir: 1 | -1
+  /** A sideways scroll (trackpad / tilt wheel) instead of a vertical one. */
+  horizontal: boolean
+}
+
 /**
  * Everything a behavior may read. `params` is the tool's resolved param bag
  * (defaults materialized); document mutations go through the commands module
@@ -53,6 +60,11 @@ export interface ToolBehavior {
   onDoubleClick?(ctx: ToolCtx, e: PointerInfo): void
   /** Return true when the key was handled (stops the global shortcuts). */
   onKeyDown?(ctx: ToolCtx, e: KeyboardEvent): boolean
+  /**
+   * Mouse wheel without Ctrl (Ctrl+wheel always zooms). Return true when
+   * handled; otherwise it resizes the tool's brush, if it has one.
+   */
+  onWheel?(ctx: ToolCtx, e: WheelInfo): boolean
   /** A command button param of this tool was pressed (keyed by its paramKey). */
   onAction?(ctx: ToolCtx, action: string): void
   /** The tool was just selected (e.g. load document state into its params). */

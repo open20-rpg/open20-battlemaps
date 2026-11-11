@@ -1,19 +1,19 @@
 import { useEffect, type RefObject } from "react"
 import { useEditorStore } from "../../stores/editorStore"
+import { useModalStackStore } from "../../stores/modalStackStore"
 import { useMapStore } from "../../stores/mapStore"
 import { selectActiveTool, useToolsStore } from "../../stores/toolsStore"
 import { useViewStore } from "../../stores/viewStore"
 import { buildToolCtx } from "../tools/behaviors/context"
 import { getToolBehavior } from "../tools/behaviors"
 import { type PointerInfo } from "../tools/behaviors/types"
-import { runShortcut } from "./shortcuts"
-import { screenToMap } from "./render/viewport"
+import { nudgeBrush, runShortcut } from "./shortcuts"
 
-/** Whether keyboard input is aimed at a text field (shortcuts must not fire). */
-function typingIn(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null
-  return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))
-}
+/** Wheel delta (px) that counts as one notch. */
+const WHEEL_NOTCH = 40
+import { typingIn } from "../../lib/dom"
+import { isHeld } from "../shortcuts/held"
+import { screenToMap } from "./render/viewport"
 
 /**
  * Feeds the canvas' pointer events (left/right button; middle is panning in
@@ -61,11 +61,21 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
     }
 
     let pressedButton: number | null = null
+    /** Where a ruler measure started (ruler mode drags measure, not use the tool). */
+    let rulerFrom: { x: number; y: number } | null = null
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0 && e.button !== 2) return
+      // A left drag while the pan key is held pans the view (useViewportGestures).
+      if (e.button === 0 && isHeld("pan")) return
       if (e.pointerType === "touch" && !e.isPrimary) return
       const info = toMap(e, e.button)
+      if (info && e.button === 0 && useEditorStore.getState().rulerOn) {
+        rulerFrom = { x: info.x, y: info.y }
+        useEditorStore.getState().setRuler({ from: rulerFrom, to: rulerFrom })
+        el.setPointerCapture(e.pointerId)
+        return
+      }
       const a = active()
       if (!info || !a) return
       pressedButton = e.button
@@ -76,12 +86,20 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       const info = toMap(e, pressedButton ?? -1)
       if (!info) return
       useEditorStore.getState().setPointer({ x: info.x, y: info.y })
+      if (rulerFrom) {
+        useEditorStore.getState().setRuler({ from: rulerFrom, to: { x: info.x, y: info.y } })
+        return
+      }
       const a = active()
       if (!a) return
       // Only the button that started the gesture counts as "dragging".
       a.behavior.onPointerMove?.(a.ctx, pressedButton === null ? { ...info, buttons: 0 } : info)
     }
     const onPointerUp = (e: PointerEvent) => {
+      if (rulerFrom) {
+        rulerFrom = null
+        return
+      }
       if (pressedButton === null || e.button !== pressedButton) return
       const info = toMap(e, pressedButton)
       pressedButton = null
@@ -94,11 +112,30 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       const a = active()
       if (info && a) a.behavior.onDoubleClick?.(a.ctx, info)
     }
+    // Wheel (no Ctrl: that zooms): the active tool's, else brush size. A
+    // trackpad sends many small deltas; they add up to one notch per WHEEL_NOTCH.
+    let wheelAcc = 0
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return
+      e.preventDefault()
+      const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY)
+      const delta = (horizontal ? e.deltaX : e.deltaY) * (e.deltaMode === 1 ? 40 : 1)
+      wheelAcc += delta
+      if (Math.abs(wheelAcc) < WHEEL_NOTCH) return
+      const dir: 1 | -1 = wheelAcc < 0 ? 1 : -1
+      wheelAcc = 0
+      const info = toMap(e, -1)
+      const a = active()
+      if (!info || !a) return
+      const handled = a.behavior.onWheel?.(a.ctx, { ...info, buttons: 0, dir, horizontal })
+      if (!handled) nudgeBrush(dir)
+    }
     // Right-click is a tool action (finish a polyline, erase), not a menu.
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (typingIn(e.target)) return
+      // Dialogs own the keyboard while open (Escape, typing, recording shortcuts).
+      if (typingIn(e.target) || useModalStackStore.getState().stack.length > 0) return
       const a = active()
       if (a?.behavior.onKeyDown?.(a.ctx, e)) {
         e.preventDefault()
@@ -127,6 +164,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
     el.addEventListener("pointerleave", onPointerLeave)
     el.addEventListener("dblclick", onDoubleClick)
     el.addEventListener("contextmenu", onContextMenu)
+    el.addEventListener("wheel", onWheel, { passive: false })
     window.addEventListener("keydown", onKeyDown)
     return () => {
       unsubTools()
@@ -137,6 +175,7 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       el.removeEventListener("pointerleave", onPointerLeave)
       el.removeEventListener("dblclick", onDoubleClick)
       el.removeEventListener("contextmenu", onContextMenu)
+      el.removeEventListener("wheel", onWheel)
       window.removeEventListener("keydown", onKeyDown)
     }
   }, [ref])

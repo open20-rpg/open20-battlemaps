@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { useEditorStore } from "../../../stores/editorStore"
 import { useMapStore } from "../../../stores/mapStore"
 import { useSettingsStore } from "../../../stores/settingsStore"
-import { useToolsStore } from "../../../stores/toolsStore"
+import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
 import { canUndo, closeMap, createMap, undo } from "../../map/commands"
 import { type MapEntity } from "../../map/model/types"
@@ -45,6 +45,8 @@ const down = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) 
 const move = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) =>
   act(tool, (b, c) => b.onPointerMove?.(c, at(x, y, extra)))
 const up = (tool: string, x: number, y: number) => act(tool, (b, c) => b.onPointerUp?.(c, at(x, y)))
+const wheel = (tool: string, dir: 1 | -1, extra?: Partial<PointerInfo>) =>
+  act(tool, (b, c) => b.onWheel?.(c, { ...at(5, 5, extra), dir, horizontal: false }))
 const dbl = (tool: string, x: number, y: number) =>
   act(tool, (b, c) => b.onDoubleClick?.(c, at(x, y)))
 
@@ -58,6 +60,35 @@ beforeEach(() => {
   closeMap()
   createMap(20, 20)
   useViewStore.setState({ snap: true })
+})
+
+describe("wheel and right-click (Dungeondraft's mouse shortcuts)", () => {
+  it("Object: wheel rotates 15°, Alt+wheel scales, right-click turns 90°", () => {
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"], rotation: 0, scale: 1 })
+    wheel("object", 1)
+    expect(getToolParams("object").rotation).toBe(15)
+    wheel("object", -1, { altKey: true })
+    expect(getToolParams("object").scale).toBeCloseTo(0.9)
+    down("object", 5, 5, { button: 2 })
+    expect(getToolParams("object").rotation).toBe(90)
+    down("object", 5, 5, { button: 2, altKey: true })
+    expect(getToolParams("object").rotation).toBe(0)
+    expect(entities()).toEqual([])
+  })
+
+  it("Select: wheel turns the selection; Light: wheel changes its range", () => {
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"], rotation: 0 })
+    down("object", 5, 5)
+    useToolsStore.getState().selectToolById("select")
+    useEditorStore.getState().select([entities()[0].id])
+    wheel("select", -1)
+    expect(entities()[0].rotation).toBe(-15)
+    setParams("light", { range: 5 })
+    wheel("light", 1)
+    expect(getToolParams("light").range).toBe(6)
+    wheel("light", -1, { shiftKey: true })
+    expect(getToolParams("light").range).toBeCloseTo(5.9)
+  })
 })
 
 describe("object & scatter", () => {
@@ -481,7 +512,7 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()[0].group).toBeDefined()
   })
 
-  it("Select mirrors the selection with H/V and the panel buttons", () => {
+  it("Select mirrors the selection (panel buttons / flip shortcuts)", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"], mirror: true })
     down("object", 2, 2)
     expect(entities()[0].flipX).toBe(true)
@@ -489,7 +520,7 @@ describe("effects, text, select, prefabs", () => {
     useToolsStore.getState().selectToolById("select")
     expect(isToolActionDisabled("select", "flipH")).toBe(true)
     useEditorStore.getState().select(entities().map((e) => e.id))
-    act("select", (b, c) => b.onKeyDown?.(c, { key: "h" } as KeyboardEvent))
+    runToolAction("select", "flipH")
     // Positions swap across the group's center; flips toggle.
     expect(entities().map((e) => e.position.x)).toEqual([4, 2])
     // Both were placed mirrored (the param stays on); flipping un-mirrors them.

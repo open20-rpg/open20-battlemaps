@@ -7,9 +7,9 @@ import {
   moveEntities,
   setEnvironment,
 } from "../../map/commands"
-import { dist } from "../../map/model/geometry"
+import { dist, normalizeDegrees } from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
-import { makeEntity, paramNum, screenTiles } from "./shared"
+import { makeEntity, nudgeParam, paramNum, screenTiles } from "./shared"
 import { type ToolBehavior, type ToolCtx } from "./types"
 
 /**
@@ -33,6 +33,7 @@ export function lightAt(ctx: ToolCtx, p: Vec2): MapEntity {
   return makeEntity(ctx, {
     layer: 700,
     position: p,
+    rotation: paramNum(ctx.params.rotation, 0),
     params: {
       range: paramNum(ctx.params.range, 5),
       intensity: paramNum(ctx.params.intensity, 1),
@@ -64,6 +65,14 @@ export function createLightBehavior(): ToolBehavior {
     useEditorStore.getState().setDraft(draft)
   }
   return {
+    // Wheel: range ±1 (±0.1 with Shift); Alt+wheel: rotate ±5°.
+    onWheel: (ctx, e) => {
+      if (e.altKey) {
+        const r = paramNum(ctx.params.rotation, 0) + e.dir * 5
+        useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(r) })
+      } else nudgeParam(ctx, "range", e.dir * (e.shiftKey ? 0.1 : 1), 0.5, 20, 5, 1)
+      return true
+    },
     onActivate: (ctx) => showWidgets(ctx),
     onPointerDown: (ctx, e) => {
       if (e.button !== 0) return

@@ -1,12 +1,21 @@
-import { matchesShortcut } from "../../lib/shortcuts"
 import { useEditorStore } from "../../stores/editorStore"
 import { useMapStore } from "../../stores/mapStore"
-import { getToolParams, useToolsStore } from "../../stores/toolsStore"
-import { useViewStore } from "../../stores/viewStore"
-import { TOOL_BY_ID } from "../tools/definitions"
+import { getToolParams, selectActiveTool, useToolsStore } from "../../stores/toolsStore"
+import { useViewStore, type ViewToggleKey } from "../../stores/viewStore"
+import { APP_ACTIONS, runAppAction } from "../shortcuts/appActions"
+import { toggleFullscreen } from "../shortcuts/api"
+import { actionForKey, currentBindings } from "../shortcuts/bindings"
+import { notifyParamsChange, runToolAction } from "../tools/behaviors"
 import { elementFilter, selectableBy } from "../tools/selectKinds"
-import { VIEW_CONTROLS, ZOOM_LEVELS } from "../viewport/controls"
-import { addEntities, redo, removeEntities, undo } from "./commands"
+import { ZOOM_LEVELS } from "../viewport/controls"
+import {
+  addEntities,
+  redo,
+  removeEntities,
+  undo,
+  updateEntities,
+  updateReferenceImage,
+} from "./commands"
 import { newId, translateEntity } from "./model/geometry"
 import { regroup } from "./model/groups"
 
@@ -44,33 +53,65 @@ export function deleteSelection(): void {
   removeEntities(useEditorStore.getState().selection)
 }
 
+/** Quick layer keys (Object, Scatter, Path, Material, Pattern and Select), as in Dungeondraft. */
+const QUICK_LAYERS: Record<string, number> = {
+  "1": 100,
+  "Alt+1": -100,
+  "2": 200,
+  "3": 300,
+  "4": 400,
+  "Alt+4": -400,
+  "7": 700,
+  "9": 900,
+}
+const LAYER_TOOLS = new Set(["object", "scatter", "path", "material", "pattern", "select"])
+
+/** Quick layer key: sets the active tool's Layer, or moves the selection (Select). */
+function quickLayer(e: KeyboardEvent): boolean {
+  if (e.ctrlKey || e.metaKey || e.shiftKey) return false
+  const layer = QUICK_LAYERS[(e.altKey ? "Alt+" : "") + e.key]
+  const tool = selectActiveTool(useToolsStore.getState())
+  if (layer === undefined || !tool || !LAYER_TOOLS.has(tool.id)) return false
+  if (tool.id === "select") {
+    const ids = useEditorStore.getState().selection
+    updateEntities(new Map(ids.map((id) => [id, { layer }])))
+  } else {
+    useToolsStore.getState().setToolParams(tool.id, { layer })
+  }
+  return true
+}
+
 /**
- * Global editor shortcuts, used when the active tool doesn't handle the key.
- * Returns whether the key was consumed.
+ * Editor shortcuts, used when the active tool doesn't handle the key: the
+ * fixed ones (clipboard, select all, Escape, quick layers) and every
+ * remappable action (features/shortcuts). Returns whether it was consumed.
  */
 export function runShortcut(e: KeyboardEvent): boolean {
-  if (!useMapStore.getState().map) return false
-  const mod = e.ctrlKey || e.metaKey
-  const key = e.key.toLowerCase()
-  if (mod && key === "z" && !e.shiftKey) undo()
-  else if (mod && (key === "y" || (key === "z" && e.shiftKey))) redo()
-  else if (mod && key === "c") copySelection()
-  else if (mod && key === "x") {
-    copySelection()
-    deleteSelection()
-  } else if (mod && key === "v") pasteClipboard()
-  else if (mod && key === "a") {
-    useEditorStore.getState().select(
-      levelEntities()
-        .filter(selectableBy(elementFilter(getToolParams("select"))))
-        .map((x) => x.id),
-    )
-  } else if (!mod && (e.key === "Delete" || e.key === "Backspace")) deleteSelection()
-  else if (e.key === "Escape") useEditorStore.getState().select([])
-  else if (!mod && (e.key === "+" || e.key === "=")) stepZoom(1)
-  else if (!mod && e.key === "-") stepZoom(-1)
-  else return runKeyShortcut(e)
-  return true
+  if (useMapStore.getState().map) {
+    const mod = e.ctrlKey || e.metaKey
+    const key = e.key.toLowerCase()
+    if (mod && !e.shiftKey && !e.altKey) {
+      if (key === "c") return (copySelection(), true)
+      if (key === "x") return (copySelection(), deleteSelection(), true)
+      if (key === "v") return (pasteClipboard(), true)
+      if (key === "a") {
+        const pick = selectableBy(elementFilter(getToolParams("select")))
+        useEditorStore.getState().select(
+          levelEntities()
+            .filter(pick)
+            .map((x) => x.id),
+        )
+        return true
+      }
+    }
+    if (e.key === "Escape") {
+      useEditorStore.getState().select([])
+      return true
+    }
+    if (quickLayer(e)) return true
+  }
+  const id = actionForKey(e, currentBindings())
+  return id ? runAction(id) : false
 }
 
 /** The next/previous preset zoom level from the current zoom. */
@@ -85,17 +126,129 @@ function stepZoom(dir: 1 | -1): void {
   view.setZoom(nextZoom(view.zoom, dir))
 }
 
-/** Tool and view-toggle keys, declared on their data (TOOL_TREE, VIEW_CONTROLS). */
-function runKeyShortcut(e: KeyboardEvent): boolean {
-  for (const tool of TOOL_BY_ID.values()) {
-    if (tool.shortcut && matchesShortcut(e, tool.shortcut)) {
-      useToolsStore.getState().selectToolById(tool.id)
+/** The tool X returns to after jumping to Select. */
+let toolBeforeSelect: string | null = null
+
+/** Brush size ±1 (in the tool's own steps), or the Object's scale ±0.1. */
+export function nudgeBrush(dir: 1 | -1): boolean {
+  const tool = selectActiveTool(useToolsStore.getState())
+  if (!tool) return false
+  const params = getToolParams(tool.id)
+  const set = (patch: Record<string, unknown>) => {
+    useToolsStore.getState().setToolParams(tool.id, patch)
+    notifyParamsChange(tool.id, patch)
+  }
+  const spec = tool.params?.find((p) => p.kind === "brushSize")
+  if (spec?.kind === "brushSize") {
+    const v = typeof params.brushSize === "number" ? params.brushSize : spec.default
+    set({ brushSize: Math.min(spec.max, Math.max(spec.min, v + dir * spec.step)) })
+    return true
+  }
+  if (tool.id === "object") {
+    const v = typeof params.scale === "number" ? params.scale : 1
+    set({ scale: Math.round(Math.min(4, Math.max(0.1, v + dir * 0.1)) * 10) / 10 })
+    return true
+  }
+  return false
+}
+
+function switchLevel(dir: 1 | -1): boolean {
+  const map = useMapStore.getState().map
+  const editor = useEditorStore.getState()
+  if (!map) return false
+  const i = map.levels.findIndex((l) => l.id === editor.activeLevel)
+  const next = map.levels[i + dir]
+  if (next) editor.setActiveLevel(next.id)
+  return true
+}
+
+const VIEW_TOGGLES: Record<string, ViewToggleKey> = {
+  grid: "grid",
+  snap: "snap",
+  lighting: "lighting",
+  shadows: "shadows",
+  outside: "outside",
+}
+
+/** Run remappable action `id`; whether it applied. */
+export function runAction(id: string): boolean {
+  if (APP_ACTIONS.includes(id)) return runAppAction(id)
+  if (id.startsWith("tool:")) {
+    useToolsStore.getState().selectToolById(id.slice(5))
+    return true
+  }
+  if (VIEW_TOGGLES[id]) {
+    useViewStore.getState().toggle(VIEW_TOGGLES[id])
+    return true
+  }
+  if (id === "fullscreen") {
+    void toggleFullscreen()
+    return true
+  }
+  const map = useMapStore.getState().map
+  if (!map) return false
+  const editor = useEditorStore.getState()
+  switch (id) {
+    case "undo":
+      undo()
+      return true
+    case "redo":
+      redo()
+      return true
+    case "delete":
+      deleteSelection()
+      return true
+    case "flipH":
+    case "flipV": {
+      // With the Object tool, mirror the object about to be placed.
+      if (selectActiveTool(useToolsStore.getState())?.id === "object") {
+        const mirror = getToolParams("object").mirror === true
+        useToolsStore.getState().setToolParams("object", { mirror: !mirror })
+        return true
+      }
+      runToolAction("select", id)
       return true
     }
-  }
-  for (const control of VIEW_CONTROLS) {
-    if (control.kind === "toggle" && control.shortcut && matchesShortcut(e, control.shortcut)) {
-      useViewStore.getState().toggle(control.key)
+    case "group":
+    case "ungroup":
+      runToolAction("select", id)
+      return true
+    case "zoomIn":
+      stepZoom(1)
+      return true
+    case "zoomOut":
+      stepZoom(-1)
+      return true
+    case "guide":
+      editor.setGuide(editor.guide ? null : editor.pointer)
+      return true
+    case "ruler":
+      editor.setRulerOn(!editor.rulerOn)
+      return true
+    case "reference":
+      if (map.referenceImage) updateReferenceImage({ visible: !map.referenceImage.visible })
+      return true
+    case "compareLevels":
+      editor.setCompareLevels(!editor.compareLevels)
+      return true
+    case "levelUp":
+      return switchLevel(1)
+    case "levelDown":
+      return switchLevel(-1)
+    case "brushSmaller":
+      return nudgeBrush(-1)
+    case "brushBigger":
+      return nudgeBrush(1)
+    case "selectTool": {
+      const tools = useToolsStore.getState()
+      const current = selectActiveTool(tools)?.id ?? null
+      if (current === "select" && toolBeforeSelect) {
+        tools.selectToolById(toolBeforeSelect)
+        toolBeforeSelect = null
+      } else if (current !== "select") {
+        toolBeforeSelect = current
+        tools.selectToolById("select")
+      }
       return true
     }
   }
