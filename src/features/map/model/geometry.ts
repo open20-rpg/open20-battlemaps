@@ -186,6 +186,10 @@ function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
 /** Half-width of a stroked line entity (walls, paths) in tiles. */
 export function lineHalfWidth(entity: MapEntity, sizeOf: AssetSizeOf): number {
   if (entity.toolId === "path") return pathWidth(entity, sizeOf) / 2
+  // A roof reaches `width` from its ridge to each eave.
+  if (entity.toolId === "roof" && !entity.closed) {
+    return typeof entity.params.width === "number" ? entity.params.width : 3
+  }
   if (entity.toolId === "wall") {
     // As wide as its texture is tall (see the wall renderer).
     const id = (entity.params.wall as { assets?: string[] } | undefined)?.assets?.[0]

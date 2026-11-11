@@ -1,5 +1,5 @@
 import { linkRooms } from "../model/links"
-import { boundsOf, newId, pointInPolygon, rotateAround, textSize } from "../model/geometry"
+import { newId, pointInPolygon, rotateAround, textSize } from "../model/geometry"
 import {
   TERRAIN_SLOTS,
   TEXELS_PER_TILE,
@@ -464,28 +464,16 @@ function roofs(im: Importer, level: string, raw: Json): MapEntity[] {
         .local(local, vec(r.position), num(r.rotation, 0), vec(r.scale, { x: 1, y: 1 }))
         .map((q) => im.p(q))
       const type = ROOF_TYPES[num(r.type, 0)] ?? "gable"
-      const eave = num(r.width, PX) / PX
-      const b = boundsOf(ridge)
-      const alongX = b.w >= b.h
-      const grow = {
-        x: alongX ? (type === "hip" ? eave : 0) : eave,
-        y: alongX ? eave : type === "hip" ? eave : 0,
-      }
-      const outline = [
-        { x: b.x - grow.x, y: b.y - grow.y },
-        { x: b.x + b.w + grow.x, y: b.y - grow.y },
-        { x: b.x + b.w + grow.x, y: b.y + b.h + grow.y },
-        { x: b.x - grow.x, y: b.y + b.h + grow.y },
-      ]
+      // Same model as Dungeondraft's: the ridge, and how far each eave is.
       return [
         entity(level, {
           toolId: "roof",
           ...grouped(r),
           layer: 800,
-          points: outline,
-          closed: true,
-          position: outline[0],
+          points: ridge,
+          position: ridge[0],
           params: {
+            width: num(r.width, PX) / PX,
             style: selection(im.asset(r.texture)),
             type,
             shade: bool(settings.shade, true),

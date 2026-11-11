@@ -310,7 +310,8 @@
     "wear_noise": "Noise",
     "wear_scratched": "Scratched",
     "assetProperty": "Asset",
-    "restoreColor": "Restore the default color"
+    "restoreColor": "Restore the default color",
+    "roofWidth": "Width (tiles from the ridge)"
   },
   "biomes": {
     "barren": "Barren",

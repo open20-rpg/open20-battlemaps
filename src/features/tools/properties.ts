@@ -178,6 +178,7 @@ export const ENTITY_PROPERTIES: Record<string, EntityProperty[]> = {
       options: ROOF_TYPES,
       default: "gable",
     }),
+    param(slider("width", "tools.roofWidth", 0.25, 16, 0.25)),
     param(toggle("shade", "tools.shade", true)),
     param(slider("sunDirection", "tools.sunDirection", -180, 180, 0.1)),
     param(slider("shadeContrast", "tools.shadeContrast", 0, 1, 0.05)),

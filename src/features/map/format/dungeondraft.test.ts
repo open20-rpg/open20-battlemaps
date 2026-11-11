@@ -223,7 +223,10 @@ describe("Dungeondraft import", () => {
     })
     const [roof] = byTool("roof")
     expect(roof.params).toMatchObject({ type: "hip", sunDirection: 90, shadeContrast: 0.4 })
-    expect(roof.points).toHaveLength(4)
+    // Dungeondraft's model: the ridge (open) and the eaves' distance from it.
+    expect(roof.points).toHaveLength(2)
+    expect(roof.closed).toBeFalsy()
+    expect(roof.params.width).toBe(0.5)
     const [text] = byTool("text")
     expect(text.text).toBe("Hi")
     // Top-left (4, 0) → center inside the map, left of the right edge.

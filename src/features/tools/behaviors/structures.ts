@@ -7,7 +7,9 @@ import {
   removeEntities,
   updateEntities,
 } from "../../map/commands"
+import { quickboxRoof } from "../../map/render/roofGeometry"
 import {
+  boundsOf,
   closestOnSegment,
   dist,
   joinPolylines,
@@ -295,13 +297,15 @@ export function createPathBehavior(): ToolBehavior {
   )
 }
 
-function roofEntity(ctx: ToolCtx, polygon: Vec2[]): MapEntity {
+/** A roof along `ridge`, `width` tiles from the ridge to each eave (Dungeondraft's model). */
+function roofEntity(ctx: ToolCtx, ridge: Vec2[], width: number): MapEntity {
   return makeEntity(ctx, {
     layer: LAYER.roof,
-    points: polygon,
-    closed: true,
-    position: polygon[0],
+    points: ridge,
+    closed: false,
+    position: ridge[0],
     params: {
+      width,
       style: selection(ctx.params.style),
       type: ctx.params.type,
       shade: ctx.params.shade !== false,
@@ -312,12 +316,28 @@ function roofEntity(ctx: ToolCtx, polygon: Vec2[]): MapEntity {
   })
 }
 
-/** Roof: Quickbox drags a rectangle; Manual clicks out the outline. */
+/**
+ * Roof, as Dungeondraft's: Quickbox drags a box and the ridge runs down the
+ * middle of its longer side (width: half the shorter one); Manual clicks
+ * out the ridge, Width tiles from each eave.
+ */
 export function createRoofBehavior(): ToolBehavior {
-  const preview = (ctx: ToolCtx, polygon: Vec2[]) => [roofEntity(ctx, polygon)]
-  const commit = (ctx: ToolCtx, polygon: Vec2[]) => addEntities(preview(ctx, polygon), under(ctx))
-  const quick = shapeController(commit, preview)
-  const manual = polylineController({ minPoints: 3, closed: true, commit, preview })
+  /** The box's roof (Quickbox hands over the box as a rectangle polygon). */
+  const boxed = (ctx: ToolCtx, polygon: Vec2[]) => {
+    const b = boundsOf(polygon)
+    const { ridge, width } = quickboxRoof({ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y + b.h })
+    return [roofEntity(ctx, ridge, width)]
+  }
+  const drawn = (ctx: ToolCtx, ridge: Vec2[]) => [
+    roofEntity(ctx, ridge, paramNum(ctx.params.width, 3)),
+  ]
+  const quick = shapeController((ctx, p) => addEntities(boxed(ctx, p), under(ctx)), boxed)
+  const manual = polylineController({
+    minPoints: 2,
+    closed: false,
+    commit: (ctx, ridge) => addEntities(drawn(ctx, ridge), under(ctx)),
+    preview: drawn,
+  })
   const pick = (ctx: ToolCtx): ToolBehavior => (ctx.params.mode === "manual" ? manual : quick)
   return {
     onPointerDown: (ctx, e) => pick(ctx).onPointerDown?.(ctx, e),

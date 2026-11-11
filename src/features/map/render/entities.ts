@@ -21,6 +21,7 @@ import {
 import { type MapEntity, type Vec2 } from "../model/types"
 import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
 import { lightFalloffTexture } from "./generated"
+import { quickboxRoof, roofFaceShade, roofGeometry, slopeUv, type RoofType } from "./roofGeometry"
 import { wearOverlay, wornMesh } from "./buildingWear"
 
 /**
@@ -420,78 +421,97 @@ export function shadeColor(color: number, k: number): number {
   return (r << 16) | (g << 8) | b
 }
 
+/** A roof's ridge and width: as drawn, or (older polygon roofs) from its box. */
+function roofShape(e: MapEntity): { ridge: Vec2[]; width: number } {
+  const pts = e.points ?? []
+  if (e.closed && pts.length > 2) {
+    const b = boundsOf(pts)
+    return quickboxRoof({ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y + b.h })
+  }
+  return { ridge: pts, width: num(e.params.width, 3) }
+}
+
+/** A textured polygon (a roof face), its uv per vertex given in texture units. */
+function facePolygon(
+  points: readonly Vec2[],
+  uv: (v: Vec2) => Vec2,
+  texture: Texture,
+  tint: number,
+): Mesh {
+  const positions = new Float32Array(points.flatMap((p) => [-p.x, p.y]))
+  const uvs = new Float32Array(
+    points.flatMap((p) => {
+      const t = uv(p)
+      return [t.x, t.y]
+    }),
+  )
+  // A fan from the first vertex (faces are convex quads and triangles).
+  const indices: number[] = []
+  for (let k = 1; k + 1 < points.length; k++) indices.push(0, k, k + 1)
+  const mesh = new Mesh({
+    geometry: new MeshGeometry({ positions, uvs, indices: new Uint32Array(indices) }),
+    texture,
+  })
+  mesh.tint = tint
+  return mesh
+}
+
+/** A gray level (0–1) as a tint. */
+const grayTint = (v: number) => {
+  const c = Math.round(Math.min(1, Math.max(0, v)) * 255)
+  return (c << 16) | (c << 8) | c
+}
+
+/**
+ * Roofs, as Dungeondraft's Roof.Set draws them (roofGeometry.ts): the slopes
+ * tiled with the style's texture, turned so its rows run along the ridge,
+ * each shaded by the sun; then the ridge, the eave edge (always in the
+ * contrast's shadow) and the hip lines, each a line as wide as its texture
+ * (the style's `ridge`, `edge` and `hip` files next to `tiles`).
+ */
 const roofRenderer: EntityRenderer = (e, env) => {
   const root = new Container()
-  const pts = e.points ?? []
-  if (pts.length < 3) return root
-  if (castsShadow(e)) env.castShadow(polygonSilhouette(pts), "roofs")
-  const b = boundsOf(pts)
-  const type = str(e.params.type, "gable")
+  const { ridge, width } = roofShape(e)
+  const type = str(e.params.type, "gable") as RoofType
+  const g = roofGeometry(ridge, width, type)
+  if (!g) return root
+  if (castsShadow(e)) env.castShadow(polygonSilhouette(g.edge), "roofs")
   const { id } = selectionAsset(e.params.style)
   const tiles = env.tex(id)
   const shade = e.params.shade !== false
   const sun = num(e.params.sunDirection, 45)
-  const contrast = shade ? num(e.params.shadeContrast, 0.3) : 0
+  const contrast = num(e.params.shadeContrast, 0.3)
+  const faceTint = (n: Vec2) => grayTint(shade ? roofFaceShade(n, sun, contrast) : 1)
 
-  // Faces in content space: [polygon, downhill normal (screen degrees)].
-  const x0 = -(b.x + b.w)
-  const x1 = -b.x
-  const y0 = b.y
-  const y1 = b.y + b.h
-  const horizontal = b.w >= b.h
-  const faces: [number[], number][] = []
-  if (type === "hip") {
-    const inset = Math.min(b.w, b.h) / 2
-    if (horizontal) {
-      const cy = (y0 + y1) / 2
-      faces.push([[x0, y0, x1, y0, x1 - inset, cy, x0 + inset, cy], 270])
-      faces.push([[x0, y1, x1, y1, x1 - inset, cy, x0 + inset, cy], 90])
-      faces.push([[x0, y0, x0 + inset, cy, x0, y1], 180])
-      faces.push([[x1, y0, x1 - inset, cy, x1, y1], 0])
-    } else {
-      const cx = (x0 + x1) / 2
-      faces.push([[x0, y0, cx, y0 + inset, cx, y1 - inset, x0, y1], 180])
-      faces.push([[x1, y0, cx, y0 + inset, cx, y1 - inset, x1, y1], 0])
-      faces.push([[x0, y0, x1, y0, cx, y0 + inset], 270])
-      faces.push([[x0, y1, x1, y1, cx, y1 - inset], 90])
-    }
-  } else if (horizontal) {
-    const cy = (y0 + y1) / 2
-    faces.push([[x0, y0, x1, y0, x1, cy, x0, cy], 270])
-    faces.push([[x0, cy, x1, cy, x1, y1, x0, y1], 90])
-  } else {
-    const cx = (x0 + x1) / 2
-    faces.push([[x0, y0, cx, y0, cx, y1, x0, y1], 180])
-    faces.push([[cx, y0, x1, y0, x1, y1, cx, y1], 0])
-  }
-  // Dormers are short gables: same faces, drawn slightly smaller.
-  const shrink = type === "dormer" ? 0.85 : 1
-  const cx = (x0 + x1) / 2
-  const cy = (y0 + y1) / 2
-  for (const [poly, normal] of faces) {
-    const scaled = poly.map((v, i) =>
-      i % 2 === 0 ? cx + (v - cx) * shrink : cy + (v - cy) * shrink,
-    )
-    const k = shade ? roofShade(normal, sun, contrast) : 1
-    const tint = shadeColor(0xffffff, k)
+  for (const face of [...g.slopes, ...g.tips]) {
     if (tiles) {
       tiles.source.style.addressMode = "repeat"
-      const fill = new TilingSprite({ texture: tiles, width: b.w + 2, height: b.h + 2 })
-      fill.position.set(x0 - 1, y0 - 1)
-      fill.tileScale.set(1 / TEXTURE_PX_PER_TILE)
-      // Tiles run downhill: rotate the pattern with the face normal.
-      fill.tileRotation = rad(normal - 90)
-      fill.tint = tint
-      const mask = new Graphics().poly(scaled, true).fill({ color: 0xffffff })
-      fill.mask = mask
-      root.addChild(fill, mask)
+      const uv = (v: Vec2) =>
+        slopeUv(v, face.normal, TEXTURE_PX_PER_TILE, tiles.width, tiles.height)
+      root.addChild(facePolygon(face.points, uv, tiles, faceTint(face.normal)))
     } else {
-      root.addChild(new Graphics().poly(scaled, true).fill({ color: shadeColor(0x7b4a36, k) }))
+      const tint = shadeColor(0x7b4a36, shade ? roofFaceShade(face.normal, sun, contrast) : 1)
+      root.addChild(
+        new Graphics()
+          .poly(
+            face.points.flatMap((p) => [-p.x, p.y]),
+            true,
+          )
+          .fill({ color: tint }),
+      )
     }
-    root.addChild(
-      new Graphics().poly(scaled, true).stroke({ width: 0.04, color: 0x2a1a12, alpha: 0.6 }),
-    )
   }
+  /** One of the roof's lines, as wide as its texture is tall. */
+  const line = (pts: Vec2[], closed: boolean, part: string, bevel: boolean, tint?: number) => {
+    const tex = env.tex(id, { part })
+    if (!tex || pts.length < 2) return
+    const w = tex.height / TEXTURE_PX_PER_TILE
+    const tris = wallTriangles(pts, closed, w, { bevel, normalizeUv: false })
+    root.addChild(lineMesh(tris, repeatOf(tex, w), tex, 0x2a1a12, tint))
+  }
+  line(g.ridge, false, "ridge", true)
+  line(g.edge, g.edgeClosed, "edge", false, grayTint(1 - contrast))
+  for (const hip of g.hips) line(hip, false, "hip", true)
   return root
 }
 

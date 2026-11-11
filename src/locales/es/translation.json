@@ -310,7 +310,8 @@
     "wear_noise": "Ruido",
     "wear_scratched": "Rayado",
     "assetProperty": "Recurso",
-    "restoreColor": "Restaurar el color por defecto"
+    "restoreColor": "Restaurar el color por defecto",
+    "roofWidth": "Ancho (casillas desde la cumbrera)"
   },
   "biomes": {
     "barren": "Yermo",

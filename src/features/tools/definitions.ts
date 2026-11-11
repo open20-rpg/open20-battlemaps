@@ -384,6 +384,12 @@ export const TOOL_TREE: ToolNode[] = [
           ),
           sorting("over"),
           segmented("type", "tools.type", ROOF_TYPES, "gable"),
+          // Manual draws the ridge: how far each eave lies from it (Quickbox
+          // takes half the box's shorter side).
+          when(
+            sliderParam("width", "tools.roofWidth", 0.25, 16, 0.25, 3),
+            (p) => p.mode === "manual",
+          ),
           // Embedded roofs browser (no separate library); roofs carry no color.
           assetPicker(
             "style",
