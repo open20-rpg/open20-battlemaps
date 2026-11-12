@@ -53,6 +53,8 @@ export class AssetCache {
   private textures = new Map<string, Texture | "loading" | "error">()
   private listeners = new Set<Listener>()
   private notifyScheduled = false
+  /** Alpha channels read back from loaded textures (null: can't be read). */
+  private alphas = new Map<string, AlphaMask | null>()
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener)
@@ -75,6 +77,26 @@ export class AssetCache {
     return tex
       ? { w: tex.width / TEXTURE_PX_PER_TILE, h: tex.height / TEXTURE_PX_PER_TILE }
       : undefined
+  }
+
+  /**
+   * Alpha (0–255) of an asset's main texture at (u, v), fractions of its
+   * size (0 outside it), or undefined while it isn't loaded (or can't be read back).
+   */
+  alphaAt(id: string, u: number, v: number): number | undefined {
+    const tex = this.texture(id)
+    const url = this.urlFor(id, {})
+    if (!tex || !url) return undefined
+    let mask = this.alphas.get(url)
+    if (mask === undefined) {
+      mask = readAlpha(tex)
+      this.alphas.set(url, mask)
+    }
+    if (!mask) return undefined
+    const ix = Math.floor(u * mask.w)
+    const iy = Math.floor(v * mask.h)
+    if (ix < 0 || iy < 0 || ix >= mask.w || iy >= mask.h) return 0
+    return mask.data[iy * mask.w + ix]
   }
 
   /**
@@ -198,6 +220,35 @@ export class AssetCache {
       this.notifyScheduled = false
       for (const l of this.listeners) l()
     })
+  }
+}
+
+interface AlphaMask {
+  w: number
+  h: number
+  data: Uint8Array
+}
+
+/** A texture's alpha channel, drawn into a 2D canvas and read back (once per texture). */
+function readAlpha(tex: Texture): AlphaMask | null {
+  const img = tex.source.resource as CanvasImageSource | undefined
+  const w = tex.source.pixelWidth
+  const h = tex.source.pixelHeight
+  if (!img || typeof document === "undefined" || !w || !h) return null
+  try {
+    const canvas = document.createElement("canvas")
+    canvas.width = w
+    canvas.height = h
+    const g = canvas.getContext("2d", { willReadFrequently: true })
+    if (!g) return null
+    g.drawImage(img, 0, 0)
+    const rgba = g.getImageData(0, 0, w, h).data
+    const data = new Uint8Array(w * h)
+    for (let i = 0; i < data.length; i++) data[i] = rgba[i * 4 + 3]
+    return { w, h, data }
+  } catch {
+    // A tainted canvas (cross-origin file): pick by the shape instead.
+    return null
   }
 }
 

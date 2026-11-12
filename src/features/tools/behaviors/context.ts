@@ -23,6 +23,7 @@ export function buildToolCtx(toolId: string): ToolCtx | null {
     snapEnabled,
     snap: (p, step = 1) => (snapEnabled ? snapPoint(p, step) : p),
     sizeOf: (id) => assetCache.size(id),
+    alphaAt: (id, u, v) => assetCache.alphaAt(id, u, v),
     libraryAssets: libraryAssetsOf(params),
     entities: map.entities.filter((e) => !e.level || e.level === level),
   }

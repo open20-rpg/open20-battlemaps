@@ -689,6 +689,8 @@ export const TOOL_TREE: ToolNode[] = [
         options: SELECT_KINDS.map((k) => ({ value: k.id, labelKey: k.nameKey, icon: k.icon })),
         default: SELECT_FILTER_DEFAULT,
       },
+      // Clicks go through the transparent parts of objects and portals.
+      switchParam("alphaPick", "tools.alphaPick", false),
       // What the keyboard does elsewhere, as buttons for touch screens.
       button("delete", "tools.delete", LuTrash2, "danger"),
       button("duplicate", "tools.duplicate", LuCopyPlus),

@@ -27,6 +27,8 @@ import {
   flipEntity,
   transformEntity,
   normalizeDegrees,
+  spriteCorners,
+  spriteUV,
 } from "./geometry"
 import { createDocument, normalizeDocument, type MapEntity, type Vec2 } from "./types"
 
@@ -520,5 +522,66 @@ describe("arcs and joins", () => {
         { x: 6, y: 6 },
       ]),
     ).toBeNull()
+  })
+})
+
+describe("spriteUV", () => {
+  const sprite = (patch: Partial<MapEntity> = {}): MapEntity => ({
+    id: "s",
+    toolId: "object",
+    layer: 100,
+    position: { x: 5, y: 5 },
+    rotation: 0,
+    params: { asset: "p|a.png" },
+    ...patch,
+  })
+  const size = { w: 2, h: 1 }
+  const near = (a: Vec2, b: Vec2) => {
+    expect(a.x).toBeCloseTo(b.x)
+    expect(a.y).toBeCloseTo(b.y)
+  }
+
+  it("maps the center to the texture's middle and map x mirrored", () => {
+    near(spriteUV(sprite(), { x: 5, y: 5 }, size), { x: 0.5, y: 0.5 })
+    // Map x is mirrored: lower map x is the texture's right side.
+    near(spriteUV(sprite(), { x: 4.5, y: 5.25 }, size), { x: 0.75, y: 0.75 })
+  })
+
+  it("follows scale, flips and rotation", () => {
+    near(spriteUV(sprite({ scale: 2 }), { x: 4, y: 5 }, size), { x: 0.75, y: 0.5 })
+    near(spriteUV(sprite({ flipX: true }), { x: 4.5, y: 5 }, size), { x: 0.25, y: 0.5 })
+    near(spriteUV(sprite({ flipY: true }), { x: 5, y: 5.25 }, size), { x: 0.5, y: 0.25 })
+    // Turned 90°, the texture's right side lies along map +y.
+    near(spriteUV(sprite({ rotation: 90 }), { x: 5, y: 5.5 }, size), { x: 0.75, y: 0.5 })
+  })
+
+  it("agrees with the footprint's corners", () => {
+    const e = sprite({ rotation: 30, scale: 1.5 })
+    for (const c of spriteCorners(e, () => size)) {
+      const uv = spriteUV(e, c, size)
+      expect(Math.min(Math.abs(uv.x), Math.abs(uv.x - 1))).toBeCloseTo(0)
+      expect(Math.min(Math.abs(uv.y), Math.abs(uv.y - 1))).toBeCloseTo(0)
+    }
+  })
+})
+
+describe("hitTest with a solid test", () => {
+  const at = (id: string, layer: number): MapEntity => ({
+    id,
+    toolId: "object",
+    layer,
+    position: { x: 0, y: 0 },
+    rotation: 0,
+    params: { asset: `p|${id}.png` },
+  })
+  const sizeOf = () => ({ w: 1, h: 1 })
+
+  it("goes through to what's under where the top one isn't solid", () => {
+    const items = [at("under", 100), at("top", 200)]
+    expect(hitTest(items, { x: 0, y: 0 }, sizeOf)?.id).toBe("top")
+    expect(hitTest(items, { x: 0, y: 0 }, sizeOf, undefined, 0, (e) => e.id !== "top")?.id).toBe(
+      "under",
+    )
+    expect(hitTest(items, { x: 0, y: 0 }, sizeOf, undefined, 0, () => false)).toBeUndefined()
   })
 })

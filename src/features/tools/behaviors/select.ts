@@ -11,7 +11,9 @@ import {
   boundsOf,
   dist,
   editablePointsOf,
+  entityAssetId,
   nearestVertex,
+  spriteUV,
   entityBounds,
   hitTest,
   rectFromCorners,
@@ -206,6 +208,24 @@ export function ungroupSelection(ctx: ToolCtx): void {
   updateEntities(new Map(grouped.map((e) => [e.id, { group: undefined }])))
 }
 
+/** Below this alpha a sprite's pixel counts as empty (soft, anti-aliased edges). */
+const ALPHA_PICK_MIN = 8
+
+/**
+ * With the Select tool's "Pick by alpha" on, a click on a sprite (object,
+ * portal) only picks it where its texture isn't transparent: elsewhere it
+ * goes through to what's under it. Until the texture is loaded, its shape decides.
+ */
+const solidAt = (ctx: ToolCtx) => (e: MapEntity, p: Vec2) => {
+  if (e.points || e.strokes || e.toolId === "text" || e.toolId === "light") return true
+  const id = entityAssetId(e)
+  const size = id ? ctx.sizeOf(id) : undefined
+  if (!id || !size) return true
+  const uv = spriteUV(e, p, size)
+  const alpha = ctx.alphaAt(id, uv.x, uv.y)
+  return alpha === undefined || alpha >= ALPHA_PICK_MIN
+}
+
 /** What clicks and rubber bands may pick: the Select tool's element filter (locked ones alone with `locked`). */
 const pickable = (ctx: ToolCtx, locked = false) =>
   selectableBy(elementFilter(ctx.params), locked, ctx.entities)
@@ -296,7 +316,8 @@ export function createSelectBehavior(): ToolBehavior {
       // Lines (walls, paths) are picked within a few screen px of their
       // edges, whatever the zoom.
       const reach = Math.max(0.2, screenTiles(HIT_REACH_PX))
-      const hit = hitTest(ctx.entities, e, ctx.sizeOf, pickable(ctx), reach)
+      const solid = ctx.params.alphaPick === true ? solidAt(ctx) : undefined
+      const hit = hitTest(ctx.entities, e, ctx.sizeOf, pickable(ctx), reach, solid)
       const { selection } = editor()
       if (hit) {
         // A group member picks the whole group.

@@ -191,6 +191,26 @@ export function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
   )
 }
 
+/**
+ * Where in a sprite's texture (object, portal) map point `p` falls, as
+ * fractions of its width and height (0..1 inside it) — the renderer's
+ * drawing undone (entities.ts): map x mirrored, rotated about its position,
+ * flipped in its own frame. `size` is the texture's size in tiles at scale 1.
+ */
+export function spriteUV(entity: MapEntity, p: Vec2, size: { w: number; h: number }): Vec2 {
+  // Content space (x mirrored), relative to the sprite's center.
+  const dx = -(p.x - entity.position.x)
+  const dy = p.y - entity.position.y
+  const t = (entity.rotation * Math.PI) / 180
+  const lx = dx * Math.cos(t) + dy * Math.sin(t)
+  const ly = -dx * Math.sin(t) + dy * Math.cos(t)
+  const s = entity.scale ?? 1
+  return {
+    x: 0.5 + ((entity.flipX ? -1 : 1) * lx) / (size.w * s),
+    y: 0.5 + ((entity.flipY ? -1 : 1) * ly) / (size.h * s),
+  }
+}
+
 /** Half-width of a stroked line entity (walls, paths) in tiles. */
 export function lineHalfWidth(entity: MapEntity, sizeOf: AssetSizeOf): number {
   if (entity.toolId === "path") return pathWidth(entity, sizeOf) / 2
@@ -292,11 +312,14 @@ export function hitTest(
   filter?: (e: MapEntity) => boolean,
   /** Extra reach around lines (walls, paths), in tiles. */
   tolerance?: number,
+  /** A finer test after the shape's (e.g. the texture isn't transparent there). */
+  solid?: (e: MapEntity, p: Vec2) => boolean,
 ): MapEntity | undefined {
   let best: { e: MapEntity; i: number } | undefined
   entities.forEach((e, i) => {
     if (filter && !filter(e)) return
     if (!entityHit(e, p, sizeOf, tolerance)) return
+    if (solid && !solid(e, p)) return
     if (!best || e.layer > best.e.layer || (e.layer === best.e.layer && i > best.i)) best = { e, i }
   })
   return best?.e

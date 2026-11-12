@@ -41,6 +41,8 @@ export interface ToolCtx {
   snap: (p: Vec2, step?: number) => Vec2
   /** Asset sizes in tiles (for footprints/hit-testing). */
   sizeOf: AssetSizeOf
+  /** Alpha (0–255) of an asset's texture at (u, v) in 0..1; undefined until it's loaded. */
+  alphaAt: (assetId: string, u: number, v: number) => number | undefined
   /** Ids picked in the Library panel for this tool (Object, Scatter, Path). */
   libraryAssets: string[]
   /** Entities on the active level. */

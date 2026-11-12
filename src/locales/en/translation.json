@@ -301,6 +301,7 @@
     "selectAll_caves": "All caves",
     "kind_materials": "Materials",
     "selectAll_materials": "All materials",
+    "alphaPick": "Pick by alpha",
     "elementFilter": "Element filter",
     "resetToggles": "Reset filter",
     "lock": "Lock",
