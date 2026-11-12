@@ -23,7 +23,7 @@ import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
 import { lightFalloffTexture } from "./generated"
 import { quickboxRoof, roofFaceShade, roofGeometry, slopeUv, type RoofType } from "./roofGeometry"
 import { wearOverlay, wornMesh } from "./buildingWear"
-import { blockingSegments, visibilityPolygon } from "../model/lightBlock"
+import { blockingSegments, lightPolygon, type Segment } from "../model/lightBlock"
 import { type FontChoice } from "../../fonts/catalog"
 import {
   borderOf,
@@ -592,6 +592,22 @@ const textRenderer: EntityRenderer = (e, env) => {
  * ({@link glowStrength}): on a dark map the lights show through the light map
  * alone, as in Dungeondraft, instead of a colored haze.
  */
+/** The blocking segments of the level's blockers, kept while they're the same entities. */
+let segmentsMemo: { blockers: readonly MapEntity[]; segments: Segment[] } | null = null
+function blockersSegments(env: RenderEnv): Segment[] {
+  const blockers = env.lightBlockers
+  const memo = segmentsMemo
+  if (
+    memo &&
+    memo.blockers.length === blockers.length &&
+    memo.blockers.every((b, i) => b === blockers[i])
+  )
+    return memo.segments
+  const segments = blockingSegments(blockers, (id) => env.size(id))
+  segmentsMemo = { blockers, segments }
+  return segments
+}
+
 /**
  * What a light reaches (content space), when it casts shadows: its
  * visibility polygon against the walls, closed doors and light-blocking
@@ -599,9 +615,9 @@ const textRenderer: EntityRenderer = (e, env) => {
  */
 export function lightReach(e: MapEntity, env: RenderEnv): Graphics | null {
   if (e.params.shadow === false) return null
-  const segments = blockingSegments(env.lightBlockers, (id) => env.size(id))
+  const segments = blockersSegments(env)
   if (segments.length === 0) return null
-  const poly = visibilityPolygon(e.position, num(e.params.range, 5), segments)
+  const poly = lightPolygon(e.id, e.position, num(e.params.range, 5), segments)
   return new Graphics().poly(poly.flatMap((p) => [-p.x, p.y])).fill({ color: 0xffffff })
 }
 

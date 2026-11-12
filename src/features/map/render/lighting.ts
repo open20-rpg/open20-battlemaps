@@ -1,4 +1,4 @@
-import { Container, RenderTexture, Sprite, Texture, type Renderer } from "pixi.js"
+import { BlurFilter, Container, RenderTexture, Sprite, Texture, type Renderer } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
 import { type MapEntity } from "../model/types"
 import { lightReach, type RenderEnv, selectionAsset } from "./entities"
@@ -23,15 +23,19 @@ export function lightingComposite(
   env: RenderEnv,
 ): Composite {
   const res = Math.max(4, Math.floor(maskResolution(map) / 2))
+  // Shadows are cut with hard polygons at this coarse resolution: blurred a
+  // little (once, here) they get a soft edge instead of jagged steps.
+  const soften = new BlurFilter({ strength: Math.max(1.5, res * 0.18), quality: 3 })
   const rt = RenderTexture.create({ width: map.width * res, height: map.height * res })
   const stage = new Container()
   stage.scale.set(res)
   stage.position.set(map.width * res, 0)
 
+  // A tile past the map each way, so the blur doesn't fade its edges.
   const bg = new Sprite(Texture.WHITE)
-  bg.position.set(-map.width, 0)
-  bg.width = map.width
-  bg.height = map.height
+  bg.position.set(-map.width - 1, -1)
+  bg.width = map.width + 2
+  bg.height = map.height + 2
   bg.tint = hexToPixiColor(ambient).color
   stage.addChild(bg)
 
@@ -56,8 +60,10 @@ export function lightingComposite(
       sprite.mask = reach
     }
   }
+  stage.filters = [soften]
   renderer.render({ container: stage, target: rt, clear: true })
   stage.destroy({ children: true })
+  soften.destroy()
 
   const view = new Sprite(rt)
   view.position.set(-map.width, 0)

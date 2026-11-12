@@ -71,6 +71,43 @@ function distToSegment(p: Vec2, s: Segment): number {
   return Math.hypot(p.x - (s.a.x + t * ex), p.y - (s.a.y + t * ey))
 }
 
+/** The segments within `radius` of `origin`: all a light there can be blocked by. */
+export function segmentsNear(
+  origin: Vec2,
+  radius: number,
+  segments: readonly Segment[],
+): Segment[] {
+  const r = radius * 1.05
+  return segments.filter((s) => distToSegment(origin, s) < r)
+}
+
+const polygons = new Map<string, { key: string; poly: Vec2[] }>()
+
+/**
+ * {@link visibilityPolygon} for light `id`, kept until the light moves or
+ * changes range or what's within its reach changes: dragging anything else
+ * (or anything out of its reach) doesn't recompute it.
+ */
+export function lightPolygon(
+  id: string,
+  origin: Vec2,
+  radius: number,
+  segments: readonly Segment[],
+): Vec2[] {
+  const near = segmentsNear(origin, radius, segments)
+  const key = [
+    origin.x,
+    origin.y,
+    radius,
+    ...near.flatMap((s) => [s.a.x, s.a.y, s.b.x, s.b.y]),
+  ].join(",")
+  const cached = polygons.get(id)
+  if (cached?.key === key) return cached.poly
+  const poly = visibilityPolygon(origin, radius, near)
+  polygons.set(id, { key, poly })
+  return poly
+}
+
 /**
  * What a light at `origin` reaches within `radius`: the polygon swept by
  * rays cast toward every segment end (and just past it, to slip by
@@ -83,7 +120,7 @@ export function visibilityPolygon(
   segments: readonly Segment[],
 ): Vec2[] {
   const r = radius * 1.05
-  const near = segments.filter((s) => distToSegment(origin, s) < r)
+  const near = segmentsNear(origin, radius, segments)
   const box: Vec2[] = [
     { x: origin.x - r, y: origin.y - r },
     { x: origin.x + r, y: origin.y - r },

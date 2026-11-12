@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { pointInPolygon } from "./geometry"
-import { blockingSegments, lightBlockers, visibilityPolygon } from "./lightBlock"
+import { blockingSegments, lightBlockers, lightPolygon, visibilityPolygon } from "./lightBlock"
 import { type MapEntity } from "./types"
 
 const entity = (id: string, toolId: string, extra: Partial<MapEntity> = {}): MapEntity => ({
@@ -58,5 +58,18 @@ describe("light blocking", () => {
     const table = entity("t", "object", { params: { blockLight: false } })
     const crate = entity("c", "object", { params: { blockLight: true } })
     expect(lightBlockers([room, table, crate]).map((e) => e.id)).toEqual(["room", "c"])
+  })
+
+  it("reuses a light's polygon until what's in its reach changes", () => {
+    const segs = blockingSegments([room], noSize)
+    const a = lightPolygon("l", { x: 5, y: 5 }, 3, segs)
+    // A wall far out of its reach changes nothing.
+    const far = { a: { x: 50, y: 0 }, b: { x: 50, y: 9 } }
+    expect(lightPolygon("l", { x: 5, y: 5 }, 3, [...segs, far])).toBe(a)
+    // A wall within reach does.
+    const near = { a: { x: 6, y: 4 }, b: { x: 6, y: 6 } }
+    expect(lightPolygon("l", { x: 5, y: 5 }, 3, [...segs, near])).not.toBe(a)
+    // So does moving the light.
+    expect(lightPolygon("l", { x: 4, y: 5 }, 3, segs)).not.toBe(a)
   })
 })
