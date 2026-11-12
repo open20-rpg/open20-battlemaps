@@ -21,7 +21,14 @@ import { Select } from "../../ui/Select"
  * For tools that place library items (Object, Scatter, Path) the browser is
  * selectable and the pick is stored in the tool's params.
  */
-export function LibraryPanel({ category }: { category: AssetCategory }) {
+export function LibraryPanel({
+  category,
+  embedded = false,
+}: {
+  category: AssetCategory
+  /** Inside another container (the phone layout's sheet) instead of docked on the right. */
+  embedded?: boolean
+}) {
   const { t } = useTranslation()
   const [tab, setTab] = useState("all")
 
@@ -61,33 +68,40 @@ export function LibraryPanel({ category }: { category: AssetCategory }) {
 
   return (
     <Flex
-      position="absolute"
-      right="0"
-      top="0"
-      bottom="0"
-      zIndex="docked"
-      w="332px"
-      maxW="80%"
+      {...(embedded
+        ? { flex: "1", minH: "0", w: "full" }
+        : {
+            position: "absolute",
+            right: "0",
+            top: "0",
+            bottom: "0",
+            zIndex: "docked",
+            w: "332px",
+            maxW: "80%",
+            borderLeftWidth: "1px",
+          })}
       direction="column"
       bg="panel.bg"
-      borderLeftWidth="1px"
       borderColor="panel.border"
     >
-      <Flex
-        align="center"
-        gap="2"
-        px="3"
-        py="2.5"
-        bg="panel.header"
-        borderBottomWidth="1px"
-        borderColor="panel.border"
-        flexShrink={0}
-      >
-        <Icon as={LuLibrary} color="brand.fg" boxSize="4" />
-        <Text fontWeight="bold" fontSize="sm">
-          {t("library.title")}
-        </Text>
-      </Flex>
+      {/* Embedded, its container already names it (the phone sheet's tab). */}
+      {!embedded && (
+        <Flex
+          align="center"
+          gap="2"
+          px="3"
+          py="2.5"
+          bg="panel.header"
+          borderBottomWidth="1px"
+          borderColor="panel.border"
+          flexShrink={0}
+        >
+          <Icon as={LuLibrary} color="brand.fg" boxSize="4" />
+          <Text fontWeight="bold" fontSize="sm">
+            {t("library.title")}
+          </Text>
+        </Flex>
+      )}
 
       <Tabs.Root
         value={tab}

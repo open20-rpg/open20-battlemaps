@@ -7,13 +7,31 @@ import { type ToolLeaf } from "../definitions"
 import { paramGrows, resolveParams, type ToolParamSpec } from "../params"
 import { ToolParamControl } from "../controls/ToolParamControl"
 
+/** Height of a growing param (asset picker, terrain slots) when the panel scrolls. */
+const GROWING_PARAM_H = "340px"
+
 /** Stable key for a param, so toggling visibility doesn't reshuffle others. */
 function paramKeyOf(spec: ToolParamSpec): string {
   return `${spec.kind}:${spec.paramKey}`
 }
 
 /** The selected tool's parameters, each rendered by its matching control. */
-export function ParamsPanel({ tool, onHide }: { tool: ToolLeaf; onHide: () => void }) {
+export function ParamsPanel({
+  tool,
+  onHide,
+  width = "308px",
+  scroll = false,
+}: {
+  tool: ToolLeaf
+  onHide: () => void
+  /** Column width (the phone layout's sheet spans the screen). */
+  width?: string
+  /**
+   * Always scroll, giving growing params (asset pickers, terrain slots) a
+   * fixed height: the phone's sheet is too short to share among them.
+   */
+  scroll?: boolean
+}) {
   const { t } = useTranslation()
   // Which params show: those whose visibleWhen predicate passes for the
   // current values (e.g. Portal shows Rotate 180 or Rotation depending on
@@ -32,7 +50,7 @@ export function ParamsPanel({ tool, onHide }: { tool: ToolLeaf; onHide: () => vo
 
   return (
     <VStack
-      w="308px"
+      w={width}
       h="full"
       flexShrink={0}
       gap="0"
@@ -75,7 +93,7 @@ export function ParamsPanel({ tool, onHide }: { tool: ToolLeaf; onHide: () => vo
           gap="0"
           flex="1"
           minH="0"
-          overflowY={params.some(paramGrows) ? "hidden" : "auto"}
+          overflowY={!scroll && params.some(paramGrows) ? "hidden" : "auto"}
         >
           {params.map((spec) => {
             const grows = paramGrows(spec)
@@ -83,9 +101,10 @@ export function ParamsPanel({ tool, onHide }: { tool: ToolLeaf; onHide: () => vo
               <Flex
                 key={paramKeyOf(spec)}
                 direction="column"
-                flex={grows ? "1" : undefined}
-                minH={grows ? "0" : undefined}
-                flexShrink={grows ? 1 : 0}
+                flex={grows && !scroll ? "1" : undefined}
+                minH={grows && !scroll ? "0" : undefined}
+                h={grows && scroll ? GROWING_PARAM_H : undefined}
+                flexShrink={grows && !scroll ? 1 : 0}
               >
                 <ToolParamControl toolId={tool.id} spec={spec} />
               </Flex>

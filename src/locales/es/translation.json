@@ -328,7 +328,8 @@
     "paste": "Pegar",
     "selectAll": "Seleccionar todo",
     "deselect": "Deseleccionar",
-    "lightShadowSoftness": "Suavidad de sombras de luz"
+    "lightShadowSoftness": "Suavidad de sombras de luz",
+    "paramsTab": "Parámetros"
   },
   "biomes": {
     "barren": "Yermo",

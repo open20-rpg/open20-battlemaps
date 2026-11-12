@@ -2,6 +2,9 @@ import { useEffect, useEffectEvent, useState } from "react"
 import { Box, Flex } from "@chakra-ui/react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { MenuBar } from "./MenuBar"
+import { MobileTopBar } from "./MobileTopBar"
+import { useIsPhone } from "../ui/useIsPhone"
+import { MobileToolsPanel } from "../features/tools/MobileToolsPanel"
 import { StatusBar } from "./StatusBar"
 import { STATUS_BAR_HEIGHT } from "../ui/layout"
 import { EmptyState } from "./EmptyState"
@@ -35,6 +38,8 @@ export default function App() {
   const resetTools = useToolsStore((s) => s.reset)
   const activeTool = useActiveTool()
   const libraryCategory = hasMap ? activeTool?.library : undefined
+  // Phones get their own layout (the desktop one is left as it is).
+  const phone = useIsPhone()
 
   // Clear the tool selection whenever the map is closed.
   useEffect(() => {
@@ -118,9 +123,10 @@ export default function App() {
     }
   }, [])
 
+  const TopBar = phone ? MobileTopBar : MenuBar
   return (
     <Flex direction="column" h="100vh" pb={STATUS_BAR_HEIGHT} bg="app.bg">
-      <MenuBar
+      <TopBar
         assetsOpen={assetsOpen}
         mapOpen={hasMap}
         onToggleAssets={() => setAssetsOpen((v) => !v)}
@@ -145,8 +151,9 @@ export default function App() {
       <Box flex="1" position="relative" overflow="hidden">
         {hasMap ? <MapEditor /> : <EmptyState onOpenAssets={() => setAssetsOpen(true)} />}
 
-        {hasMap && <ToolsPanel />}
-        {libraryCategory && <LibraryPanel category={libraryCategory} />}
+        {hasMap && (phone ? <MobileToolsPanel /> : <ToolsPanel />)}
+        {/* On a phone the Library is a tab of the tools' sheet. */}
+        {libraryCategory && !phone && <LibraryPanel category={libraryCategory} />}
 
         {assetsOpen && <AssetsManager onClose={() => setAssetsOpen(false)} />}
       </Box>

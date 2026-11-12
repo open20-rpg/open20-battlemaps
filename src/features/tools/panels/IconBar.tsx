@@ -14,7 +14,7 @@ interface ToolIconProps {
   withTooltip?: boolean
 }
 
-function ToolIcon({ node, active, onClick, withTooltip = true }: ToolIconProps) {
+export function ToolIcon({ node, active, onClick, withTooltip = true }: ToolIconProps) {
   const { t } = useTranslation()
   const label = t(node.nameKey)
   const tip = withBinding(label, useActionBinding(`tool:${node.id}`))

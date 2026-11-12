@@ -328,7 +328,8 @@
     "paste": "Paste",
     "selectAll": "Select all",
     "deselect": "Deselect",
-    "lightShadowSoftness": "Light shadow softness"
+    "lightShadowSoftness": "Light shadow softness",
+    "paramsTab": "Parameters"
   },
   "biomes": {
     "barren": "Barren",

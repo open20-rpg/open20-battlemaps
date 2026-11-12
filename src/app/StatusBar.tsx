@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { LuCircleCheck } from "react-icons/lu"
 import { Tooltip } from "../ui/chakra/tooltip"
 import { BrandMark } from "./BrandMark"
+import { useIsPhone } from "../ui/useIsPhone"
 import { STATUS_BAR_HEIGHT } from "../ui/layout"
 import { useIsLoading, useLoadingStore } from "../stores/loadingStore"
 import { useHasMap } from "../stores/mapStore"
@@ -38,16 +39,57 @@ function TaskDetails() {
   )
 }
 
-export function StatusBar() {
-  const tasks = useLoadingStore((s) => s.tasks)
-  const isLoading = useIsLoading()
+/**
+ * The status bar's left side: the app, the open file and the active tool.
+ * A phone keeps just the mark and the file: the bar must fit one line.
+ */
+function StatusIdentity() {
   const hasMap = useHasMap()
   const filePath = useMapFilePath()
   const dirty = useMapDirty()
   const activeTool = useActiveTool()
+  const phone = useIsPhone()
   const { t } = useTranslation()
-
   const fileName = filePath ? (filePath.split(/[\\/]/).pop() ?? filePath) : t("status.untitled")
+  return (
+    <>
+      {/* App identity on the far left (a phone keeps just the mark: the bar must fit one line) */}
+      <BrandMark variant="battleMaps" boxSize="3.5" mr="1.5" color="menubar.fg" flexShrink={0} />
+      {!phone && (
+        <Text fontWeight="medium" color="menubar.fgMuted" whiteSpace="nowrap">
+          {t("about.version", { version: __APP_VERSION__ })}
+        </Text>
+      )}
+
+      {/* Current file (only when a map is open) */}
+      {hasMap && (
+        <>
+          {!phone && <Sep />}
+          <Text color="menubar.fg" truncate minW="0">
+            {fileName}
+            {dirty ? " •" : ""}
+          </Text>
+        </>
+      )}
+
+      {/* Current tool (only when a map is open and a tool is picked) */}
+      {hasMap && activeTool && !phone && (
+        <>
+          <Sep />
+          <HStack gap="1.5" color="menubar.fg">
+            <Icon as={activeTool.icon} boxSize="3.5" color="brand.fg" />
+            <Text>{t(activeTool.nameKey)}</Text>
+          </HStack>
+        </>
+      )}
+    </>
+  )
+}
+
+export function StatusBar() {
+  const tasks = useLoadingStore((s) => s.tasks)
+  const isLoading = useIsLoading()
+  const { t } = useTranslation()
 
   // Overall progress = average of tasks that report a percentage.
   const withPct = tasks.filter((task) => typeof task.progress === "number")
@@ -82,33 +124,7 @@ export function StatusBar() {
         fontSize="xs"
         color="menubar.fgMuted"
       >
-        {/* App identity on the far left */}
-        <BrandMark variant="battleMaps" boxSize="3.5" mr="1.5" color="menubar.fg" />
-        <Text fontWeight="medium" color="menubar.fgMuted">
-          {t("about.version", { version: __APP_VERSION__ })}
-        </Text>
-
-        {/* Current file (only when a map is open) */}
-        {hasMap && (
-          <>
-            <Sep />
-            <Text color="menubar.fg">
-              {fileName}
-              {dirty ? " •" : ""}
-            </Text>
-          </>
-        )}
-
-        {/* Current tool (only when a map is open and a tool is picked) */}
-        {hasMap && activeTool && (
-          <>
-            <Sep />
-            <HStack gap="1.5" color="menubar.fg">
-              <Icon as={activeTool.icon} boxSize="3.5" color="brand.fg" />
-              <Text>{t(activeTool.nameKey)}</Text>
-            </HStack>
-          </>
-        )}
+        <StatusIdentity />
 
         {/* Middle reserved for future status data (coords, zoom, etc.) */}
         <Box flex="1" />
@@ -138,7 +154,7 @@ export function StatusBar() {
             ) : (
               <Icon as={LuCircleCheck} boxSize="3.5" color="green.400" />
             )}
-            <Text>{label}</Text>
+            <Text whiteSpace="nowrap">{label}</Text>
             {overall !== null && <Text color="fg.muted">{overall}%</Text>}
           </HStack>
         </Tooltip>
