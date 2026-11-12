@@ -4,6 +4,7 @@ import { type PresetId } from "../features/shortcuts/actions"
 import { persist } from "zustand/middleware"
 import { type MapTemplate } from "../lib/templates"
 import { type MapEntity } from "../features/map/model/types"
+import { isMobilePlatform } from "../lib/platform"
 
 /** A saved group of entities (Prefabs tool), stored relative to its center. */
 export interface Prefab {
@@ -87,6 +88,13 @@ interface SettingsState {
   /** New Map's "Disable building wear": new maps start without wear (remembered). */
   disableBuildingWear: boolean
   setDisableBuildingWear: (disable: boolean) => void
+  /**
+   * Pinch/pan/wheel-zoom move a snapshot of the map instead of redrawing it
+   * every frame (viewSnapshot.ts). Smooth on phones, but the map looks blurry
+   * until the gesture ends, so it's on by default only on mobile.
+   */
+  snapshotViewGestures: boolean
+  setSnapshotViewGestures: (on: boolean) => void
   setPostProcess: (patch: Partial<PostProcess>) => void
   resetPostProcess: () => void
   setPanelAlpha: (alpha: number) => void
@@ -121,6 +129,8 @@ export const useSettingsStore = create<SettingsState>()(
       postProcess: DEFAULT_POST_PROCESS,
       disableBuildingWear: false,
       setDisableBuildingWear: (disableBuildingWear) => set({ disableBuildingWear }),
+      snapshotViewGestures: isMobilePlatform(),
+      setSnapshotViewGestures: (snapshotViewGestures) => set({ snapshotViewGestures }),
       setPostProcess: (patch) => set((s) => ({ postProcess: { ...s.postProcess, ...patch } })),
       resetPostProcess: () => set({ postProcess: DEFAULT_POST_PROCESS }),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),

@@ -41,6 +41,8 @@
     "title": "Preferences",
     "theme": "Theme: Dark (fixed)",
     "language": "Language",
+    "snapshotGestures": "Move a snapshot while panning or zooming",
+    "snapshotGesturesHint": "Smoother on slow devices and phones: the map looks blurry until you let go.",
     "panelOpacity": "Panel opacity",
     "close": "Close"
   },

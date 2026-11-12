@@ -2,6 +2,7 @@ import { useEffect, type RefObject } from "react"
 import { useViewStore } from "../../../stores/viewStore"
 import { ZOOM_LEVELS } from "../../viewport/controls"
 import { useMapStore } from "../../../stores/mapStore"
+import { useSettingsStore } from "../../../stores/settingsStore"
 import { clampZoom, panToPlace, screenToMap } from "./viewport"
 import { currentBindings } from "../../shortcuts/bindings"
 import { isHeld } from "../../shortcuts/held"
@@ -72,13 +73,16 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
       view.setPan(next.x, next.y)
     }
 
-    // While the view moves, the canvas shows a snapshot (viewGesture.ts).
+    // While the view moves, the canvas shows a snapshot (viewGesture.ts),
+    // when enabled in Preferences.
     let gesturing = false
     let wheeling = false
     let wheelTimer: ReturnType<typeof setTimeout> | undefined
     const syncGesture = () => {
       const on = middlePanning || !!touchGesture || wheeling
       if (on === gesturing) return
+      // Off in Preferences: the map is redrawn every frame instead.
+      if (on && !useSettingsStore.getState().snapshotViewGestures) return
       gesturing = on
       if (on) beginViewGesture()
       else endViewGesture()

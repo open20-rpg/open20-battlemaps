@@ -1,17 +1,19 @@
-import { Box, Button, Group, HStack, Slider, Stack, Text } from "@chakra-ui/react"
+import { Box, Button, Group, HStack, Slider, Stack, Switch, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { Modal } from "../../ui/Modal"
 import { useSettingsStore } from "../../stores/settingsStore"
 
 /**
- * App preferences: language and panel translucency (App applies the CSS
- * var). Stored in the settings store, never in maps. Shadow looks live in
+ * App preferences: language, panel translucency (App applies the CSS var)
+ * and whether moving the view shows a snapshot (useViewportGestures). Stored in the settings store, never in maps. Shadow looks live in
  * the Settings › Shadows tool.
  */
 export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, i18n } = useTranslation()
   const panelAlpha = useSettingsStore((s) => s.panelAlpha)
   const setPanelAlpha = useSettingsStore((s) => s.setPanelAlpha)
+  const snapshotGestures = useSettingsStore((s) => s.snapshotViewGestures)
+  const setSnapshotGestures = useSettingsStore((s) => s.setSnapshotViewGestures)
 
   return (
     <Modal
@@ -77,6 +79,24 @@ export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: (
             </Text>
           </HStack>
         </Box>
+        <HStack gap="3" justify="space-between">
+          <Box>
+            <Text>{t("prefs.snapshotGestures")}</Text>
+            <Text fontSize="xs" color="fg.muted">
+              {t("prefs.snapshotGesturesHint")}
+            </Text>
+          </Box>
+          <Switch.Root
+            colorPalette="brand"
+            checked={snapshotGestures}
+            onCheckedChange={(e) => setSnapshotGestures(e.checked)}
+          >
+            <Switch.HiddenInput />
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Root>
+        </HStack>
         <Text color="fg.muted">{t("prefs.theme")}</Text>
       </Stack>
     </Modal>

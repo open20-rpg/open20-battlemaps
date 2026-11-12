@@ -41,6 +41,8 @@
     "title": "Preferencias",
     "theme": "Tema: Oscuro (fijo)",
     "language": "Idioma",
+    "snapshotGestures": "Mover una captura al desplazar o hacer zoom",
+    "snapshotGesturesHint": "Más fluido en equipos lentos y móviles: el mapa se ve borroso hasta soltar.",
     "panelOpacity": "Opacidad de paneles",
     "close": "Cerrar"
   },
