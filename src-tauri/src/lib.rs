@@ -13,6 +13,13 @@ pub fn run() {
         .manage(pack::LibraryState::default())
         .manage(export::ExportState::default())
         .register_asynchronous_uri_scheme_protocol("recolor", pack::recolor_protocol)
+        .setup(|app| {
+            // A small pack (a couple of MB), extracted once per version of it.
+            if let Err(e) = pack::ensure_builtin_pack(app.handle()) {
+                eprintln!("built-in pack: {e}");
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             pack::install_packs,
             pack::list_installed,

@@ -103,6 +103,13 @@ ni accionable.
   shader con `fwidth` en `render/sdfShader.ts`); el cuadro sigue
   `fonts/metrics.ts`. Un texto es una línea y su `position` es la esquina
   superior izquierda.
+- **Pack integrado** ("Open20 Essentials"): lo dibuja por código
+  `scripts/builtin-pack/` (`python3 scripts/builtin-pack/build.py`, estilo
+  tinta con colores planos) y genera `src-tauri/resources/builtin.dungeondraft_pack`
+  (commiteado). `pack/builtin.rs` lo embebe con `include_bytes!` y lo instala
+  al arrancar solo si su `version` cambió: desactivarlo o desinstalarlo se
+  respeta hasta la próxima versión. Para cambiar el arte, editá los scripts,
+  regenerá y subí la `version` de `PACK` en `build.py`.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para

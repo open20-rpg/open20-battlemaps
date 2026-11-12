@@ -20,8 +20,7 @@
 //!   u8[16]     md5 (may be all zero)
 //! ```
 
-use std::fs::File;
-use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::io::{self, Read, Seek, SeekFrom};
 
 use serde::Deserialize;
 
@@ -68,7 +67,7 @@ fn read_u64<R: Read>(r: &mut R) -> io::Result<u64> {
 }
 
 /// Parse the header + file index of a pack. Does NOT read any file data.
-pub(crate) fn read_index(reader: &mut BufReader<File>) -> Result<Vec<PackEntry>> {
+pub(crate) fn read_index<R: Read + Seek>(reader: &mut R) -> Result<Vec<PackEntry>> {
     reader.seek(SeekFrom::Start(0))?;
     if read_u32(reader)? != MAGIC {
         return Err(PackError::BadMagic);
@@ -98,7 +97,7 @@ pub(crate) fn read_index(reader: &mut BufReader<File>) -> Result<Vec<PackEntry>>
 }
 
 /// Read a single small entry fully into memory (manifest / thumbnails only).
-fn read_entry_bytes(reader: &mut BufReader<File>, entry: &PackEntry) -> Result<Vec<u8>> {
+fn read_entry_bytes<R: Read + Seek>(reader: &mut R, entry: &PackEntry) -> Result<Vec<u8>> {
     reader.seek(SeekFrom::Start(entry.offset))?;
     let mut buf = vec![0u8; entry.size as usize];
     reader.read_exact(&mut buf)?;
@@ -126,8 +125,8 @@ pub(crate) fn normalize_res_path(res_path: &str, id: &str) -> String {
 
 /// Locate and parse the pack manifest from the index. Prefers the in-folder
 /// `pack.json`, falling back to the root `res://packs/<id>.json`.
-pub(crate) fn read_manifest(
-    reader: &mut BufReader<File>,
+pub(crate) fn read_manifest<R: Read + Seek>(
+    reader: &mut R,
     entries: &[PackEntry],
 ) -> Result<Manifest> {
     let manifest_entry = entries

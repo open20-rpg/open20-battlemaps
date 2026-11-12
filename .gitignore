@@ -30,3 +30,4 @@ dist-ssr
 keystore.properties
 key.properties
 
+__pycache__/
