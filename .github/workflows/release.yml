@@ -11,6 +11,9 @@ name: "release"
 #      installers to it. Pushes with nothing releasable (docs, chore, ci…) build
 #      nothing.
 #
+# To rebuild the installers of an existing release (e.g. after a failed or
+# cancelled build), run this workflow by hand with `rebuild` set to its version.
+#
 # semantic-release runs through `npx` with pinned versions instead of being a
 # devDependency: it bundles its own npm, whose dependencies trip `npm audit`.
 #
@@ -24,6 +27,11 @@ name: "release"
 
 on:
   workflow_dispatch:
+    inputs:
+      rebuild:
+        description: "Rebuild the installers of an existing release (version, e.g. 0.3.22) instead of releasing"
+        required: false
+        default: ""
   push:
     branches: [main]
 
@@ -43,6 +51,7 @@ jobs:
   # semantic-release: version, tag and GitHub Release from the commit history.
   # ---------------------------------------------------------------------------
   release:
+    if: inputs.rebuild == '' || inputs.rebuild == null
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.semrel.outputs.version }}
@@ -81,7 +90,7 @@ jobs:
   # ---------------------------------------------------------------------------
   desktop:
     needs: release
-    if: false && needs.release.outputs.version != ''
+    if: false && !cancelled() && (needs.release.outputs.version != '' || inputs.rebuild != '')
     strategy:
       fail-fast: false
       matrix:
@@ -99,7 +108,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: v${{ needs.release.outputs.version }}
+          ref: v${{ inputs.rebuild || needs.release.outputs.version }}
 
       - name: setup node
         uses: actions/setup-node@v7
@@ -138,7 +147,7 @@ jobs:
         with:
           # The release already exists (semantic-release made it, with its
           # notes); tauri-action only uploads the installers to it.
-          tagName: v${{ needs.release.outputs.version }}
+          tagName: v${{ inputs.rebuild || needs.release.outputs.version }}
           releaseDraft: false
           prerelease: true
           args: ${{ matrix.args }}
@@ -148,7 +157,8 @@ jobs:
   # ---------------------------------------------------------------------------
   android:
     needs: release
-    if: needs.release.outputs.version != ''
+    # Runs after a new release, or on its own to rebuild an existing one.
+    if: ${{ !cancelled() && (needs.release.outputs.version != '' || inputs.rebuild != '') }}
     runs-on: ubuntu-latest
     env:
       NDK_VERSION: "27.3.13750724" # NDK r27 LTS (Google's recommended)
@@ -156,7 +166,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: v${{ needs.release.outputs.version }}
+          ref: v${{ inputs.rebuild || needs.release.outputs.version }}
 
       - name: setup node
         uses: actions/setup-node@v7
@@ -248,6 +258,6 @@ jobs:
         if: env.ANDROID_KEYSTORE_BASE64 != ''
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ needs.release.outputs.version }}
+          tag_name: v${{ inputs.rebuild || needs.release.outputs.version }}
           prerelease: true
           files: android-artifacts/*
