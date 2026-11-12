@@ -30,8 +30,8 @@ dist-ssr
 keystore.properties
 key.properties
 
+# Python bytecode (scripts/builtin-pack)
 __pycache__/
 
-# Built-in asset pack: generated (npm run pack / CI), embedded by build.rs
+# Built-in pack, packed by build.rs from src-tauri/resources/builtin/
 src-tauri/resources/builtin.dungeondraft_pack
-__pycache__/

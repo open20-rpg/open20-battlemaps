@@ -107,11 +107,12 @@ ni accionable.
   `scripts/builtin-pack/` (estilo tinta a mano con skia: motor en `pen.py`,
   assets en los módulos `obj_*`/`tex_*` listados en `catalog.py`;
   `make_review.py` arma los atlas para revisarlos). Ningún asset se agrega o
-  cambia sin que el autor lo apruebe visualmente. El `.dungeondraft_pack` **no
-  se commitea**: `npm run pack` (Python + `requirements.txt`) lo genera en
-  `src-tauri/resources/`, y CI lo hace en cada build con la acción
-  `.github/actions/builtin-pack` (cacheada por hash de los scripts).
-  `build.rs` lo embebe (`pack/builtin.rs`, `include_bytes!`); sin él la app
+  cambia sin que el autor lo apruebe visualmente. Dibujar tarda (~15 min),
+  así que se hace **en local**: `npm run pack` (Python + `requirements.txt`)
+  deja los archivos del pack sin empaquetar en `src-tauri/resources/builtin/`
+  (solo reescribe los que cambiaron) y se commitean junto con el cambio de
+  arte. `build.rs` los empaqueta en el `.dungeondraft_pack` al compilar (CI no
+  dibuja nada) y `pack/builtin.rs` lo embebe; sin esa carpeta la app
   compila igual pero sin pack integrado. Se instala al arrancar solo si su
   `version` cambió: desactivarlo o desinstalarlo se respeta hasta la próxima
   versión. Para cambiar el arte, editá los scripts y subí la `version` de

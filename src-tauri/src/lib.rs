@@ -14,7 +14,7 @@ pub fn run() {
         .manage(export::ExportState::default())
         .register_asynchronous_uri_scheme_protocol("recolor", pack::recolor_protocol)
         .setup(|app| {
-            // A small pack (a couple of MB), extracted once per version of it.
+            // Extracted once per version of the pack; read from the bundled resource only then.
             if let Err(e) = pack::ensure_builtin_pack(app.handle()) {
                 eprintln!("built-in pack: {e}");
             }
