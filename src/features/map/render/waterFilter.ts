@@ -46,6 +46,9 @@ let program: GlProgram | undefined
 export class WaterFilter extends Filter {
   constructor() {
     program ??= GlProgram.from({ vertex, fragment, name: "water" })
-    super({ glProgram: program, resources: {}, blendRequired: true })
+    // The backdrop is copied at the screen's resolution; the filter's input
+    // must be too, or the two don't line up (filters default to 1: on a
+    // 2–3× phone screen the water showed a magnified, shifted backdrop).
+    super({ glProgram: program, resources: {}, blendRequired: true, resolution: "inherit" })
   }
 }
