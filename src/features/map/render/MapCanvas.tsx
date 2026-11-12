@@ -1,6 +1,6 @@
 import { installSdfTextPipe } from "./sdfShader"
 import { type MapDocument } from "../model/types"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Box } from "@chakra-ui/react"
 import { Application, Container, Graphics } from "pixi.js"
 import { useMapStore } from "../../../stores/mapStore"
@@ -16,6 +16,8 @@ import { MapScene, type SceneState } from "./scene"
 import { referenceImageUrl, subscribeReferenceImages } from "./referenceImages"
 import { subscribeLiveTerrain } from "../terrainLive"
 import { setActiveRenderer } from "./exportMap"
+import { subscribeViewGesture, viewGestureActive } from "./viewGesture"
+import { ViewSnapshot } from "./viewSnapshot"
 
 /** Fill color of the map rect under every layer. */
 const MAP_BG = 0x2b2b2f
@@ -51,6 +53,9 @@ function sceneState(): SceneState | null {
   }
 }
 
+/** Highest canvas resolution (device pixels per CSS pixel). */
+const MAX_RESOLUTION = 2
+
 /** The level under `level` in the stack (the one Compare levels shows), if any. */
 function levelBelow(map: MapDocument, level: string | null): string | null {
   const i = map.levels.findIndex((l) => l.id === level)
@@ -84,6 +89,9 @@ export function MapCanvas() {
   // Flips once the async Pixi init resolves, just to trigger the render that
   // lets the effects below see the now-populated refs.
   const [ready, setReady] = useState(false)
+  // A pinch/pan in progress: the canvas shows a snapshot (viewSnapshot.ts).
+  const gesturing = useSyncExternalStore(subscribeViewGesture, viewGestureActive)
+  const snapshotRef = useRef<ViewSnapshot | null>(null)
   // Bumped on every renderer resize, just to force the world-transform effect
   // (which reads app.screen.width/height) to recompute and re-clamp the pan.
   const [, bumpResize] = useState(0)
@@ -130,7 +138,8 @@ export function MapCanvas() {
       frame = requestAnimationFrame(() => {
         frame = 0
         if (disposed) return
-        sceneRef.current?.prerender()
+        // Mid-gesture only the snapshot is drawn: no cache to bring up to date.
+        if (!snapshotRef.current?.active) sceneRef.current?.prerender()
         app.render()
       })
     }
@@ -146,7 +155,9 @@ export function MapCanvas() {
         // Water reads what's drawn beneath it (waterFilter.ts).
         useBackBuffer: true,
         autoDensity: true,
-        resolution: window.devicePixelRatio || 1,
+        // Phones run at 3× and more: capped at 2× the canvas has less than
+        // half the pixels to fill, a difference hard to see at that density.
+        resolution: Math.min(window.devicePixelRatio || 1, MAX_RESOLUTION),
         // Render on demand (requestRender), not 60 times a second: an idle
         // map then costs nothing, and the painted-layer filters only run
         // when something actually changed.
@@ -171,6 +182,7 @@ export function MapCanvas() {
         mapBgRef.current = mapBg
         gridRef.current = grid
         sceneRef.current = scene
+        snapshotRef.current = new ViewSnapshot(app, world)
         setActiveRenderer({ renderer: app.renderer, scene })
         setReady(true)
       })
@@ -213,12 +225,23 @@ export function MapCanvas() {
       if (frame) return
       frame = requestAnimationFrame(() => {
         frame = 0
+        // The view moving shows a snapshot: the scene catches up when it ends.
+        if (viewGestureActive()) return
         const state = sceneState()
         if (state) scene.update(state)
         requestRenderRef.current()
       })
     }
     schedule()
+    const unsubGesture = subscribeViewGesture((active) => {
+      const snapshot = snapshotRef.current
+      if (active) snapshot?.take()
+      else {
+        snapshot?.drop()
+        schedule()
+      }
+      requestRenderRef.current()
+    })
     const unsubMap = useMapStore.subscribe(schedule)
     const unsubEditor = useEditorStore.subscribe(schedule)
     const unsubView = useViewStore.subscribe(schedule)
@@ -235,6 +258,8 @@ export function MapCanvas() {
       unsubRef()
       unsubSettings()
       unsubTerrain()
+      unsubGesture()
+      snapshotRef.current?.drop()
     }
   }, [ready])
 
@@ -259,6 +284,7 @@ export function MapCanvas() {
     )
     world.position.set(t.x, t.y)
     world.scale.set(t.scaleX, t.scaleY)
+    snapshotRef.current?.follow()
     requestRenderRef.current()
     if (t.pan.x !== panX || t.pan.y !== panY) {
       useViewStore.getState().setPan(t.pan.x, t.pan.y)
@@ -278,10 +304,11 @@ export function MapCanvas() {
   // screen size correct (see the component doc comment).
   useEffect(() => {
     const grid = gridRef.current
-    if (!grid || mapWidth == null || mapHeight == null) return
+    // Not while pinching (the snapshot shows the grid): once, when it ends.
+    if (!grid || mapWidth == null || mapHeight == null || gesturing) return
     drawGrid(grid, mapWidth, mapHeight, { style: gridStyle, color: gridLineColor }, zoom)
     requestRenderRef.current()
-  }, [ready, mapWidth, mapHeight, gridStyle, gridLineColor, zoom])
+  }, [ready, mapWidth, mapHeight, gridStyle, gridLineColor, zoom, gesturing])
 
   // Toggling the overlay is just a visibility flip, no rebuild.
   useEffect(() => {

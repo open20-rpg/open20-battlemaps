@@ -5,6 +5,10 @@ import { useMapStore } from "../../../stores/mapStore"
 import { clampZoom, panToPlace, screenToMap } from "./viewport"
 import { currentBindings } from "../../shortcuts/bindings"
 import { isHeld } from "../../shortcuts/held"
+import { beginViewGesture, endViewGesture } from "./viewGesture"
+
+/** How long the wheel must rest before a wheel zoom counts as over. */
+const WHEEL_REST_MS = 200
 
 interface Point {
   x: number
@@ -68,9 +72,29 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
       view.setPan(next.x, next.y)
     }
 
+    // While the view moves, the canvas shows a snapshot (viewGesture.ts).
+    let gesturing = false
+    let wheeling = false
+    let wheelTimer: ReturnType<typeof setTimeout> | undefined
+    const syncGesture = () => {
+      const on = middlePanning || !!touchGesture || wheeling
+      if (on === gesturing) return
+      gesturing = on
+      if (on) beginViewGesture()
+      else endViewGesture()
+    }
+
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return
       e.preventDefault()
+      // A wheel zoom is a gesture until the wheel rests a moment.
+      wheeling = true
+      syncGesture()
+      clearTimeout(wheelTimer)
+      wheelTimer = setTimeout(() => {
+        wheeling = false
+        syncGesture()
+      }, WHEEL_REST_MS)
       const current = useViewStore.getState().zoom
       zoomAt(local(e.clientX, e.clientY), stepZoom(current, e.deltaY < 0 ? 1 : -1))
     }
@@ -94,6 +118,7 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
         penDown = true
         pointers.clear()
         touchGesture = null
+        syncGesture()
       }
       // Pan: the middle button (if bound) or a left drag while the pan key is held.
       const panning =
@@ -104,6 +129,7 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
         middlePanning = true
         lastPoint = { x: e.clientX, y: e.clientY }
         el.setPointerCapture(e.pointerId)
+        syncGesture()
         return
       }
       if (e.pointerType !== "touch" || penDown) return
@@ -111,6 +137,7 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
       if (e.isPrimary) {
         pointers.clear()
         touchGesture = null
+        syncGesture()
       }
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       el.setPointerCapture(e.pointerId)
@@ -127,6 +154,7 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
             })
           : null
         touchGesture = { dist: distance(pts), zoom, anchor }
+        syncGesture()
       }
     }
 
@@ -170,6 +198,7 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
       if (middlePanning && (e.button === 1 || e.button === 0)) middlePanning = false
       pointers.delete(e.pointerId)
       if (pointers.size < 2) touchGesture = null
+      syncGesture()
     }
 
     el.addEventListener("wheel", onWheel, { passive: false })
@@ -181,6 +210,8 @@ export function useViewportGestures(ref: RefObject<HTMLElement | null>): void {
     window.addEventListener("pointerup", onPointerEnd)
     window.addEventListener("pointercancel", onPointerEnd)
     return () => {
+      clearTimeout(wheelTimer)
+      if (gesturing) endViewGesture()
       el.removeEventListener("wheel", onWheel)
       el.removeEventListener("pointerdown", onPointerDown)
       window.removeEventListener("pointermove", onPointerMove)
