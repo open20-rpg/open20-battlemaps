@@ -34,18 +34,14 @@ import {
 import { wallTriangles } from "./lineGeometry"
 import { WaterFilter } from "./waterFilter"
 import { waterPolygons } from "./waterGeometry"
-import waterBorderUrl from "../../../assets/water/border.png"
-import waterRippleUrl from "../../../assets/water/ripple.png"
-import { softBrushTexture } from "./generated"
+import { softBrushTexture, waterInkTexture, waterRippleTexture } from "./generated"
+import { paperTint, WATER_INK, waterPixel } from "./waterStyle"
 import { LayerMaskFilter } from "./layerFilter"
 import { type TerrainData } from "../model/terrain"
 import { liveTerrain, weightsOf } from "../terrainLive"
 import { packWeights, type TexelRect } from "./splat"
 import { TerrainLayer } from "./terrainMesh"
 import { takeLiveDirty } from "../terrainLive"
-
-const WATER_BORDER_URL: string = waterBorderUrl
-const WATER_RIPPLE_URL: string = waterRippleUrl
 
 /**
  * Painted layers (Cave, Water, Terrain Brush, Material): every stroke of a
@@ -349,11 +345,17 @@ function blastFade(blasted: CellGrid): { sprite: Sprite; texture: Texture } | nu
   return { sprite, texture }
 }
 
-/** Border and ripple lines' widths, in tiles (their textures' heights at 256 px per tile). */
-const WATER_BORDER_WIDTH = 10 / 256
-const WATER_RIPPLE_WIDTH = 106 / 256
-/** How far inside the shore the ripple line runs, in tiles. */
-const WATER_RIPPLE_INSET = 96 / 256
+/**
+ * Water's ink line and ripple strokes: the meshes' widths in tiles (the ink
+ * covers ~40–60 % of its mesh, ~9–14 px at 256 px per tile like the pack's
+ * outlines), and how far inside the shore each ripple row runs.
+ */
+const WATER_INK_WIDTH = 22 / 256
+const WATER_RIPPLE_WIDTH = 10 / 256
+const WATER_RIPPLE_ROWS = [0.375, 0.85] as const
+/** Ripple strokes: the water's color lightened toward paper, slightly see-through. */
+const WATER_RIPPLE_TINT = 0.6
+const WATER_RIPPLE_ALPHA = 0.85
 
 /** A hex color's channels (0–255). */
 function rgbOf(hex: string): [number, number, number] {
@@ -362,25 +364,21 @@ function rgbOf(hex: string): [number, number, number] {
 }
 
 /**
- * Water, as Dungeondraft draws it (its WaterMesh and Water.shader): the
- * water's polygons (waterGeometry.ts) filled from shallow at the shore to
- * deep by inner rings (0.333, 0.75, 1.5, 2, 4 tiles, up to Blend Distance —
- * waterRamp), the dark parts of what's beneath showing through
- * (waterFilter.ts); unless the border is off, a thin border line on every
- * outline (holes too) and a ripple line 0.375 tiles inside, both with
- * round corners.
+ * Water: Dungeondraft's model (its WaterMesh and Water.shader — the water's
+ * polygons (waterGeometry.ts) filled from shallow at the shore to deep by
+ * inner rings up to Blend Distance (waterRamp), the dark parts of what's
+ * beneath showing through (waterFilter.ts)) drawn in the built-in pack's
+ * hand-inked style (waterStyle.ts): the fill mottled like watercolor and
+ * washed darker just inside the shore; unless the border is off, an ink
+ * line of varying weight on every outline (holes too) and two rows of loose
+ * light ripple strokes inside it, all with round corners.
  *
  * The ring colors come from a distance field over the polygons' raster —
  * Euclidean where Dungeondraft offsets with square joins — clipped to the
- * exact polygons; the ripple runs along that field's iso-line (a round
- * inward offset).
+ * exact polygons; the ripples run along that field's iso-lines (round
+ * inward offsets).
  */
-function waterComposite(
-  entities: MapEntity[],
-  map: MapBox,
-  renderer: Renderer,
-  env: RenderEnv,
-): Composite {
+function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer): Composite {
   const last = entities[entities.length - 1]
   const deep = rgbOf(str(last.params.deepColor, "#3aa19a"))
   const shallow = rgbOf(str(last.params.shallowColor, "#8bceb0"))
@@ -441,13 +439,19 @@ function waterComposite(
   const dist = distanceField(inside, w, h)
 
   // The body: each pixel its ring color, clipped to the exact polygons.
+  const colorAt = (tiles: number) => {
+    const t = rampAt(ramp, tiles)
+    return [0, 1, 2].map((c) => shallow[c] + (deep[c] - shallow[c]) * t) as [number, number, number]
+  }
   const body = new Uint8Array(w * h * 4)
   for (let k = 0; k < w * h; k++) {
     if (!inside[k]) continue
-    const t = rampAt(ramp, dist[k] / res)
-    for (let c = 0; c < 3; c++)
-      body[k * 4 + c] = Math.round(shallow[c] + (deep[c] - shallow[c]) * t)
-    body[k * 4 + 3] = 255
+    const tiles = dist[k] / res
+    // The mottle is anchored to map coordinates, so it holds still as the
+    // water is painted around it.
+    const mx = map.width - ((k % w) + x0 + 0.5) / res
+    const my = (Math.floor(k / w) + y0 + 0.5) / res
+    body.set([...waterPixel(colorAt(tiles), tiles, mx, my), 255], k * 4)
   }
   const texture = new Texture({
     source: new BufferImageSource({
@@ -468,10 +472,7 @@ function waterComposite(
   view.addChild(sprite, clip)
 
   if (last.params.disableBorder !== true) {
-    const line = (loops: Vec2[][], url: string, width: number) => {
-      const tex = env.image(url)
-      if (!tex) return
-      tex.source.style.addressMode = "repeat"
+    const line = (loops: Vec2[][], tex: Texture, width: number, color: number, alpha = 1) => {
       for (const loop of loops) {
         if (loop.length < 3) continue
         const tris = wallTriangles(loop, true, width, {
@@ -479,22 +480,34 @@ function waterComposite(
           normalizeUv: false,
           round: true,
         })
-        view.addChild(lineMesh(tris, width * (tex.width / tex.height), tex, 0xffffff))
+        const mesh = lineMesh(tris, width * (tex.width / tex.height), tex, 0xffffff, color)
+        mesh.alpha = alpha
+        view.addChild(mesh)
       }
     }
-    // The ripple: the shore offset inward with round corners (the distance
-    // field's iso-line), in map space.
-    const ripple = isoContours(dist, w, h, WATER_RIPPLE_INSET * res).map((loop) =>
-      simplifyLoop(loop, 0.35).map((p) => ({
-        x: map.width - (p.x + x0) / res,
-        y: (p.y + y0) / res,
-      })),
-    )
-    line(ripple, WATER_RIPPLE_URL, WATER_RIPPLE_WIDTH)
+    // The ripples: the shore offset inward with round corners (the distance
+    // field's iso-lines), in map space.
+    WATER_RIPPLE_ROWS.forEach((inset, row) => {
+      const loops = isoContours(dist, w, h, inset * res).map((loop) =>
+        simplifyLoop(loop, 0.35).map((p) => ({
+          x: map.width - (p.x + x0) / res,
+          y: (p.y + y0) / res,
+        })),
+      )
+      const tint = paperTint(colorAt(inset), WATER_RIPPLE_TINT)
+      line(
+        loops,
+        waterRippleTexture(row === 0 ? 0 : 1),
+        WATER_RIPPLE_WIDTH,
+        tint,
+        WATER_RIPPLE_ALPHA,
+      )
+    })
     line(
       polys.flatMap((p) => [p.outer, ...p.holes]),
-      WATER_BORDER_URL,
-      WATER_BORDER_WIDTH,
+      waterInkTexture(),
+      WATER_INK_WIDTH,
+      WATER_INK,
     )
   }
   const comp = composite(view, [])
