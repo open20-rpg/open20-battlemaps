@@ -327,7 +327,8 @@
     "copy": "Copy",
     "paste": "Paste",
     "selectAll": "Select all",
-    "deselect": "Deselect"
+    "deselect": "Deselect",
+    "lightShadowSoftness": "Light shadow softness"
   },
   "biomes": {
     "barren": "Barren",

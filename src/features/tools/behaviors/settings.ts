@@ -194,7 +194,7 @@ export function createShadowSettingsBehavior(): ToolBehavior {
     onActivate: (ctx) => mirror(ctx.toolId),
     onParamsChange: (_ctx, patch) => {
       const next: Partial<ShadowStyle> = {}
-      for (const key of ["blur", "offsetX", "offsetY", "opacity"] as const) {
+      for (const key of ["blur", "offsetX", "offsetY", "opacity", "lightSoftness"] as const) {
         if (typeof patch[key] === "number") next[key] = patch[key]
       }
       if (typeof patch.color === "string") next.color = patch.color

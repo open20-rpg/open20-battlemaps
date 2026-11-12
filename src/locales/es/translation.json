@@ -327,7 +327,8 @@
     "copy": "Copiar",
     "paste": "Pegar",
     "selectAll": "Seleccionar todo",
-    "deselect": "Deseleccionar"
+    "deselect": "Deseleccionar",
+    "lightShadowSoftness": "Suavidad de sombras de luz"
   },
   "biomes": {
     "barren": "Yermo",

@@ -554,10 +554,12 @@ export class MapScene {
       return
     }
     const blockers = lightBlockers(onLevel)
+    const softness = state.shadowStyle.lightSoftness
     const inputs = [
       state.map.width,
       state.map.height,
       ambient,
+      softness,
       lights.length,
       ...lights,
       ...blockers,
@@ -570,6 +572,7 @@ export class MapScene {
     const comp = lightingComposite(
       lights,
       ambient,
+      softness,
       state.map,
       this.renderer,
       this.env(state, track, [], null, blockers),

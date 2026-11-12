@@ -27,6 +27,8 @@ export interface ShadowStyle {
   opacity: number
   /** Shadow color ("#rrggbb"). */
   color: string
+  /** Softness of the shadows lights cast past walls: blur in tiles (0 = hard edge). */
+  lightSoftness: number
   /** Which things cast shadows (each still needs its own Shadow switch on). */
   objects: boolean
   walls: boolean
@@ -42,6 +44,7 @@ export const DEFAULT_SHADOW_STYLE: ShadowStyle = {
   offsetY: 0.08,
   opacity: 0.35,
   color: "#000000",
+  lightSoftness: 0.18,
   objects: true,
   walls: true,
   portals: true,

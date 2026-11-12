@@ -18,14 +18,17 @@ const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v
 export function lightingComposite(
   lights: readonly MapEntity[],
   ambient: string,
+  /** How soft the shadows' edges are: blur in tiles (0 = hard). */
+  softness: number,
   map: MapBox,
   renderer: Renderer,
   env: RenderEnv,
 ): Composite {
   const res = Math.max(4, Math.floor(maskResolution(map) / 2))
-  // Shadows are cut with hard polygons at this coarse resolution: blurred a
-  // little (once, here) they get a soft edge instead of jagged steps.
-  const soften = new BlurFilter({ strength: Math.max(1.5, res * 0.18), quality: 3 })
+  // Shadows are cut with hard polygons at this coarse resolution: blurred
+  // (once, here; Effects › Shadows sets how much) they get a soft edge
+  // instead of jagged steps.
+  const soften = softness > 0 ? new BlurFilter({ strength: softness * res, quality: 3 }) : null
   const rt = RenderTexture.create({ width: map.width * res, height: map.height * res })
   const stage = new Container()
   stage.scale.set(res)
@@ -60,10 +63,10 @@ export function lightingComposite(
       sprite.mask = reach
     }
   }
-  stage.filters = [soften]
+  if (soften) stage.filters = [soften]
   renderer.render({ container: stage, target: rt, clear: true })
   stage.destroy({ children: true })
-  soften.destroy()
+  soften?.destroy()
 
   const view = new Sprite(rt)
   view.position.set(-map.width, 0)
