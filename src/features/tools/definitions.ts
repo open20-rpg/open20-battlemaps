@@ -458,9 +458,21 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("material", "tools.material", LuPaintBucket, {
         params: [
+          // Dungeondraft's five stamp sizes, on its material grid (cells.ts).
+          brushSize(0, 4, 1, 1),
           objectLayer(-400),
-          brushSize(1, 5, 1, 2),
-          assetPicker("material", "tools.materialAsset", "tilesets", "single", "#ffffff"),
+          // Rounds the material's border (Dungeondraft's Smooth).
+          switchParam("smooth", "tools.smooth", false),
+          // Materials take no color: their tile and border textures as they are.
+          assetPicker(
+            "material",
+            "tools.materialAsset",
+            "materials",
+            "single",
+            "#ffffff",
+            false,
+            "none",
+          ),
         ],
       }),
       tool("path", "tools.path", LuRoute, {

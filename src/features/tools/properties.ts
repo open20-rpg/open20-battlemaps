@@ -216,7 +216,11 @@ export const ENTITY_PROPERTIES: Record<string, EntityProperty[]> = {
     levelWide(color("wallColor", "tools.wallColor", DEFAULT_CUSTOM_COLOR)),
     levelWide(assetSelection("style", "tools.style", "caves", "none")),
   ],
-  material: [levelWide(layer), assetSelection("material", "tools.materialAsset", "tilesets")],
+  material: [
+    levelWide(layer),
+    param(toggle("smooth", "tools.smooth")),
+    assetSelection("material", "tools.materialAsset", "materials", "none"),
+  ],
   text: [
     param({ kind: "font", paramKey: "font", labelKey: "tools.font", default: DEFAULT_FONT }),
     param(slider("fontSize", "tools.fontSize", 8, 256, 1)),

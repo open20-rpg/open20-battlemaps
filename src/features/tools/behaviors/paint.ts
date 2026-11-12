@@ -21,11 +21,17 @@ import {
   type TerrainData,
 } from "../../map/model/terrain"
 import { isHeld } from "../../shortcuts/held"
-import { brushCursorRadius, brushRadius, STAMP_SPACING } from "../../map/render/cells"
+import {
+  brushCursorRadius,
+  brushRadius,
+  materialBrushRadius,
+  materialCursorRadius,
+  STAMP_SPACING,
+} from "../../map/render/cells"
 import { beginLiveTerrain, endLiveTerrain, touchLiveTerrain } from "../../map/terrainLive"
 import { type TexelRect } from "../../map/render/splat"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
-import { type BiomeSelection, type Shape } from "../params"
+import { type AssetSelection, type BiomeSelection, type Shape } from "../params"
 import {
   BUILTIN_PACK_ID,
   builtinBiomeIds,
@@ -376,14 +382,22 @@ export function createTerrainBehavior(): ToolBehavior {
   }
 }
 
-/** Material: freehand-paint a tileset material onto a layer. */
+/**
+ * Material, as Dungeondraft's: paint a material (its tile texture, bordered
+ * by its border texture) onto a layer with cell stamps on the material grid;
+ * Alt (or right-drag) erases that material.
+ */
 export function createMaterialBehavior(): ToolBehavior {
   return {
     ...brushController({
-      radius: (ctx) => paramNum(ctx.params.brushSize, 2) / 2,
+      radius: (ctx) => materialBrushRadius(paramNum(ctx.params.brushSize, 1)),
+      cursorRadius: (ctx) => materialCursorRadius(paramNum(ctx.params.brushSize, 1)),
+      spacing: STAMP_SPACING,
       erase: inverted,
       layer: (ctx) => paramNum(ctx.params.layer, -400),
-      params: (ctx) => ({ material: ctx.params.material }),
+      params: (ctx) => ({ material: ctx.params.material, smooth: ctx.params.smooth === true }),
+      canPaint: (ctx) =>
+        (ctx.params.material as AssetSelection | undefined)?.assets[0] !== undefined,
     }),
     cursor: () => "crosshair",
   }

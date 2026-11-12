@@ -7,7 +7,6 @@ import { inkLineAlpha, rippleDashAlpha } from "./waterStyle"
  * line and ripple strokes.
  */
 
-let softBrush: Texture | undefined
 let lightFalloff: Texture | undefined
 
 function radialTexture(stops: [number, number][]): Texture {
@@ -21,16 +20,6 @@ function radialTexture(stops: [number, number][]): Texture {
   ctx.fillStyle = g
   ctx.fillRect(0, 0, size, size)
   return Texture.from(canvas)
-}
-
-/** White disc with a soft falloff toward the edge. */
-export function softBrushTexture(): Texture {
-  softBrush ??= radialTexture([
-    [0, 1],
-    [0.55, 1],
-    [1, 0],
-  ])
-  return softBrush
 }
 
 /** Default light shape when a light has no style texture. */

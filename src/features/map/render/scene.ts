@@ -17,7 +17,7 @@ import { DEFAULT_POST_PROCESS, isNeutral, type PostProcess } from "../../../lib/
 import { lightingComposite } from "./lighting"
 import { BUILDING_WEAR_URLS } from "./buildingWear"
 import { drawOverlay } from "./overlay"
-import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
+import { PAINTED_COMPOSITES, paintedGroups, paintedLayer, type Composite } from "./painted"
 import { tileSizeForZoom } from "./viewport"
 import { lightBlockers } from "../model/lightBlock"
 import { fontStatus, subscribeFonts } from "../../fonts/registry"
@@ -502,46 +502,56 @@ export class MapScene {
   }
 
   private syncComposites(state: SceneState, onLevel: MapEntity[], assetsChanged: boolean): void {
+    const wanted = new Set<string>()
     for (const [toolId, build] of Object.entries(PAINTED_COMPOSITES)) {
-      const mine = onLevel.filter((e) => e.toolId === toolId)
       const enabled = toolId !== "terrainBrush" || state.terrainEnabled
-      const current = this.composites.get(toolId)
-      if (mine.length === 0 || !enabled) {
-        if (current) {
-          current.comp.dispose()
-          this.composites.delete(toolId)
+      if (!enabled) continue
+      const groups = paintedGroups(
+        toolId,
+        onLevel.filter((e) => e.toolId === toolId),
+      )
+      for (const { key, entities: mine } of groups) {
+        wanted.add(key)
+        const current = this.composites.get(key)
+        const inputs = [
+          state.map.width,
+          state.map.height,
+          state.terrainSmooth,
+          state.showCaveBlast,
+          state.map.buildingWear,
+          ...mine,
+        ]
+        if (
+          current &&
+          sameInputs(current.inputs, inputs) &&
+          !(assetsChanged && !current.complete)
+        ) {
+          // Same document, but a stroke in progress may have painted since.
+          const live = liveTerrainVersion()
+          if (current.live !== live) {
+            current.comp.refresh?.()
+            current.live = live
+          }
+          continue
         }
-        continue
+        current?.comp.dispose()
+        const track = { complete: true }
+        const comp = build(mine, state.map, this.renderer, this.env(state, track))
+        if (this.exporting) comp.setDirect?.(true)
+        comp.view.zIndex = zFor(paintedLayer(toolId, mine), -1)
+        this.content.addChild(comp.view)
+        this.composites.set(key, {
+          inputs,
+          comp,
+          complete: track.complete,
+          live: liveTerrainVersion(),
+        })
       }
-      const inputs = [
-        state.map.width,
-        state.map.height,
-        state.terrainSmooth,
-        state.showCaveBlast,
-        state.map.buildingWear,
-        ...mine,
-      ]
-      if (current && sameInputs(current.inputs, inputs) && !(assetsChanged && !current.complete)) {
-        // Same document, but a stroke in progress may have painted since.
-        const live = liveTerrainVersion()
-        if (current.live !== live) {
-          current.comp.refresh?.()
-          current.live = live
-        }
-        continue
-      }
-      current?.comp.dispose()
-      const track = { complete: true }
-      const comp = build(mine, state.map, this.renderer, this.env(state, track))
-      if (this.exporting) comp.setDirect?.(true)
-      comp.view.zIndex = zFor(paintedLayer(toolId, mine), -1)
-      this.content.addChild(comp.view)
-      this.composites.set(toolId, {
-        inputs,
-        comp,
-        complete: track.complete,
-        live: liveTerrainVersion(),
-      })
+    }
+    for (const [key, current] of this.composites) {
+      if (wanted.has(key)) continue
+      current.comp.dispose()
+      this.composites.delete(key)
     }
   }
 

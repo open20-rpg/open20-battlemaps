@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest"
 import { glowStrength, roofShade, shadeColor } from "./entities"
 import { EXPORT_BAND_BYTES, exportBands, exportPxPerTile } from "./exportMap"
-import { maskResolution, paintedLayer } from "./painted"
+import {
+  chaikinLoop,
+  materialBorderPart,
+  materialLoops,
+  maskResolution,
+  paintedGroups,
+  paintedLayer,
+} from "./painted"
+import { emptyGrid, MATERIAL_CELLS_PER_TILE, stamp } from "./cells"
+import { type MapEntity } from "../model/types"
 import { mapToScreen, panToPlace, screenToMap } from "./viewport"
 
 describe("viewport", () => {
@@ -78,5 +87,56 @@ describe("asset paths", () => {
     expect(relatedPath("C:\\p\\caves\\rock\\floor.png", { part: "wall" })).toBe(
       "C:\\p\\caves\\rock\\wall.png",
     )
+  })
+})
+
+describe("materials (Dungeondraft's MaterialMesh)", () => {
+  it("finds the border next to a tile texture by name", () => {
+    expect(materialBorderPart("pack|textures/materials/cobblestone_tile.png")).toBe(
+      "cobblestone_border",
+    )
+    expect(materialBorderPart("pack|textures/materials/grass_tile_1.png")).toBe("grass_border_1")
+    expect(materialBorderPart("pack|textures/materials/plain.png")).toBeUndefined()
+  })
+
+  it("cuts every corner of a closed loop at its quarters", () => {
+    const sq = [
+      { x: 0, y: 0 },
+      { x: 4, y: 0 },
+      { x: 4, y: 4 },
+      { x: 0, y: 4 },
+    ]
+    const out = chaikinLoop(sq)
+    expect(out).toHaveLength(8)
+    expect(out[0]).toEqual({ x: 1, y: 0 })
+    expect(out[1]).toEqual({ x: 3, y: 0 })
+    expect(out[7]).toEqual({ x: 0, y: 1 })
+  })
+
+  it("orients outlines so the material is always on the same side", () => {
+    const area = (l: { x: number; y: number }[]) =>
+      l.reduce((a, p, i) => {
+        const q = l[(i + 1) % l.length]
+        return a + (p.x - q.x) * (p.y + q.y)
+      }, 0)
+    // A ring: 7×7 stamp with its 3×3 middle cleared → an outline and a hole.
+    const g = emptyGrid(6, 6, MATERIAL_CELLS_PER_TILE)
+    stamp(g, { x: 3, y: 3 }, 11, 1)
+    stamp(g, { x: 3.1, y: 3.1 }, 3, 0)
+    const loops = materialLoops(g)
+    expect(loops).toHaveLength(2)
+    const signs = loops.map((l) => Math.sign(area(l)))
+    expect(signs[0]).toBe(-signs[1])
+  })
+
+  it("keeps one composite per material layer", () => {
+    const e = (layer: number) => ({ layer }) as MapEntity
+    const groups = paintedGroups("material", [e(-400), e(100), e(-400)])
+    expect(groups.map((g) => [g.key, g.entities.length])).toEqual([
+      ["material@-400", 2],
+      ["material@100", 1],
+    ])
+    expect(paintedGroups("cave", [e(-300), e(-300)])).toHaveLength(1)
+    expect(paintedGroups("water", [])).toEqual([])
   })
 })

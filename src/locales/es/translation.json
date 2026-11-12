@@ -239,6 +239,7 @@
     "imageWidth": "Ancho (casillas)",
     "loadImage": "Cargar imagen",
     "materialAsset": "Material",
+    "smooth": "Suavizar",
     "opacity": "Opacidad",
     "prefabList": "Prefabs guardados",
     "removeImage": "Quitar imagen",

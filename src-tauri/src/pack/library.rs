@@ -122,9 +122,16 @@ fn main_part(category: &str) -> Option<&'static str> {
 
 /// Companion textures that belong to another item instead of being one: a
 /// wall's `<name>_end` end cap is drawn by the editor at the wall's open ends,
-/// so it must not show up as a wall of its own.
+/// and a material's `<name>_border` along the edge of its `<name>_tile` (as
+/// Dungeondraft's library, any material file naming "border" is one), so
+/// neither shows up as an item of its own.
 fn is_companion_texture(category: &str, stem: &str) -> bool {
-    category == "walls" && stem.to_ascii_lowercase().ends_with("_end")
+    let lower = stem.to_ascii_lowercase();
+    match category {
+        "walls" => lower.ends_with("_end"),
+        "materials" => lower.contains("border"),
+        _ => false,
+    }
 }
 
 /// Walk `textures/<category>` of a pack and collect its files.
@@ -532,6 +539,10 @@ mod tests {
         assert!(is_companion_texture("walls", "Stone_END"));
         assert!(!is_companion_texture("walls", "stone_wall"));
         assert!(!is_companion_texture("objects", "chair_end"));
+        assert!(is_companion_texture("materials", "cobblestone_border"));
+        assert!(is_companion_texture("materials", "grass_border_1"));
+        assert!(!is_companion_texture("materials", "cobblestone_tile"));
+        assert!(!is_companion_texture("tilesets", "stone_border"));
     }
 
     #[test]

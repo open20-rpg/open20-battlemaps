@@ -10,11 +10,12 @@ import {
   type Renderer,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
-import { type BrushStroke, type MapEntity, type Vec2 } from "../model/types"
+import { type MapEntity, type Vec2 } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
 import { lineMesh, type RenderEnv, selectionAsset } from "./entities"
 import {
   CELLS_PER_TILE,
+  MATERIAL_CELLS_PER_TILE,
   cellsToMap,
   emptyGrid,
   gridField,
@@ -34,7 +35,7 @@ import {
 import { wallTriangles } from "./lineGeometry"
 import { WaterFilter } from "./waterFilter"
 import { waterPolygons } from "./waterGeometry"
-import { softBrushTexture, waterInkTexture, waterRippleTexture } from "./generated"
+import { waterInkTexture, waterRippleTexture } from "./generated"
 import { paperTint, WATER_INK, waterPixel } from "./waterStyle"
 import { LayerMaskFilter } from "./layerFilter"
 import { type TerrainData } from "../model/terrain"
@@ -115,36 +116,6 @@ class MapMask {
   destroy(): void {
     this.rt.destroy(true)
   }
-}
-
-/** Soft-edged stamps along a stroke (terrain/material blending). */
-function softStroke(stroke: BrushStroke, alpha: number): Container {
-  const c = new Container()
-  const tex = softBrushTexture()
-  const spacing = Math.max(0.05, stroke.radius * 0.3)
-  const stamp = (x: number, y: number) => {
-    const s = new Sprite(tex)
-    s.anchor.set(0.5)
-    s.position.set(-x, y)
-    s.width = s.height = stroke.radius * 2
-    s.alpha = alpha
-    c.addChild(s)
-  }
-  const pts = stroke.points
-  if (pts.length === 1) stamp(pts[0].x, pts[0].y)
-  for (let i = 0; i + 1 < pts.length; i++) {
-    const a = pts[i]
-    const b = pts[i + 1]
-    const len = Math.hypot(b.x - a.x, b.y - a.y)
-    const steps = Math.max(1, Math.ceil(len / spacing))
-    for (let k = 0; k < steps; k++) {
-      const t = k / steps
-      stamp(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
-    }
-  }
-  if (pts.length > 1) stamp(pts[pts.length - 1].x, pts[pts.length - 1].y)
-  if (stroke.erase) c.blendMode = "erase"
-  return c
 }
 
 /** A map-covering fill: tiling texture when available, else a flat color. */
@@ -590,29 +561,123 @@ function terrainComposite(
   }
 }
 
-/** Material brush: one soft mask per painted material texture. */
+/** Signed area of a loop (map space). */
+function signedArea(loop: readonly Vec2[]): number {
+  let a = 0
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+    a += (loop[j].x - loop[i].x) * (loop[j].y + loop[i].y)
+  }
+  return a / 2
+}
+
+/**
+ * Dungeondraft's Smooth for material borders (LineSmoothing.SmoothLineChaikin,
+ * one pass, closed): every corner cut at a quarter of its two edges.
+ */
+export function chaikinLoop(loop: readonly Vec2[]): Vec2[] {
+  const out: Vec2[] = []
+  for (let i = 0; i < loop.length; i++) {
+    const p = loop[i]
+    const q = loop[(i + 1) % loop.length]
+    out.push(
+      { x: p.x * 0.75 + q.x * 0.25, y: p.y * 0.75 + q.y * 0.25 },
+      { x: p.x * 0.25 + q.x * 0.75, y: p.y * 0.25 + q.y * 0.75 },
+    )
+  }
+  return out
+}
+
+/**
+ * A material's border texture: Dungeondraft swaps "_tile" for "_border" in
+ * the tile texture's file name (grass_tile_1 → grass_border_1). A material
+ * whose name has no "_tile" has no border of its own.
+ */
+export function materialBorderPart(assetId: string): string | undefined {
+  const stem = assetId.replace(/^.*[\\/|]/, "").replace(/\.[^.]+$/, "")
+  return stem.includes("_tile") ? stem.replace("_tile", "_border") : undefined
+}
+
+/**
+ * Material outlines of a cell grid: marching squares cut at half edges, the
+ * vertices jittered half as much as a cave's (Dungeondraft's OffsetScale 0.5
+ * on the same offset table), oriented so the material always lies on the
+ * same side of the line (outer loops one way, holes the other).
+ */
+export function materialLoops(grid: CellGrid): Vec2[][] {
+  const loops = isoContours(gridField(grid), grid.w, grid.h, 0.5).map((loop) =>
+    loop.map((p) => cellsToMap(grid, p, (q) => caveJitter(q, 0.1))),
+  )
+  const holes = holeLoops(loops)
+  return loops.map((loop, i) => {
+    const wantPositive = holes[i]
+    return signedArea(loop) > 0 === wantPositive ? loop : [...loop].reverse()
+  })
+}
+
+/**
+ * Material brush, as Dungeondraft's MaterialMesh: each material texture of a
+ * layer is a bitmap of 128 px cells (stamped stroke by stroke, erasing
+ * strokes clearing only their own material), filled with its tile texture
+ * where marching squares cover it and bordered by its border texture — a
+ * line as wide as the texture is tall, sharp corners, tiled, no color —
+ * along every outline, smoothed when the material's Smooth is on. Materials
+ * draw in the order they were first painted.
+ */
 function materialComposite(
   entities: MapEntity[],
   map: MapBox,
   renderer: Renderer,
   env: RenderEnv,
 ): Composite {
-  const masks = new Map<string, MapMask>()
+  const byMaterial = new Map<string, MapEntity[]>()
   for (const e of entities) {
-    const { id } = selectionAsset(e.params.material)
-    const key = id ?? ""
-    for (const stroke of e.strokes ?? []) {
-      if (!masks.has(key)) masks.set(key, new MapMask(renderer, map))
-      masks.get(key)?.draw([softStroke(stroke, 1)], false)
-    }
+    const key = selectionAsset(e.params.material).id ?? ""
+    const list = byMaterial.get(key)
+    if (list) list.push(e)
+    else byMaterial.set(key, [e])
   }
   const view = new Container()
-  for (const [id, m] of masks) {
-    view.addChild(
-      masked(mapFill(map, id ? env.tex(id) : undefined, id ? undefined : "#7d6b55"), m.sprite()),
+  const masks: MapMask[] = []
+  for (const [id, mine] of byMaterial) {
+    const grid = emptyGrid(map.width, map.height, MATERIAL_CELLS_PER_TILE)
+    for (const e of mine) for (const s of e.strokes ?? []) stampStroke(grid, s, s.erase ? 0 : 1)
+    const loops = materialLoops(grid)
+    if (loops.length === 0) continue
+    const holes = holeLoops(loops)
+    const shape = (loop: Vec2[], hole: boolean) => {
+      const g = new Graphics()
+        .poly(
+          loop.flatMap((p) => [-p.x, p.y]),
+          true,
+        )
+        .fill({ color: 0xffffff })
+      if (hole) g.blendMode = "erase"
+      return g
+    }
+    const area = new MapMask(renderer, map)
+    area.draw(
+      [
+        ...loops.flatMap((l, i) => (holes[i] ? [] : [shape(l, false)])),
+        ...loops.flatMap((l, i) => (holes[i] ? [shape(l, true)] : [])),
+      ],
+      true,
     )
+    masks.push(area)
+    view.addChild(
+      masked(mapFill(map, id ? env.tex(id) : undefined, id ? undefined : "#7d6b55"), area.sprite()),
+    )
+    const part = id ? materialBorderPart(id) : undefined
+    const border = id && part ? env.tex(id, { part }) : undefined
+    if (!border) continue
+    const smooth = mine[mine.length - 1].params.smooth === true
+    const width = border.height / TEXTURE_PX_PER_TILE
+    for (const loop of loops) {
+      const line = smooth ? chaikinLoop(loop) : loop
+      const tris = wallTriangles(line, true, width, { bevel: false, normalizeUv: false })
+      view.addChild(lineMesh(tris, width * (border.width / border.height), border, 0))
+    }
   }
-  return composite(view, masks.values())
+  return composite(view, masks)
 }
 
 type CompositeBuilder = (
@@ -636,4 +701,23 @@ export function paintedLayer(toolId: string, entities: readonly MapEntity[]): nu
   if (toolId === "cave") return -300
   if (toolId === "water") return 0
   return entities[entities.length - 1]?.layer ?? -400
+}
+
+/**
+ * A painted tool's composites on a level: one per tool, except materials —
+ * one per layer, as Dungeondraft keeps a material layer per layer value.
+ */
+export function paintedGroups(
+  toolId: string,
+  entities: readonly MapEntity[],
+): { key: string; entities: MapEntity[] }[] {
+  if (toolId !== "material")
+    return entities.length ? [{ key: toolId, entities: [...entities] }] : []
+  const byLayer = new Map<number, MapEntity[]>()
+  for (const e of entities) {
+    const list = byLayer.get(e.layer)
+    if (list) list.push(e)
+    else byLayer.set(e.layer, [e])
+  }
+  return [...byLayer].map(([layer, list]) => ({ key: `${toolId}@${layer}`, entities: list }))
 }

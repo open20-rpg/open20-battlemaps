@@ -239,6 +239,7 @@
     "imageWidth": "Width (tiles)",
     "loadImage": "Load image",
     "materialAsset": "Material",
+    "smooth": "Smooth",
     "opacity": "Opacity",
     "prefabList": "Saved prefabs",
     "removeImage": "Remove image",

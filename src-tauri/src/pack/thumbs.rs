@@ -34,7 +34,7 @@ const STRIP_WIDTH: u32 = 228;
 /// The rule for a texture, by its category folder (`textures/<category>/…`).
 pub(crate) fn rule_for(rel_path: &str) -> Rule {
     match rel_path.split('/').nth(1).unwrap_or("") {
-        "tilesets" | "patterns" => Rule::Tile,
+        "tilesets" | "patterns" | "materials" => Rule::Tile,
         "walls" => Rule::Strip(32),
         "paths" => Rule::Strip(48),
         "terrain" => Rule::Square(160),
@@ -115,6 +115,7 @@ mod tests {
     #[test]
     fn picks_rules_by_category() {
         assert_eq!(rule_for("textures/tilesets/wood.png"), Rule::Tile);
+        assert_eq!(rule_for("textures/materials/grass_tile.png"), Rule::Tile);
         assert_eq!(rule_for("textures/walls/stone.png"), Rule::Strip(32));
         assert_eq!(rule_for("textures/paths/road.png"), Rule::Strip(48));
         assert_eq!(rule_for("textures/terrain/grass.png"), Rule::Square(160));

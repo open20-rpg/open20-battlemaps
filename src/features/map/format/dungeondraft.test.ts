@@ -123,6 +123,15 @@ const MAP = {
             box_border_color: "ff102030",
           },
         ],
+        materials: {
+          "-400": [
+            {
+              bitmap: "PoolByteArray( 7 )",
+              texture: `${PACK}/materials/cobblestone_tile.png`,
+              smooth: true,
+            },
+          ],
+        },
         cave: {
           bitmap: "PoolByteArray( 255, 0 )",
           entrance_bitmap: "PoolByteArray( 0, 1 )",
@@ -276,6 +285,14 @@ describe("Dungeondraft import", () => {
     const bytes = decodeWeights(data.weights)
     expect([...bytes.subarray(0, 2)]).toEqual([0, 255])
     expect([...bytes.subarray(TERRAIN_SLOTS, TERRAIN_SLOTS + 2)]).toEqual([255, 0])
+    // Materials: one-cell stamps on the 128 px grid, the region's Smooth kept.
+    const [material] = byTool("material")
+    expect(material.layer).toBe(-400)
+    expect(material.strokes?.[0].radius).toBe(1 / 4)
+    expect(material.params).toMatchObject({
+      material: { assets: ["abcd1234|textures/materials/cobblestone_tile.png"] },
+      smooth: true,
+    })
     const [lake] = byTool("water")
     expect(lake.params).toMatchObject({ deepColor: "#112233", disableBorder: true })
     expect(run().warnings.waterHoles).toBe(1)

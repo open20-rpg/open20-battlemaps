@@ -1,23 +1,33 @@
 import { type BrushStroke, type Vec2 } from "../model/types"
 
 /**
- * Dungeondraft's cave and water brushes paint a grid of 64 px cells (a
- * quarter tile) with fixed stamps — pixel circles of whole cells — rather
- * than smooth circles. This is that grid and those stamps.
+ * Dungeondraft's cave, water and material brushes paint a grid of cells with
+ * fixed stamps — pixel circles of whole cells — rather than smooth circles.
+ * Caves and water use 64 px cells (a quarter tile), materials 128 px ones
+ * (half a tile). This is that grid and those stamps.
  */
 
-/** Cells per tile (64 px cells at 256 px per tile). */
+/** Cells per tile of caves and water (64 px cells at 256 px per tile). */
 export const CELLS_PER_TILE = 4
+/** Cells per tile of materials (Dungeondraft's MaterialMesh: 128 px cells). */
+export const MATERIAL_CELLS_PER_TILE = 2
 
 /** The brush sizes Dungeondraft offers (UI 0–4): stamp diameters in cells. */
 export const STAMP_CELLS = [3, 4, 5, 6, 11] as const
 
+/**
+ * The material brush's sizes (UI 0–4): the first five of the same stamp
+ * table, which the material brush uses as is (the cave brush skips two).
+ */
+export const MATERIAL_STAMP_CELLS = [3, 4, 5, 6, 7] as const
+
 /** A stamp's radius in tiles (what a stroke stores). */
-export const stampRadius = (cells: number): number => cells / (2 * CELLS_PER_TILE)
+export const stampRadius = (cells: number, cpt: number = CELLS_PER_TILE): number =>
+  cells / (2 * cpt)
 
 /** The stamp (diameter in cells) a stroke of `radius` tiles paints with. */
-export const stampOf = (radius: number): number =>
-  Math.max(1, Math.round(radius * 2 * CELLS_PER_TILE))
+export const stampOf = (radius: number, cpt: number = CELLS_PER_TILE): number =>
+  Math.max(1, Math.round(radius * 2 * cpt))
 
 /** UI brush size (0–4) → stroke radius in tiles. */
 export const brushRadius = (index: number): number =>
@@ -26,6 +36,17 @@ export const brushRadius = (index: number): number =>
 /** The brush cursor's radius in tiles: (index + 1) × 64 px, as Dungeondraft's. */
 export const brushCursorRadius = (index: number): number =>
   (Math.max(0, Math.round(index)) + 1) / CELLS_PER_TILE
+
+/** Material brush size (0–4) → stroke radius in tiles. */
+export const materialBrushRadius = (index: number): number =>
+  stampRadius(
+    MATERIAL_STAMP_CELLS[Math.min(MATERIAL_STAMP_CELLS.length - 1, Math.max(0, Math.round(index)))],
+    MATERIAL_CELLS_PER_TILE,
+  )
+
+/** The material brush cursor's radius in tiles: (index + 1) × 128 px, as Dungeondraft's. */
+export const materialCursorRadius = (index: number): number =>
+  (Math.max(0, Math.round(index)) + 1) / MATERIAL_CELLS_PER_TILE
 
 /** How far apart (tiles) a stroke's stamps land: Dungeondraft stamps every 32 px moved. */
 export const STAMP_SPACING = 0.5 / CELLS_PER_TILE
@@ -48,7 +69,8 @@ function stampOffsets(n: number): [number, number][] {
 
 /**
  * A w × h grid of cells (row-major) starting at cell (ox, oy) of the map's
- * grid: its cell (i, j) spans tiles [(ox + i)/4, (ox + i + 1)/4).
+ * grid: its cell (i, j) spans tiles [(ox + i)/cpt, (ox + i + 1)/cpt), with
+ * `cpt` cells per tile (CELLS_PER_TILE when absent).
  */
 export interface CellGrid {
   w: number
@@ -56,13 +78,20 @@ export interface CellGrid {
   ox: number
   oy: number
   cells: Uint8Array
+  cpt?: number
 }
 
-/** A grid over the whole map. */
-export const emptyGrid = (wTiles: number, hTiles: number): CellGrid => {
-  const w = Math.max(1, Math.ceil(wTiles * CELLS_PER_TILE))
-  const h = Math.max(1, Math.ceil(hTiles * CELLS_PER_TILE))
-  return { w, h, ox: 0, oy: 0, cells: new Uint8Array(w * h) }
+const cptOf = (grid: Pick<CellGrid, "cpt">): number => grid.cpt ?? CELLS_PER_TILE
+
+/** A grid over the whole map, `cpt` cells per tile. */
+export const emptyGrid = (
+  wTiles: number,
+  hTiles: number,
+  cpt: number = CELLS_PER_TILE,
+): CellGrid => {
+  const w = Math.max(1, Math.ceil(wTiles * cpt))
+  const h = Math.max(1, Math.ceil(hTiles * cpt))
+  return { w, h, ox: 0, oy: 0, cells: new Uint8Array(w * h), cpt }
 }
 
 /** A grid just covering a stroke (and its stamps), with a cell of margin. */
@@ -79,8 +108,8 @@ export function strokeGrid(stroke: BrushStroke): CellGrid {
 
 /** Stamp an `n`-cell stamp at map point `p`, setting its cells to `value`. */
 export function stamp(grid: CellGrid, p: Vec2, n: number, value: number): void {
-  const fx = p.x * CELLS_PER_TILE
-  const fy = p.y * CELLS_PER_TILE
+  const fx = p.x * cptOf(grid)
+  const fy = p.y * cptOf(grid)
   // Odd: the cell under the point (its center); even: the nearest corner.
   const cx = n % 2 === 1 ? Math.floor(fx + 1e-6) + 0.5 : Math.round(fx)
   const cy = n % 2 === 1 ? Math.floor(fy + 1e-6) + 0.5 : Math.round(fy)
@@ -93,7 +122,7 @@ export function stamp(grid: CellGrid, p: Vec2, n: number, value: number): void {
 
 /** Stamp along a stroke: at each point and every STAMP_SPACING between. */
 export function stampStroke(grid: CellGrid, stroke: BrushStroke, value: number): void {
-  const n = stampOf(stroke.radius)
+  const n = stampOf(stroke.radius, cptOf(grid))
   const pts = stroke.points
   if (pts.length === 0) return
   stamp(grid, pts[0], n, value)
@@ -117,10 +146,10 @@ export const gridField = (grid: CellGrid): Float32Array => Float32Array.from(gri
  * map-grid cell coordinates, so shared edges jitter alike).
  */
 export const cellsToMap = (
-  grid: Pick<CellGrid, "ox" | "oy">,
+  grid: Pick<CellGrid, "ox" | "oy" | "cpt">,
   p: Vec2,
   jitter: (q: Vec2) => Vec2 = (q) => q,
 ): Vec2 => {
   const q = jitter({ x: p.x + grid.ox, y: p.y + grid.oy })
-  return { x: q.x / CELLS_PER_TILE, y: q.y / CELLS_PER_TILE }
+  return { x: q.x / cptOf(grid), y: q.y / cptOf(grid) }
 }

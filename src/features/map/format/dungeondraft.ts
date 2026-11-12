@@ -1,5 +1,5 @@
 import { linkRooms } from "../model/links"
-import { stampRadius } from "../render/cells"
+import { MATERIAL_CELLS_PER_TILE, stampRadius } from "../render/cells"
 import { newId, pointInPolygon, rotateAround } from "../model/geometry"
 import {
   TERRAIN_SLOTS,
@@ -553,14 +553,18 @@ function materials(im: Importer, level: string, raw: Json): MapEntity[] {
   const out: MapEntity[] = []
   for (const [layer, regions] of Object.entries(obj(raw.materials))) {
     for (const region of arr(regions).map(obj)) {
-      const strokes = bitmapStrokes(im, region.bitmap, 128)
+      // One-cell stamps on Dungeondraft's material grid (128 px cells).
+      const strokes = bitmapStrokes(im, region.bitmap, 128, stampRadius(1, MATERIAL_CELLS_PER_TILE))
       if (strokes.length === 0) continue
       out.push(
         entity(level, {
           toolId: "material",
           layer: Number(layer) || -400,
           strokes,
-          params: { material: selection(im.asset(region.texture)) },
+          params: {
+            material: selection(im.asset(region.texture)),
+            smooth: bool(region.smooth, false),
+          },
         }),
       )
     }
