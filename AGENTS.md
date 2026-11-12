@@ -104,12 +104,18 @@ ni accionable.
   `fonts/metrics.ts`. Un texto es una línea y su `position` es la esquina
   superior izquierda.
 - **Pack integrado** ("Open20 Essentials"): lo dibuja por código
-  `scripts/builtin-pack/` (`python3 scripts/builtin-pack/build.py`, estilo
-  tinta con colores planos) y genera `src-tauri/resources/builtin.dungeondraft_pack`
-  (commiteado). `pack/builtin.rs` lo embebe con `include_bytes!` y lo instala
-  al arrancar solo si su `version` cambió: desactivarlo o desinstalarlo se
-  respeta hasta la próxima versión. Para cambiar el arte, editá los scripts,
-  regenerá y subí la `version` de `PACK` en `build.py`.
+  `scripts/builtin-pack/` (estilo tinta a mano con skia: motor en `pen.py`,
+  assets en los módulos `obj_*`/`tex_*` listados en `catalog.py`;
+  `make_review.py` arma los atlas para revisarlos). Ningún asset se agrega o
+  cambia sin que el autor lo apruebe visualmente. El `.dungeondraft_pack` **no
+  se commitea**: `npm run pack` (Python + `requirements.txt`) lo genera en
+  `src-tauri/resources/`, y CI lo hace en cada build con la acción
+  `.github/actions/builtin-pack` (cacheada por hash de los scripts).
+  `build.rs` lo embebe (`pack/builtin.rs`, `include_bytes!`); sin él la app
+  compila igual pero sin pack integrado. Se instala al arrancar solo si su
+  `version` cambió: desactivarlo o desinstalarlo se respeta hasta la próxima
+  versión. Para cambiar el arte, editá los scripts y subí la `version` de
+  `PACK` en `build.py`.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para

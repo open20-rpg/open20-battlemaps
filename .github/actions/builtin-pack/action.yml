@@ -1,0 +1,31 @@
+name: Built-in pack
+description: >
+  Generates src-tauri/resources/builtin.dungeondraft_pack ("Open20 Essentials")
+  from scripts/builtin-pack, which build.rs embeds into the app. Cached by the
+  scripts' hash, so it only renders again when the art changes.
+runs:
+  using: composite
+  steps:
+    - id: cache
+      uses: actions/cache@v6
+      with:
+        path: src-tauri/resources/builtin.dungeondraft_pack
+        key: builtin-pack-${{ hashFiles('scripts/builtin-pack/**') }}
+
+    - if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.13"
+        cache: pip
+        cache-dependency-path: scripts/builtin-pack/requirements.txt
+
+    # skia-python's Linux wheel links against the system GL/EGL libraries.
+    - if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1
+
+    - if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        pip install -r scripts/builtin-pack/requirements.txt
+        python scripts/builtin-pack/build.py

@@ -128,6 +128,10 @@ jobs:
       - name: install frontend dependencies
         run: npm ci --ignore-scripts
 
+      # The built-in asset pack is generated, not committed; build.rs embeds it.
+      - name: built-in pack
+        uses: ./.github/actions/builtin-pack
+
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -197,6 +201,10 @@ jobs:
 
       - name: install frontend dependencies
         run: npm ci --ignore-scripts
+
+      # The built-in asset pack is generated, not committed; build.rs embeds it.
+      - name: built-in pack
+        uses: ./.github/actions/builtin-pack
 
       # The Android project (src-tauri/gen/android) is committed and already wired
       # for release signing, so CI only needs to drop the keystore + credentials

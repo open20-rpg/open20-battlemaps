@@ -31,3 +31,7 @@ keystore.properties
 key.properties
 
 __pycache__/
+
+# Built-in asset pack: generated (npm run pack / CI), embedded by build.rs
+src-tauri/resources/builtin.dungeondraft_pack
+__pycache__/
