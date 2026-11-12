@@ -322,7 +322,12 @@
     "boxPill": "Píldora",
     "boxBorderWidth": "Ancho del Borde",
     "boxColor": "Color de Fondo",
-    "boxBorderColor": "Color del Borde"
+    "boxBorderColor": "Color del Borde",
+    "duplicate": "Duplicar",
+    "copy": "Copiar",
+    "paste": "Pegar",
+    "selectAll": "Seleccionar todo",
+    "deselect": "Deseleccionar"
   },
   "biomes": {
     "barren": "Yermo",

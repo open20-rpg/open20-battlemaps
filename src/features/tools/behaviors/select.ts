@@ -1,3 +1,10 @@
+import {
+  copySelection,
+  deleteSelection,
+  duplicateSelection,
+  pasteClipboard,
+  selectAll,
+} from "../../map/clipboard"
 import { useEditorStore } from "../../../stores/editorStore"
 import { beginGesture, endGesture, moveEntities, updateEntities } from "../../map/commands"
 import {
@@ -354,6 +361,12 @@ export function createSelectBehavior(): ToolBehavior {
       mode = null
     },
     onAction: (ctx, action) => {
+      if (action === "delete") deleteSelection()
+      if (action === "duplicate") duplicateSelection()
+      if (action === "copy") copySelection()
+      if (action === "paste") pasteClipboard()
+      if (action === "selectAll") selectAll()
+      if (action === "deselect") editor().select([])
       if (action === "flipH") flipSelection(ctx, "x")
       if (action === "flipV") flipSelection(ctx, "y")
       if (action === "group") groupSelection(ctx)
@@ -361,6 +374,8 @@ export function createSelectBehavior(): ToolBehavior {
       if (action === "lock" || action === "unlock") lockSelection(ctx, action === "lock")
     },
     isActionDisabled: (ctx, action) => {
+      if (action === "paste") return editor().clipboard.length === 0
+      if (action === "selectAll") return false
       const selected = selectedOf(ctx)
       if (action === "group") return selected.length < 2
       if (action === "ungroup") return !hasGroups(selected)

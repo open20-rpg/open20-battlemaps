@@ -6,52 +6,9 @@ import { APP_ACTIONS, runAppAction } from "../shortcuts/appActions"
 import { toggleFullscreen } from "../shortcuts/api"
 import { actionForKey, currentBindings } from "../shortcuts/bindings"
 import { notifyParamsChange, runToolAction } from "../tools/behaviors"
-import { elementFilter, selectableBy } from "../tools/selectKinds"
 import { ZOOM_LEVELS } from "../viewport/controls"
-import {
-  addEntities,
-  redo,
-  removeEntities,
-  undo,
-  updateEntities,
-  updateReferenceImage,
-} from "./commands"
-import { newId, translateEntity } from "./model/geometry"
-import { regroup } from "./model/groups"
-
-/** Pasted copies land offset by this much (tiles) so they don't hide the originals. */
-const PASTE_OFFSET = 1
-
-/** Entities on the active level. */
-function levelEntities() {
-  const map = useMapStore.getState().map
-  const level = useEditorStore.getState().activeLevel
-  return map?.entities.filter((e) => !e.level || e.level === level) ?? []
-}
-
-export function copySelection(): void {
-  const { selection, setClipboard } = useEditorStore.getState()
-  const ids = new Set(selection)
-  setClipboard(levelEntities().filter((e) => ids.has(e.id)))
-}
-
-export function pasteClipboard(): void {
-  const { clipboard, activeLevel, select } = useEditorStore.getState()
-  if (clipboard.length === 0) return
-  const copies = regroup(clipboard).map((e) => ({
-    ...translateEntity(e, { x: -PASTE_OFFSET, y: PASTE_OFFSET }),
-    id: newId(),
-    level: activeLevel ?? e.level,
-  }))
-  addEntities(copies)
-  select(copies.map((e) => e.id))
-  // Pasting again offsets from the new copies.
-  useEditorStore.getState().setClipboard(copies)
-}
-
-export function deleteSelection(): void {
-  removeEntities(useEditorStore.getState().selection)
-}
+import { redo, undo, updateEntities, updateReferenceImage } from "./commands"
+import { copySelection, deleteSelection, pasteClipboard, selectAll } from "./clipboard"
 
 /** Quick layer keys (Object, Scatter, Path, Material, Pattern and Select), as in Dungeondraft. */
 const QUICK_LAYERS: Record<string, number> = {
@@ -94,12 +51,7 @@ export function runShortcut(e: KeyboardEvent): boolean {
       if (key === "c") return (copySelection(), true)
       if (key === "x") return (copySelection(), deleteSelection(), true)
       if (key === "v") return (pasteClipboard(), true)
-      if (key === "a") {
-        const onLevel = levelEntities()
-        const pick = selectableBy(elementFilter(getToolParams("select")), false, onLevel)
-        useEditorStore.getState().select(onLevel.filter(pick).map((x) => x.id))
-        return true
-      }
+      if (key === "a") return (selectAll(), true)
     }
     if (e.key === "Escape") {
       useEditorStore.getState().select([])

@@ -33,6 +33,12 @@ const LONG_PRESS_SLOP_PX = 10
  */
 const TOUCH_HOLD_MS = 120
 const TOUCH_SLOP_PX = 8
+/** A tap: released this soon and this close to where it landed. */
+const TAP_MS = 350
+const TAP_SLOP_PX = 12
+/** Two taps this close in time and place are a double tap. */
+const DOUBLE_TAP_MS = 400
+const DOUBLE_TAP_SLOP_PX = 30
 
 export function useToolInput(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
@@ -192,7 +198,10 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       if (e.button === 0 && isHeld("pan")) return
       // No emulated mouse events after a finger or pen press: their mousedown
       // would move the focus (closing the text editor a tap just opened).
-      if (e.pointerType !== "mouse") e.preventDefault()
+      if (e.pointerType !== "mouse") {
+        e.preventDefault()
+        tapDown = { x: e.clientX, y: e.clientY, t: performance.now() }
+      }
       if (e.pointerType === "pen") penDown = true
       if (e.pointerType === "touch") {
         if (penDown) return
@@ -272,6 +281,35 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       pressedButton = null
       const a = active()
       if (info && a) a.behavior.onPointerUp?.(a.ctx, info)
+      if (info && a && e.pointerType !== "mouse") doubleTap(e, info)
+    }
+    /**
+     * Fingers and pens don't get a dblclick (their emulated mouse events are
+     * off, see onPointerDown): two taps close in time and place are one.
+     */
+    let tapDown: { x: number; y: number; t: number } | null = null
+    let lastTap: { x: number; y: number; t: number } | null = null
+    const doubleTap = (e: PointerEvent, info: PointerInfo) => {
+      const now = performance.now()
+      const down = tapDown
+      tapDown = null
+      const isTap =
+        !!down &&
+        now - down.t < TAP_MS &&
+        Math.hypot(e.clientX - down.x, e.clientY - down.y) < TAP_SLOP_PX
+      if (!isTap) return
+      const last = lastTap
+      if (
+        last &&
+        now - last.t < DOUBLE_TAP_MS &&
+        Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_SLOP_PX
+      ) {
+        lastTap = null
+        const a = active()
+        a?.behavior.onDoubleClick?.(a.ctx, { ...info, buttons: 0 })
+      } else {
+        lastTap = { x: e.clientX, y: e.clientY, t: now }
+      }
     }
     const onPointerLeave = () => {
       hover = null

@@ -322,7 +322,12 @@
     "boxPill": "Pill",
     "boxBorderWidth": "Border Width",
     "boxColor": "Background Color",
-    "boxBorderColor": "Border Color"
+    "boxBorderColor": "Border Color",
+    "duplicate": "Duplicate",
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select all",
+    "deselect": "Deselect"
   },
   "biomes": {
     "barren": "Barren",
