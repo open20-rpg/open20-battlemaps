@@ -26,7 +26,8 @@ import {
 } from "./api"
 import { estimateBytes, FORMAT_EXTENSION } from "./exportFormat"
 import { renderExportSample, renderMapRows, type ExportOptions } from "./render/exportMap"
-import { loadMap } from "./commands"
+import { createMap, loadMap } from "./commands"
+import { seedNewMapTerrain } from "../tools/behaviors/paint"
 import { migrateMap } from "./migrate"
 import { loadCatalog } from "../fonts/catalog"
 import { resolveFontNames } from "../fonts/resolve"
@@ -343,4 +344,13 @@ export function estimateExportSize(opts: ExportOptions): Promise<number> {
     const bytes = await exportEstimate(opts.format, sample.width, sample.height, sample.rgba)
     return estimateBytes(bytes, sample.width * sample.height, sample.imagePixels)
   })
+}
+
+/**
+ * Start a new map. Its ground then gets the built-in terrain (when that pack
+ * is enabled), in the background: best effort, the map is usable meanwhile.
+ */
+export function newMapFlow(...args: Parameters<typeof createMap>): void {
+  createMap(...args)
+  void seedNewMapTerrain().catch(() => undefined)
 }

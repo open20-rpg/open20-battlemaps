@@ -131,8 +131,8 @@ const SHADOW_LAYER = -150
  * us exactly which ones need a new view. Painted tools and lighting are
  * composites rebuilt when any of their inputs change.
  */
-/** The map's bare ground, under everything (parchment, until terrain covers it). */
-export const MAP_GROUND_COLOR = 0xd8cba6
+/** The map's bare ground, under everything (dark grey, until terrain covers it). */
+export const MAP_GROUND_COLOR = 0x3c3c40
 
 export class MapScene {
   /** Map content, un-mirrored (scale.x = -1) — see entities.ts. */

@@ -1,5 +1,13 @@
 import { useEditorStore } from "../../../stores/editorStore"
-import { addEntities, beginGesture, endGesture, updateEntity } from "../../map/commands"
+import {
+  addEntities,
+  addInitialEntities,
+  beginGesture,
+  endGesture,
+  updateEntity,
+} from "../../map/commands"
+import { useMapStore } from "../../../stores/mapStore"
+import { newId } from "../../map/model/geometry"
 import {
   TERRAIN_SLOTS,
   TERRAIN_TICK,
@@ -137,6 +145,35 @@ async function seedBuiltinBiomes(): Promise<void> {
   const current = getToolParams("terrainBrush").biome as BiomeSelection
   const seeded = withBuiltinBiomes(current, (id) => pathOf.get(id) ?? null)
   if (seeded !== current) useToolsStore.getState().setToolParams("terrainBrush", { biome: seeded })
+}
+
+/**
+ * A new map's ground: once the biomes have their built-in textures, the
+ * first level starts covered by the current biome's base slot (as when slot 1
+ * is picked in the panel), instead of bare.
+ */
+export async function seedNewMapTerrain(): Promise<void> {
+  const doc = useMapStore.getState().map
+  if (!doc) return
+  await seedBuiltinBiomes()
+  const { ids } = brushSlots(getToolParams("terrainBrush"))
+  const map = useMapStore.getState().map
+  const level = doc.levels[0]?.id
+  // Another map opened meanwhile (level ids are unique): leave it alone.
+  if (!ids[0] || !map || !level || map.levels[0]?.id !== level) return
+  if (terrainOf(map.entities.filter((e) => e.level === level))) return
+  addInitialEntities(doc, [
+    {
+      id: newId(),
+      toolId: "terrainBrush",
+      level,
+      position: { x: 0, y: 0 },
+      rotation: 0,
+      layer: -500,
+      strokes: [],
+      params: { terrain: createTerrain(map, ids) },
+    },
+  ])
 }
 
 /** The texture in the Terrain Brush's selected biome slot (and slot 0, the base). */

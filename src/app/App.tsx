@@ -16,7 +16,8 @@ import { ExportDialog } from "../features/map/ExportDialog"
 import { AssetsManager } from "../features/packs/AssetsManager"
 import { NewMapDialog } from "../features/map/NewMapDialog"
 import { MapEditor } from "../features/map/MapEditor"
-import { closeMap, createMap, redo, undo } from "../features/map/commands"
+import { closeMap, redo, undo } from "../features/map/commands"
+import { newMapFlow } from "../features/map/io"
 import { useMapFile } from "../features/map/useMapFile"
 import { ToolsPanel } from "../features/tools/ToolsPanel"
 import { LibraryPanel } from "../features/library/LibraryPanel"
@@ -161,7 +162,7 @@ export default function App() {
       <NewMapDialog
         open={newMapOpen}
         onOpenChange={setNewMapOpen}
-        onCreate={createMap}
+        onCreate={newMapFlow}
         onOpenAssets={() => setAssetsOpen(true)}
       />
 

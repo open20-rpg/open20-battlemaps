@@ -3,6 +3,7 @@ import { useMapStore } from "../../../stores/mapStore"
 import {
   addEntities,
   addEntity,
+  addInitialEntities,
   addLevel,
   beginGesture,
   cancelGesture,
@@ -42,6 +43,25 @@ describe("map commands", () => {
     createMap(10.6, 0)
     expect(useMapStore.getState().map).toMatchObject({ width: 11, height: 1, entities: [] })
     expect(canUndo()).toBe(false)
+  })
+
+  it("addInitialEntities makes them part of a new map's baseline", () => {
+    createMap(10, 10)
+    const doc = useMapStore.getState().map!
+    addInitialEntities(doc, [entity("ground")])
+    expect(useMapStore.getState().map?.entities.map((e) => e.id)).toEqual(["ground"])
+    expect(canUndo()).toBe(false)
+    expect(useMapFileStore.getState().dirty).toBe(false)
+  })
+
+  it("addInitialEntities is a normal edit once the map was changed", () => {
+    createMap(10, 10)
+    const doc = useMapStore.getState().map!
+    addEntity(entity("a"))
+    addInitialEntities(doc, [entity("ground")])
+    expect(useMapStore.getState().map?.entities.map((e) => e.id)).toEqual(["ground", "a"])
+    undo()
+    expect(useMapStore.getState().map?.entities.map((e) => e.id)).toEqual(["a"])
   })
 
   it("addEntity/removeEntities mutate the document", () => {

@@ -56,6 +56,18 @@ export function createMap(
   useEditorStore.getState().reset(doc.levels[0].id)
 }
 
+/**
+ * Add what a just-created document starts with (e.g. its terrain): part of
+ * its baseline, so neither an undo step nor an unsaved change. Only while
+ * `doc` is still untouched; once edited, they're added as a normal edit.
+ */
+export function addInitialEntities(doc: MapDocument, entities: readonly MapEntity[]): void {
+  if (entities.length === 0) return
+  if (useMapStore.getState().map !== doc) return addEntities(entities, true)
+  useMapStore.setState({ map: { ...doc, entities: [...entities, ...doc.entities] } })
+  useMapStore.temporal.getState().clear()
+}
+
 /** Replace the document with one loaded from disk (see features/map/io.ts). */
 export function loadMap(doc: MapDocument): void {
   const normalized = normalizeDocument(doc)
