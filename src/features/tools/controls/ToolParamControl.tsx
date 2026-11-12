@@ -33,6 +33,8 @@ interface RenderArgs<K extends ParamKind> {
   /** Sets that sibling param (a picked asset brings its default color into it). */
   onRecolor?: (color: string) => void
   onChange: (value: unknown) => void
+  /** A button packed in a row with others (just its icon). */
+  compact?: boolean
 }
 
 /**
@@ -125,7 +127,9 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
       onFill={() => runToolAction(toolId, "fill")}
     />
   ),
-  button: ({ toolId, spec }) => <ActionButton toolId={toolId} spec={spec} />,
+  button: ({ toolId, spec, compact }) => (
+    <ActionButton toolId={toolId} spec={spec} compact={compact} />
+  ),
   font: ({ spec, value, onChange }) => (
     <FontControl value={value} labelKey={spec.labelKey} onChange={onChange} />
   ),
@@ -165,9 +169,11 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
 function ActionButton({
   toolId,
   spec,
+  compact,
 }: {
   toolId: string
   spec: Extract<ToolParamSpec, { kind: "button" }>
+  compact?: boolean
 }) {
   useEditorStore((s) => s.selection)
   useMapStore((s) => s.map)
@@ -181,6 +187,7 @@ function ActionButton({
       icon={spec.icon}
       colorPalette={spec.colorPalette}
       disabled={disabled}
+      compact={compact}
       onClick={() => runToolAction(toolId, spec.paramKey)}
     />
   )
@@ -200,7 +207,15 @@ function renderParam<K extends ParamKind>(args: RenderArgs<K>): ReactNode {
  * subscribes to its own value only, so changing one param (e.g. the brush
  * size, many times a second with the wheel) doesn't re-render the others.
  */
-export function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolParamSpec }) {
+export function ToolParamControl({
+  toolId,
+  spec,
+  compact,
+}: {
+  toolId: string
+  spec: ToolParamSpec
+  compact?: boolean
+}) {
   const setToolParams = useToolsStore((s) => s.setToolParams)
   const value = useToolsStore((s) => s.paramsByTool[toolId]?.[spec.paramKey] ?? spec.default)
   const recolor = spec.kind === "assetPicker" ? spec.recolor : undefined
@@ -218,6 +233,7 @@ export function ToolParamControl({ toolId, spec }: { toolId: string; spec: ToolP
     spec,
     value: value as ParamValueByKind[ParamKind],
     recolorColor,
+    compact,
     onRecolor: typeof recolor === "object" ? (c) => set({ [recolor.fromParam]: c }) : undefined,
     onChange: (next) => set({ [spec.paramKey]: next }),
   })

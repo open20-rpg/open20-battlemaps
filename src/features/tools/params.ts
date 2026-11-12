@@ -234,3 +234,31 @@ export function libraryAssetsOf(values: ToolParamValues): string[] {
   const v = values[LIBRARY_PARAM]
   return Array.isArray(v) ? v.filter((id): id is string => typeof id === "string") : []
 }
+
+/** A run of params as the panel lays it out: one param, or consecutive buttons sharing a row. */
+export type ParamRun =
+  { kind: "single"; spec: ToolParamSpec } | { kind: "buttons"; specs: ToolParamSpec[] }
+
+/**
+ * Groups consecutive command buttons (Select's Delete, Duplicate, Flip…) so
+ * the panel can pack them into a compact row instead of one full-width row
+ * each. Fewer than `min` in a run stay as they are.
+ */
+export function paramRuns(specs: ToolParamSpec[], min = 3): ParamRun[] {
+  const out: ParamRun[] = []
+  let run: ToolParamSpec[] = []
+  const flush = () => {
+    if (run.length >= min) out.push({ kind: "buttons", specs: run })
+    else for (const spec of run) out.push({ kind: "single", spec })
+    run = []
+  }
+  for (const spec of specs) {
+    if (spec.kind === "button") run.push(spec)
+    else {
+      flush()
+      out.push({ kind: "single", spec })
+    }
+  }
+  flush()
+  return out
+}

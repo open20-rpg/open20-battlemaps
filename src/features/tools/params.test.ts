@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { resolveParams, shapeVsEditPoints, type ToolParamSpec } from "./params"
+import { paramRuns, resolveParams, shapeVsEditPoints, type ToolParamSpec } from "./params"
 import { TOOL_BY_ID } from "./definitions"
 
 describe("resolveParams", () => {
@@ -60,5 +60,29 @@ describe("shapeVsEditPoints", () => {
   it("leaves unrelated patches untouched", () => {
     const merged = { shape: "ellipse", editPoints: false, other: 1 }
     expect(normalize(merged, { other: 1 })).toBe(merged)
+  })
+})
+
+describe("paramRuns", () => {
+  const btn = (k: string): ToolParamSpec => ({
+    kind: "button",
+    paramKey: k,
+    labelKey: k,
+    icon: () => null,
+    default: null,
+  })
+  const sw: ToolParamSpec = { kind: "switch", paramKey: "s", labelKey: "s", default: false }
+
+  it("packs runs of at least three buttons together", () => {
+    const runs = paramRuns([sw, btn("a"), btn("b"), btn("c"), sw])
+    expect(runs.map((r) => r.kind)).toEqual(["single", "buttons", "single"])
+    expect(runs[1]).toMatchObject({
+      specs: [{ paramKey: "a" }, { paramKey: "b" }, { paramKey: "c" }],
+    })
+  })
+
+  it("leaves short runs as single params", () => {
+    const runs = paramRuns([btn("a"), btn("b"), sw, btn("c")])
+    expect(runs.map((r) => r.kind)).toEqual(["single", "single", "single", "single"])
   })
 })
