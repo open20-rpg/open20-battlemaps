@@ -282,6 +282,9 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       const a = active()
       if (info && a) a.behavior.onPointerUp?.(a.ctx, info)
       if (info && a && e.pointerType !== "mouse") doubleTap(e, info)
+      // A right-click may change a param (Object/Portal turn 90°): show it
+      // now, not on the next move.
+      if (e.button === 2) refreshHover()
     }
     /**
      * Fingers and pens don't get a dblclick (their emulated mouse events are

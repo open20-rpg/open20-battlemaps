@@ -75,7 +75,6 @@ export const objectBehavior: ToolBehavior = {
       const r = paramNum(ctx.params.rotation, 0) + e.dir * wheelDegrees()
       useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(r) })
     }
-    objectBehavior.onPointerMove?.(ctx, e)
     return true
   },
   onDeactivate: () => useEditorStore.getState().setDraft([]),

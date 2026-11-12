@@ -420,7 +420,6 @@ export const portalBehavior: ToolBehavior = {
     if (e.button === 2 && ctx.params.anchored === false) {
       const r = paramNum(ctx.params.rotation, 0) + (e.shiftKey ? -90 : 90)
       useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(r) })
-      portalBehavior.onPointerMove?.(ctx, e)
       return
     }
     if (e.button !== 0) return
@@ -432,7 +431,6 @@ export const portalBehavior: ToolBehavior = {
     if (ctx.params.anchored !== false) return false
     const r = paramNum(ctx.params.rotation, 0) + e.dir * (e.shiftKey ? 15 : 5)
     useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(r) })
-    portalBehavior.onPointerMove?.(ctx, e)
     return true
   },
   onDeactivate: () => useEditorStore.getState().setDraft([]),
