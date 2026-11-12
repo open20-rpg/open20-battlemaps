@@ -365,6 +365,7 @@
     "aboveRoofs": "Above Roofs"
   },
   "library": {
+    "colorable": "Colorable",
     "resize": "Resize the library",
     "title": "Library",
     "tabAll": "All",

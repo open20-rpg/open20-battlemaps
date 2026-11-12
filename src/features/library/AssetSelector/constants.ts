@@ -13,6 +13,7 @@ export const LIST_CATEGORIES = new Set(["walls", "paths"])
 export const TINTED_CATEGORIES = new Set(["walls", "tilesets"])
 
 export const cellStyle: CSSProperties = {
+  position: "relative",
   width: CELL,
   height: CELL,
   flexShrink: 0,
@@ -26,6 +27,7 @@ export const fillerStyle: CSSProperties = { width: CELL, height: CELL, flexShrin
 
 // List-mode cell: image at natural size, capped to the column width.
 export const listCellStyle: CSSProperties = {
+  position: "relative",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -102,4 +104,23 @@ export const tipArrowStyle: CSSProperties = {
   background: "#212126",
   borderRight: "1px solid #34343c",
   borderBottom: "1px solid #34343c",
+}
+
+// Badge on colorable items (a dropper, as Dungeondraft marks them): over the
+// thumbnail's top-left corner, so it never hides much of it.
+export const COLORABLE_BADGE_PX = 16
+export const colorableBadgeStyle: CSSProperties = {
+  position: "absolute",
+  top: 1,
+  left: 1,
+  width: COLORABLE_BADGE_PX,
+  height: COLORABLE_BADGE_PX,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "50%",
+  background: "var(--chakra-colors-panel-solid)",
+  border: "1px solid var(--chakra-colors-panel-border)",
+  color: "var(--chakra-colors-menubar-fg)",
+  pointerEvents: "none",
 }

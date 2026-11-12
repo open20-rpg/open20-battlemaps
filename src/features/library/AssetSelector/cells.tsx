@@ -1,7 +1,25 @@
 import { memo, useState } from "react"
-import { LuBan, LuImageOff } from "react-icons/lu"
+import { useTranslation } from "react-i18next"
+import { LuBan, LuImageOff, LuPipette } from "react-icons/lu"
 import { itemImageUrl, type LibItem, type ThumbColoring } from "../api"
-import { cellStyle, imgStyle, listCellStyle, listImgStyle, nullCellStyle } from "./constants"
+import {
+  cellStyle,
+  colorableBadgeStyle,
+  imgStyle,
+  listCellStyle,
+  listImgStyle,
+  nullCellStyle,
+} from "./constants"
+
+/** Marks an item recolored by the tool's color (Dungeondraft's dropper badge). */
+function ColorableBadge() {
+  const { t } = useTranslation()
+  return (
+    <span role="img" aria-label={t("library.colorable")} style={colorableBadgeStyle}>
+      <LuPipette size={10} />
+    </span>
+  )
+}
 
 // -- one thumbnail cell --------------------------------------------------------
 
@@ -40,6 +58,7 @@ export const ThumbCell = memo(function ThumbCell({
       ) : item ? (
         <LuImageOff color="var(--chakra-colors-icon-muted)" size={16} />
       ) : null}
+      {item?.colorable && <ColorableBadge />}
     </div>
   )
 })
@@ -81,6 +100,7 @@ export const ListCell = memo(function ListCell({
       ) : item ? (
         <LuImageOff color="var(--chakra-colors-icon-muted)" size={16} />
       ) : null}
+      {item?.colorable && <ColorableBadge />}
     </div>
   )
 })
