@@ -18,6 +18,17 @@ import { beginLiveTerrain, endLiveTerrain, touchLiveTerrain } from "../../map/te
 import { type TexelRect } from "../../map/render/splat"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type BiomeSelection, type Shape } from "../params"
+import {
+  BUILTIN_PACK_ID,
+  builtinBiomeIds,
+  hasUnseededBiomes,
+  withBuiltinBiomes,
+} from "../controls/biome/biomes"
+import { resolveAssets } from "../../map/api"
+import { usePacksStore } from "../../../stores/packsStore"
+import { withLoading } from "../../../stores/loadingStore"
+import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
+import i18n from "../../../i18n"
 import { brushController, makeEntity, paramNum, shapeController } from "./shared"
 import { type PointerInfo, type ToolBehavior, type ToolCtx } from "./types"
 
@@ -103,6 +114,29 @@ export function createWaterBehavior(): ToolBehavior {
     },
     cursor: () => "crosshair",
   }
+}
+
+/**
+ * While the built-in pack is enabled (it is out of the box), every biome the
+ * user hasn't set up yet starts with its 4 built-in textures, so the brush
+ * paints right away. Runs when the tool is picked: a pack enabled later seeds
+ * then, and a biome the user changed or emptied is never touched.
+ */
+async function seedBuiltinBiomes(): Promise<void> {
+  const packs = usePacksStore.getState()
+  if (!packs.loaded) await packs.refresh()
+  const builtin = usePacksStore.getState().packs.find((p) => p.id === BUILTIN_PACK_ID)
+  if (!builtin?.enabled) return
+  const pending = getToolParams("terrainBrush").biome as BiomeSelection | undefined
+  if (!pending || !hasUnseededBiomes(pending)) return
+  const resolved = await withLoading(i18n.t("loading.loadingAssets"), () =>
+    resolveAssets(builtinBiomeIds()),
+  )
+  const pathOf = new Map(resolved.map((r) => [r.id, r.path]))
+  // Read the params again: the user may have picked textures meanwhile.
+  const current = getToolParams("terrainBrush").biome as BiomeSelection
+  const seeded = withBuiltinBiomes(current, (id) => pathOf.get(id) ?? null)
+  if (seeded !== current) useToolsStore.getState().setToolParams("terrainBrush", { biome: seeded })
 }
 
 /** The texture in the Terrain Brush's selected biome slot (and slot 0, the base). */
@@ -261,6 +295,10 @@ export function createTerrainBehavior(): ToolBehavior {
       if (stroke) stroke.pos = { x: e.x, y: e.y }
     },
     onPointerUp: () => finish(),
+    onActivate: () => {
+      // Best effort: without them the slots just start empty, as before.
+      void seedBuiltinBiomes().catch(() => undefined)
+    },
     onDeactivate: () => {
       finish()
       useEditorStore.getState().setDraft([])
