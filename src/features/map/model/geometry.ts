@@ -180,7 +180,7 @@ export function spriteSize(entity: MapEntity, sizeOf: AssetSizeOf): { w: number;
 }
 
 /** Corners of a sprite-like entity's rotated footprint. */
-function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
+export function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
   const size = spriteSize(entity, sizeOf)
   const { w, h } = size
   const c = spriteCenter(entity, size)

@@ -23,6 +23,7 @@ import { type TextureRequest, TEXTURE_PX_PER_TILE } from "./assets"
 import { lightFalloffTexture } from "./generated"
 import { quickboxRoof, roofFaceShade, roofGeometry, slopeUv, type RoofType } from "./roofGeometry"
 import { wearOverlay, wornMesh } from "./buildingWear"
+import { blockingSegments, visibilityPolygon } from "../model/lightBlock"
 import { type FontChoice } from "../../fonts/catalog"
 import {
   borderOf,
@@ -57,6 +58,8 @@ export interface RenderEnv {
   terrainSmooth: boolean
   /** Portals on the level (walls leave openings where they sit). */
   portals: readonly MapEntity[]
+  /** What stops light on the level (lights with Shadow on are cut by it). */
+  lightBlockers: readonly MapEntity[]
   /** Asset size in tiles (remembers misses like `tex`). */
   size: (id: string | undefined) => { w: number; h: number } | undefined
   /**
@@ -589,6 +592,19 @@ const textRenderer: EntityRenderer = (e, env) => {
  * ({@link glowStrength}): on a dark map the lights show through the light map
  * alone, as in Dungeondraft, instead of a colored haze.
  */
+/**
+ * What a light reaches (content space), when it casts shadows: its
+ * visibility polygon against the walls, closed doors and light-blocking
+ * objects. Null when it doesn't (Shadow off) — it then lights everything in range.
+ */
+export function lightReach(e: MapEntity, env: RenderEnv): Graphics | null {
+  if (e.params.shadow === false) return null
+  const segments = blockingSegments(env.lightBlockers, (id) => env.size(id))
+  if (segments.length === 0) return null
+  const poly = visibilityPolygon(e.position, num(e.params.range, 5), segments)
+  return new Graphics().poly(poly.flatMap((p) => [-p.x, p.y])).fill({ color: 0xffffff })
+}
+
 const lightRenderer: EntityRenderer = (e, env) => {
   const root = new Container()
   root.visible = env.lighting
@@ -603,6 +619,11 @@ const lightRenderer: EntityRenderer = (e, env) => {
   glow.alpha = Math.min(1, LIGHT_GLOW * num(e.params.intensity, 1))
   glow.blendMode = "add"
   root.addChild(glow)
+  const reach = lightReach(e, env)
+  if (reach) {
+    root.addChild(reach)
+    glow.mask = reach
+  }
   return root
 }
 

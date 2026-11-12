@@ -1,7 +1,7 @@
 import { Container, RenderTexture, Sprite, Texture, type Renderer } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
 import { type MapEntity } from "../model/types"
-import { type RenderEnv, selectionAsset } from "./entities"
+import { lightReach, type RenderEnv, selectionAsset } from "./entities"
 import { lightFalloffTexture } from "./generated"
 import { maskResolution, type Composite, type MapBox } from "./painted"
 
@@ -12,6 +12,8 @@ const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v
  * with every light added on top (additive), then multiplied over the scene.
  * With a white ambient (the default) the map looks fully lit and lights are
  * invisible — the same as Dungeondraft until you darken the environment.
+ * Lights with Shadow on reach only what walls, closed doors and
+ * light-blocking objects let them see (model/lightBlock.ts).
  */
 export function lightingComposite(
   lights: readonly MapEntity[],
@@ -47,6 +49,12 @@ export function lightingComposite(
     sprite.alpha = Math.min(1, num(light.params.intensity, 1) * 0.8)
     sprite.blendMode = "add"
     stage.addChild(sprite)
+    // Walls and closed doors cast its shadows: it lights only what it sees.
+    const reach = lightReach(light, env)
+    if (reach) {
+      stage.addChild(reach)
+      sprite.mask = reach
+    }
   }
   renderer.render({ container: stage, target: rt, clear: true })
   stage.destroy({ children: true })

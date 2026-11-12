@@ -19,6 +19,7 @@ import { BUILDING_WEAR_URLS } from "./buildingWear"
 import { drawOverlay } from "./overlay"
 import { PAINTED_COMPOSITES, paintedLayer, type Composite } from "./painted"
 import { tileSizeForZoom } from "./viewport"
+import { lightBlockers } from "../model/lightBlock"
 import { fontStatus, subscribeFonts } from "../../fonts/registry"
 import { clearMeasures } from "../../fonts/metrics"
 
@@ -220,6 +221,7 @@ export class MapScene {
     track: { complete: boolean },
     portals: readonly MapEntity[] = [],
     shadows: Container[] | null = null,
+    lightBlockers: readonly MapEntity[] = [],
   ): RenderEnv {
     return {
       tex: (id, req) => {
@@ -264,6 +266,7 @@ export class MapScene {
       terrainSmooth: state.terrainSmooth,
       showCaveBlast: state.showCaveBlast,
       portals,
+      lightBlockers,
     }
   }
 
@@ -432,13 +435,15 @@ export class MapScene {
   private syncEntities(state: SceneState, onLevel: MapEntity[], assetsChanged: boolean): void {
     const seen = new Set<string>()
     const portals = onLevel.filter((e) => e.toolId === "portal")
+    // Lights are cut by what blocks light: they redraw when any of it changes.
+    const blockers = lightBlockers(onLevel)
     // A view-level alpha, so changing the ambient doesn't rebuild every light.
     const glow = glowStrength(state.map.environment.ambientLight)
     onLevel.forEach((entity, index) => {
       const render = ENTITY_RENDERERS[entity.toolId]
       if (!render) return
       seen.add(entity.id)
-      const deps = entity.toolId === "wall" ? portals : []
+      const deps = entity.toolId === "wall" ? portals : entity.toolId === "light" ? blockers : []
       const current = this.entities.get(entity.id)
       const inputsSame =
         !!current &&
@@ -448,7 +453,14 @@ export class MapScene {
         current.wear === state.map.buildingWear &&
         !(assetsChanged && !current.complete)
       // Only moved (dragging an object, a label, a light): shift what's drawn.
-      if (current && inputsSame && current.entity !== entity && onlyMoved(current.entity, entity)) {
+      if (
+        current &&
+        inputsSame &&
+        current.entity !== entity &&
+        // A light's shadows depend on where it is: it's redrawn.
+        entity.toolId !== "light" &&
+        onlyMoved(current.entity, entity)
+      ) {
         shiftView(
           current,
           entity.position.x - current.entity.position.x,
@@ -461,7 +473,7 @@ export class MapScene {
         if (current) destroyView(current)
         const track = { complete: true }
         const shadows: Container[] = []
-        const view = render(entity, this.env(state, track, portals, shadows))
+        const view = render(entity, this.env(state, track, portals, shadows, blockers))
         this.content.addChild(view)
         this.entities.set(entity.id, {
           entity,
@@ -541,7 +553,15 @@ export class MapScene {
       this.lighting = null
       return
     }
-    const inputs = [state.map.width, state.map.height, ambient, ...lights]
+    const blockers = lightBlockers(onLevel)
+    const inputs = [
+      state.map.width,
+      state.map.height,
+      ambient,
+      lights.length,
+      ...lights,
+      ...blockers,
+    ]
     const current = this.lighting
     if (current && sameInputs(current.inputs, inputs) && !(assetsChanged && !current.complete))
       return
@@ -552,7 +572,7 @@ export class MapScene {
       ambient,
       state.map,
       this.renderer,
-      this.env(state, track),
+      this.env(state, track, [], null, blockers),
     )
     comp.view.zIndex = Number.MAX_SAFE_INTEGER
     this.content.addChild(comp.view)
