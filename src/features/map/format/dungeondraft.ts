@@ -662,6 +662,15 @@ function water(im: Importer, level: string, raw: Json): MapEntity[] {
 }
 
 /** Convert a `.dungeondraft_map` JSON text into an Open20 Battle Maps document. */
+/**
+ * Whether `text` is a Dungeondraft map, by its content: it opens with its
+ * "header" (an .otbm file opens with its "format"). Needed where the file's
+ * name isn't known — Android's file picker hands over a content:// URI.
+ */
+export function looksLikeDungeondraftMap(text: string): boolean {
+  return /^\s*\{\s*"header"\s*:/.test(text.slice(0, 64))
+}
+
 export function importDungeondraftMap(text: string): ImportResult {
   let data: Json
   try {

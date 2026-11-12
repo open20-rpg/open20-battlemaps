@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { TERRAIN_SLOTS, decodeWeights, type TerrainData } from "../model/terrain"
 import {
+  looksLikeDungeondraftMap,
   bitAt,
   bitmapRuns,
   DungeondraftImportError,
@@ -345,5 +346,15 @@ describe("building wear", () => {
     expect(buildingWear(null)).toBe("none")
     expect(buildingWear(undefined)).toBe("grime")
     expect(buildingWear("res://packs/x/odd.png")).toBe("grime")
+  })
+})
+
+describe("looksLikeDungeondraftMap", () => {
+  it("tells Dungeondraft maps from .otbm files by their content", () => {
+    expect(looksLikeDungeondraftMap('{\n\t"header": {\n\t\t"creation_build": "1.2"')).toBe(true)
+    expect(looksLikeDungeondraftMap('{\n  "format": "open20-battle-maps",\n  "header": {}')).toBe(
+      false,
+    )
+    expect(looksLikeDungeondraftMap("not json")).toBe(false)
   })
 })

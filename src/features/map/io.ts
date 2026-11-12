@@ -32,6 +32,7 @@ import { loadCatalog } from "../fonts/catalog"
 import { resolveFontNames } from "../fonts/resolve"
 import {
   importDungeondraftMap,
+  looksLikeDungeondraftMap,
   PATH_WIDTH_TILES,
   pathWidthMultipliers,
   type ImportResult,
@@ -298,7 +299,11 @@ export async function openMapFlow(path?: string): Promise<OpenMapResult> {
     if (path) useSettingsStore.getState().removeRecentMap(path)
     throw err
   }
-  if (selected.toLowerCase().endsWith(`.${DUNGEONDRAFT_EXTENSION}`)) {
+  // By extension, or by content when the path has no name (an Android content:// URI).
+  if (
+    selected.toLowerCase().endsWith(`.${DUNGEONDRAFT_EXTENSION}`) ||
+    looksLikeDungeondraftMap(raw)
+  ) {
     const result = importDungeondraftMap(raw)
     const missingPacks = await applyImport(result)
     useSettingsStore.getState().pushRecentMap(selected)
