@@ -365,6 +365,7 @@
     "aboveRoofs": "Sobre los Techos"
   },
   "library": {
+    "resize": "Cambiar el ancho de la biblioteca",
     "title": "Biblioteca",
     "tabAll": "Todos",
     "tabUsed": "Usado",

@@ -94,6 +94,9 @@ interface SettingsState {
    * until the gesture ends, so it's on by default only on mobile.
    */
   snapshotViewGestures: boolean
+  /** Thumbnail columns of the docked Library (its width, dragged by its left edge). */
+  libraryColumns: number
+  setLibraryColumns: (columns: number) => void
   setSnapshotViewGestures: (on: boolean) => void
   setPostProcess: (patch: Partial<PostProcess>) => void
   resetPostProcess: () => void
@@ -131,6 +134,8 @@ export const useSettingsStore = create<SettingsState>()(
       setDisableBuildingWear: (disableBuildingWear) => set({ disableBuildingWear }),
       snapshotViewGestures: isMobilePlatform(),
       setSnapshotViewGestures: (snapshotViewGestures) => set({ snapshotViewGestures }),
+      libraryColumns: 4,
+      setLibraryColumns: (libraryColumns) => set({ libraryColumns }),
       setPostProcess: (patch) => set((s) => ({ postProcess: { ...s.postProcess, ...patch } })),
       resetPostProcess: () => set({ postProcess: DEFAULT_POST_PROCESS }),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),

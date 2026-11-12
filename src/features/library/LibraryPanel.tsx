@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
-import { Flex, Icon, Tabs, Text } from "@chakra-ui/react"
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { Box, Flex, Icon, Tabs, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuLibrary } from "react-icons/lu"
 import { AssetSelector } from "./AssetSelector"
@@ -12,8 +12,60 @@ import { type AssetCategory } from "../../lib/categories"
 import { usedAssetIds } from "../map/packUsage"
 import { LIBRARY_PARAM, libraryAssetsOf } from "../tools/params"
 import { Select } from "../../ui/Select"
+import { useSettingsStore } from "../../stores/settingsStore"
+import { libraryColumnsFor, libraryWidth } from "./panelWidth"
 
 // -- the sticky Library panel --------------------------------------------------
+
+/**
+ * The docked Library's left edge: dragging it widens or narrows the panel a
+ * whole thumbnail column at a time (4 to 8), so the grid always fits. The
+ * column count is a remembered preference.
+ */
+function WidthHandle({ label }: { label: string }) {
+  const setColumns = useSettingsStore((s) => s.setLibraryColumns)
+  const [dragging, setDragging] = useState(false)
+
+  const resizeTo = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const panel = e.currentTarget.parentElement
+    if (!panel) return
+    const next = libraryColumnsFor(panel.getBoundingClientRect().right - e.clientX)
+    if (next !== useSettingsStore.getState().libraryColumns) setColumns(next)
+  }
+
+  return (
+    <Box
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      position="absolute"
+      left="-3px"
+      top="0"
+      bottom="0"
+      w="6px"
+      zIndex="1"
+      cursor="col-resize"
+      touchAction="none"
+      bg={dragging ? "brand.fg" : "transparent"}
+      _hover={{ bg: "brand.fg/60" }}
+      transition="background 0.15s"
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        e.preventDefault()
+        e.currentTarget.setPointerCapture(e.pointerId)
+        setDragging(true)
+      }}
+      onPointerMove={(e) => {
+        if (dragging) resizeTo(e)
+      }}
+      onPointerUp={(e) => {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+        setDragging(false)
+      }}
+      onPointerCancel={() => setDragging(false)}
+    />
+  )
+}
 
 /**
  * The Library on the right: browse a category's assets across enabled packs
@@ -31,6 +83,7 @@ export function LibraryPanel({
 }) {
   const { t } = useTranslation()
   const [tab, setTab] = useState("all")
+  const columns = useSettingsStore((s) => s.libraryColumns)
 
   const tool = useToolsStore(selectActiveTool)
   const toolId = tool?.id
@@ -76,7 +129,7 @@ export function LibraryPanel({
             top: "0",
             bottom: "0",
             zIndex: "docked",
-            w: "332px",
+            w: `${libraryWidth(columns)}px`,
             maxW: "80%",
             borderLeftWidth: "1px",
           })}
@@ -84,6 +137,7 @@ export function LibraryPanel({
       bg="panel.bg"
       borderColor="panel.border"
     >
+      {!embedded && <WidthHandle label={t("library.resize")} />}
       {/* Embedded, its container already names it (the phone sheet's tab). */}
       {!embedded && (
         <Flex
