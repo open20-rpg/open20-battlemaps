@@ -268,6 +268,14 @@ export function entityBounds(entity: MapEntity, sizeOf: AssetSizeOf): Rect {
     return inflate(boundsOf(pts), r)
   }
   if (entity.points && entity.points.length > 0) {
+    if (squareEnded(entity)) {
+      const half = lineHalfWidth(entity, sizeOf)
+      // Bends are rounded off by `half` around the inner points (see squareLineHit).
+      const joints = entity.points
+        .slice(1, -1)
+        .flatMap((v) => [sub(v, { x: half, y: half }), add(v, { x: half, y: half })])
+      return boundsOf([...segmentRects(entity.points, half).flat(), ...joints])
+    }
     return inflate(boundsOf(entity.points), entity.closed ? 0 : lineHalfWidth(entity, sizeOf))
   }
   return boundsOf(spriteCorners(entity, sizeOf))
@@ -281,6 +289,44 @@ export function entityBounds(entity: MapEntity, sizeOf: AssetSizeOf): Rect {
 const OUTLINE_ONLY_TOOLS = new Set(["wall", "path"])
 
 /** Whether `p` falls on the entity (hit test used by the Select tool). */
+/**
+ * Lines drawn with square ends that reach well past their points' line
+ * (a path's texture, a manual roof's slopes): picked and boxed by their real
+ * footprint, not a capsule that would reach a whole width past each end.
+ */
+const SQUARE_ENDED_TOOLS = new Set(["path", "roof"])
+
+const squareEnded = (e: MapEntity) =>
+  SQUARE_ENDED_TOOLS.has(e.toolId) && !e.closed && (e.points?.length ?? 0) > 1
+
+/** Per segment, the rectangle `half` to each side of it (square ends). */
+function segmentRects(points: readonly Vec2[], half: number): Vec2[][] {
+  return segmentsOf(points).flatMap(([a, b]) => {
+    const len = dist(a, b)
+    if (len < 1e-9) return []
+    const nx = (-(b.y - a.y) / len) * half
+    const ny = ((b.x - a.x) / len) * half
+    return [
+      [
+        { x: a.x + nx, y: a.y + ny },
+        { x: b.x + nx, y: b.y + ny },
+        { x: b.x - nx, y: b.y - ny },
+        { x: a.x - nx, y: a.y - ny },
+      ],
+    ]
+  })
+}
+
+/**
+ * Whether `p` is on a square-ended line `half` wide each side (plus
+ * `tolerance`): inside a segment's rectangle, or around an inner point,
+ * where two segments bend.
+ */
+function squareLineHit(points: readonly Vec2[], p: Vec2, half: number, tolerance: number): boolean {
+  if (segmentRects(points, half + tolerance).some((r) => pointInPolygon(p, r))) return true
+  return points.slice(1, -1).some((v) => dist(p, v) <= half + tolerance)
+}
+
 export function entityHit(
   entity: MapEntity,
   p: Vec2,
@@ -293,6 +339,9 @@ export function entityHit(
   if (entity.points && entity.points.length > 0) {
     const area = entity.closed && entity.points.length > 2 && !OUTLINE_ONLY_TOOLS.has(entity.toolId)
     if (area && pointInPolygon(p, entity.points)) return true
+    if (squareEnded(entity)) {
+      return squareLineHit(entity.points, p, lineHalfWidth(entity, sizeOf), tolerance)
+    }
     return (
       distToPolyline(p, entity.points, entity.closed) <= lineHalfWidth(entity, sizeOf) + tolerance
     )

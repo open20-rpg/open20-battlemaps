@@ -585,3 +585,36 @@ describe("hitTest with a solid test", () => {
     expect(hitTest(items, { x: 0, y: 0 }, sizeOf, undefined, 0, () => false)).toBeUndefined()
   })
 })
+
+describe("square-ended lines (paths, manual roofs)", () => {
+  const roof: MapEntity = {
+    id: "r",
+    toolId: "roof",
+    layer: 700,
+    position: { x: 0, y: 0 },
+    rotation: 0,
+    points: [
+      { x: 5, y: 5 },
+      { x: 5, y: 14 },
+    ],
+    params: { width: 4 },
+  }
+  const sizeOf = () => undefined
+
+  it("boxes a roof by its slopes, not a width past each end", () => {
+    expect(entityBounds(roof, sizeOf)).toEqual({ x: 1, y: 5, w: 8, h: 9 })
+  })
+
+  it("picks it on its slopes but not past the ridge's ends", () => {
+    expect(entityHit(roof, { x: 8.5, y: 13.5 }, sizeOf, 0)).toBe(true)
+    expect(entityHit(roof, { x: 5, y: 3 }, sizeOf, 0)).toBe(false)
+    expect(entityHit(roof, { x: 5, y: 16 }, sizeOf, 0)).toBe(false)
+  })
+
+  it("covers the bend of a multi-segment line", () => {
+    const bent = { ...roof, points: [...roof.points!, { x: 14, y: 14 }] }
+    // Outside both segments' rectangles, at the outer corner of the bend.
+    expect(entityHit(bent, { x: 3, y: 16 }, sizeOf, 0)).toBe(true)
+    expect(entityHit(bent, { x: 16, y: 14 }, sizeOf, 0)).toBe(false)
+  })
+})
