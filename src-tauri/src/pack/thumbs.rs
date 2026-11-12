@@ -17,7 +17,8 @@ pub(crate) enum Rule {
     /// Walls (32) and paths (48): transparent borders trimmed, scaled to this
     /// height, cut to STRIP_WIDTH from the left.
     Strip(u32),
-    /// Terrain: the whole texture shrunk to this square.
+    /// Terrain: the whole texture shrunk to this square, opaque — terrain
+    /// alpha is the height used to blend terrains, not transparency.
     Square(u32),
     /// Everything else: shrunk until the longer side is this long.
     Fit(u32),
@@ -74,7 +75,13 @@ pub(crate) fn make(img: &RgbaImage, rule: Rule) -> RgbaImage {
             let keep = scaled.width().min(STRIP_WIDTH);
             imageops::crop_imm(&scaled, 0, 0, keep, height).to_image()
         }
-        Rule::Square(side) => shrink(img, side, side),
+        Rule::Square(side) => {
+            let mut t = shrink(img, side, side);
+            for px in t.pixels_mut() {
+                px.0[3] = 255;
+            }
+            t
+        }
         Rule::Fit(side) => {
             let k = side as f32 / w.max(h) as f32;
             if k >= 1.0 {
@@ -134,5 +141,16 @@ mod tests {
         let small = RgbaImage::new(20, 10);
         assert_eq!(make(&small, Rule::Fit(64)).dimensions(), (20, 10));
         assert_eq!(make(&floor, Rule::Square(160)).dimensions(), (160, 160));
+    }
+
+    #[test]
+    fn terrain_thumbnails_ignore_the_blend_alpha() {
+        // Terrain alpha is blend height: the thumbnail shows the colour as is.
+        let terrain = RgbaImage::from_pixel(512, 512, Rgba([90, 140, 60, 70]));
+        let t = make(&terrain, Rule::Square(160));
+        assert!(t.pixels().all(|p| p.0 == [90, 140, 60, 255]));
+        // Other textures keep their transparency.
+        let wall = RgbaImage::from_pixel(64, 64, Rgba([90, 140, 60, 70]));
+        assert!(make(&wall, Rule::Fit(64)).pixels().all(|p| p.0[3] == 70));
     }
 }
