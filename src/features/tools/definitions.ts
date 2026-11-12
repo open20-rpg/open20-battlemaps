@@ -187,12 +187,12 @@ const segmented = (
   options: SegmentedChoice[],
   def: string,
 ): ToolParamSpec => ({ kind: "segmented", paramKey, labelKey, options, default: def })
-const switchParam = (paramKey: string, labelKey: string, def: boolean): ToolParamSpec => ({
-  kind: "switch",
-  paramKey,
-  labelKey,
-  default: def,
-})
+const switchParam = (
+  paramKey: string,
+  labelKey: string,
+  def: boolean,
+  tooltipKey?: string,
+): ToolParamSpec => ({ kind: "switch", paramKey, labelKey, tooltipKey, default: def })
 const shadow = (def: boolean): ToolParamSpec => switchParam("shadow", "tools.shadow", def)
 const bevelCorners = (def: boolean): ToolParamSpec =>
   switchParam("bevelCorners", "tools.bevelCorners", def)
@@ -690,7 +690,7 @@ export const TOOL_TREE: ToolNode[] = [
         default: SELECT_FILTER_DEFAULT,
       },
       // Clicks go through the transparent parts of objects and portals.
-      switchParam("alphaPick", "tools.alphaPick", false),
+      switchParam("alphaPick", "tools.alphaPick", true, "tools.alphaPickHint"),
       // What the keyboard does elsewhere, as buttons for touch screens.
       button("delete", "tools.delete", LuTrash2, "danger"),
       button("duplicate", "tools.duplicate", LuCopyPlus),

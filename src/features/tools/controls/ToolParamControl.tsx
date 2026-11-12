@@ -64,7 +64,12 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
     />
   ),
   switch: ({ spec, value, onChange }) => (
-    <SwitchParamControl value={value} labelKey={spec.labelKey} onChange={onChange} />
+    <SwitchParamControl
+      value={value}
+      labelKey={spec.labelKey}
+      tooltipKey={spec.tooltipKey}
+      onChange={onChange}
+    />
   ),
   slider: ({ spec, value, onChange }) => (
     <SliderControl

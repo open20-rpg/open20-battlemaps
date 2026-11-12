@@ -30,7 +30,7 @@ describe("toolsStore", () => {
         "caves",
         "materials",
       ],
-      alphaPick: false,
+      alphaPick: true,
       delete: null,
       duplicate: null,
       copy: null,

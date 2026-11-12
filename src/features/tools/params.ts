@@ -120,7 +120,11 @@ export type ToolParamSpec =
   | (BaseSpec<"layer"> & { allowed: number[] })
   | BaseSpec<"sorting">
   /** On/off switch (Shadow, Bevel Corners, Rotate 180, Block Light, …). */
-  | (BaseSpec<"switch"> & { labelKey: string })
+  | (BaseSpec<"switch"> & {
+      labelKey: string
+      /** Explanation shown in a tooltip on an info icon next to the label. */
+      tooltipKey?: string
+    })
   /** Segmented single-choice control (Brush Mode: Dig Cave / Blast Open, …). */
   | (BaseSpec<"segmented"> & { labelKey: string; options: SegmentedChoice[] })
   /** Plain numeric slider (Rotation, …). */

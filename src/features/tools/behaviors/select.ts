@@ -212,7 +212,7 @@ export function ungroupSelection(ctx: ToolCtx): void {
 const ALPHA_PICK_MIN = 8
 
 /**
- * With the Select tool's "Pick by alpha" on, a click on a sprite (object,
+ * With the Select tool's "Click through transparency" on (the default), a click on a sprite (object,
  * portal) only picks it where its texture isn't transparent: elsewhere it
  * goes through to what's under it. Until the texture is loaded, its shape decides.
  */
