@@ -53,12 +53,14 @@ export function MobileTopBar(props: MenuBarProps) {
   return (
     <Flex
       as="header"
-      h="48px"
+      minH="44px"
       flexShrink={0}
       align="center"
       gap="1"
       px="1"
       bg="menubar.bg"
+      // Clear of the phone's status bar / notch.
+      pt="env(safe-area-inset-top)"
       borderBottomWidth="1px"
       borderColor="panel.border"
     >

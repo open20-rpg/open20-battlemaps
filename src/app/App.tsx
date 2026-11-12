@@ -125,7 +125,7 @@ export default function App() {
 
   const TopBar = phone ? MobileTopBar : MenuBar
   return (
-    <Flex direction="column" h="100vh" pb={STATUS_BAR_HEIGHT} bg="app.bg">
+    <Flex direction="column" h="100dvh" pb={phone ? "0" : STATUS_BAR_HEIGHT} bg="app.bg">
       <TopBar
         assetsOpen={assetsOpen}
         mapOpen={hasMap}

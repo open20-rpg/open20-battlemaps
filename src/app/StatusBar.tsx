@@ -86,9 +86,41 @@ function StatusIdentity() {
   )
 }
 
+/**
+ * On a phone the status bar would take a strip of the map for a "Ready"
+ * nobody reads: only what's loading shows, as a pill over the top of the map.
+ */
+function PhoneLoadingPill({ label }: { label: string }) {
+  return (
+    <Portal>
+      <HStack
+        position="fixed"
+        top="52px"
+        left="50%"
+        transform="translateX(-50%)"
+        zIndex="max"
+        gap="1.5"
+        px="3"
+        py="1.5"
+        borderRadius="full"
+        bg="menubar.bg"
+        borderWidth="1px"
+        borderColor="panel.border"
+        fontSize="xs"
+        color="menubar.fg"
+        boxShadow="md"
+      >
+        <Spinner size="xs" color="brand.fg" borderWidth="1.5px" />
+        <Text whiteSpace="nowrap">{label}</Text>
+      </HStack>
+    </Portal>
+  )
+}
+
 export function StatusBar() {
   const tasks = useLoadingStore((s) => s.tasks)
   const isLoading = useIsLoading()
+  const phone = useIsPhone()
   const { t } = useTranslation()
 
   // Overall progress = average of tasks that report a percentage.
@@ -103,6 +135,8 @@ export function StatusBar() {
       ? t("status.loadingCount", { count: tasks.length })
       : t("status.loading")
     : t("status.ready")
+
+  if (phone) return isLoading ? <PhoneLoadingPill label={tasks[0]?.message ?? label} /> : null
 
   return (
     <Portal>

@@ -329,7 +329,10 @@
     "selectAll": "Select all",
     "deselect": "Deselect",
     "lightShadowSoftness": "Light shadow softness",
-    "paramsTab": "Parameters"
+    "paramsTab": "Parameters",
+    "showParams": "Show parameters",
+    "backToGroups": "Back to groups",
+    "viewControls": "View"
   },
   "biomes": {
     "barren": "Barren",

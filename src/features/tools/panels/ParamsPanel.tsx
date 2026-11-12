@@ -21,6 +21,7 @@ export function ParamsPanel({
   onHide,
   width = "308px",
   scroll = false,
+  header = true,
 }: {
   tool: ToolLeaf
   onHide: () => void
@@ -31,6 +32,8 @@ export function ParamsPanel({
    * fixed height: the phone's sheet is too short to share among them.
    */
   scroll?: boolean
+  /** Its own title bar (the phone's sheet brings its own). */
+  header?: boolean
 }) {
   const { t } = useTranslation()
   // Which params show: those whose visibleWhen predicate passes for the
@@ -59,32 +62,34 @@ export function ParamsPanel({
       borderRightWidth="1px"
       borderColor="panel.border"
     >
-      <Flex
-        align="center"
-        gap="2"
-        px="3"
-        py="2.5"
-        borderBottomWidth="1px"
-        borderColor="panel.border"
-        bg="panel.header"
-        flexShrink={0}
-      >
-        <Icon as={tool.icon} color="brand.fg" boxSize="4" />
-        <Text truncate fontWeight="bold" fontSize="sm" flex="1">
-          {t(tool.nameKey)}
-        </Text>
-        <Tooltip content={t("tools.hideParams")} positioning={{ placement: "right" }} showArrow>
-          <IconButton
-            aria-label={t("tools.hideParams")}
-            size="xs"
-            variant="ghost"
-            color="menubar.fg"
-            onClick={onHide}
-          >
-            <LuPanelLeftClose />
-          </IconButton>
-        </Tooltip>
-      </Flex>
+      {header && (
+        <Flex
+          align="center"
+          gap="2"
+          px="3"
+          py="2.5"
+          borderBottomWidth="1px"
+          borderColor="panel.border"
+          bg="panel.header"
+          flexShrink={0}
+        >
+          <Icon as={tool.icon} color="brand.fg" boxSize="4" />
+          <Text truncate fontWeight="bold" fontSize="sm" flex="1">
+            {t(tool.nameKey)}
+          </Text>
+          <Tooltip content={t("tools.hideParams")} positioning={{ placement: "right" }} showArrow>
+            <IconButton
+              aria-label={t("tools.hideParams")}
+              size="xs"
+              variant="ghost"
+              color="menubar.fg"
+              onClick={onHide}
+            >
+              <LuPanelLeftClose />
+            </IconButton>
+          </Tooltip>
+        </Flex>
+      )}
       {params.length > 0 ? (
         // When a param grows (e.g. an asset picker), the column must not scroll
         // so the growing children can flex; otherwise let compact params scroll.

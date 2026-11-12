@@ -329,7 +329,10 @@
     "selectAll": "Seleccionar todo",
     "deselect": "Deseleccionar",
     "lightShadowSoftness": "Suavidad de sombras de luz",
-    "paramsTab": "Parámetros"
+    "paramsTab": "Parámetros",
+    "showParams": "Mostrar parámetros",
+    "backToGroups": "Volver a los grupos",
+    "viewControls": "Vista"
   },
   "biomes": {
     "barren": "Yermo",
