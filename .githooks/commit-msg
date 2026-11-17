@@ -1,4 +1,4 @@
 #!/bin/sh
-# Every commit must be a Conventional Commit (see commitlint.config.js); CI
-# checks it again for every pushed commit.
+# Every commit must be a Conventional Commit (see commitlint.config.js):
+# semantic-release derives versions from them, and CI doesn't lint.
 exec npx --no -- commitlint --edit "$1"
