@@ -395,7 +395,11 @@ export function createMaterialBehavior(): ToolBehavior {
       spacing: STAMP_SPACING,
       erase: inverted,
       layer: (ctx) => paramNum(ctx.params.layer, -400),
-      params: (ctx) => ({ material: ctx.params.material, smooth: ctx.params.smooth === true }),
+      params: (ctx) => ({
+        material: ctx.params.material,
+        smooth: ctx.params.smooth === true,
+        ...(ctx.params.moveToFront === true ? { toFront: true } : {}),
+      }),
       canPaint: (ctx) =>
         (ctx.params.material as AssetSelection | undefined)?.assets[0] !== undefined,
     }),

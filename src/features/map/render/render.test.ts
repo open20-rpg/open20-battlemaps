@@ -5,6 +5,7 @@ import {
   chaikinLoop,
   materialBorderPart,
   materialLoops,
+  materialOrder,
   maskResolution,
   paintedGroups,
   paintedLayer,
@@ -127,6 +128,17 @@ describe("materials (Dungeondraft's MaterialMesh)", () => {
     expect(loops).toHaveLength(2)
     const signs = loops.map((l) => Math.sign(area(l)))
     expect(signs[0]).toBe(-signs[1])
+  })
+
+  it("draws materials in first-painted order, Move to Front lifting one over the rest", () => {
+    const e = (asset: string, toFront = false) =>
+      ({
+        params: { material: { assets: [asset] }, ...(toFront ? { toFront } : {}) },
+      }) as unknown as MapEntity
+    const order = (list: MapEntity[]) => materialOrder(list).map(([id, l]) => `${id}:${l.length}`)
+    expect(order([e("a"), e("b"), e("a")])).toEqual(["a:2", "b:1"])
+    expect(order([e("a"), e("b"), e("a", true)])).toEqual(["b:1", "a:2"])
+    expect(order([e("a"), e("b"), e("a", true), e("b")])).toEqual(["b:2", "a:2"])
   })
 
   it("keeps one composite per material layer", () => {

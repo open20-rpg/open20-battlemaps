@@ -240,6 +240,7 @@
     "loadImage": "Cargar imagen",
     "materialAsset": "Material",
     "smooth": "Suavizar",
+    "moveToFront": "Mover al frente",
     "opacity": "Opacidad",
     "prefabList": "Prefabs guardados",
     "removeImage": "Quitar imagen",

@@ -463,6 +463,8 @@ export const TOOL_TREE: ToolNode[] = [
           objectLayer(-400),
           // Rounds the material's border (Dungeondraft's Smooth).
           switchParam("smooth", "tools.smooth", false),
+          // Draw the material over the layer's others from this stroke on.
+          switchParam("moveToFront", "tools.moveToFront", false),
           // Materials take no color: their tile and border textures as they are.
           assetPicker(
             "material",

@@ -615,13 +615,30 @@ export function materialLoops(grid: CellGrid): Vec2[][] {
 }
 
 /**
+ * A layer's materials in draw order, each with its strokes' entities: in the
+ * order they were first painted, except that a stroke painted with Move to
+ * Front (`toFront`) moves its material over the others from then on.
+ */
+export function materialOrder(entities: readonly MapEntity[]): [string, MapEntity[]][] {
+  const byMaterial = new Map<string, MapEntity[]>()
+  for (const e of entities) {
+    const key = selectionAsset(e.params.material).id ?? ""
+    const list = byMaterial.get(key) ?? []
+    list.push(e)
+    if (e.params.toFront === true) byMaterial.delete(key)
+    byMaterial.set(key, list)
+  }
+  return [...byMaterial]
+}
+
+/**
  * Material brush, as Dungeondraft's MaterialMesh: each material texture of a
  * layer is a bitmap of 128 px cells (stamped stroke by stroke, erasing
  * strokes clearing only their own material), filled with its tile texture
  * where marching squares cover it and bordered by its border texture — a
  * line as wide as the texture is tall, sharp corners, tiled, no color —
  * along every outline, smoothed when the material's Smooth is on. Materials
- * draw in the order they were first painted.
+ * draw in materialOrder.
  */
 function materialComposite(
   entities: MapEntity[],
@@ -629,16 +646,9 @@ function materialComposite(
   renderer: Renderer,
   env: RenderEnv,
 ): Composite {
-  const byMaterial = new Map<string, MapEntity[]>()
-  for (const e of entities) {
-    const key = selectionAsset(e.params.material).id ?? ""
-    const list = byMaterial.get(key)
-    if (list) list.push(e)
-    else byMaterial.set(key, [e])
-  }
   const view = new Container()
   const masks: MapMask[] = []
-  for (const [id, mine] of byMaterial) {
+  for (const [id, mine] of materialOrder(entities)) {
     const grid = emptyGrid(map.width, map.height, MATERIAL_CELLS_PER_TILE)
     for (const e of mine) for (const s of e.strokes ?? []) stampStroke(grid, s, s.erase ? 0 : 1)
     const loops = materialLoops(grid)
