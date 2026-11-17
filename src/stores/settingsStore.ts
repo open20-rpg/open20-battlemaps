@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { DEFAULT_POST_PROCESS, type PostProcess } from "../lib/postProcess"
-import { type PresetId } from "../features/shortcuts/actions"
+import { knownPreset, type PresetId } from "../features/shortcuts/actions"
 import { persist } from "zustand/middleware"
 import { type MapTemplate } from "../lib/templates"
 import { type MapEntity } from "../features/map/model/types"
@@ -16,7 +16,7 @@ export interface Prefab {
 
 /**
  * How drop shadows (objects, walls) look in Open20 Battle Maps. An app preference, not
- * part of any map file: Dungeondraft maps have no such settings.
+ * part of any map file (imported maps have no such settings either).
  */
 export interface ShadowStyle {
   /** Softness: blur radius in tiles (0 = hard edge). */
@@ -123,7 +123,7 @@ export const useSettingsStore = create<SettingsState>()(
       shadowStyle: DEFAULT_SHADOW_STYLE,
       setShadowStyle: (patch) => set((s) => ({ shadowStyle: { ...s.shadowStyle, ...patch } })),
       resetShadowStyle: () => set({ shadowStyle: DEFAULT_SHADOW_STYLE }),
-      shortcutPreset: "dungeondraft",
+      shortcutPreset: "classic",
       shortcutOverrides: {},
       setShortcutBindings: (actionId, bindings) =>
         set((s) => ({ shortcutOverrides: { ...s.shortcutOverrides, [actionId]: bindings } })),
@@ -168,6 +168,8 @@ export const useSettingsStore = create<SettingsState>()(
           ...saved,
           shadowStyle: { ...DEFAULT_SHADOW_STYLE, ...saved.shadowStyle },
           postProcess: { ...DEFAULT_POST_PROCESS, ...saved.postProcess },
+          // A preset that was renamed (or removed) falls back to the default.
+          shortcutPreset: knownPreset(saved.shortcutPreset),
         }
       },
     },

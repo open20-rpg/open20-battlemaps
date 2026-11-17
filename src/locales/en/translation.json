@@ -466,7 +466,7 @@
   "shortcuts": {
     "title": "Keyboard shortcuts",
     "preset": "Preset",
-    "preset_dungeondraft": "Dungeondraft",
+    "preset_classic": "Classic",
     "reset": "Reset all",
     "conflicts_one": "{{count}} conflicting shortcut",
     "conflicts_other": "{{count}} conflicting shortcuts",

@@ -4,7 +4,7 @@ import { useEditorStore } from "../../stores/editorStore"
 import { useSettingsStore } from "../../stores/settingsStore"
 import { getToolParams, useToolsStore } from "../../stores/toolsStore"
 import { useViewStore } from "../../stores/viewStore"
-import { FIXED_CHORDS, PRESET_BINDINGS, effectiveBindings } from "../shortcuts/actions"
+import { FIXED_CHORDS, PRESET_BINDINGS, effectiveBindings, knownPreset } from "../shortcuts/actions"
 import { closeMap, createMap } from "./commands"
 import { nextZoom, runShortcut } from "./shortcuts"
 
@@ -26,7 +26,7 @@ beforeEach(() => {
   useSettingsStore.getState().resetShortcuts()
 })
 
-describe("keyboard shortcuts (Dungeondraft preset)", () => {
+describe("keyboard shortcuts (classic preset)", () => {
   it("selects tools; X jumps to Select and back", () => {
     expect(press("w")).toBe(true)
     expect(activeTool()).toBe("wall")
@@ -36,7 +36,7 @@ describe("keyboard shortcuts (Dungeondraft preset)", () => {
     expect(activeTool()).toBe("wall")
   })
 
-  it("toggles view overlays with Dungeondraft's keys", () => {
+  it("toggles view overlays with the preset's keys", () => {
     useViewStore.setState({ snap: true, grid: true, lighting: true })
     press("s")
     expect(useViewStore.getState().snap).toBe(false)
@@ -94,7 +94,15 @@ describe("keyboard shortcuts (Dungeondraft preset)", () => {
   })
 
   it("has no conflicts in the preset", () => {
-    expect([...findConflicts(effectiveBindings("dungeondraft", {}), FIXED_CHORDS)]).toEqual([])
-    expect(Object.keys(PRESET_BINDINGS.dungeondraft).length).toBeGreaterThan(40)
+    expect([...findConflicts(effectiveBindings("classic", {}), FIXED_CHORDS)]).toEqual([])
+    expect(Object.keys(PRESET_BINDINGS.classic).length).toBeGreaterThan(40)
+  })
+})
+
+describe("saved shortcut preset", () => {
+  it("keeps a preset that exists and falls back to the default for a renamed one", () => {
+    expect(knownPreset("classic")).toBe("classic")
+    expect(knownPreset("dungeondraft")).toBe("classic")
+    expect(knownPreset(undefined)).toBe("classic")
   })
 })

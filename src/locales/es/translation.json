@@ -466,7 +466,7 @@
   "shortcuts": {
     "title": "Atajos de teclado",
     "preset": "Preset",
-    "preset_dungeondraft": "Dungeondraft",
+    "preset_classic": "Clásico",
     "reset": "Restablecer todo",
     "conflicts_one": "{{count}} atajo en conflicto",
     "conflicts_other": "{{count}} atajos en conflicto",

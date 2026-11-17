@@ -4,8 +4,8 @@
  * bindings per preset. Bindings are chords (lib/keybindings.ts); hold
  * actions (pan, invert) are active while one of theirs is held.
  *
- * The Dungeondraft preset reproduces Dungeondraft 1.2's own shortcuts; ours
- * on top of it (tool keys, flips, groups…) use keys Dungeondraft leaves free.
+ * The classic preset holds the long-standing default keys; ours on top of it
+ * (tool keys, flips, groups…) use keys the classic preset leaves free.
  */
 
 export type ShortcutGroup = "file" | "edit" | "view" | "tools"
@@ -19,10 +19,18 @@ export interface ShortcutAction {
   hold?: boolean
 }
 
-export const PRESETS = ["dungeondraft"] as const
+export const PRESETS = ["classic"] as const
 export type PresetId = (typeof PRESETS)[number]
 
-/** Tools that get a "select tool" shortcut, with their Dungeondraft-preset key. */
+/**
+ * A saved preset id, or the default one when it's no longer offered (e.g. a
+ * preset renamed since the settings were saved).
+ */
+export function knownPreset(id: unknown): PresetId {
+  return (PRESETS as readonly unknown[]).includes(id) ? (id as PresetId) : PRESETS[0]
+}
+
+/** Tools that get a "select tool" shortcut, with their classic-preset key. */
 const TOOL_KEYS: Record<string, string[]> = {
   build: ["B"],
   wall: ["W"],
@@ -88,7 +96,7 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
 export const ACTION_BY_ID = new Map(SHORTCUT_ACTIONS.map((a) => [a.id, a]))
 
 export const PRESET_BINDINGS: Record<PresetId, Record<string, string[]>> = {
-  dungeondraft: {
+  classic: {
     newMap: ["Ctrl+N"],
     open: ["Ctrl+O"],
     save: ["Ctrl+S"],
@@ -99,7 +107,7 @@ export const PRESET_BINDINGS: Record<PresetId, Record<string, string[]>> = {
     delete: ["Delete", "Backspace"],
     group: ["Ctrl+G"],
     ungroup: ["Ctrl+Shift+G"],
-    // Dungeondraft has no lock shortcuts; these keys are free in it.
+    // The classic preset has no lock shortcuts; these keys are free in it.
     lock: ["Ctrl+L"],
     unlock: ["Ctrl+Shift+L"],
     flipH: ["F"],
@@ -120,7 +128,7 @@ export const PRESET_BINDINGS: Record<PresetId, Record<string, string[]>> = {
     levelUp: ["PageUp"],
     levelDown: ["PageDown"],
     invert: ["Alt"],
-    // Dungeondraft binds the keys that type { and } (unshifted on Latin
+    // The classic preset binds the keys that type { and } (unshifted on Latin
     // American layouts); [ and ] are the same keys on US layouts.
     brushSmaller: ["{", "["],
     brushBigger: ["}", "]"],
