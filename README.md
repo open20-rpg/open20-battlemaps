@@ -63,4 +63,8 @@ Document 5.2.1 ("SRD 5.2.1") de Wizards of the Coast LLC, disponible en
 https://www.dndbeyond.com/srd, bajo licencia
 [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/legalcode).
 
+Battle Maps es gratis para uso no comercial bajo la
+[Prosperity Public License 3.0.0](LICENSE). El pack Open20 Essentials tiene su
+propia licencia, [CC BY 4.0](https://github.com/open20-rpg/open20-essentials#licencia).
+
 ¿Quieres colaborar con código? La guía para desarrollar está en [`AGENTS.md`](AGENTS.md).
