@@ -103,7 +103,7 @@ const wallEntities = (ctx: ToolCtx, points: Vec2[]) => [
 
 /**
  * Join a new wall run to the open walls of the level that it meets end to
- * end (Ctrl when finishing, as in Dungeondraft): the first one it touches
+ * end (Ctrl when finishing): the first one it touches
  * takes the new points, and one touching the other end is merged in too.
  * Returns false when nothing meets it.
  */
@@ -297,7 +297,7 @@ export function createPathBehavior(): ToolBehavior {
   )
 }
 
-/** A roof along `ridge`, `width` tiles from the ridge to each eave (Dungeondraft's model). */
+/** A roof along `ridge`, `width` tiles from the ridge to each eave. */
 function roofEntity(ctx: ToolCtx, ridge: Vec2[], width: number): MapEntity {
   return makeEntity(ctx, {
     layer: LAYER.roof,
@@ -317,7 +317,7 @@ function roofEntity(ctx: ToolCtx, ridge: Vec2[], width: number): MapEntity {
 }
 
 /**
- * Roof, as Dungeondraft's: Quickbox drags a box and the ridge runs down the
+ * Roof: Quickbox drags a box and the ridge runs down the
  * middle of its longer side (width: half the shorter one); Manual clicks
  * out the ridge, Width tiles from each eave.
  */

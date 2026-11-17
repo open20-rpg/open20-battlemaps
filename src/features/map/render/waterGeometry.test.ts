@@ -18,7 +18,7 @@ const rect = (x0: number, y0: number, x1: number, y1: number) => [
   { x: x0, y: y1 },
 ]
 
-describe("water geometry (Dungeondraft's WaterMesh)", () => {
+describe("water geometry (polygons with holes)", () => {
   it("unions shapes exactly and cuts Alt-drawn ones, in order", () => {
     const polys = waterPolygons([
       water("a", { points: rect(0, 0, 4, 4), closed: true }),
@@ -52,7 +52,7 @@ describe("water geometry (Dungeondraft's WaterMesh)", () => {
     expect(Math.max(...xs)).toBeLessThan(4.7)
   })
 
-  it("gives ellipses Dungeondraft's number of sides", () => {
+  it("gives ellipses the reference number of sides", () => {
     // 1 × 1 tile: max(24, 8 cells) = 24 → under 32: 24/2 + 16 = 28 → round(6.72)·4.
     expect(ellipseSides(1, 1)).toBe(28)
     expect(ellipseSides(10, 10) % 4).toBe(0)

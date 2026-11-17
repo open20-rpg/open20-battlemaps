@@ -20,7 +20,7 @@ import {
 } from "pixi.js"
 
 /**
- * The distance-field text shader, as Dungeondraft's: with the field d
+ * The distance-field text shader: with the field d
  * (0..1, 0.5 on the glyph's edge), s = d − 0.5 and the coverage is
  * clamp(s / fwidth(s) + 0.5, 0, 1) — the edge antialiased over one screen
  * pixel at any zoom. (Pixi's own takes the screen scale from the text's

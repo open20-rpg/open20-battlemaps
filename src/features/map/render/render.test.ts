@@ -91,7 +91,7 @@ describe("asset paths", () => {
   })
 })
 
-describe("materials (Dungeondraft's MaterialMesh)", () => {
+describe("materials (material meshes)", () => {
   it("finds the border next to a tile texture by name", () => {
     expect(materialBorderPart("pack|textures/materials/cobblestone_tile.png")).toBe(
       "cobblestone_border",

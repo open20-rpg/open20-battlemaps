@@ -17,7 +17,7 @@ const text = (font: unknown): MapEntity => ({
 })
 
 describe("resolveFontNames", () => {
-  it("turns Dungeondraft font names into fonts, counting unknown ones", () => {
+  it("turns imported font names into fonts, counting unknown ones", () => {
     const { entities, unknown } = resolveFontNames(
       [text("Lora Bold"), text("Bangers"), text("Papyrus"), text("")],
       catalog,

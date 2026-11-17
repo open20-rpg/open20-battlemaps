@@ -5,8 +5,8 @@ import { recolorUrl, thumbUrl, type RecolorMode } from "../../library/api"
 import { resolveAssets, type ResolvedAsset } from "../api"
 
 /**
- * Dungeondraft textures are authored at 256 px per grid tile; every sprite,
- * tiling fill and rope is scaled by this to land in tile units.
+ * Pack textures (.dungeondraft_pack) are authored at 256 px per grid tile;
+ * every sprite, tiling fill and rope is scaled by this to land in tile units.
  */
 export const TEXTURE_PX_PER_TILE = 256
 

@@ -26,8 +26,8 @@ export interface BrushStroke {
   /** Removes previously painted area instead of adding to it (Alt). */
   erase?: boolean
   /**
-   * Cave "Blast Open": paints the cave's blasted area (Dungeondraft's
-   * entrance bitmap) instead of digging — the floor fades out there and the
+   * Cave "Blast Open": paints the cave's blasted area (the entrance
+   * bitmap) instead of digging — the floor fades out there and the
    * walls open. With `erase`, un-blasts.
    */
   blast?: boolean
@@ -112,11 +112,11 @@ export interface ReferenceImage {
 
 /**
  * Building wear: the grime multiplied over walls (and their ends), floors
- * and caves, as Dungeondraft's Map Settings → Building Wear. "none" turns it off.
+ * and caves, set in Map Settings → Building Wear. "none" turns it off.
  */
 export const BUILDING_WEARS = ["none", "dust", "grime", "noise", "scratched"] as const
 export type BuildingWear = (typeof BUILDING_WEARS)[number]
-/** Dungeondraft's default for new maps. */
+/** The default for new maps. */
 export const DEFAULT_BUILDING_WEAR: BuildingWear = "grime"
 
 export const isBuildingWear = (v: unknown): v is BuildingWear =>

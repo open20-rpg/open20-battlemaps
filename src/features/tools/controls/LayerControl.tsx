@@ -4,7 +4,7 @@ import { Select } from "../../../ui/Select"
 import { MAP_LAYERS } from "../definitions"
 
 /**
- * Layer number as shown by Dungeondraft: 3-digit, zero-padded ("000", "100").
+ * Layer number as shown in the UI: 3-digit, zero-padded ("000", "100").
  * Positives get a leading space (non-breaking, so it survives) in place of the
  * minus sign, so they line up with the negative layers.
  */

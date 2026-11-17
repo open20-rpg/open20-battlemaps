@@ -11,7 +11,7 @@ const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v
  * The light map: a map-sized render texture filled with the ambient color,
  * with every light added on top (additive), then multiplied over the scene.
  * With a white ambient (the default) the map looks fully lit and lights are
- * invisible — the same as Dungeondraft until you darken the environment.
+ * invisible until you darken the environment.
  * Lights with Shadow on reach only what walls, closed doors and
  * light-blocking objects let them see (model/lightBlock.ts).
  */

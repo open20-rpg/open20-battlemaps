@@ -22,8 +22,8 @@ const tick = (w: Uint8Array, intensity: number) =>
   blendTowards(w, 1, 1, mask, { x: 0, y: 0 }, 3, intensity * TERRAIN_TICK)
 const first4 = (w: Uint8Array) => [...w.subarray(0, 4)]
 
-describe("terrain painting (Dungeondraft's blend_towards_channel)", () => {
-  it("matches Dungeondraft at Intensity 4, 60 Hz", () => {
+describe("terrain painting (blend towards a slot)", () => {
+  it("matches the reference weights at Intensity 4, 60 Hz", () => {
     const w = texel()
     tick(w, 4)
     expect(first4(w)).toEqual([139, 107, 0, 8])
@@ -38,7 +38,7 @@ describe("terrain painting (Dungeondraft's blend_towards_channel)", () => {
     expect(first4(w)).toEqual([0, 0, 0, 255])
   })
 
-  it("matches Dungeondraft at Intensity 1", () => {
+  it("matches the reference weights at Intensity 1", () => {
     const w = texel()
     tick(w, 1)
     expect(first4(w)).toEqual([142, 110, 0, 2])

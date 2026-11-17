@@ -64,7 +64,7 @@ beforeEach(() => {
   useViewStore.setState({ snap: true })
 })
 
-describe("wheel and right-click (Dungeondraft's mouse shortcuts)", () => {
+describe("wheel and right-click mouse shortcuts", () => {
   it("Object: wheel rotates 15°, Alt+wheel scales, right-click turns 90°", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"], rotation: 0, scale: 1 })
     wheel("object", 1)
@@ -452,7 +452,7 @@ describe("painting", () => {
     // Blasting doesn't un-dig (that's Alt): it paints its own area.
     expect(blast.strokes?.[0]).toMatchObject({ blast: true })
     expect(blast.strokes?.[0].erase).toBeUndefined()
-    // Dungeondraft's default brush: a 4-cell stamp, a tile across.
+    // The default brush: a 4-cell stamp, a tile across.
     expect(dig.strokes?.[0].radius).toBe(0.5)
   })
 

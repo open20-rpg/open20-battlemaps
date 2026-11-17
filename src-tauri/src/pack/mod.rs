@@ -1,4 +1,4 @@
-//! Reading, installing and querying Dungeondraft asset packs.
+//! Reading, installing and querying asset packs (`.dungeondraft_pack`).
 //!
 //! Packs can be several GB, so file data is always streamed through a fixed
 //! buffer — the whole archive is never held in memory. Only the small index

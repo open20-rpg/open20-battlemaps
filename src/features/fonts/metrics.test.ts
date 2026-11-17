@@ -16,7 +16,7 @@ describe("text box layout", () => {
 })
 
 describe("text style", () => {
-  it("reads params with Dungeondraft's defaults", () => {
+  it("reads params with their defaults", () => {
     expect(textStyle({})).toMatchObject({ size: 32, box: "none", borderWidth: 2 })
     expect(textStyle({ boxShape: "pill", fontSize: 20 })).toMatchObject({ box: "pill", size: 20 })
   })

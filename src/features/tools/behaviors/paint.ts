@@ -49,7 +49,7 @@ import { type PointerInfo, type ToolBehavior, type ToolCtx } from "./types"
 /** A brush erases while the invert shortcut (Alt) is held, or when dragged with the right button. */
 const inverted = (_ctx: ToolCtx, e: PointerInfo) => e.button === 2 || isHeld("invert")
 
-/** Dungeondraft's cell-stamp brush (cave, water): its size, cursor and stamp spacing. */
+/** The cell-stamp brush (cave, water): its size, cursor and stamp spacing. */
 const stampBrush = {
   radius: (ctx: ToolCtx) => brushRadius(paramNum(ctx.params.brushSize, 1)),
   cursorRadius: (ctx: ToolCtx) => brushCursorRadius(paramNum(ctx.params.brushSize, 1)),
@@ -57,7 +57,7 @@ const stampBrush = {
 }
 
 /**
- * Cave, as Dungeondraft's: dig cave floor (walls form around it), or Blast
+ * Cave: dig cave floor (walls form around it), or Blast
  * Open — paint the blasted area, where the floor fades out and the walls
  * open; Alt (or right-drag) undoes either.
  */
@@ -240,7 +240,7 @@ const unionRect = (a: TexelRect, b: TexelRect): TexelRect => ({
 })
 
 /**
- * Terrain Brush, as Dungeondraft paints: while the button is held, a stamp
+ * Terrain Brush: while the button is held, a stamp
  * lands at the pointer on every 60 Hz tick — even standing still, so lingering
  * paints more — each adding Intensity / 60 × the soft cone to the picked slot
  * (model/terrain.ts). The stroke paints a live buffer and lands in the
@@ -329,7 +329,7 @@ export function createTerrainBehavior(): ToolBehavior {
         acc: 0,
         frame: 0,
       }
-      // The first frame paints right away, as Dungeondraft's first _Update does.
+      // The first frame paints right away, without waiting for the first tick.
       touchLiveTerrain(stamp())
       if (typeof requestAnimationFrame === "function") stroke.frame = requestAnimationFrame(loop)
     },
@@ -362,7 +362,7 @@ export function createTerrainBehavior(): ToolBehavior {
       action === "fill" && !terrainSlots(ctx.params.biome).selected,
     onParamsChange: (ctx, patch) => {
       // Slot textures belong to the level's terrain: changing one repaints
-      // everything painted with it, as in Dungeondraft.
+      // everything painted with it.
       if (!("biome" in patch) || stroke) return
       const existing = terrainOf(ctx.entities)
       // The level's first terrain: as soon as slot 1 has a texture, the whole
@@ -383,7 +383,7 @@ export function createTerrainBehavior(): ToolBehavior {
 }
 
 /**
- * Material, as Dungeondraft's: paint a material (its tile texture, bordered
+ * Material: paint a material (its tile texture, bordered
  * by its border texture) onto a layer with cell stamps on the material grid;
  * Alt (or right-drag) erases that material.
  */

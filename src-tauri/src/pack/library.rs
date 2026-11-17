@@ -122,8 +122,8 @@ fn main_part(category: &str) -> Option<&'static str> {
 
 /// Companion textures that belong to another item instead of being one: a
 /// wall's `<name>_end` end cap is drawn by the editor at the wall's open ends,
-/// and a material's `<name>_border` along the edge of its `<name>_tile` (as
-/// Dungeondraft's library, any material file naming "border" is one), so
+/// and a material's `<name>_border` along the edge of its `<name>_tile` (any
+/// material file naming "border" is one), so
 /// neither shows up as an item of its own.
 fn is_companion_texture(category: &str, stem: &str) -> bool {
     let lower = stem.to_ascii_lowercase();
@@ -177,7 +177,7 @@ fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<C
                     .map(|s| s.to_string_lossy().into_owned())
                     .unwrap_or(stem)
             } else if category == "materials" {
-                // Dungeondraft's `<name>_tile` (+ `<name>_border`): list it as `<name>`.
+                // A material's `<name>_tile` (+ `<name>_border`): list it as `<name>`.
                 material_name(&stem)
             } else {
                 stem
@@ -367,7 +367,7 @@ pub(crate) fn get_items(
     let window = &results[offset..end];
     // Packs ship thumbnails named by the md5 of the texture's res:// path;
     // for the ones missing, make them (in parallel: decoding big textures is
-    // the slow part) the way Dungeondraft does, next to the shipped ones.
+    // the slow part) cut the same way, next to the shipped ones.
     let mut paths = Vec::with_capacity(window.len());
     for lite in window {
         let dir = pack_dir(app, &lite.pack_id)?;

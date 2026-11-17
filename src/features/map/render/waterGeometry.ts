@@ -4,9 +4,9 @@ import { cellsToMap, gridField, stampStroke, strokeGrid } from "./cells"
 import { caveJitter, holeLoops, isoContours } from "./fields"
 
 /**
- * Water as Dungeondraft keeps it (WaterMesh): polygons with holes, never a
+ * Water as polygons with holes, never a
  * raster. Shapes (rectangle, ellipse, polygon) enter exactly; a brush
- * stroke paints the 64 px cell grid with Dungeondraft's stamps and is
+ * stroke paints the 64 px cell grid with the brush stamps and is
  * outlined by marching squares cut at half edges, every vertex jittered (as
  * caves are) — straight, slightly irregular edges. Each one is added to
  * (or, Alt-drawn, cut from) the water in document order.
@@ -82,7 +82,7 @@ export function waterPolygons(entities: readonly MapEntity[]): WaterPolygon[] {
 }
 
 /**
- * Dungeondraft's ellipse sides for a w × h ellipse (tiles): max(24, (w+h)/64
+ * Ellipse sides for a w × h ellipse (tiles): max(24, (w+h)/64
  * px); under 32, n/2 + 16; then rounded to a multiple of 4 (×0.24).
  */
 export function ellipseSides(w: number, h: number): number {

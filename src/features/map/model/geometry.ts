@@ -142,8 +142,8 @@ export function entityAssetId(entity: MapEntity): string | undefined {
 }
 
 /**
- * A text label's box in tiles (its font measured as Dungeondraft lays it
- * out: see fonts/metrics). Its position is the box's top-left corner.
+ * A text label's box in tiles (its font measured and laid out as in
+ * fonts/metrics). Its position is the box's top-left corner.
  */
 export function textSize(entity: MapEntity): { w: number; h: number } {
   const box = textLayout(entity.params, entity.text ?? "")
@@ -229,7 +229,7 @@ export function lineHalfWidth(entity: MapEntity, sizeOf: AssetSizeOf): number {
 
 /**
  * A path's width in tiles: its Width param is a multiplier of its
- * texture's height, as in Dungeondraft (1 = as wide as the texture is
+ * texture's height (1 = as wide as the texture is
  * tall; a tile until the texture's size is known).
  */
 export function pathWidth(entity: MapEntity, sizeOf: AssetSizeOf): number {

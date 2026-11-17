@@ -20,7 +20,7 @@ import { type MapEntity } from "../map/model/types"
  * Kinds of map elements, as data, for the Select tool: its element filter
  * (which kinds clicks and rubber bands can pick) and the "Select all …"
  * buttons it offers while nothing is selected. The terrain isn't one: it's
- * a per-level blend map (as in Dungeondraft), with no shapes to pick —
+ * a per-level blend map, with no shapes to pick —
  * it's repainted or erased with its own brush.
  */
 export interface SelectKind {
@@ -73,8 +73,8 @@ export const SELECT_FILTER_DEFAULT = SELECT_KINDS.filter((k) => k.filterDefault)
 
 /**
  * Tools whose elements the Select tool never picks: water is one merged body
- * (its shapes and strokes are only added to or cut from it), as in
- * Dungeondraft, so it's edited by painting, not by selecting pieces.
+ * (its shapes and strokes are only added to or cut from it), so it's edited
+ * by painting, not by selecting pieces.
  */
 const NEVER_SELECTED = new Set(["water"])
 

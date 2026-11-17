@@ -78,9 +78,8 @@ export function recolorUrl(path: string, color: string, mode: RecolorMode = "obj
 }
 
 /**
- * How Dungeondraft colors an image: its two red-region recolors — objects'
- * (CustomColors.shader), "custom_color" tilesets' and colorable patterns'
- * (TilesetCustomColor) — or a plain multiply (walls, "normal" tilesets).
+ * How an image is colored: one of two red-region recolors — objects', or
+ * "custom_color" tilesets' and colorable patterns' — or a plain multiply (walls, "normal" tilesets).
  */
 export type RecolorMode = "object" | "tileset" | "tint"
 
@@ -96,8 +95,7 @@ const isWhite = (color: string) => /^#?f{6}(ff)?$/i.test(color)
 
 /**
  * The URL to display for a library item. In tinted browsers (walls,
- * tilesets) each thumbnail shows in its own default color, as Dungeondraft's
- * panel does — never the color being picked — and "custom_color" ones as
+ * tilesets) each thumbnail shows in its own default color — never the color being picked — and "custom_color" ones as
  * they are. Elsewhere colorable ones are recolored by `color`.
  */
 export function itemImageUrl(

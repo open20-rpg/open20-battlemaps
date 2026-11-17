@@ -1,12 +1,11 @@
 import { Filter, GlProgram } from "pixi.js"
 
 /**
- * Water's look over what lies beneath it, after Dungeondraft's
- * Water.shader: the water keeps its own (ring-gradient) color, but the dark
- * parts underneath — floor lines, terrain detail, objects — show through
- * and darken it (below 50 % brightness, by smoothstep), while light ones
- * don't show. Dungeondraft also ripples that backdrop over time; the map is
- * redrawn on demand here, so it stays still.
+ * Water's look over what lies beneath it: the water keeps its own
+ * (ring-gradient) color, but the dark parts underneath — floor lines,
+ * terrain detail, objects — show through and darken it (below 50 %
+ * brightness, by smoothstep), while light ones don't show. The backdrop is
+ * not rippled over time: the map is redrawn on demand, so it stays still.
  */
 const vertex = /* glsl */ `
 in vec2 aPosition;

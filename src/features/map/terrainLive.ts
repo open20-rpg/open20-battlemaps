@@ -5,8 +5,8 @@ import { type TexelRect } from "./render/splat"
  * Terrain weights while a brush stroke is in progress. Painting runs at
  * 60 Hz on a decoded byte buffer instead of rewriting the document every
  * tick; the renderer reads that buffer live, and the stroke lands in the
- * document once, on release (one undo step), like Dungeondraft's
- * PaintTerrain(before, after).
+ * document once, on release (one undo step) with its before and after
+ * weights.
  */
 
 /** Decoded weights per terrain value, so unchanged terrain is never re-decoded. */

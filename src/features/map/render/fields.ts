@@ -231,7 +231,7 @@ export function simplifyLoop(loop: readonly Vec2[], eps: number): Vec2[] {
 }
 
 /**
- * Dungeondraft's water rings: inner offsets at 0.333, 0.75, 1.5, 2 and 4
+ * Water rings: inner offsets at 0.333, 0.75, 1.5, 2 and 4
  * tiles, up to the first one at or past `blend` (clipped to it), each
  * colored at distance / blend of the way from shallow to deep. Returns
  * (distance, weight) stops from the shore, the GPU interpolating linearly
@@ -261,12 +261,12 @@ export function rampAt(stops: readonly { d: number; t: number }[], distance: num
 }
 
 /**
- * Dungeondraft's cave vertex jitter: every point of the marching-squares
+ * Cave vertex jitter: every point of the marching-squares
  * mesh (corners and half-edge cuts, so indexed at half-cell steps) moves by
  * a fixed pseudo-random offset of up to `max` cells in x and y — the same
  * offset wherever that point appears, so shared vertices stay shared.
- * Dungeondraft draws its table from .NET's Random(seed); this is our own
- * stable hash, the same look rather than the same edges.
+ * The table comes from a stable hash of the point: the intended look,
+ * not bit-identical edges.
  */
 export function caveJitter(p: Vec2, max = 0.2): Vec2 {
   const ix = Math.round(p.x * 2)
@@ -317,7 +317,7 @@ function crossAt(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number | null {
 /**
  * The parts of a line (`closed`: a loop) outside every area of `areas`
  * (closed loops, even-odd), as open polylines — Clipper's difference of an
- * open path, as Dungeondraft cuts cave walls where the cave is blasted open.
+ * open path, used to cut cave walls where the cave is blasted open.
  */
 export function clipOutside(
   line: readonly Vec2[],

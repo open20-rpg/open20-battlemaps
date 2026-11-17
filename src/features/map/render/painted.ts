@@ -154,7 +154,7 @@ function masked(fill: Container, mask: Sprite): Container {
 const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback)
 const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v : fallback)
 
-/** Cave ground and wall color when none is set (Dungeondraft's 7f7e71). */
+/** Cave ground and wall color when none is set (7f7e71). */
 const CAVE_DEFAULT_COLOR = "#7f7e71"
 
 /** Bundle a composite's view with the masks it owns, freeing both together. */
@@ -186,8 +186,8 @@ function caveComposite(
   const wallColor = str(last.params.wallColor, CAVE_DEFAULT_COLOR)
   const view = new Container()
 
-  // Dungeondraft's two cave bitmaps (quarter-tile cells): dug, and blasted
-  // open (its entrance bitmap), each painted stroke by stroke in order.
+  // Two cave bitmaps (quarter-tile cells): dug, and blasted open (the
+  // entrance bitmap), each painted stroke by stroke in order.
   const dug = emptyGrid(map.width, map.height)
   const blasted = emptyGrid(map.width, map.height)
   for (const e of entities) {
@@ -203,7 +203,7 @@ function caveComposite(
   const blastLoops = outlines(blasted)
 
   // The floor: outlines filled, holes cut out; where blasted, faded out
-  // (Dungeondraft lowers the floor's vertex alpha by 0.25 per blasted corner).
+  // (the floor's vertex alpha drops by 0.25 per blasted corner).
   const holes = holeLoops(loops)
   const shape = (loop: Vec2[], hole: boolean) => {
     const g = new Graphics()
@@ -236,13 +236,13 @@ function caveComposite(
     return c
   }
   // The floor texture, 1:1 in px, multiplied by the ground color when the
-  // style is colorable (Dungeondraft's Cave shader); flat color without one.
+  // style is colorable; flat color without one.
   const floorTex = env.tex(id)
   const fill = textureOrColor(map, floorTex, ground)
   if (floorTex && env.colorable(id)) fill.tint = hexToPixiColor(ground).color
   view.addChild(masked(worn(fill), floor.sprite()))
 
-  // The walls: Dungeondraft's cave walls are wall lines along the outline —
+  // The walls: cave walls are wall lines along the outline —
   // the style's wall texture as wide as it's tall, sharp corners, no
   // normalize_uv or end caps — in the wall color, with the wear; cut open
   // (left as open lines) where the cave is blasted.
@@ -335,17 +335,17 @@ function rgbOf(hex: string): [number, number, number] {
 }
 
 /**
- * Water: Dungeondraft's model (its WaterMesh and Water.shader — the water's
- * polygons (waterGeometry.ts) filled from shallow at the shore to deep by
- * inner rings up to Blend Distance (waterRamp), the dark parts of what's
- * beneath showing through (waterFilter.ts)) drawn in the built-in pack's
- * hand-inked style (waterStyle.ts): the fill mottled like watercolor and
- * washed darker just inside the shore; unless the border is off, an ink
- * line of varying weight on every outline (holes too) and two rows of loose
- * light ripple strokes inside it, all with round corners.
+ * Water: the water's polygons (waterGeometry.ts) filled from shallow at
+ * the shore to deep by inner rings up to Blend Distance (waterRamp), the
+ * dark parts of what's beneath showing through (waterFilter.ts), drawn
+ * in the built-in pack's hand-inked style (waterStyle.ts): the fill
+ * mottled like watercolor and washed darker just inside the shore; unless
+ * the border is off, an ink line of varying weight on every outline (holes
+ * too) and two rows of loose light ripple strokes inside it, all with round
+ * corners.
  *
  * The ring colors come from a distance field over the polygons' raster —
- * Euclidean where Dungeondraft offsets with square joins — clipped to the
+ * Euclidean rather than offset with square joins — clipped to the
  * exact polygons; the ripples run along that field's iso-lines (round
  * inward offsets).
  */
@@ -494,9 +494,9 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
 
 /**
  * Terrain: one splat per level (slot weights, 4 texels per tile — see
- * model/terrain.ts), blended in one pass by Dungeondraft's formula
+ * model/terrain.ts), blended in one pass by the height-blend formula
  * (terrainMesh.ts). The weights are packed three slots per RGB texture,
- * filtered bilinearly like Dungeondraft's splat; while a stroke is being
+ * filtered bilinearly like an imported splat; while a stroke is being
  * painted they're re-packed from the live buffer on every tick (refresh).
  */
 function terrainComposite(
@@ -571,8 +571,8 @@ function signedArea(loop: readonly Vec2[]): number {
 }
 
 /**
- * Dungeondraft's Smooth for material borders (LineSmoothing.SmoothLineChaikin,
- * one pass, closed): every corner cut at a quarter of its two edges.
+ * Smooth for material borders (Chaikin, one pass, closed): every corner
+ * cut at a quarter of its two edges.
  */
 export function chaikinLoop(loop: readonly Vec2[]): Vec2[] {
   const out: Vec2[] = []
@@ -588,7 +588,7 @@ export function chaikinLoop(loop: readonly Vec2[]): Vec2[] {
 }
 
 /**
- * A material's border texture: Dungeondraft swaps "_tile" for "_border" in
+ * A material's border texture: "_tile" swapped for "_border" in
  * the tile texture's file name (grass_tile_1 → grass_border_1). A material
  * whose name has no "_tile" has no border of its own.
  */
@@ -599,7 +599,7 @@ export function materialBorderPart(assetId: string): string | undefined {
 
 /**
  * Material outlines of a cell grid: marching squares cut at half edges, the
- * vertices jittered half as much as a cave's (Dungeondraft's OffsetScale 0.5
+ * vertices jittered half as much as a cave's (offset scale 0.5
  * on the same offset table), oriented so the material always lies on the
  * same side of the line (outer loops one way, holes the other).
  */
@@ -632,7 +632,7 @@ export function materialOrder(entities: readonly MapEntity[]): [string, MapEntit
 }
 
 /**
- * Material brush, as Dungeondraft's MaterialMesh: each material texture of a
+ * Material brush: each material texture of a
  * layer is a bitmap of 128 px cells (stamped stroke by stroke, erasing
  * strokes clearing only their own material), filled with its tile texture
  * where marching squares cover it and bordered by its border texture — a
@@ -715,7 +715,7 @@ export function paintedLayer(toolId: string, entities: readonly MapEntity[]): nu
 
 /**
  * A painted tool's composites on a level: one per tool, except materials —
- * one per layer, as Dungeondraft keeps a material layer per layer value.
+ * one per layer, a material layer per layer value.
  */
 export function paintedGroups(
   toolId: string,

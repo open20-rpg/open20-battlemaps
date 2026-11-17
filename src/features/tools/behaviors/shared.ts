@@ -108,7 +108,7 @@ function ghosts(
  * Click to add vertices; double-click, Enter or right-click finishes
  * (clicking the first vertex also closes a polygon); Backspace removes the
  * last vertex; Escape cancels. Shift+click adds an arc tangent to the last
- * segment (Shift+wheel: more/fewer pieces), as in Dungeondraft; Shift+click
+ * segment (Shift+wheel: more/fewer pieces); Shift+click
  * on the first vertex closes a polygon with one.
  */
 export function polylineController(
@@ -206,7 +206,7 @@ export function polylineController(
 
 /** Polygon for a dragged shape (rectangle/ellipse) between two corners. */
 export function shapePolygon(shape: Shape | null, a: Vec2, b: Vec2): Vec2[] {
-  // Ellipses get Dungeondraft's number of sides for their size.
+  // Ellipses get a number of sides that depends on their size.
   const sides = ellipseSides(Math.abs(b.x - a.x), Math.abs(b.y - a.y))
   return shape === "ellipse" ? ellipsePolygon(a, b, sides) : rectPolygon(a, b)
 }
@@ -560,5 +560,5 @@ export function nudgeParam(
     .setToolParams(ctx.toolId, { [key]: Math.round(Math.min(max, Math.max(min, v)) * f) / f })
 }
 
-/** Degrees per wheel notch: 15, or 5 while Z is held (Dungeondraft's fine step). */
+/** Degrees per wheel notch: 15, or 5 while Z is held (the fine step). */
 export const wheelDegrees = (): number => (isKeyHeld("Z") ? 5 : 15)

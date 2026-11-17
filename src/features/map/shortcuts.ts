@@ -10,7 +10,7 @@ import { ZOOM_LEVELS } from "../viewport/controls"
 import { redo, undo, updateEntities, updateReferenceImage } from "./commands"
 import { copySelection, deleteSelection, pasteClipboard, selectAll } from "./clipboard"
 
-/** Quick layer keys (Object, Scatter, Path, Material, Pattern and Select), as in Dungeondraft. */
+/** Quick layer keys (Object, Scatter, Path, Material, Pattern and Select). */
 const QUICK_LAYERS: Record<string, number> = {
   "1": 100,
   "Alt+1": -100,

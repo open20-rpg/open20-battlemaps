@@ -233,7 +233,7 @@ componentes. Eso da un único punto para undo/redo, dirty-flags y (futuro) autos
 
 Decisión a tomar *ya*, porque condiciona todo: **el mapa no se renderiza con React.**
 React maneja paneles, diálogos y overlays; el viewport es un canvas (2D o WebGL —
-PixiJS es el candidato obvio dado el volumen de sprites de Dungeondraft) manejado por una
+PixiJS es el candidato obvio dado el volumen de sprites de un mapa) manejado por una
 clase/módulo imperativo que:
 
 1. Se monta en un `<canvas>` vía un componente contenedor fino (`MapViewport.tsx`).
@@ -381,8 +381,8 @@ deduce del código, y con las invariantes del proyecto explícitas. Propuesta:
 ```markdown
 # Open20 Battle Maps
 
-Clon de Dungeondraft: editor de mapas de rol de escritorio. Tauri v2 (Rust) +
-React 19 + TypeScript + Chakra UI v3. Compatible con packs `.dungeondraft_pack`.
+Editor de mapas de rol de escritorio. Tauri v2 (Rust) + React 19 + TypeScript +
+Chakra UI v3. Compatible con packs `.dungeondraft_pack`.
 
 ## Comandos
 

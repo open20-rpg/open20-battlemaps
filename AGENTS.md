@@ -5,12 +5,13 @@ Identidad visual de la suite: chrome oscuro con acento carmesí `#A70909`
 (tokens `brand.*` en `theme.ts`; usá `colorPalette="brand"`, nunca colores
 crudos). Los mapas se guardan como `.otbm` (Open Twenty Battle Maps).
 
-Clon de Dungeondraft: editor de mapas de rol de escritorio. Tauri v2 (Rust) +
-React 19 + TypeScript + Chakra UI v3 + Zustand. Compatible con packs
-`.dungeondraft_pack`. Hay gestión de packs, librería de assets (All/Used/Tags),
-el editor de mapas (canvas PixiJS con las 20 herramientas, niveles, undo/redo,
-copiar/pegar, prefabs, imagen de referencia, export PNG, mapas recientes) y los
-view controls (grid/snap/lighting/shadows/zoom) de la barra izquierda.
+Editor de mapas de rol de escritorio, compatible con packs (`.dungeondraft_pack`)
+y mapas (`.dungeondraft_map`) de Dungeondraft. Tauri v2 (Rust) + React 19 +
+TypeScript + Chakra UI v3 + Zustand. Hay gestión de packs, librería de assets
+(All/Used/Tags), el editor de mapas (canvas PixiJS con las 20 herramientas,
+niveles, undo/redo, copiar/pegar, prefabs, imagen de referencia, export PNG,
+mapas recientes) y los view controls (grid/snap/lighting/shadows/zoom) de la
+barra izquierda.
 
 ## Comandos
 
@@ -89,7 +90,7 @@ ni accionable.
   de entidades del mapa como componentes React ni estado del documento en
   `useState`. Las texturas se piden por asset id a `assetCache`
   (`render/assets.ts`, 256 px = 1 casilla).
-- **Mapas de Dungeondraft**: "Abrir" importa `.dungeondraft_map`
+- **Mapas importados (`.dungeondraft_map`)**: "Abrir" importa `.dungeondraft_map`
   (`features/map/format/dungeondraft.ts`, formato documentado en
   `docs/dungeondraft-map-format.md`). Es solo importación: el mapa queda como
   documento nuevo sin guardar y "Guardar" escribe un `.otbm`. Lo que no tiene

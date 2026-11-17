@@ -1,7 +1,7 @@
 /**
  * The Google Fonts catalog (built from google/fonts by
  * scripts/fonts-catalog.mjs) and the naming rules around it: style names,
- * Dungeondraft's font_name, where each style's file lives and what it's
+ * imported maps' font_name, where each style's file lives and what it's
  * cached as.
  */
 
@@ -43,7 +43,7 @@ const WEIGHT_NAMES: [number, string][] = [
   [900, "Black"],
 ]
 
-/** A style's name as Google Fonts (and Dungeondraft) spell it: "Regular", "Italic", "Bold Italic". */
+/** A style's name as Google Fonts spells it: "Regular", "Italic", "Bold Italic". */
 export function styleName(weight: number, italic: boolean): string {
   const name = WEIGHT_NAMES.find(([w]) => w === weight)?.[1] ?? String(weight)
   if (!italic) return name
@@ -81,7 +81,7 @@ export function parseStyle(style: string): { weight: number; italic: boolean } |
 }
 
 /**
- * Dungeondraft's font_name → a font: it stores the family alone for the
+ * An imported map's font_name → a font: it stores the family alone for the
  * Regular style, or the family + " " + the style ("Libre Baskerville
  * Bold"). The longest catalog family the name starts with wins; null when
  * none matches.

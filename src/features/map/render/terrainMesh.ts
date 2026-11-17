@@ -14,8 +14,7 @@ import {
 import { TERRAIN_BLEND_STEP, TERRAIN_SLOTS, type TexelRect } from "./splat"
 
 /**
- * The whole terrain in one pass, with Dungeondraft's own formula (its
- * Terrain.shader / SmoothTerrain.shader):
+ * The whole terrain in one pass, with the splat formula (see splat.ts):
  *
  *  - Height blending (Smooth Blending off): each slot's height is its
  *    texture's alpha × its weight. The highest slot wins; only slots within
@@ -24,7 +23,7 @@ import { TERRAIN_BLEND_STEP, TERRAIN_SLOTS, type TexelRect } from "./splat"
  *    alpha (stones high, mortar low), which is what makes paths keep their
  *    width and break up stone by stone. No noise.
  *  - Smooth Blending: colors mixed linearly by weight (normalized only with
- *    more than 4 slots, as Dungeondraft does).
+ *    more than 4 slots).
  *
  * It's a mesh covering the map drawn straight to the screen (not a filter,
  * which first renders to an offscreen texture), and each pixel only samples
@@ -161,7 +160,7 @@ function terrainShader(slots: TerrainSlots): Shader {
     preferredFragmentPrecision: "highp",
   })
   const enabled = Array.from({ length: TERRAIN_SLOTS }, (_, i) => (slots.textures[i] ? 1 : 0))
-  // Dungeondraft samples at world px / texture size, with 256 world px per tile.
+  // Textures are sampled at world px / texture size, with 256 world px per tile.
   const scale = Array.from({ length: TERRAIN_SLOTS }, (_, i) => {
     const t = slots.textures[i]
     return t ? [256 / t.source.width, 256 / t.source.height] : [1, 1]
@@ -197,7 +196,7 @@ function terrainShader(slots: TerrainSlots): Shader {
 
 /**
  * A quad over the map's area `u0..u1 × v0..v1` (fractions of the map; the
- * weights' texel x runs with Dungeondraft's world x, which is content x, so
+ * weights' texel x runs with the document's world x, which is content x, so
  * the map spans content x from −width to 0).
  */
 function quad(map: { width: number; height: number }, u0 = 0, v0 = 0, u1 = 1, v1 = 1) {

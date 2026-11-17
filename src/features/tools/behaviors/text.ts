@@ -130,7 +130,7 @@ export function createTextBehavior(): ToolBehavior {
       dragging = null
     },
     onParamsChange: (ctx, patch) => {
-      // Font params edit the selected label (like Dungeondraft's text panel).
+      // Font params edit the selected label, like a text panel.
       if (!TEXT_KEYS.some((k) => k in patch)) return
       const ids = new Set(useEditorStore.getState().selection)
       for (const e of ctx.entities) {

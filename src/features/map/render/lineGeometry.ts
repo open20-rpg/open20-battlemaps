@@ -1,9 +1,9 @@
 import { type Vec2 } from "../model/types"
 
 /**
- * Mesh geometry for walls and paths, built the way Dungeondraft builds
- * them (walls: its modified Godot 3.4 Line2D; paths: its own "super build"
- * mesh), so textures land on the same pixels.
+ * Mesh geometry for walls and paths (walls: a Godot 3.4 Line2D-style
+ * strip; paths: a 5-vertex section per point), laid out so pack textures
+ * land on the pixels they were authored for.
  *
  * Everything is in map space. `u` is the distance along the line in tiles
  * (divide by the texture's repeat length: its width at the line's scale);
@@ -44,7 +44,7 @@ function distinct(points: readonly Vec2[]): Vec2[] {
 }
 
 /**
- * A closed line opened where Dungeondraft opens it: at the midpoint of the
+ * A closed line opened at the midpoint of the
  * closing segment, inserted at both ends (the two ends meet flush there).
  */
 export function openLoop(points: readonly Vec2[]): Vec2[] {
@@ -89,10 +89,10 @@ function quad(a: Section, b: Section, out: LineTriangle[]): void {
 const SHARP_LIMIT = 2
 
 export interface WallLineOptions {
-  /** Bevel the corners (Dungeondraft's default) instead of mitering them. */
+  /** Bevel the corners (the default) instead of mitering them. */
   bevel: boolean
   /**
-   * Dungeondraft's normalize_uv (on for walls): at a corner reached by a
+   * Normalize UV (on for walls): at a corner reached by a
    * segment longer than the wall is wide, the texture wraps around the
    * corner over ±half-width of u instead of one stretched column.
    */
@@ -212,13 +212,13 @@ export function wallTriangles(
 
 // -- paths --------------------------------------------------------------------
 
-/** Dungeondraft's ease(x, −2): ease in-out, 0 → 0, 1 → 1. */
+/** ease(x, −2): ease in-out, 0 → 0, 1 → 1. */
 export function easeInOut(x: number): number {
   return x < 0.5 ? 2 * x * x : 1 - 2 * (1 - x) * (1 - x)
 }
 
 /**
- * A path's control points smoothed the way Dungeondraft does: Chaikin
+ * A path's control points smoothed: Chaikin
  * corner cutting at c = 0.05 + 0.2·smoothness and 1 − c of each segment,
  * 4/3/2/1 times for ≤10/≤30/≤100/more points. The ends stay put, except on
  * loops (which come back opened at their closing midpoint). Two points get
@@ -261,8 +261,7 @@ const FADE_SPAN = 0.1
 /**
  * Per-point widths of a smoothed path of width `w`: Grow (at the start) and
  * Shrink (at the end) ease from 0 over a third of the points (at most
- * {@link TAPER_MAX_POINTS}) — counted in points, not distance, as
- * Dungeondraft does.
+ * {@link TAPER_MAX_POINTS}) — counted in points, not distance.
  */
 export function pathWidths(count: number, w: number, grow: boolean, shrink: boolean): number[] {
   const n = Math.min(TAPER_MAX_POINTS, Math.floor(count / 3))
@@ -291,7 +290,7 @@ const PATH_V = [0, 0.25, 0.5, 0.75, 1]
  * point: a section of 5 vertices per point, joined by 4 strips of quads.
  * The normal at an inner point bisects its two segments and the half-width
  * isn't corrected for the angle (paths thin a little on bends, and tight
- * bends can fold on the inner side), as in Dungeondraft. With fades, extra
+ * bends can fold on the inner side). With fades, extra
  * sections are added inside the fade spans so the opacity ramps smoothly.
  */
 export function pathTriangles(

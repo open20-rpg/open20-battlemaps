@@ -142,7 +142,7 @@ export function createScatterBehavior(): ToolBehavior {
       return true
     },
     onPointerDown: (ctx, e) => {
-      // Ctrl+click is left alone (Ctrl is for zooming), as in Dungeondraft.
+      // Ctrl+click is left alone (Ctrl is for zooming).
       if (e.button !== 0 || e.ctrlKey || ctx.libraryAssets.length === 0) return
       beginGesture()
       place(ctx, e)

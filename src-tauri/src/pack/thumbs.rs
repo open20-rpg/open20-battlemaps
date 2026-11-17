@@ -1,5 +1,5 @@
-//! Library thumbnails for textures a pack ships none for, made the way
-//! Dungeondraft makes them and written where the pack's own would be
+//! Library thumbnails for textures a pack ships none for, cut like packs'
+//! own and written where the pack's own would be
 //! (`thumbnails/<md5 of the res:// path>.png` in the installed pack), so
 //! they're made once and served like shipped ones.
 
@@ -9,7 +9,7 @@ use std::path::Path;
 use image::imageops::{self, FilterType};
 use image::RgbaImage;
 
-/// How a category's thumbnails are cut (Dungeondraft's rules).
+/// How a category's thumbnails are cut (the rules packs' thumbnails follow).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Rule {
     /// Floors and patterns: the top-left tile (256 px) shrunk to 64 × 64.
@@ -123,7 +123,7 @@ mod tests {
     }
 
     #[test]
-    fn cuts_like_dungeondraft() {
+    fn cuts_like_the_reference() {
         // A 512 × 512 floor: only its top-left tile, at 64 × 64.
         let floor = RgbaImage::from_pixel(512, 512, Rgba([255, 0, 0, 255]));
         assert_eq!(make(&floor, Rule::Tile).dimensions(), (64, 64));

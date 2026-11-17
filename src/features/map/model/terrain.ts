@@ -1,20 +1,19 @@
 import { type Vec2 } from "./types"
 
 /**
- * The terrain of a level, stored and painted as Dungeondraft does: a splat of
- * per-slot weights, 4 texels per tile, one byte per slot (up to 8 slots).
- * Painting follows its native `Image::blend_towards_channel` exactly (see
- * blendTowards); rendering blends the slot textures from these weights
+ * The terrain of a level: a splat of per-slot weights, 4 texels per tile,
+ * one byte per slot (up to 8 slots). Painting is an exact byte-level blend
+ * (see blendTowards); rendering blends the slot textures from these weights
  * (render/terrainFilter.ts).
  *
- * Texel x runs like Dungeondraft's world x (map x mirrored: texel column 0
- * is the map's left edge on screen, where map x = width).
+ * Texel x runs along world x (map x mirrored: texel column 0 is the map's
+ * left edge on screen, where map x = width).
  */
 
-/** Texture slots (Dungeondraft: 4, or 8 with expanded slots). */
+/** Texture slots (4, or 8 with expanded slots). */
 export const TERRAIN_SLOTS = 8
 export const TEXELS_PER_TILE = 4
-/** Painting runs on a fixed 60 Hz clock, as Dungeondraft does at 60 fps. */
+/** Painting runs on a fixed 60 Hz clock (one stamp per frame at 60 fps). */
 export const TERRAIN_TICK = 1 / 60
 
 export interface TerrainData {
@@ -58,7 +57,7 @@ export function createTerrain(
 
 /**
  * Resize to a map of `tiles` size, keeping the overlap (anchored at texel
- * 0,0) and filling new texels with slot 0, as Dungeondraft does.
+ * 0,0) and filling new texels with slot 0.
  */
 export function resizeTerrain(
   data: TerrainData,
@@ -79,9 +78,9 @@ export function resizeTerrain(
 }
 
 /**
- * Dungeondraft's brush mask for a Size (diameter in tiles): its
- * soft_circle.png resized to 4·Size texels, a linear cone ≈ 0.48·(1 − r)
- * sampled at texel centers, quantized to bytes like the image it comes from.
+ * The brush mask for a Size (diameter in tiles): a soft circle of 4·Size
+ * texels, a linear cone ≈ 0.48·(1 − r) sampled at texel centers, quantized
+ * to bytes like an 8-bit image.
  */
 export function brushMask(size: number): { side: number; alpha: Float32Array } {
   const side = Math.max(1, Math.round(size * TEXELS_PER_TILE))
@@ -98,7 +97,7 @@ export function brushMask(size: number): { side: number; alpha: Float32Array } {
 
 /**
  * Top-left texel of a stamp centered at map point `p` (tiles) on a map
- * `mapWidth` tiles wide: Dungeondraft's trunc((mouse_px − Size·128) / 64),
+ * `mapWidth` tiles wide: trunc((mouse_px − Size·128) / 64),
  * so the stamp sits on the texel grid.
  */
 export function stampOrigin(p: Vec2, size: number, mapWidth: number): { x: number; y: number } {
@@ -113,8 +112,7 @@ const f32 = Math.fround
 
 /**
  * One stamp of the brush on slot `slot` with strength `delta` (Intensity ×
- * frame time): Dungeondraft's Image::blend_towards_channel. The painted
- * slot gains mask × delta (capped at 1); every other slot is rescaled so all
+ * frame time). The painted slot gains mask × delta (capped at 1); every other slot is rescaled so all
  * still add up to 1; bytes are written back truncated (as Godot's RGBA8
  * set_pixel does), which is why tiny strengths never paint.
  */

@@ -1,7 +1,7 @@
 import { cssFont, DEFAULT_FONT, type FontChoice } from "./catalog"
 
 /**
- * A text label's box, as Dungeondraft lays it out. Everything is measured
+ * A text label's box and how it is laid out. Everything is measured
  * in the font at font_size px, then ×4 is world px (256 per tile): 1 em is
  * 4·font_size world px, font_size / 64 tiles.
  */

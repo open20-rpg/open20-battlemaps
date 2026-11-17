@@ -1,7 +1,7 @@
 import { type BrushStroke, type Vec2 } from "../model/types"
 
 /**
- * Dungeondraft's cave, water and material brushes paint a grid of cells with
+ * The cave, water and material brushes paint a grid of cells with
  * fixed stamps — pixel circles of whole cells — rather than smooth circles.
  * Caves and water use 64 px cells (a quarter tile), materials 128 px ones
  * (half a tile). This is that grid and those stamps.
@@ -9,10 +9,10 @@ import { type BrushStroke, type Vec2 } from "../model/types"
 
 /** Cells per tile of caves and water (64 px cells at 256 px per tile). */
 export const CELLS_PER_TILE = 4
-/** Cells per tile of materials (Dungeondraft's MaterialMesh: 128 px cells). */
+/** Cells per tile of materials (material meshes: 128 px cells). */
 export const MATERIAL_CELLS_PER_TILE = 2
 
-/** The brush sizes Dungeondraft offers (UI 0–4): stamp diameters in cells. */
+/** The brush sizes offered (UI 0–4): stamp diameters in cells. */
 export const STAMP_CELLS = [3, 4, 5, 6, 11] as const
 
 /**
@@ -33,7 +33,7 @@ export const stampOf = (radius: number, cpt: number = CELLS_PER_TILE): number =>
 export const brushRadius = (index: number): number =>
   stampRadius(STAMP_CELLS[Math.min(STAMP_CELLS.length - 1, Math.max(0, Math.round(index)))])
 
-/** The brush cursor's radius in tiles: (index + 1) × 64 px, as Dungeondraft's. */
+/** The brush cursor's radius in tiles: (index + 1) × 64 px. */
 export const brushCursorRadius = (index: number): number =>
   (Math.max(0, Math.round(index)) + 1) / CELLS_PER_TILE
 
@@ -44,11 +44,11 @@ export const materialBrushRadius = (index: number): number =>
     MATERIAL_CELLS_PER_TILE,
   )
 
-/** The material brush cursor's radius in tiles: (index + 1) × 128 px, as Dungeondraft's. */
+/** The material brush cursor's radius in tiles: (index + 1) × 128 px. */
 export const materialCursorRadius = (index: number): number =>
   (Math.max(0, Math.round(index)) + 1) / MATERIAL_CELLS_PER_TILE
 
-/** How far apart (tiles) a stroke's stamps land: Dungeondraft stamps every 32 px moved. */
+/** How far apart (tiles) a stroke's stamps land: a stamp lands every 32 px moved. */
 export const STAMP_SPACING = 0.5 / CELLS_PER_TILE
 
 /** Offsets (in cells) of a stamp's cells from its center, pixel-circle shaped. */

@@ -242,7 +242,7 @@ function portalOpenings(env: RenderEnv): WallOpening[] {
 /**
  * A wall end's cap: its `<name>_end` texture centered on `at`, as wide as
  * the wall, turned along the wall's direction `dir` there (map space) and,
- * at the wall's start, mirrored — as Dungeondraft places them. Built as a
+ * at the wall's start, mirrored. Built as a
  * quad (u 0…1 across the texture) so the wall wear covers it too.
  */
 function capTriangles(
@@ -270,7 +270,7 @@ function capTriangles(
 }
 
 /**
- * Walls, as Dungeondraft draws them: each continuous run (split where
+ * Walls: each continuous run (split where
  * portals open the wall) is one line as wide as the texture is tall, its
  * corners beveled (Bevel Corners, the default) or mitered, the texture
  * wrapping around them (see lineGeometry.ts). Open ends get the pack's
@@ -279,7 +279,7 @@ function capTriangles(
  * geometry tinted black, so it follows the wall's real shape.
  */
 const wallRenderer: EntityRenderer = (e, env) => {
-  // Dungeondraft multiplies walls (and their ends) by the wall's color.
+  // Walls (and their ends) are multiplied by the wall's color.
   const { id, color } = selectionAsset(e.params.wall)
   const texture = env.tex(id)
   const cap = env.tex(id, { suffix: "_end" })
@@ -316,7 +316,7 @@ const wallRenderer: EntityRenderer = (e, env) => {
 }
 
 /**
- * Paths, as Dungeondraft builds them: as wide as the texture is tall times
+ * Paths: as wide as the texture is tall times
  * Width, the edit points smoothed (Chaikin,
  * Smoothness), a 5-vertex section per point (lineGeometry.ts), the texture
  * repeated at the path's base width. Growth/shrink ease the width from 0
@@ -325,7 +325,7 @@ const wallRenderer: EntityRenderer = (e, env) => {
  */
 const pathRenderer: EntityRenderer = (e, env) => {
   const texture = env.tex(str(e.params.asset, ""))
-  // Width is a multiplier of the texture's height (Dungeondraft's Width).
+  // Width is a multiplier of the texture's height (the Width param).
   const width = num(e.params.width, 1) * (texture ? texture.height / TEXTURE_PX_PER_TILE : 1)
   const pts = smoothPath(e.points ?? [], num(e.params.smoothness, 0), !!e.closed)
   const tIn = e.params.transitionIn
@@ -341,7 +341,7 @@ const pathRenderer: EntityRenderer = (e, env) => {
  * A polygon filled with a tiling texture (floors, patterns). The texture is
  * laid out on the map grid (not the shape) so adjacent fills line up.
  */
-/** Floor tiles take the building wear at half scale (Dungeondraft's Tileset shader). */
+/** Floor tiles take the building wear at half scale, as tilesets do. */
 const FLOOR_WEAR_STRETCH = 2
 
 function tiledPolygon(
@@ -383,7 +383,7 @@ function tiledPolygon(
 }
 
 /**
- * Floors, as Dungeondraft's tilesets: a "normal" one is multiplied by the
+ * Floors, as tilesets: a "normal" one is multiplied by the
  * floor's color, a "custom_color" one has its red regions take it.
  */
 const floorRenderer: EntityRenderer = (e, env) => {
@@ -484,7 +484,7 @@ const grayTint = (v: number) => {
 }
 
 /**
- * Roofs, as Dungeondraft's Roof.Set draws them (roofGeometry.ts): the slopes
+ * Roofs (roofGeometry.ts): the slopes
  * tiled with the style's texture, turned so its rows run along the ridge,
  * each shaded by the sun; then the ridge, the eave edge (always in the
  * contrast's shadow) and the hip lines, each a line as wide as its texture
@@ -537,7 +537,7 @@ const roofRenderer: EntityRenderer = (e, env) => {
 }
 
 /**
- * A text label as Dungeondraft draws it: one line in a distance-field
+ * A text label: one line in a distance-field
  * bitmap font (sdfFont.ts) inside its optional box, laid out in font px from
  * the top-left corner (fonts/metrics) and scaled to tiles (64 font px per
  * tile). Moving it only moves this container (see the scene).
@@ -590,7 +590,7 @@ const textRenderer: EntityRenderer = (e, env) => {
  * the lighting composite (lighting.ts) is clamped at 1, so this glow stands in
  * for that overbright part. The scene fades it with the ambient brightness
  * ({@link glowStrength}): on a dark map the lights show through the light map
- * alone, as in Dungeondraft, instead of a colored haze.
+ * alone instead of a colored haze.
  */
 /** The blocking segments of the level's blockers, kept while they're the same entities. */
 let segmentsMemo: { blockers: readonly MapEntity[]; segments: Segment[] } | null = null

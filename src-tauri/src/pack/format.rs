@@ -39,7 +39,7 @@ pub struct Manifest {
     pub id: Option<String>,
     pub version: Option<String>,
     pub author: Option<String>,
-    /// Dungeondraft stores keywords as a single comma-separated string.
+    /// Pack manifests store keywords as a single comma-separated string.
     pub keywords: Option<String>,
 }
 
@@ -141,7 +141,7 @@ pub(crate) fn read_manifest<R: Read + Seek>(
 
     let bytes = read_entry_bytes(reader, manifest_entry)?;
     let text = String::from_utf8_lossy(&bytes);
-    // Dungeondraft manifests are lenient (JSON5/HuJSON): try strict JSON first,
+    // Pack manifests are lenient (JSON5/HuJSON): try strict JSON first,
     // then fall back to json5 for comments / trailing commas.
     let manifest: Manifest = serde_json::from_str(&text)
         .or_else(|_| json5::from_str(&text))

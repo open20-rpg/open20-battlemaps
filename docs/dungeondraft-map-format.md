@@ -1,9 +1,7 @@
-# Dungeondraft `.dungeondraft_map` Format (save format 3)
+# `.dungeondraft_map` Format (save format 3)
 
-Field-by-field specification of the Dungeondraft map file, reconstructed for
-interoperability from analysis of Dungeondraft 1.2.0.1 (Godot Mono 3.x) and
-cross-checked against real map files. Sections cite the decompiled source file
-that informed them by filename only; no code is reproduced here.
+Field-by-field specification of the `.dungeondraft_map` file format,
+cross-checked against real map files.
 
 Anything not confirmed is marked **UNVERIFIED**.
 
@@ -11,15 +9,14 @@ Anything not confirmed is marked **UNVERIFIED**.
 
 ## 1. File container and encoding conventions
 
-A map file is a single JSON document (per the game's save routine in
-`framework/Save.cs`, `framework/Load.cs`):
+A map file is a single JSON document:
 
 - **Tab-indented JSON** produced by Godot 3's JSON printer with `"\t"` as the
   indent string. A newline is appended when writing the line; observed files
   end at the closing brace (trailing-newline presence **UNVERIFIED**).
 - Exactly three top-level keys: `header`, `world`, `mod`.
   `mod` holds mod-manager data; on unmodded maps it is `{".node_table": {}}`.
-- Saving is atomic: the game writes to a `.temporary` file, moves the previous
+- Saving is atomic: the file is written to a `.temporary` file, moves the previous
   map into a backups folder, then renames. The extension is always forced to
   `.dungeondraft_map`.
 - Loading is a plain JSON parse; there is no checksum or binary framing.
@@ -37,7 +34,7 @@ Many values are stored as **strings containing Godot variant literals**
 | `PoolByteArray` | `"PoolByteArray( 189, 66, 0, ... )"` — decimal byte values |
 | null-ish variant | the string `"null"` (e.g. `editor_state.guide_position`) |
 
-Other conventions (per `core/extensions/DictionaryEx.cs`):
+Other conventions:
 
 - **Colors** are 8-hex-digit **ARGB** strings, alpha first, lowercase, no `#`:
   `"ffffffff"` = opaque white, `"18ffffff"` = ~9%-alpha white. A missing color
@@ -63,14 +60,14 @@ and stripping trailing zeros reproduces observed output.
 
 ### 1.3 Units
 
-- 1 grid cell = **256 world units** ("pixels"). This is a hardcoded constant
-  (per `world/World.cs`); it is *not* stored in the file. All coordinates,
+- 1 grid cell = **256 world units** ("pixels"). This is a fixed constant;
+  it is *not* stored in the file. All coordinates,
   radii and widths in the file are in these world pixels unless noted.
 - Angles are **radians** except `roofs.sun_direction` (degrees).
 
 ---
 
-## 2. `header` (per `framework/data/Header.cs`)
+## 2. `header`
 
 | key | type | meaning |
 |---|---|---|
@@ -80,7 +77,7 @@ and stripping trailing zeros reproduces observed output.
 | `asset_manifest` | array | one entry per asset pack used (below) |
 | `editor_state` | dict | editor UI state (below) |
 
-### 2.1 `asset_manifest[]` entry (per `framework/data/AssetPack.cs`)
+### 2.1 `asset_manifest[]` entry
 
 | key | type | meaning |
 |---|---|---|
@@ -112,7 +109,7 @@ round-trip:
 
 ---
 
-## 3. `world` (per `world/World.cs`)
+## 3. `world`
 
 | key | type | meaning |
 |---|---|---|
@@ -121,14 +118,14 @@ round-trip:
 | `next_node_id` | hex string | next value of the global node-id counter. Every saved entity (wall, portal, object, path, light, roof, pattern, text) consumes one id from this counter at creation; ids are never reused within a map. Saved/loaded as lowercase hex. |
 | `next_prefab_id` | hex string | same, for prefab-group ids. Note: the counter is saved in hex, but `prefab_id` values stored on entities are **decimal** strings. |
 | `msi` | dict | marching-squares jitter parameters (below) |
-| `grid` | dict | `{color: ARGB hex, texture: res path}` — grid overlay tint and line texture (e.g. `res://textures/grid/dotted_line.png`). Grid line width is hardcoded to 8 px (per `framework/GridMesh.cs`). |
+| `grid` | dict | `{color: ARGB hex, texture: res path}` — grid overlay tint and line texture (e.g. `res://textures/grid/dotted_line.png`). Grid line width is fixed at 8 px. |
 | `building_wear` | path or null | global "wear" overlay texture multiplied into floor-tile / wall / cave shaders |
 | `wall_shadow`, `object_shadow` | bool | global shadow toggles (load default: true) |
 | `trace_image_visible` | bool | |
 | `embedded` | dict | embedded images, keyed by name: `{width, height, format: "raw"|"png", data: base64}`. `"raw"` = base64 of raw RGBA8 pixel bytes; `"png"` = base64 of a PNG file. Referenced by `embedded://<key>` texture paths. |
 | `levels` | dict | keyed by stringified level index (`"0"`, `"1"`, ...) |
 
-### 3.1 `world.msi` (per `world/MarchingSquaresInfo.cs`)
+### 3.1 `world.msi`
 
 Parameters of the deterministic vertex-jitter table shared by the cave and
 material meshes (see render doc §5 for the exact generation algorithm):
@@ -142,7 +139,7 @@ material meshes (see render doc §5 for the exact generation algorithm):
 
 ---
 
-## 4. Per-level sections (per `world/Level.cs`)
+## 4. Per-level sections
 
 Level keys, in save order: `label`, `environment`, `layers`, `shapes`,
 `tiles`, `patterns`, `walls`, `portals`, `cave`, `terrain`, `water`,
@@ -165,7 +162,7 @@ Portals 500, Walls 600, Roofs 800. The `layers` dict saves only user layers as
 | `baked_lighting` | bool | whether the lighting layer is visible/rendered (written on save; note the loader does not read it back — it reads only `ambient_light`) |
 | `ambient_light` | ARGB hex | color of the ambient light pass (opaque white = fully lit) |
 
-### 4.3 `shapes` (floor shapes; per `world/FloorShapes.cs`, `world/Shapes.cs`)
+### 4.3 `shapes` (floor shapes)
 
 | key | type | meaning |
 |---|---|---|
@@ -175,7 +172,7 @@ Portals 500, Walls 600, Roofs 800. The `layers` dict saves only user layers as
 On load, floor tiles are re-derived from the polygons and the referenced
 auto-walls are re-clipped against the cave mesh.
 
-### 4.4 `tiles` (per `world/FloorTileMap.cs`)
+### 4.4 `tiles`
 
 | key | type | meaning |
 |---|---|---|
@@ -186,7 +183,7 @@ auto-walls are re-clipped against the cave mesh.
 Legacy: very old maps may store `tiles` as a bare cells string.
 See render doc §6 for the smart/smart_double/simple atlas semantics.
 
-### 4.5 `patterns` (per `world/PatternShapes.cs`)
+### 4.5 `patterns`
 
 Array of pattern-shape dicts (a textured polygon):
 
@@ -204,7 +201,7 @@ Array of pattern-shape dicts (a textured polygon):
 | `node_id` | hex string |
 | `prefab_id`, `locked` | optional |
 
-### 4.6 `walls` (per `world/Walls.cs`, `world/Wall.cs`)
+### 4.6 `walls`
 
 Array of wall dicts. Cave-edge walls (type 2) are **never saved** — they are
 regenerated from the cave bitmap.
@@ -226,7 +223,7 @@ Wall thickness is not stored: it equals the wall texture's pixel height.
 
 ### 4.7 Portals — embedded (`walls[].portals`) and freestanding (`portals`)
 
-Both use the same schema (per `world/objects/Portal.cs`):
+Both use the same schema:
 
 | key | type | meaning |
 |---|---|---|
@@ -246,7 +243,7 @@ Both use the same schema (per `world/objects/Portal.cs`):
 Freestanding portals live in the level's `portals` array; their `direction`
 is `(cos rotation, sin rotation)`.
 
-### 4.8 `cave` (per `world/CaveMesh.cs`, `world/MarchingSquaresMesh.cs`)
+### 4.8 `cave`
 
 | key | type | meaning |
 |---|---|---|
@@ -271,7 +268,7 @@ bytes for 79×79). The one-sample edge buffer means sample (1,1) sits at world
 (0,0) minus... more precisely, world position of sample `(x,y)` is
 `((x,y) − (edgeBuffer,edgeBuffer)) * cell_size` after jitter (render doc §7).
 
-### 4.9 `terrain` (per `world/Terrain.cs`)
+### 4.9 `terrain`
 
 | key | type | meaning |
 |---|---|---|
@@ -285,15 +282,14 @@ bytes for 79×79). The one-sample edge buffer means sample (1,1) sits at world
 
 World→splat mapping: splat texel = `worldPos/64 + (0.5, 0.5)`.
 
-### 4.10 `water` (per `world/WaterMesh.cs`; the companion `world/Water.cs` was unrecoverable)
+### 4.10 `water`
 
 | key | type | meaning |
 |---|---|---|
 | `disable_border` | bool | suppress the shore border line |
 | `tree` | dict | polygon tree of all water bodies; **omitted entirely when no water is drawn** (the reference map has only `disable_border`) |
 
-`tree` is a recursive serialization of a Clipper polygon tree
-(per `core/extensions/ClipperEx.cs`). Each node:
+`tree` is a recursive serialization of a Clipper polygon tree. Each node:
 
 | key | type | meaning |
 |---|---|---|
@@ -311,7 +307,7 @@ Legacy: pre-tree maps stored level-wide `deep_color` / `shallow_color` /
 `blend_distance` on the `water` dict; loaders should apply those to every
 top-level polygon.
 
-### 4.11 `materials` (per `world/MaterialMesh.cs`)
+### 4.11 `materials`
 
 Dict keyed by layer id (stringified int) → array of material regions:
 
@@ -323,7 +319,7 @@ Dict keyed by layer id (stringified int) → array of material regions:
 
 Empty regions are not saved.
 
-### 4.12 `paths` (per `world/Pathways.cs`, `world/objects/Pathway.cs`)
+### 4.12 `paths`
 
 Array of path dicts (a textured polyline):
 
@@ -344,7 +340,7 @@ Array of path dicts (a textured polyline):
 
 Paths with fewer than 2 edit points are dropped on save.
 
-### 4.13 `objects` (per `world/Objects.cs`, `world/objects/Prop.cs`)
+### 4.13 `objects`
 
 Array of props. **Array order is draw order within equal z** (earlier entries
 draw below later ones; the editor's "send under" simply reorders the array).
@@ -364,7 +360,7 @@ There is no y-sort and no sort-id field.
 | `node_id` | hex string | |
 | `prefab_id`, `locked` | optional | |
 
-### 4.14 `lights` (per `world/Lights.cs`)
+### 4.14 `lights`
 
 | key | type | meaning |
 |---|---|---|
@@ -378,7 +374,7 @@ There is no y-sort and no sort-id field.
 | `node_id` | hex string | |
 | `prefab_id`, `locked` | optional | |
 
-### 4.15 `roofs` (per `world/Roofs.cs`, `world/objects/Roof.cs`)
+### 4.15 `roofs`
 
 Level-wide settings plus a list:
 
@@ -401,7 +397,7 @@ Per roof:
 | `node_id` | hex string | |
 | `prefab_id`, `locked` | optional | |
 
-### 4.16 `texts` and `texts_vis` (per `world/Texts.cs`, `world/objects/Text.cs`)
+### 4.16 `texts` and `texts_vis`
 
 `texts_vis`: bool, visibility of the whole text layer (default true).
 
@@ -442,8 +438,7 @@ Texts have **no rotation field**.
 
 ## 6. Reference-map cross-checks
 
-Confirmed against `caballo-gris-sin-sombras.dungeondraft_map` (19×19, build
-1.2.0.1): tab indentation; ARGB colors; hex counters (`"2c5"`, `"13"`); msi
+Confirmed against a real map (19×19): tab indentation; ARGB colors; hex counters (`"2c5"`, `"13"`); msi
 defaults 512 / 0.2 / 64 with hex seed; wall `type` 1 / `joint` 1; splat byte
 count 23104 = (19·4)²·4; cave bitmap 781 bytes = ⌊79·79/8⌋+1; 361 tile cells
 with −1 empties; portal `wall_distance` values consistent with

@@ -1,5 +1,5 @@
 /**
- * Terrain blending, as Dungeondraft does it (its Terrain.shader): the
+ * Terrain blending: the
  * terrain has up to 8 texture slots, each with a weight per point (imported
  * splats: 4 texels per tile, bilinearly filtered). The GPU version lives in
  * terrainMesh.ts; this is the same formula in TS, for tests and as its
@@ -10,7 +10,7 @@ import { TERRAIN_SLOTS } from "../model/terrain"
 
 export { TERRAIN_SLOTS }
 
-/** Height margin within which slots mix (Dungeondraft's `blend_step`). */
+/** Height margin within which slots mix (the blend step). */
 export const TERRAIN_BLEND_STEP = 0.04
 
 /**

@@ -11,7 +11,7 @@ import {
   nullCellStyle,
 } from "./constants"
 
-/** Marks an item recolored by the tool's color (Dungeondraft's dropper badge). */
+/** Marks an item recolored by the tool's color (a dropper badge). */
 function ColorableBadge() {
   const { t } = useTranslation()
   return (

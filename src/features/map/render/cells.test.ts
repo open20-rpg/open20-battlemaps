@@ -15,7 +15,7 @@ import {
 
 const count = (g: CellGrid) => g.cells.reduce((s, v) => s + v, 0)
 
-describe("cell grid stamps (Dungeondraft's cave/water brushes)", () => {
+describe("cell grid stamps (cave/water brushes)", () => {
   it("maps the five brush sizes to stamps and cursor radii", () => {
     expect([0, 1, 2, 3, 4].map((i) => stampOf(brushRadius(i)))).toEqual([3, 4, 5, 6, 11])
     expect(brushRadius(1)).toBe(0.5) // 4 cells = 1 tile across
@@ -55,7 +55,7 @@ describe("cell grid stamps (Dungeondraft's cave/water brushes)", () => {
   })
 })
 
-describe("material grid (Dungeondraft's MaterialMesh: 128 px cells)", () => {
+describe("material grid (material meshes: 128 px cells)", () => {
   it("maps the five brush sizes to stamps and cursor radii", () => {
     const m = MATERIAL_CELLS_PER_TILE
     expect([0, 1, 2, 3, 4].map((i) => stampOf(materialBrushRadius(i), m))).toEqual([3, 4, 5, 6, 7])

@@ -288,7 +288,7 @@ const when = (
   visibleWhen: (values: ToolParamValues) => boolean,
 ): ToolParamSpec => ({ ...spec, visibleWhen })
 
-/** A label's box, as Dungeondraft's (none, rectangle or pill; border inside it). */
+/** A label's box (none, rectangle or pill; border inside it). */
 export const TEXT_BOX_SHAPES: SegmentedChoice[] = [
   { value: "none", labelKey: "tools.boxNone" },
   { value: "rectangle", labelKey: "tools.boxRectangle" },
@@ -346,9 +346,9 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("cave", "tools.cave", LuMountainSnow, {
         params: [
-          // Dungeondraft's five stamp sizes (cells.ts).
+          // The five stamp sizes (cells.ts).
           brushSize(0, 4, 1, 1),
-          // Dungeondraft's defaults for both.
+          // The defaults for both.
           customColor("groundColor", "tools.groundColor", "#7f7e71"),
           customColor("wallColor", "tools.wallColor", "#7f7e71"),
           segmented(
@@ -448,7 +448,7 @@ export const TOOL_TREE: ToolNode[] = [
         // Free-paint via the `brush` shape; the size slider is always visible.
         params: [
           shape("brush", true),
-          // Dungeondraft's five stamp sizes (cells.ts).
+          // The five stamp sizes (cells.ts).
           brushSize(0, 4, 1, 1),
           customColor("deepColor", "tools.deepColor", "#3aa19a", WATER_PRESETS),
           customColor("shallowColor", "tools.shallowColor", "#8bceb0", WATER_PRESETS),
@@ -458,10 +458,10 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("material", "tools.material", LuPaintBucket, {
         params: [
-          // Dungeondraft's five stamp sizes, on its material grid (cells.ts).
+          // The five stamp sizes, on its material grid (cells.ts).
           brushSize(0, 4, 1, 1),
           objectLayer(-400),
-          // Rounds the material's border (Dungeondraft's Smooth).
+          // Rounds the material's border (Smooth).
           switchParam("smooth", "tools.smooth", false),
           // Draw the material over the layer's others from this stroke on.
           switchParam("moveToFront", "tools.moveToFront", false),
@@ -550,7 +550,7 @@ export const TOOL_TREE: ToolNode[] = [
           }),
         ],
       }),
-      // How drop shadows look in Open20 Battle Maps (not part of Dungeondraft's format):
+      // How drop shadows look in Open20 Battle Maps (not stored in the map file):
       // app settings, mirrored by the tool's params (behaviors/settings.ts).
       tool("shadowSettings", "tools.shadowSettings", LuEclipse, {
         params: [

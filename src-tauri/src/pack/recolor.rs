@@ -69,7 +69,7 @@ struct ColorableOnly {
 }
 
 /// Remove JSON5-style trailing commas (`,` right before `]`/`}`) while respecting
-/// string literals, so the (large) Dungeondraft tags files parse with strict,
+/// string literals, so the (large) pack tags files parse with strict,
 /// fast serde_json instead of the much slower json5 parser.
 pub(crate) fn strip_trailing_commas(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -140,7 +140,7 @@ pub(crate) fn pack_colorable_set(app: &AppHandle, pack_id: &str) -> Arc<HashSet<
 }
 
 impl Default for ColorCfg {
-    /// Dungeondraft's own thresholds (CustomColors.shader).
+    /// The standard colorable-object thresholds.
     fn default() -> Self {
         ColorCfg {
             enabled: true,
@@ -154,12 +154,12 @@ impl Default for ColorCfg {
 /// How an image takes its color (the `mode` query parameter).
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Mode {
-    /// Colorable objects (CustomColors.shader), with the pack's thresholds.
+    /// Colorable objects, with the pack's thresholds.
     Object,
-    /// "custom_color" tilesets and colorable patterns (TilesetCustomColor.shader).
+    /// "custom_color" tilesets and colorable patterns.
     Tileset,
     /// Walls and "normal" tilesets: the whole image multiplied by the color
-    /// (Wall/Tileset shaders; used for their thumbnails).
+    /// (used for their thumbnails).
     Tint,
 }
 
@@ -168,7 +168,7 @@ fn smoothstep(e0: f32, e1: f32, x: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// One pixel (straight RGBA, 0–1) recolored by `tint` as Dungeondraft does.
+/// One pixel (straight RGBA, 0–1) recolored by `tint`.
 fn recolor_pixel(o: [f32; 4], tint: [f32; 4], mode: Mode, cfg: &ColorCfg) -> [f32; 4] {
     let [r, g, b, a] = o;
     let redness = r - (g + b) * 0.5;
@@ -206,7 +206,7 @@ fn recolor_pixel(o: [f32; 4], tint: [f32; 4], mode: Mode, cfg: &ColorCfg) -> [f3
     }
 }
 
-/// Recolor a PNG as Dungeondraft's shader would draw it with `color`. Returns PNG bytes.
+/// Recolor a PNG as it is drawn tinted with `color`. Returns PNG bytes.
 fn recolor_png(bytes: &[u8], color: [u8; 4], mode: Mode, cfg: &ColorCfg) -> Option<Vec<u8>> {
     let mut img = image::load_from_memory(bytes).ok()?.to_rgba8();
     let f = |v: u8| v as f32 / 255.0;
@@ -285,7 +285,7 @@ fn build_recolor_response(
         return not_found();
     };
 
-    // Optional ?color=…[&mode=tileset] → recolored as Dungeondraft would.
+    // Optional ?color=…[&mode=tileset] → recolored with that color.
     // The frontend only asks for colorable assets (see library.rs).
     let param = |key: &str| {
         uri.query().and_then(|q| {
@@ -325,7 +325,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn recolors_like_dungeondraft() {
+    fn recolors_red_regions() {
         let cfg = ColorCfg::default();
         let green = [0.0, 1.0, 0.0, 1.0];
         // Objects: pure red takes the tint (scaled by the red), others don't.

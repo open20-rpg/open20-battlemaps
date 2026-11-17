@@ -14,7 +14,7 @@ describe("terrain height blending", () => {
     expect(c).toBe(0)
   })
 
-  it("mixes every slot evenly where none has weight (as Dungeondraft does)", () => {
+  it("mixes every slot evenly where none has weight", () => {
     expect(heightBlend([0, 0])).toEqual([0.5, 0.5])
   })
 

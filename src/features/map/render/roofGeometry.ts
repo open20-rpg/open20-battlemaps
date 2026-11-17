@@ -1,7 +1,7 @@
 import { type Vec2 } from "../model/types"
 
 /**
- * Roof geometry, as Dungeondraft's Roof.Set builds it from a ridge line and
+ * Roof geometry, built from a ridge line and
  * a width (map space, tiles; y down):
  *  - slopes: per ridge segment A→B, a quad on each side, from the ridge to
  *    the eave line offset `width` away (mitered at the ridge's bends);
@@ -71,7 +71,7 @@ function offsetLine(
   })
 }
 
-/** Left of a direction (y down): (d.y, −d.x), as Dungeondraft's nL. */
+/** Left of a direction (y down): (d.y, −d.x). */
 const leftOf = (d: Vec2): Vec2 => ({ x: d.y, y: -d.x })
 const rightOf = (d: Vec2): Vec2 => ({ x: -d.y, y: d.x })
 

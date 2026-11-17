@@ -63,7 +63,7 @@ export function AssetPickerControl({
         select={select}
         selectedIds={value.assets}
         onSelectionChange={(ids, picked) => {
-          // As in Dungeondraft, a wall or tileset brings its own default color
+          // A wall or tileset brings its own default color
           // (into the swatch, or into the param that colors this browser).
           const def = picked?.defaultColor ?? undefined
           if (def && !showColorSwatch) onDefaultColor?.(def)

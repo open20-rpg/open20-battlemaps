@@ -6,7 +6,7 @@ const R = [
   { x: 6, y: 2 },
 ]
 
-describe("roof geometry (Dungeondraft's Roof.Set)", () => {
+describe("roof geometry (ridge line and width)", () => {
   it("gable: two slopes from the ridge to the eaves, a closed edge", () => {
     const g = roofGeometry(R, 2, "gable")
     expect(g?.slopes).toHaveLength(2)

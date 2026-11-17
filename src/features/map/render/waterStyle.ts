@@ -3,7 +3,7 @@
  * (scripts/builtin-pack: pen.py's `shape` with obj_decor's Small Pond): a
  * dark ink outline with a slow wobble in its weight, a flat fill with a soft
  * watercolor mottle, a wash darkening just inside the shore, and loose light
- * ripple strokes instead of Dungeondraft's continuous ripple line.
+ * ripple strokes instead of a continuous ripple line.
  *
  * Pure pixel math: the textures are built from these in generated.ts and the
  * fill is shaded with them in painted.ts.

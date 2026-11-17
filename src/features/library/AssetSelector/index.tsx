@@ -61,7 +61,7 @@ const COLORINGS = new Map<string, ThumbColoring>()
 
 /**
  * How a category's thumbnails take the color: walls and tilesets are tinted
- * (Dungeondraft multiplies them); colorable ones — and objects — have their
+ * (multiplied by it); colorable ones — and objects — have their
  * red regions recolored, tilesets by their own rule.
  */
 function coloringOf(category: string): ThumbColoring {

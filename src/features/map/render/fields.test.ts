@@ -51,7 +51,7 @@ describe("raster fields", () => {
     expect(simplifyLoop(loop, 0.01)).toHaveLength(4)
   })
 
-  it("ramps water from shallow to deep by Dungeondraft's rings", () => {
+  it("ramps water from shallow to deep by the standard rings", () => {
     expect(waterRamp(1.5)).toEqual([
       { d: 0, t: 0 },
       { d: 0.333, t: 0.333 / 1.5 },

@@ -346,7 +346,7 @@ export function createSelectBehavior(): ToolBehavior {
       if (mode.kind === "transform") {
         // Scaling follows Snap to Grid like moving does; rotation snaps with Shift.
         const toGrid = ctx.snapEnabled ? (p: Vec2) => ctx.snap(p, 0.5) : undefined
-        // Alt (Dungeondraft) or Shift snaps the rotate handle to 15° steps.
+        // Alt or Shift snaps the rotate handle to 15° steps.
         updateEntities(applyTransformDrag(mode.drag, e, e.altKey || e.shiftKey, toGrid))
         return
       }

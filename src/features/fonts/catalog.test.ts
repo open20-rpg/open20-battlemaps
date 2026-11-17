@@ -44,7 +44,7 @@ describe("font styles", () => {
   })
 })
 
-describe("Dungeondraft font_name", () => {
+describe("imported font_name", () => {
   it("is the family for Regular, family + style otherwise", () => {
     expect(parseFontName("Libre Baskerville", families)).toEqual({
       family: "Libre Baskerville",
@@ -65,7 +65,7 @@ describe("Dungeondraft font_name", () => {
     expect(parseFontName("Comic Sans", families)).toBeNull()
   })
 
-  it("finds the Google families Dungeondraft ships", () => {
+  it("finds the Google families imported maps use", () => {
     const all = catalog as CatalogFamily[]
     for (const name of ["Libre Baskerville Bold", "Bangers", "Roboto", "Germania One"])
       expect(parseFontName(name, all), name).not.toBeNull()

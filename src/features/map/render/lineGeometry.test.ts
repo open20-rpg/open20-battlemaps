@@ -20,7 +20,7 @@ const verts = (tris: { a: LineVertex; b: LineVertex; c: LineVertex }[]) =>
 const at = (vs: LineVertex[], x: number, y: number) =>
   vs.filter((v) => Math.abs(v.x - x) < 1e-9 && Math.abs(v.y - y) < 1e-9)
 
-describe("wall geometry (Dungeondraft's Line2D)", () => {
+describe("wall geometry (Line2D-style)", () => {
   it("a straight wall is one quad with u = distance", () => {
     const tris = wallTriangles([L[0], L[1]], false, 0.5, { bevel: true, normalizeUv: true })
     expect(tris).toHaveLength(2)
@@ -90,7 +90,7 @@ describe("wall geometry (Dungeondraft's Line2D)", () => {
   })
 })
 
-describe("path geometry (Dungeondraft's paths)", () => {
+describe("path geometry (5-vertex sections)", () => {
   it("smooths with Chaikin at c = 0.05 + 0.2·smoothness, keeping the ends", () => {
     const pts = smoothPath(L, 1, false)
     expect(pts[0]).toEqual(L[0])
