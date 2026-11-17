@@ -110,8 +110,16 @@ mod tests {
         }
         let entries = read_index(&mut Cursor::new(&pack)).expect("index");
         for cat in [
-            "tilesets", "walls", "portals", "caves", "roofs", "paths", "objects", "terrain",
+            "tilesets",
+            "walls",
+            "portals",
+            "caves",
+            "roofs",
+            "paths",
+            "objects",
+            "terrain",
             "lights",
+            "materials",
         ] {
             let prefix = format!("res://packs/open20-essentials/textures/{cat}/");
             assert!(

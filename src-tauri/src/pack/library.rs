@@ -134,6 +134,15 @@ fn is_companion_texture(category: &str, stem: &str) -> bool {
     }
 }
 
+/// A material's name from its tile texture's file stem: `grass_tile_1` →
+/// `grass_1`, `Lush Grass_tile` → `Lush Grass` (a stem without `_tile` as is).
+fn material_name(stem: &str) -> String {
+    match stem.find("_tile") {
+        Some(i) => format!("{}{}", &stem[..i], &stem[i + 5..]),
+        None => stem.to_string(),
+    }
+}
+
 /// Walk `textures/<category>` of a pack and collect its files.
 fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<CacheItem> {
     let Ok(dir) = pack_dir(app, pack_id) else {
@@ -167,6 +176,9 @@ fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<C
                     .and_then(|p| p.file_name())
                     .map(|s| s.to_string_lossy().into_owned())
                     .unwrap_or(stem)
+            } else if category == "materials" {
+                // Dungeondraft's `<name>_tile` (+ `<name>_border`): list it as `<name>`.
+                material_name(&stem)
             } else {
                 stem
             };
@@ -539,6 +551,9 @@ mod tests {
         assert!(is_companion_texture("walls", "Stone_END"));
         assert!(!is_companion_texture("walls", "stone_wall"));
         assert!(!is_companion_texture("objects", "chair_end"));
+        assert_eq!(material_name("grass_tile_1"), "grass_1");
+        assert_eq!(material_name("Lush Grass_tile"), "Lush Grass");
+        assert_eq!(material_name("plain"), "plain");
         assert!(is_companion_texture("materials", "cobblestone_border"));
         assert!(is_companion_texture("materials", "grass_border_1"));
         assert!(!is_companion_texture("materials", "cobblestone_tile"));
