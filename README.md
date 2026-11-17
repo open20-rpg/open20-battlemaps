@@ -50,7 +50,7 @@ avisa antes de abrirla:
 ## Comunidad
 
 Novedades, ideas y reportes de errores en [Discord](https://discord.gg/KRHJm8x6rp).
-Si Battle Maps te sirve, puedes apoyar el proyecto en [Ko-fi](https://ko-fi.com/androettop).
+Si Battle Maps te sirve, puedes apoyar el proyecto en [Patreon](https://www.patreon.com/open20rpg).
 
 Battle Maps es parte de [Open20](https://open20.app), una suite de herramientas
 para juegos de rol.
