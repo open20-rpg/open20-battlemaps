@@ -1,0 +1,4 @@
+#!/bin/sh
+# Every commit must be a Conventional Commit (see commitlint.config.js); CI
+# checks it again for every pushed commit.
+exec npx --no -- commitlint --edit "$1"

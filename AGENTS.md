@@ -167,8 +167,9 @@ ni accionable.
 - **Todo commit sigue [Conventional Commits](https://www.conventionalcommits.org)**
   (`feat:`, `fix:`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, `ci:`,
   `chore:`, `style:`, `revert:`; `!` o `BREAKING CHANGE:` para cambios que
-  rompen). CI lo verifica con commitlint (`commitlint.config.js`) y la
-  versión sale de ahí.
+  rompen). Lo verifica commitlint (`commitlint.config.js`): el hook
+  `.githooks/commit-msg` (lo activa `npm install`) en cada commit, y CI en
+  todos los commits de cada push. La versión sale de ahí.
 - El release es automático con **semantic-release** (`.releaserc.json`) en cada
   push a `main` (`.github/workflows/release.yml`). Mientras estemos en `0.x`:
   `feat`/`fix`/`perf` → patch (`0.1.x`), breaking → minor. `docs`, `chore`,

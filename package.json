@@ -4,6 +4,7 @@
   "version": "0.3.35",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "vite",
     "build": "node scripts/fonts-catalog.mjs && tsc && vite build",
     "fonts:catalog": "node scripts/fonts-catalog.mjs",

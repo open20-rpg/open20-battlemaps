@@ -22,9 +22,18 @@ jobs:
       - name: lint PR commits
         if: github.event_name == 'pull_request'
         run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+      # Every commit of the push, not just the last one. A new branch (no
+      # "before") is linted from main.
       - name: lint pushed commits
         if: github.event_name == 'push'
-        run: npx commitlint --last --verbose
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            BEFORE=$(git merge-base origin/main "$AFTER")
+          fi
+          npx commitlint --from "$BEFORE" --to "$AFTER" --verbose
 
   frontend:
     runs-on: ubuntu-latest
