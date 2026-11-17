@@ -43,7 +43,7 @@ La app todavía no está firmada por Microsoft ni por Apple, así que el sistema
 avisa antes de abrirla:
 
 - **Windows**: en el aviso de SmartScreen, _Más información_ › _Ejecutar de todas formas_.
-- **macOS**: clic derecho sobre la app › _Abrir_ › _Abrir_.
+- **macOS**: intenta abrirla una vez; después ve a _Ajustes del Sistema_ › _Privacidad y seguridad_ y pulsa _Abrir igualmente_.
 - **Linux**: dale permiso de ejecución al archivo (`chmod +x`) y ábrelo.
 - **Android**: permite instalar apps de este origen cuando el teléfono lo pida.
 
