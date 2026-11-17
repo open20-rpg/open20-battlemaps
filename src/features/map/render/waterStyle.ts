@@ -1,6 +1,6 @@
 /**
  * Water's hand-inked look, after the built-in pack's ponds and pools
- * (scripts/builtin-pack: pen.py's `shape` with obj_decor's Small Pond): a
+ * (open20-essentials' scripts: pen.py's `shape` with obj_decor's Small Pond): a
  * dark ink outline with a slow wobble in its weight, a flat fill with a soft
  * watercolor mottle, a wash darkening just inside the shore, and loose light
  * ripple strokes instead of a continuous ripple line.

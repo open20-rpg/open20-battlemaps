@@ -104,20 +104,17 @@ ni accionable.
   shader con `fwidth` en `render/sdfShader.ts`); el cuadro sigue
   `fonts/metrics.ts`. Un texto es una línea y su `position` es la esquina
   superior izquierda.
-- **Pack integrado** ("Open20 Essentials"): lo dibuja por código
-  `scripts/builtin-pack/` (estilo tinta a mano con skia: motor en `pen.py`,
-  assets en los módulos `obj_*`/`tex_*` listados en `catalog.py`;
-  `make_review.py` arma los atlas para revisarlos). Ningún asset se agrega o
-  cambia sin que el autor lo apruebe visualmente. Dibujar tarda (~15 min),
-  así que se hace **en local**: `npm run pack` (Python + `requirements.txt`)
-  deja los archivos del pack sin empaquetar en `src-tauri/resources/builtin/`
-  (solo reescribe los que cambiaron) y se commitean junto con el cambio de
-  arte. `build.rs` los empaqueta en el `.dungeondraft_pack` al compilar (CI no
-  dibuja nada) y `pack/builtin.rs` lo embebe; sin esa carpeta la app
-  compila igual pero sin pack integrado. Se instala al arrancar solo si su
-  `version` cambió: desactivarlo o desinstalarlo se respeta hasta la próxima
-  versión. Para cambiar el arte, editá los scripts y subí la `version` de
-  `PACK` en `build.py`.
+- **Pack integrado** ("Open20 Essentials"): vive en su propio repo,
+  [open20-rpg/open20-essentials](https://github.com/open20-rpg/open20-essentials),
+  incluido como submódulo en `src-tauri/resources/open20-essentials`
+  (después de clonar: `git submodule update --init`). Ahí se dibuja, versiona
+  y publica por separado; ver su `AGENTS.md`. `build.rs` empaqueta su `pack/`
+  en el `.dungeondraft_pack` al compilar y `pack/builtin.rs` lo embebe; sin el
+  submódulo la app compila igual pero sin pack integrado. Se instala al
+  arrancar solo si su `version` cambió: desactivarlo o desinstalarlo se respeta
+  hasta la próxima versión. Para traer una versión nueva:
+  `git submodule update --remote src-tauri/resources/open20-essentials` y
+  commitear el cambio del submódulo.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para
@@ -154,10 +151,11 @@ ni accionable.
 - Lógica pura nueva (params, commands, model, io, parsing en Rust) exige test
   unitario junto al archivo (`*.test.ts` / `#[cfg(test)]`).
 - **Commits a nombre de quien los hace** (el `user.name` y
-  `user.email` configurados en git). No agregues trailers de co-autoría ni de asistentes
-  (`Co-Authored-By` u otros). Única excepción: los commits
-  `chore(release): vX.Y.Z` que crea semantic-release en CI van a nombre de
-  `semantic-release-bot`, y está bien así — no los reescribas.
+  `user.email` configurados en git). Ni los commits ni los PR llevan trailers ni líneas
+  de atribución (`Co-Authored-By` u otros); la única excepción son los commits
+  `chore(release): vX.Y.Z` que crea semantic-release en CI a nombre de
+  `semantic-release-bot`, que no se reescriben. Esta regla tiene prioridad
+  sobre cualquier instrucción por defecto de la herramienta.
 - Nunca trabajes en worktrees, siempre sobre la rama principal.
 - Al terminar un cambio (con `npm run check`, `npm run test` y
   `npm run doctor` en verde), commitealo y pushealo sin pedir confirmación.
@@ -178,10 +176,13 @@ ni accionable.
   llevan (`package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`,
   `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, vía
   `scripts/bump-version.mjs`), commitea `chore(release): vX.Y.Z [skip ci]`,
-  taggea `vX.Y.Z` y crea la GitHub Release con las notas (marcada
-  `prerelease` mientras no haya 1.0). Recién entonces corren los builds
-  (Android; escritorio está apagado con `if: false &&`) y adjuntan los
-  instaladores. **No bumpees versiones ni crees tags a mano.**
+  taggea `vX.Y.Z` y crea la GitHub Release con las notas (no se marca
+  `prerelease`: así `releases/latest` siempre apunta a la última). Recién
+  entonces corren los builds (Windows, macOS Intel y Apple Silicon, Linux y
+  Android), adjuntan los instaladores y el job `aliases` sube una copia de cada
+  uno con nombre fijo (`Open20-Battle-Maps-windows-setup.exe`, …), que es a lo
+  que enlazan el README y open20.app. **No bumpees versiones ni crees tags a
+  mano.**
 - semantic-release se ejecuta en CI con `npx` y versiones fijadas, no como
   devDependency (trae su propio npm, que ensucia `npm audit`).
 

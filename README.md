@@ -1,67 +1,66 @@
+<div align="center">
+
+<img src="src/assets/brand/battle-maps-icon.svg" width="112" alt="" />
+
 # Open20 Battle Maps
 
-Editor de mapas de rol de escritorio, open source, compatible con los packs de
-assets de Dungeondraft (`.dungeondraft_pack`). Hecho con Tauri v2 (Rust) +
-React 19 + TypeScript + PixiJS.
+**El editor de mapas para tus partidas de rol.**
 
-## Qué incluye
+Dibuja edificios, cuevas, terreno y agua, llénalos de objetos e ilumínalos.<br />
+Gratis para Windows, macOS, Linux y Android.
 
-- **Packs**: instalar, activar/desactivar y desinstalar `.dungeondraft_pack`.
-- **Librería** de assets con búsqueda difusa/exacta, recoloreo de assets
-  coloreables y pestañas _Todos_, _Usados_ (lo que ya está en el mapa) y
-  _Etiquetas_ (tags del pack).
-- **Editor** (canvas PixiJS) con las herramientas:
-  - Diseño: Construcción (piso + paredes), Pared, Portal (se ancla a la pared
-    y la corta), Cueva (excavar/detonar), Patrón, Techo (rápido o manual;
-    a dos aguas, a cuatro aguas o buhardilla, con sombreado por sol).
-  - Terreno: Pincel de terreno (biomas, ranuras de textura, Rellenar), Agua
-    (pincel o formas, color profundo/poco profundo), Material, Camino.
-  - Objetos: Objeto y Dispersión (rotación/escala aleatorias).
-  - Efectos: Entorno (luz ambiente) y Luz.
-  - Ajustes: Ajustes del mapa (estilo/color de grilla), Niveles e Imagen de
-    referencia.
-  - Texto, Prefabricados y Seleccionar (mover, selección por recuadro, rotar
-    con `[`/`]`).
-- Deshacer/rehacer, copiar/cortar/pegar, guardar/abrir `.otbm`, mapas
-  recientes y exportar a PNG.
+[**Descargar**](#descarga) · [open20.app](https://open20.app/battle-maps) · [Discord](https://discord.gg/KRHJm8x6rp)
 
-## Atajos
+<br />
 
-| Atajo                            | Acción                                |
-| -------------------------------- | ------------------------------------- |
-| `Ctrl+Z` / `Ctrl+Y`              | Deshacer / rehacer                    |
-| `Ctrl+S` / `Ctrl+Shift+S`        | Guardar / guardar como                |
-| `Ctrl+C` / `Ctrl+X` / `Ctrl+V`   | Copiar / cortar / pegar la selección  |
-| `Ctrl+A`                         | Seleccionar todo el nivel             |
-| `Supr`                           | Borrar la selección                   |
-| `Enter` / doble clic / clic der. | Terminar una pared, camino o polígono |
-| `Esc`                            | Cancelar el trazo / deseleccionar     |
-| Clic derecho + arrastrar         | Borrar con los pinceles               |
-| Rueda del medio / `Ctrl`+rueda   | Desplazar / zoom                      |
+<img src="docs/img/editor.webp" alt="El editor de Battle Maps con una taberna en el lienzo, la herramienta Objeto a la izquierda y la biblioteca de assets a la derecha" />
 
-## Desarrollo
+</div>
 
-Requiere Node 26 (ver `.nvmrc`) y Rust estable.
+## Qué puedes hacer
 
-```sh
-npm ci
-npm run tauri dev   # app completa
-npm run dev         # solo el frontend (Vite)
-npm run check       # tsc + eslint + prettier
-npm run test        # Vitest
-npm run doctor      # react-doctor
-cargo test --manifest-path src-tauri/Cargo.toml
-```
+- **Trae tus mapas de Dungeondraft** y usa los packs de assets que ya tienes.
+- **Edificios, cuevas, terreno, agua y caminos** en pocos clics.
+- **Luces, techos y varios niveles** en el mismo mapa.
+- **Open20 Essentials incluido**: más de 2.000 assets para empezar sin instalar nada.
+- **Exporta a PNG** para tu mesa virtual o para imprimir.
 
-Las convenciones y la arquitectura están en [`AGENTS.md`](AGENTS.md).
+## Descarga
 
-## Créditos
+| Sistema                               | Descarga                                                                                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows                               | [Instalador (.exe)](https://github.com/open20-rpg/open20-battlemaps/releases/latest/download/Open20-Battle-Maps-windows-setup.exe)            |
+| macOS (Apple Silicon, M1 o posterior) | [Imagen de disco (.dmg)](https://github.com/open20-rpg/open20-battlemaps/releases/latest/download/Open20-Battle-Maps-macos-apple-silicon.dmg) |
+| macOS (Intel)                         | [Imagen de disco (.dmg)](https://github.com/open20-rpg/open20-battlemaps/releases/latest/download/Open20-Battle-Maps-macos-intel.dmg)         |
+| Linux                                 | [AppImage](https://github.com/open20-rpg/open20-battlemaps/releases/latest/download/Open20-Battle-Maps-linux.AppImage)                        |
+| Android                               | [APK](https://github.com/open20-rpg/open20-battlemaps/releases/latest/download/Open20-Battle-Maps-android.apk)                                |
 
-El pack integrado "Open20 Essentials" incluye objetos basados en el System
-Reference Document 5.2.1:
+Todas las versiones y sus novedades están en [Releases](https://github.com/open20-rpg/open20-battlemaps/releases).
 
-This work includes material from the System Reference Document 5.2.1
-("SRD 5.2.1") by Wizards of the Coast LLC, available at
-https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative
-Commons Attribution 4.0 International License, available at
-https://creativecommons.org/licenses/by/4.0/legalcode.
+### La primera vez que lo abres
+
+La app todavía no está firmada por Microsoft ni por Apple, así que el sistema
+avisa antes de abrirla:
+
+- **Windows**: en el aviso de SmartScreen, _Más información_ › _Ejecutar de todas formas_.
+- **macOS**: clic derecho sobre la app › _Abrir_ › _Abrir_.
+- **Linux**: dale permiso de ejecución al archivo (`chmod +x`) y ábrelo.
+- **Android**: permite instalar apps de este origen cuando el teléfono lo pida.
+
+## Comunidad
+
+Novedades, ideas y reportes de errores en [Discord](https://discord.gg/KRHJm8x6rp).
+Si Battle Maps te sirve, puedes apoyar el proyecto en [Ko-fi](https://ko-fi.com/androettop).
+
+Battle Maps es parte de [Open20](https://open20.app), una suite de herramientas
+para juegos de rol.
+
+---
+
+Open20 Battle Maps es un proyecto independiente, sin afiliación con Dungeondraft
+ni Megasploot. El pack Open20 Essentials incluye material del System Reference
+Document 5.2.1 ("SRD 5.2.1") de Wizards of the Coast LLC, disponible en
+https://www.dndbeyond.com/srd, bajo licencia
+[Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/legalcode).
+
+¿Quieres colaborar con código? La guía para desarrollar está en [`AGENTS.md`](AGENTS.md).

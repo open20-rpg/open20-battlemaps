@@ -6,22 +6,24 @@ fn main() {
     tauri_build::build()
 }
 
-/// The built-in pack's files are drawn locally (`npm run pack`) and committed
-/// unpacked in `resources/builtin/`, laid out as inside the pack. Here they
-/// are packed into `resources/builtin.dungeondraft_pack` (git-ignored), which
+/// The built-in pack, Open20 Essentials, lives in its own repository, included
+/// as a git submodule at `resources/open20-essentials/` (`git submodule update
+/// --init`): its `pack/` folder holds the files unpacked, laid out as inside
+/// the pack. Here they are packed into `resources/builtin.dungeondraft_pack`
+/// (git-ignored), which
 /// tauri.conf.json bundles as a resource: one copy in the installer (on
 /// Android, in the APK's assets), not inside the native library, which a
 /// universal APK repeats per ABI. Packing takes seconds, drawing doesn't, so
-/// CI only ever does this. The pack's version becomes BUILTIN_PACK_VERSION so
+/// the build only ever does this. The pack's version becomes BUILTIN_PACK_VERSION so
 /// the app can skip reading the resource when that version is installed.
 /// With no folder the app still builds, with an empty placeholder.
 fn embed_builtin_pack() {
-    let src = Path::new("resources/builtin");
+    let src = Path::new("resources/open20-essentials/pack");
     println!("cargo:rerun-if-changed={}", src.display());
     let mut files = Vec::new();
     collect(src, src, &mut files);
     if files.is_empty() {
-        println!("cargo:warning=no built-in pack: run `npm run pack` to draw Open20 Essentials");
+        println!("cargo:warning=no built-in pack: run `git submodule update --init` to get Open20 Essentials");
     }
     let version = files
         .iter()
@@ -38,7 +40,7 @@ fn embed_builtin_pack() {
     }
 }
 
-/// The `"version"` of a pack manifest (flat JSON written by build.py).
+/// The `"version"` of a pack manifest (flat JSON written by Essentials' build.py).
 fn manifest_version(json: &str) -> Option<String> {
     let rest = &json[json.find("\"version\"")? + 9..];
     let start = rest.find('"')? + 1;

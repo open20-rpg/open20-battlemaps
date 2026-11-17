@@ -30,8 +30,6 @@ dist-ssr
 keystore.properties
 key.properties
 
-# Python bytecode (scripts/builtin-pack)
-__pycache__/
 
-# Built-in pack, packed by build.rs from src-tauri/resources/builtin/
+# Built-in pack, packed by build.rs from the open20-essentials submodule
 src-tauri/resources/builtin.dungeondraft_pack

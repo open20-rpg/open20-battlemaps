@@ -1,0 +1,3 @@
+[submodule "src-tauri/resources/open20-essentials"]
+	path = src-tauri/resources/open20-essentials
+	url = https://github.com/open20-rpg/open20-essentials.git

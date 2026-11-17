@@ -4,3 +4,6 @@ src-tauri/gen
 package-lock.json
 docs
 src/features/fonts/catalog.json
+# Its own repository, with its own style (see .gitmodules)
+src-tauri/resources/open20-essentials
+.venv

@@ -13,7 +13,7 @@ export const BIOMES = [
 
 export type Biome = (typeof BIOMES)[number]
 
-/** Id of the built-in pack, "Open20 Essentials" (`PACK_ID` in scripts/builtin-pack/build.py). */
+/** Id of the built-in pack, "Open20 Essentials" (`PACK_ID` in open20-essentials' scripts/build.py). */
 export const BUILTIN_PACK_ID = "open20-essentials"
 
 /**

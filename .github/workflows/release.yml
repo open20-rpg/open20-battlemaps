@@ -5,11 +5,16 @@ name: "release"
 #      next version (feat/fix/perf -> patch, breaking -> minor while in 0.x; see
 #      .releaserc.json), bumps the 5 version files, commits them back as
 #      `chore(release): vX.Y.Z [skip ci]`, tags `vX.Y.Z` and creates the GitHub
-#      Release (marked prerelease until 1.0).
+#      Release.
 #   2. Only when a release was published, the build jobs compile Windows, Linux,
 #      macOS (Intel + Apple Silicon) and Android from that tag and attach the
 #      installers to it. Pushes with nothing releasable (docs, chore, ci…) build
 #      nothing.
+#   3. `aliases` uploads a copy of each installer with a fixed name
+#      (Open20-Battle-Maps-windows-setup.exe, …), so
+#      https://github.com/<repo>/releases/latest/download/<name> always points
+#      at the newest version: that's what open20.app and the README link to.
+#      Releases are not marked prerelease, or "latest" would skip them.
 #
 # To rebuild the installers of an existing release (e.g. after a failed or
 # cancelled build), run this workflow by hand with `rebuild` set to its version.
@@ -76,21 +81,12 @@ jobs:
           -p conventional-changelog-conventionalcommits@9.3.1
           semantic-release
 
-      # Every release is a prerelease until 1.0 (see AGENTS.md → Release).
-      - name: mark as prerelease
-        if: steps.semrel.outputs.version != '' && startsWith(steps.semrel.outputs.version, '0.')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "v${{ steps.semrel.outputs.version }}" --prerelease
-
   # ---------------------------------------------------------------------------
   # Desktop: Windows, Linux, macOS (arm64 + x86_64) via tauri-action.
-  # Temporarily disabled to save CI minutes — only Android builds for now.
-  # Re-enable by removing the `false &&` from its `if` below.
   # ---------------------------------------------------------------------------
   desktop:
     needs: release
-    if: false && !cancelled() && (needs.release.outputs.version != '' || inputs.rebuild != '')
+    if: ${{ !cancelled() && (needs.release.outputs.version != '' || inputs.rebuild != '') }}
     strategy:
       fail-fast: false
       matrix:
@@ -109,6 +105,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: v${{ inputs.rebuild || needs.release.outputs.version }}
+          # Open20 Essentials, the built-in pack, is a submodule (see build.rs).
+          submodules: true
 
       - name: setup node
         uses: actions/setup-node@v7
@@ -145,7 +143,7 @@ jobs:
           # notes); tauri-action only uploads the installers to it.
           tagName: v${{ inputs.rebuild || needs.release.outputs.version }}
           releaseDraft: false
-          prerelease: true
+          prerelease: false
           args: ${{ matrix.args }}
 
   # ---------------------------------------------------------------------------
@@ -163,6 +161,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: v${{ inputs.rebuild || needs.release.outputs.version }}
+          # Open20 Essentials, the built-in pack, is a submodule (see build.rs).
+          submodules: true
 
       - name: setup node
         uses: actions/setup-node@v7
@@ -251,5 +251,34 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ inputs.rebuild || needs.release.outputs.version }}
-          prerelease: true
+          prerelease: false
           files: android-artifacts/*
+
+  # ---------------------------------------------------------------------------
+  # Fixed-name copies of the installers, for the "latest/download" links.
+  # ---------------------------------------------------------------------------
+  aliases:
+    needs: [release, desktop, android]
+    if: ${{ !cancelled() && (needs.release.outputs.version != '' || inputs.rebuild != '') }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: v${{ inputs.rebuild || needs.release.outputs.version }}
+    steps:
+      - name: upload fixed-name copies
+        run: |
+          mkdir dl && cd dl
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --skip-existing
+          ls -la
+          # copy <glob of the original> <fixed name>; a missing build is skipped.
+          copy() {
+            f=$(ls $1 2>/dev/null | grep -v '^Open20-Battle-Maps-' | head -1)
+            if [ -z "$f" ]; then echo "::warning::no file matches $1"; return; fi
+            cp "$f" "$2"
+            gh release upload "$TAG" "$2" -R "$GITHUB_REPOSITORY" --clobber
+          }
+          copy '*_x64-setup.exe' Open20-Battle-Maps-windows-setup.exe
+          copy '*_aarch64.dmg' Open20-Battle-Maps-macos-apple-silicon.dmg
+          copy '*_x64.dmg' Open20-Battle-Maps-macos-intel.dmg
+          copy '*_amd64.AppImage' Open20-Battle-Maps-linux.AppImage
+          copy '*universal*.apk' Open20-Battle-Maps-android.apk
