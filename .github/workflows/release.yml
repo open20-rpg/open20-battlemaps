@@ -136,11 +136,30 @@ jobs:
         run: npm ci --ignore-scripts
 
       - uses: tauri-apps/tauri-action@v1
+        id: tauri
+        # On macOS runners bundle_dmg.sh's `hdiutil create` fails at random
+        # with "Resource busy" (the volume is still held by a background
+        # scan), so macOS gets one retry below; elsewhere a failure fails the
+        # job as usual.
+        continue-on-error: ${{ matrix.platform == 'macos-latest' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # The release already exists (semantic-release made it, with its
           # notes); tauri-action only uploads the installers to it.
+          tagName: v${{ inputs.rebuild || needs.release.outputs.version }}
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      # Retry after a macOS failure: the Rust build is already in target/, so
+      # this only re-runs the bundling. A second failure fails the job.
+      - name: retry tauri build (macOS only)
+        if: matrix.platform == 'macos-latest' && steps.tauri.outcome == 'failure'
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
           tagName: v${{ inputs.rebuild || needs.release.outputs.version }}
           releaseDraft: false
           prerelease: false
