@@ -177,6 +177,18 @@ describe("Dungeondraft import", () => {
     expect(r.warnings.levelAmbient).toBe(1)
   })
 
+  it("also depends on packs its assets use that the manifest doesn't list", () => {
+    const map = structuredClone(MAP)
+    map.header.asset_manifest = [{ id: "listed", name: "Listed" }]
+    map.world.levels["0"].walls[0].texture = "res://packs/unlisted/textures/walls/a.png"
+    const r = importDungeondraftMap(JSON.stringify(map))
+    expect(r.packs).toContain("listed")
+    expect(r.packs).toContain("unlisted")
+    expect(r.packs).toContain("abcd1234")
+    expect(r.packs).not.toContain("dungeondraft")
+    expect(new Set(r.packs).size).toBe(r.packs.length)
+  })
+
   it("mirrors x (cells from the right edge) and maps pack textures to asset ids", () => {
     const [wall] = byTool("wall")
     expect(wall.points).toEqual([

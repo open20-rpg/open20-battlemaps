@@ -51,7 +51,7 @@ export type ImportWarningKey =
 
 export interface ImportResult {
   doc: MapDocument
-  /** Pack ids the map's asset manifest lists. */
+  /** Pack ids the map depends on: its asset manifest plus any its assets reference. */
   packs: string[]
   /** Grid line color (Map Settings), when the map sets one. */
   gridColor?: string
@@ -86,6 +86,8 @@ function tryParse<T>(fn: (v: unknown) => T, value: unknown): T | undefined {
 /** Mutable conversion state shared by the section converters. */
 class Importer {
   readonly warnings: ImportResult["warnings"] = {}
+  /** Packs the converted assets come from (the manifest can miss some). */
+  readonly packs = new Set<string>()
 
   constructor(
     readonly width: number,
@@ -107,7 +109,10 @@ class Importer {
     if (!path) return undefined
     if (path.startsWith("embedded://")) this.warn("embeddedAssets")
     else if (!path.startsWith("res://packs/")) this.warn("builtinAssets")
-    return resToAssetId(path)
+    const id = resToAssetId(path)
+    const pack = packOfRes(path)
+    if (pack) this.packs.add(pack)
+    return id
   }
 
   /** Apply a node transform (position, rotation rad, scale) to local points. */
@@ -122,6 +127,8 @@ class Importer {
   }
 }
 
+const PACK_RES = /^res:\/\/packs\/([^/]+)\/(.+)$/
+
 /**
  * Texture resource path → library asset id. Pack assets live under
  * `res://packs/<id>/…`; anything else is Dungeondraft's built-in library (not
@@ -129,9 +136,12 @@ class Importer {
  * `dungeondraft|` id that never resolves.
  */
 export function resToAssetId(path: string): string {
-  const m = /^res:\/\/packs\/([^/]+)\/(.+)$/.exec(path)
+  const m = PACK_RES.exec(path)
   return m ? `${m[1]}|${m[2]}` : `dungeondraft|${path.replace(/^res:\/\//, "")}`
 }
+
+/** The pack id of a `res://packs/<id>/…` path (undefined for anything else). */
+const packOfRes = (path: string): string | undefined => PACK_RES.exec(path)?.[1]
 
 const vec = (v: unknown, fallback: Vec2 = { x: 0, y: 0 }): Vec2 =>
   tryParse(parseVec2, v) ?? fallback
@@ -740,9 +750,10 @@ export function importDungeondraftMap(text: string): ImportResult {
     }
   }
 
-  const packs = arr(header.asset_manifest)
+  const manifest = arr(header.asset_manifest)
     .map((m) => str(obj(m).id))
     .filter((id): id is string => !!id)
+  const packs = [...new Set([...manifest, ...im.packs])]
   const grid = str(obj(world.grid).color)
   const currentLevel = Math.max(0, Math.min(levels.length - 1, num(editor.current_level, 0)))
   return {
