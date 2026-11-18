@@ -17,6 +17,7 @@ import { DEFAULT_POST_PROCESS, isNeutral, type PostProcess } from "../../../lib/
 import { lightingComposite } from "./lighting"
 import { BUILDING_WEAR_URLS } from "./buildingWear"
 import { drawOverlay } from "./overlay"
+import { drawLayer, zFor } from "../model/drawOrder"
 import { PAINTED_COMPOSITES, paintedGroups, paintedLayer, type Composite } from "./painted"
 import { tileSizeForZoom } from "./viewport"
 import { lightBlockers } from "../model/lightBlock"
@@ -108,9 +109,6 @@ function shiftView(entry: EntityView, dx: number, dy: number): void {
     c.position.y += dy
   }
 }
-
-/** Draw order: layer bucket first, then document order within it. */
-const zFor = (layer: number, index: number) => (layer + 1000) * 100000 + index
 
 /** Free an entity's view and the shadows it cast. */
 function destroyView(entry: EntityView): void {
@@ -362,7 +360,7 @@ export class MapScene {
         this.compareViews.set(entity.id, { entity, view, complete: track.complete })
       }
       const entry = this.compareViews.get(entity.id)
-      if (entry) entry.view.zIndex = zFor(entity.layer, index)
+      if (entry) entry.view.zIndex = zFor(drawLayer(entity), index)
     })
     for (const [id, entry] of this.compareViews) {
       if (seen.has(id)) continue
@@ -488,7 +486,7 @@ export class MapScene {
       }
       const entry = this.entities.get(entity.id)
       if (!entry) return
-      entry.view.zIndex = zFor(entity.layer, index)
+      entry.view.zIndex = zFor(drawLayer(entity), index)
       if (entity.toolId === "light") entry.view.alpha = glow
       if (entity.toolId === "text") {
         entry.view.visible = state.textVisible && entity.id !== state.editingText

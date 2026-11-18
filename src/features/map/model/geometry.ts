@@ -1,4 +1,5 @@
 import { FONT_PX_PER_TILE, textLayout } from "../../fonts/metrics"
+import { drawLayer } from "./drawOrder"
 import { type MapEntity, type Vec2 } from "./types"
 
 /**
@@ -351,7 +352,7 @@ export function entityHit(
 }
 
 /**
- * Topmost entity under `p`: highest layer first, then the latest placed
+ * Topmost entity under `p`: highest draw layer (`drawLayer`) first, then the latest placed
  * within a layer (document order is draw order inside a layer).
  */
 export function hitTest(
@@ -364,12 +365,13 @@ export function hitTest(
   /** A finer test after the shape's (e.g. the texture isn't transparent there). */
   solid?: (e: MapEntity, p: Vec2) => boolean,
 ): MapEntity | undefined {
-  let best: { e: MapEntity; i: number } | undefined
+  let best: { e: MapEntity; i: number; layer: number } | undefined
   entities.forEach((e, i) => {
     if (filter && !filter(e)) return
     if (!entityHit(e, p, sizeOf, tolerance)) return
     if (solid && !solid(e, p)) return
-    if (!best || e.layer > best.e.layer || (e.layer === best.e.layer && i > best.i)) best = { e, i }
+    const layer = drawLayer(e)
+    if (!best || layer > best.layer || (layer === best.layer && i > best.i)) best = { e, i, layer }
   })
   return best?.e
 }
