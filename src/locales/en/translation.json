@@ -149,6 +149,10 @@
     "gridLineColor": "Line Color",
     "levelSettings": "Level Settings",
     "replaceAssets": "Replace Assets",
+    "alert": {
+      "missingAssets_one": "{{count}} missing asset",
+      "missingAssets_other": "{{count}} missing assets"
+    },
     "referenceImage": "Reference Image",
     "text": "Text",
     "prefabs": "Prefabs",

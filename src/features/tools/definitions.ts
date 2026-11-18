@@ -51,6 +51,7 @@ import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import { DEFAULT_POST_PROCESS, POST_FILTERS } from "../../lib/postProcess"
 import { DEFAULT_SHADOW_STYLE } from "../../stores/settingsStore"
 import { SELECT_FILTER_DEFAULT, SELECT_KINDS } from "./selectKinds"
+import { type ToolAlertId } from "./alerts"
 import {
   NO_FOCUS,
   shapeVsEditPoints,
@@ -115,6 +116,11 @@ export interface ToolLeaf {
   params?: ToolParamSpec[]
   /** Cross-field rule applied after any of this tool's params changes. */
   normalizeParams?: ParamNormalizer
+  /**
+   * A problem the tool fixes: it only shows (in its bar) while the map has
+   * that problem — or while it's in use — and stands out with a count.
+   */
+  alert?: ToolAlertId
 }
 
 /** A folder that opens a panel listing its children. */
@@ -137,6 +143,7 @@ const tool = (
     librarySelect?: "single" | "multi"
     params?: ToolParamSpec[]
     normalizeParams?: ParamNormalizer
+    alert?: ToolAlertId
   },
 ): ToolLeaf => ({
   type: "tool",
@@ -147,6 +154,7 @@ const tool = (
   librarySelect: opts?.library ? (opts.librarySelect ?? "single") : undefined,
   params: opts?.params,
   normalizeParams: opts?.normalizeParams,
+  alert: opts?.alert,
 })
 
 // Shared param specs, so tools reuse the same controls with minimal config.
@@ -660,9 +668,6 @@ export const TOOL_TREE: ToolNode[] = [
       tool("levelSettings", "tools.levelSettings", LuLayers, {
         params: [{ kind: "levels", paramKey: "levels", default: null }],
       }),
-      tool("replaceAssets", "tools.replaceAssets", LuReplace, {
-        params: [{ kind: "missingAssets", paramKey: "focus", default: NO_FOCUS }],
-      }),
       tool("referenceImage", "tools.referenceImage", LuImage, {
         params: [
           button("load", "tools.loadImage", LuImagePlus),
@@ -725,6 +730,11 @@ export const TOOL_TREE: ToolNode[] = [
       button("unlock", "tools.unlock", LuLockOpen),
       { kind: "properties", paramKey: "properties", default: null },
     ],
+  }),
+  // Last, so showing up never moves the other tools.
+  tool("replaceAssets", "tools.replaceAssets", LuReplace, {
+    alert: "missingAssets",
+    params: [{ kind: "missingAssets", paramKey: "focus", default: NO_FOCUS }],
   }),
 ]
 

@@ -42,6 +42,7 @@ import {
 import { assetCache } from "./render/assets"
 import { useEditorStore } from "../../stores/editorStore"
 import { getUsedPackIds } from "./packUsage"
+import { collectAssetIds } from "./missingAssets"
 import type { MapDocument } from "./model/types"
 
 /**
@@ -190,10 +191,20 @@ async function enableMapPacks(packIds: string[]): Promise<string[]> {
   return missing
 }
 
+/**
+ * Look up every asset the map uses, not just the active level's (those get
+ * looked up as they're drawn): the tools bar tells right away if any is
+ * missing (Replace Assets).
+ */
+function prefetchAssets(map: MapDocument): void {
+  assetCache.prefetch(collectAssetIds(map.entities))
+}
+
 /** Apply a parsed save file to the live stores, replacing the current session. */
 async function applySaveFile(file: MapFile): Promise<string[]> {
   const { map, tools } = migrateMap(file.formatVersion, file.map, file.tools)
   loadMap(map)
+  prefetchAssets(map)
   useViewStore.setState({ ...file.view })
   for (const [toolId, delta] of Object.entries(tools)) {
     useToolsStore.getState().setToolParams(toolId, delta)
@@ -245,6 +256,7 @@ async function applyImport(result: ImportResult): Promise<string[]> {
   const fonts = resolveFontNames(widths, await loadCatalog())
   if (fonts.unknown > 0) result.warnings.unknownFonts = fonts.unknown
   loadMap({ ...result.doc, entities: fonts.entities })
+  prefetchAssets(result.doc)
   useEditorStore.getState().setActiveLevel(result.doc.levels[result.currentLevel]?.id ?? null)
   useViewStore.getState().reset()
   if (result.gridColor) {

@@ -149,6 +149,10 @@
     "gridLineColor": "Color de Línea",
     "levelSettings": "Ajustes del Nivel",
     "replaceAssets": "Reemplazar Assets",
+    "alert": {
+      "missingAssets_one": "{{count}} asset faltante",
+      "missingAssets_other": "{{count}} assets faltantes"
+    },
     "referenceImage": "Imagen de Referencia",
     "text": "Texto",
     "prefabs": "Prefabricados",
