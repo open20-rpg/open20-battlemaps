@@ -2,7 +2,7 @@
   "name": "open20-battle-maps",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
-  "version": "0.3.39",
+  "version": "0.3.40",
   "type": "module",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
