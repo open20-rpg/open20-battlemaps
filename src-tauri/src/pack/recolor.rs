@@ -252,6 +252,24 @@ pub fn recolor_protocol(
     });
 }
 
+/// The absolute file path a `convertFileSrc(path, "recolor")` URL points at.
+/// The URL path is the percent-encoded native path behind a `/`: on Unix that
+/// slash is the root, but a Windows path (`C:\…`, `\\?\…`) must not get it
+/// back — `\C:\…` is a root-relative path that never exists, so every recolored
+/// image would 404.
+fn path_from_uri(uri_path: &str) -> Option<PathBuf> {
+    let decoded = urlencoding::decode(uri_path).ok()?;
+    let p = decoded.trim_start_matches('/');
+    let b = p.as_bytes();
+    let windows =
+        p.starts_with('\\') || (b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':');
+    Some(PathBuf::from(if windows {
+        p.to_owned()
+    } else {
+        format!("/{p}")
+    }))
+}
+
 fn build_recolor_response(
     app: &AppHandle,
     uri: &tauri::http::Uri,
@@ -264,11 +282,7 @@ fn build_recolor_response(
             .unwrap()
     };
 
-    // Decode the absolute file path from the URL path (convertFileSrc-encoded).
-    let Some(path) = urlencoding::decode(uri.path()).ok().map(|p| {
-        let p = p.trim_start_matches('/');
-        PathBuf::from(format!("/{p}"))
-    }) else {
+    let Some(path) = path_from_uri(uri.path()) else {
         return not_found();
     };
     // Security: only ever serve files under the packs root.
@@ -323,6 +337,16 @@ fn build_recolor_response(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decodes_unix_and_windows_paths() {
+        let unix = path_from_uri("/home%2Fu%2Fpacks%2Fa.png").unwrap();
+        assert_eq!(unix, PathBuf::from("/home/u/packs/a.png"));
+        let drive = path_from_uri("/C%3A%5CUsers%5Cu%5Ca.png").unwrap();
+        assert_eq!(drive, PathBuf::from("C:\\Users\\u\\a.png"));
+        let unc = path_from_uri("/%5C%5C%3F%5CC%3A%5Ca.png").unwrap();
+        assert_eq!(unc, PathBuf::from("\\\\?\\C:\\a.png"));
+    }
 
     #[test]
     fn recolors_red_regions() {
