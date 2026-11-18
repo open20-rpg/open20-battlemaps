@@ -1,4 +1,13 @@
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react"
+import { toastAnatomy } from "@chakra-ui/react/anatomy"
+
+/** Undoes Chakra's colored fill for warning/success/error toasts. */
+const NEUTRAL_TOAST = {
+  bg: "panel.solid",
+  color: "fg",
+  "--toast-trigger-bg": "colors.bg.muted",
+  "--toast-border-color": "colors.panel.border",
+}
 
 /**
  * Open20 Battle Maps theme — the Open20 suite's identity: a forced dark
@@ -33,6 +42,30 @@ const config = defineConfig({
     "*::-webkit-scrollbar-track": { background: "transparent" },
   },
   theme: {
+    slotRecipes: {
+      // Every toast on the neutral panel surface; only its icon carries the
+      // type's color (a colored fill reads loud over the map).
+      toast: {
+        slots: toastAnatomy.keys(),
+        base: {
+          root: {
+            bg: "panel.solid",
+            color: "fg",
+            borderWidth: "1px",
+            borderColor: "panel.border",
+            "&[data-type=warning]": NEUTRAL_TOAST,
+            "&[data-type=success]": NEUTRAL_TOAST,
+            "&[data-type=error]": NEUTRAL_TOAST,
+          },
+          indicator: {
+            color: "brand.fg",
+            "[data-type=warning] &": { color: "orange.fg" },
+            "[data-type=success] &": { color: "green.fg" },
+            "[data-type=error] &": { color: "danger.fg" },
+          },
+        },
+      },
+    },
     tokens: {
       colors: {
         // Open20 crimson, #A70909 at 600; lighter steps are for text and
