@@ -34,6 +34,8 @@ export interface UseAssetSearchOptions {
   onSelectionChange?: (ids: string[], picked?: LibItem) => void
   /** Scroll container of the virtualized grid (reset to top on a new search). */
   scrollRef: RefObject<HTMLDivElement | null>
+  /** What the first search looks for (and the box starts with): a suggestion. */
+  initialQuery?: string
 }
 
 /**
@@ -52,10 +54,13 @@ export function useAssetSearch({
   selectedIds,
   onSelectionChange,
   scrollRef,
+  initialQuery = "",
 }: UseAssetSearchOptions) {
   const { t } = useTranslation()
 
-  const [queryInput, setQueryInput] = useState("")
+  const [queryInput, setQueryInput] = useState(initialQuery)
+  // What a fresh search looks for: the suggestion, until the category changes.
+  const [freshQuery, setFreshQuery] = useState(initialQuery)
   const [exactness, setExactnessState] = useState(0.5)
   // Latest exactness for runSearch without making it a reactive dependency
   // (moving the slider must not re-trigger the category-change search).
@@ -125,13 +130,15 @@ export function useAssetSearch({
   if (category !== prevCategory) {
     setPrevCategory(category)
     setQueryInput("")
+    setFreshQuery("")
   }
 
   // Fresh "all" search whenever the category or pack scope changes (runSearch is
   // recreated per category/pack/browser, so it doubles as the trigger).
+  // freshQuery only changes along with the category (so with runSearch): one search.
   useEffect(() => {
-    void runSearch("")
-  }, [runSearch])
+    void runSearch(freshQuery)
+  }, [runSearch, freshQuery])
 
   // Fetch the pages that cover the currently visible rows. The caller invokes
   // this from an effect fed by the virtualizer's window (rows are display rows,

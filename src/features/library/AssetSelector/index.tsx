@@ -54,6 +54,8 @@ export interface AssetSelectorProps {
   tag?: string
   /** Only show these asset ids. */
   onlyIds?: string[]
+  /** Start with this search (e.g. a suggestion); single-select then picks its best match. */
+  initialQuery?: string
 }
 
 /** Each category's (stable) thumbnail coloring. */
@@ -88,6 +90,7 @@ export function AssetSelector({
   allowNull = false,
   tag,
   onlyIds,
+  initialQuery,
 }: AssetSelectorProps) {
   const { t } = useTranslation()
   const coloring = coloringOf(category)
@@ -119,6 +122,7 @@ export function AssetSelector({
     selectedIds,
     onSelectionChange,
     scrollRef,
+    initialQuery,
   })
 
   const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds])

@@ -1,3 +1,4 @@
+import { type DraftShape } from "../../../stores/editorStore"
 import { type AssetSizeOf } from "../../map/model/geometry"
 import { type MapDocument, type MapEntity, type Vec2 } from "../../map/model/types"
 import { type ToolParamValues } from "../params"
@@ -77,6 +78,13 @@ export interface ToolBehavior {
   onParamsChange?(ctx: ToolCtx, patch: ToolParamValues): void
   /** Whether a command button param should be disabled right now. */
   isActionDisabled?(ctx: ToolCtx, action: string): boolean
+  /**
+   * Shapes drawn over the map while the tool is active, derived from the
+   * document and the tool's params on every redraw (so undo, level changes
+   * and assets loading keep them current). For drafts the tool builds up
+   * itself, use the editor store's `draft` instead.
+   */
+  overlay?(ctx: ToolCtx): DraftShape[]
   /** CSS cursor for the viewport while this tool is active. */
   cursor?(params: ToolParamValues): string
   /**

@@ -55,10 +55,31 @@ export class AssetCache {
   private notifyScheduled = false
   /** Alpha channels read back from loaded textures (null: can't be read). */
   private alphas = new Map<string, AlphaMask | null>()
+  /** Bumped on every notification (see missingIds). */
+  private changes = 0
 
-  subscribe(listener: Listener): () => void {
+  subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
+  }
+
+  private missing: { at: number; ids: ReadonlySet<string> } | null = null
+
+  /**
+   * Ids known to be missing, as one object that only changes when they do
+   * (between notifications): a useSyncExternalStore snapshot.
+   */
+  missingIds = (): ReadonlySet<string> => {
+    if (this.missing?.at === this.changes) return this.missing.ids
+    const ids = new Set([...this.resolved].flatMap(([id, r]) => (r === null ? [id] : [])))
+    const same = this.missing && sameSet(this.missing.ids, ids)
+    this.missing = { at: this.changes, ids: same && this.missing ? this.missing.ids : ids }
+    return this.missing.ids
+  }
+
+  /** Resolve ids not seen yet (e.g. on other levels, never drawn) so isMissing can tell. */
+  prefetch(ids: readonly string[]): void {
+    for (const id of ids) if (!this.resolved.has(id)) this.queueResolve(id)
   }
 
   /** Texture for an asset id, or undefined while it's resolving/loading (or missing). */
@@ -218,10 +239,14 @@ export class AssetCache {
         : (cb: () => void) => setTimeout(cb, 16)
     nextFrame(() => {
       this.notifyScheduled = false
+      this.changes++
       for (const l of this.listeners) l()
     })
   }
 }
+
+const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
+  a.size === b.size && [...a].every((id) => b.has(id))
 
 interface AlphaMask {
   w: number

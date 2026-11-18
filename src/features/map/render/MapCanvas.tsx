@@ -18,6 +18,8 @@ import { subscribeLiveTerrain } from "../terrainLive"
 import { setActiveRenderer } from "./exportMap"
 import { subscribeViewGesture, viewGestureActive } from "./viewGesture"
 import { ViewSnapshot } from "./viewSnapshot"
+import { setViewportSize } from "./focus"
+import { getToolBehavior, toolOverlay } from "../../tools/behaviors"
 
 /** Fill color of the map rect under every layer. */
 const MAP_BG = 0x2b2b2f
@@ -29,6 +31,7 @@ function sceneState(): SceneState | null {
   const view = useViewStore.getState()
   const editor = useEditorStore.getState()
   const ref = map.referenceImage
+  const tool = selectActiveTool(useToolsStore.getState())
   return {
     map,
     level: editor.activeLevel,
@@ -42,12 +45,12 @@ function sceneState(): SceneState | null {
     terrainEnabled: getToolParams("terrainBrush").enable !== false,
     terrainSmooth: getToolParams("terrainBrush").smoothBlending === true,
     showCaveBlast: getToolParams("cave").showBlast === true,
-    draft: editor.draft,
+    draft: tool ? [...editor.draft, ...toolOverlay(tool.id)] : editor.draft,
     guide: editor.guide,
     ruler: editor.ruler,
     compareLevel: editor.compareLevels ? levelBelow(map, editor.activeLevel) : null,
     selection: editor.selection,
-    transformHandles: selectActiveTool(useToolsStore.getState())?.id === "select",
+    transformHandles: tool?.id === "select",
     zoom: view.zoom,
     referenceUrl: ref ? referenceImageUrl(ref.path) : null,
   }
@@ -127,6 +130,7 @@ export function MapCanvas() {
     const app = new Application()
     // Follow the container's size (window resizes, panels opening), then repaint.
     const resizer = new ResizeObserver(() => {
+      setViewportSize(el.clientWidth, el.clientHeight)
       if (!appRef.current) return
       app.renderer.resize(Math.max(1, el.clientWidth), Math.max(1, el.clientHeight))
       requestRender()
@@ -249,6 +253,11 @@ export function MapCanvas() {
     const unsubRef = subscribeReferenceImages(schedule)
     const unsubSettings = useSettingsStore.subscribe(schedule)
     const unsubTerrain = subscribeLiveTerrain(schedule)
+    // A tool's overlay can depend on assets resolving (Replace Assets marks the missing ones).
+    const unsubAssets = assetCache.subscribe(() => {
+      const tool = selectActiveTool(useToolsStore.getState())
+      if (tool && getToolBehavior(tool.id)?.overlay) schedule()
+    })
     return () => {
       cancelAnimationFrame(frame)
       unsubMap()
@@ -258,6 +267,7 @@ export function MapCanvas() {
       unsubRef()
       unsubSettings()
       unsubTerrain()
+      unsubAssets()
       unsubGesture()
       snapshotRef.current?.drop()
     }

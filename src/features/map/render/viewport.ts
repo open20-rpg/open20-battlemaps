@@ -126,3 +126,37 @@ export function panToPlace(
   // Origin (map top-right corner) such that origin + p·scale = screen; x is mirrored.
   return { x: screen.x + p.x * tileSize - centerX, y: screen.y - p.y * tileSize - centerY }
 }
+
+/**
+ * The view (zoom from `levels`, pan) that frames map rect `r` with `padding`
+ * screen px around it, at most `maxZoom`: what "show me where it is" jumps to.
+ * `cover` is how much of each side panels hide: the rect lands in the rest.
+ */
+export function viewForRect(
+  r: { x: number; y: number; w: number; h: number },
+  containerWidth: number,
+  containerHeight: number,
+  mapWidth: number,
+  mapHeight: number,
+  levels: readonly number[],
+  maxZoom: number,
+  cover = { left: 0, right: 0 },
+  padding = 48,
+): { zoom: number; pan: { x: number; y: number } } {
+  // Panels never hide it all: at least half the canvas counts as visible.
+  const left = Math.min(cover.left, containerWidth / 2)
+  const visible = Math.max(containerWidth / 2, containerWidth - left - cover.right)
+  const fitPx = Math.min(
+    (visible - 2 * padding) / Math.max(r.w, 0.5),
+    (containerHeight - 2 * padding) / Math.max(r.h, 0.5),
+  )
+  const fit = (fitPx / BASE_TILE_PX) * 100
+  const candidates = levels.filter((z) => z <= Math.min(fit, maxZoom))
+  const zoom = candidates.length > 0 ? Math.max(...candidates) : Math.min(...levels)
+  const center = { x: r.x + r.w / 2, y: r.y + r.h / 2 }
+  const screen = { x: left + visible / 2, y: containerHeight / 2 }
+  return {
+    zoom,
+    pan: panToPlace(center, screen, containerWidth, containerHeight, mapWidth, mapHeight, zoom),
+  }
+}

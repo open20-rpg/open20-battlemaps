@@ -61,6 +61,17 @@ export interface BiomeSelection {
 export const BIOME_MAX_SLOTS = 8
 
 /**
+ * Value of a `missingAssets` param (Replace Assets): the missing asset picked
+ * in its list and which of its uses is being shown (null: all of them).
+ */
+export interface MissingFocus {
+  asset: string | null
+  index: number | null
+}
+
+export const NO_FOCUS: MissingFocus = { asset: null, index: null }
+
+/**
  * The value type each param kind reads/writes. This is the single source of
  * truth tying a `kind` to its runtime value — controls and consumers narrow
  * through it instead of casting `unknown` by hand.
@@ -90,6 +101,8 @@ export interface ParamValueByKind {
   properties: null
   /** Ids of the options switched on. */
   iconToggles: string[]
+  /** The map's missing assets, to locate and replace (Replace Assets). */
+  missingAssets: MissingFocus
 }
 
 export type ParamKind = keyof ParamValueByKind
@@ -164,6 +177,8 @@ export type ToolParamSpec =
   | (BaseSpec<"prefabs"> & { labelKey: string })
   /** Properties of the selected entities (Select tool), edited in place. */
   | BaseSpec<"properties">
+  /** The map's missing assets: pick one to show it, swap it for an installed one. */
+  | BaseSpec<"missingAssets">
   /** Square on/off icon buttons in rows, under a title (Select's element filter). */
   | (BaseSpec<"iconToggles"> & {
       labelKey: string
@@ -207,7 +222,12 @@ export function getParam<K extends ParamKind>(
  * when several are present); everything else stays compact.
  */
 export function paramGrows(spec: ToolParamSpec): boolean {
-  return spec.kind === "assetPicker" || spec.kind === "biome" || spec.kind === "prefabs"
+  return (
+    spec.kind === "assetPicker" ||
+    spec.kind === "biome" ||
+    spec.kind === "prefabs" ||
+    spec.kind === "missingAssets"
+  )
 }
 
 /**

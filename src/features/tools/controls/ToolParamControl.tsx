@@ -23,6 +23,7 @@ import { ACTION_BY_ID } from "../../shortcuts/actions"
 import { useActionBinding } from "../../shortcuts/bindings"
 import { SelectionPropertiesControl } from "./SelectionPropertiesControl"
 import { IconTogglesControl } from "./IconTogglesControl"
+import { MissingAssetsControl } from "./MissingAssetsControl"
 
 interface RenderArgs<K extends ParamKind> {
   toolId: string
@@ -150,6 +151,9 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
       defaultValue={spec.default}
       onChange={onChange}
     />
+  ),
+  missingAssets: ({ value, onChange }) => (
+    <MissingAssetsControl value={value} onChange={onChange} />
   ),
   // Each property reuses its kind's control, so it's rendered through here too.
   properties: ({ toolId }) => (

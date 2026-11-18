@@ -12,9 +12,27 @@ import {
 } from "./painted"
 import { emptyGrid, MATERIAL_CELLS_PER_TILE, stamp } from "./cells"
 import { type MapEntity } from "../model/types"
-import { mapToScreen, panToPlace, screenToMap } from "./viewport"
+import { mapToScreen, panToPlace, screenToMap, viewForRect } from "./viewport"
 
 describe("viewport", () => {
+  it("frames a rect: the biggest zoom level it fits at, centered", () => {
+    const levels = [25, 50, 100, 200, 400]
+    const r = { x: 10, y: 20, w: 4, h: 2 }
+    const v = viewForRect(r, 800, 600, 50, 40, levels, 400)
+    // 4 tiles across 800 − 96 px fit at ~275%: the level below is 200%.
+    expect(v.zoom).toBe(200)
+    const c = mapToScreen({ x: 12, y: 21 }, 800, 600, 50, 40, v.zoom, v.pan)
+    expect(c.x).toBeCloseTo(400)
+    expect(c.y).toBeCloseTo(300)
+    expect(viewForRect(r, 800, 600, 50, 40, levels, 100).zoom).toBe(100)
+    // A 300 px panel on the left: framed in the 500 px still visible.
+    const covered = viewForRect(r, 800, 600, 50, 40, levels, 400, { left: 300, right: 0 })
+    expect(covered.zoom).toBe(100)
+    const cc = mapToScreen({ x: 12, y: 21 }, 800, 600, 50, 40, covered.zoom, covered.pan)
+    expect(cc.x).toBeCloseTo(550)
+    expect(viewForRect({ x: 0, y: 0, w: 500, h: 500 }, 800, 600, 50, 40, levels, 400).zoom).toBe(25)
+  })
+
   it("zooming keeps the point under the cursor in place", () => {
     const size = [800, 600, 30, 20] as const
     const cursor = { x: 610, y: 140 }

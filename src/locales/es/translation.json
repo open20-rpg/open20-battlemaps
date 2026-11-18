@@ -148,6 +148,7 @@
     "gridStyleThick": "Línea Gruesa",
     "gridLineColor": "Color de Línea",
     "levelSettings": "Ajustes del Nivel",
+    "replaceAssets": "Reemplazar Assets",
     "referenceImage": "Imagen de Referencia",
     "text": "Texto",
     "prefabs": "Prefabricados",
@@ -522,5 +523,47 @@
     "missingBody_other": "Los textos del mapa usan {{count}} fuentes de Google Fonts que no están descargadas: {{fonts}}. ¿Descargarlas? Si no, se muestran con la fuente predeterminada.",
     "download": "Descargar",
     "notNow": "Ahora no"
+  },
+  "replaceAssets": {
+    "title": "Assets faltantes",
+    "summary_one": "{{count}} asset · {{uses}} usos",
+    "summary_other": "{{count}} assets · {{uses}} usos",
+    "hint": "Elegí uno para verlo en el mapa y reemplazarlo por un asset de tus packs. También podés hacer clic sobre lo marcado en el mapa.",
+    "noneTitle": "No falta ningún asset",
+    "noneHint": "Todo lo que usa este mapa está disponible en tus packs instalados.",
+    "uses_one": "{{count}} uso en el mapa",
+    "uses_other": "{{count}} usos en el mapa",
+    "locate": "Ubicar en el mapa",
+    "previous": "Uso anterior",
+    "next": "Uso siguiente",
+    "showAll": "Ver todos los usos",
+    "allUses_one": "{{count}} uso",
+    "allUses_other": "Todos los usos ({{count}})",
+    "useOf": "Uso {{n}} de {{count}}",
+    "onLevel": "Nivel: {{level}}",
+    "levelsCount_one": "En {{count}} nivel",
+    "levelsCount_other": "En {{count}} niveles",
+    "replaceWith": "Reemplazar por ({{kind}})",
+    "suggestion": "Te sugerimos el más parecido por nombre; buscá otro si no te convence.",
+    "replaceAll_one": "Reemplazar",
+    "replaceAll_other": "Reemplazar los {{count}} usos",
+    "replaceThis": "Reemplazar solo este uso",
+    "source": {
+      "builtin": "Integrado de Dungeondraft",
+      "embedded": "Imagen incrustada",
+      "pack": "Pack «{{pack}}» no disponible"
+    },
+    "category": {
+      "tilesets": "Piso",
+      "walls": "Pared",
+      "portals": "Portal",
+      "caves": "Cueva",
+      "roofs": "Techo",
+      "paths": "Camino",
+      "objects": "Objeto",
+      "terrain": "Terreno",
+      "lights": "Luz",
+      "materials": "Material"
+    }
   }
 }

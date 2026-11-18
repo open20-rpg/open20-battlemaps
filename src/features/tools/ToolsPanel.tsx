@@ -1,4 +1,6 @@
+import { useRef } from "react"
 import { Flex } from "@chakra-ui/react"
+import { useViewportCover } from "../map/render/focus"
 import { useActiveTool, useToolsStore } from "../../stores/toolsStore"
 import { ObjectPreview } from "../library/ObjectPreview"
 import { TOOL_TREE, type ToolNode } from "./definitions"
@@ -17,6 +19,8 @@ import { ViewControlsBar } from "../viewport/ViewControlsBar"
  * button in the panel header.
  */
 export function ToolsPanel() {
+  const ref = useRef<HTMLDivElement>(null)
+  useViewportCover(ref, "left")
   const path = useToolsStore((s) => s.path)
   const selectTop = useToolsStore((s) => s.selectTop)
   const selectChild = useToolsStore((s) => s.selectChild)
@@ -34,7 +38,7 @@ export function ToolsPanel() {
   }
 
   return (
-    <Flex position="absolute" left="0" top="0" bottom="0" zIndex="docked" maxW="80%">
+    <Flex ref={ref} position="absolute" left="0" top="0" bottom="0" zIndex="docked" maxW="80%">
       <IconBar
         nodes={TOOL_TREE}
         selectedId={path[0]?.id}

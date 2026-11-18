@@ -28,6 +28,7 @@ import {
   LuMousePointer2,
   LuPaintBucket,
   LuRotateCcw,
+  LuReplace,
   LuRoute,
   LuSave,
   LuSettings2,
@@ -51,6 +52,7 @@ import { DEFAULT_POST_PROCESS, POST_FILTERS } from "../../lib/postProcess"
 import { DEFAULT_SHADOW_STYLE } from "../../stores/settingsStore"
 import { SELECT_FILTER_DEFAULT, SELECT_KINDS } from "./selectKinds"
 import {
+  NO_FOCUS,
   shapeVsEditPoints,
   type AssetRecolor,
   type ParamNormalizer,
@@ -657,6 +659,9 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("levelSettings", "tools.levelSettings", LuLayers, {
         params: [{ kind: "levels", paramKey: "levels", default: null }],
+      }),
+      tool("replaceAssets", "tools.replaceAssets", LuReplace, {
+        params: [{ kind: "missingAssets", paramKey: "focus", default: NO_FOCUS }],
       }),
       tool("referenceImage", "tools.referenceImage", LuImage, {
         params: [

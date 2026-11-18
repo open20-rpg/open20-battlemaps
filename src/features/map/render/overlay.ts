@@ -134,6 +134,41 @@ export function drawOverlay(
         root.addChild(label)
         break
       }
+      case "highlight": {
+        const { rect: r, emphasis } = shape
+        // Never thinner than a few screen px: a 1×1 object far out stays findable.
+        const pad = emphasis === "dim" ? 0 : 4 * px
+        const x = -(r.x + r.w) - pad
+        const y = r.y - pad
+        const w = r.w + 2 * pad
+        const h = r.h + 2 * pad
+        if (emphasis === "dim") {
+          // Dashed, so it reads apart from a selection box.
+          g.rect(x, y, w, h).fill({ color: ACCENT, alpha: 0.12 })
+          const corners = [
+            { x: r.x, y: r.y },
+            { x: r.x + r.w, y: r.y },
+            { x: r.x + r.w, y: r.y + r.h },
+            { x: r.x, y: r.y + r.h },
+          ]
+          corners.forEach((a, i) =>
+            dashed(g, a, corners[(i + 1) % 4], 4 * px, { ...line, width: 1.5 * px }),
+          )
+        } else {
+          g.rect(x, y, w, h)
+            .fill({ color: ACCENT, alpha: emphasis === "current" ? 0.25 : 0.14 })
+            .stroke({ ...line, width: (emphasis === "current" ? 3 : 2) * px })
+        }
+        if (emphasis === "current") {
+          // A white halo so it reads over dark and crimson maps alike.
+          g.rect(x - 3 * px, y - 3 * px, w + 6 * px, h + 6 * px).stroke({
+            color: 0xffffff,
+            width: 1.5 * px,
+            alpha: 0.9,
+          })
+        }
+        break
+      }
       case "ghost": {
         const render = ENTITY_RENDERERS[shape.entity.toolId]
         if (render) {

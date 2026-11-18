@@ -23,8 +23,10 @@ import {
   portalBehavior,
 } from "./structures"
 import { createTextBehavior } from "./text"
+import { createReplaceAssetsBehavior } from "./replaceAssets"
 import { type ToolBehavior } from "./types"
 import { type ToolParamValues } from "../params"
+import { type DraftShape } from "../../../stores/editorStore"
 
 export type { PointerInfo, ToolBehavior, ToolCtx } from "./types"
 
@@ -60,10 +62,18 @@ export const TOOL_BEHAVIORS: Record<string, ToolBehavior> = {
   text: createTextBehavior(),
   prefabs: createPrefabsBehavior(),
   select: createSelectBehavior(),
+  replaceAssets: createReplaceAssetsBehavior(),
 }
 
 export function getToolBehavior(toolId: string): ToolBehavior | undefined {
   return TOOL_BEHAVIORS[toolId]
+}
+
+/** What the tool draws over the map right now (its `overlay`), or nothing. */
+export function toolOverlay(toolId: string): DraftShape[] {
+  const overlay = getToolBehavior(toolId)?.overlay
+  const ctx = overlay && buildToolCtx(toolId)
+  return ctx ? overlay(ctx) : []
 }
 
 /** Run a tool's command button (e.g. Text's Delete, Terrain's Fill). */

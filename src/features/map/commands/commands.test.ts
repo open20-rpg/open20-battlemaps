@@ -19,6 +19,7 @@ import {
   createMap,
   redo,
   removeEntities,
+  replaceAsset,
   undo,
 } from "./index"
 import { type MapEntity } from "../model/types"
@@ -39,6 +40,30 @@ beforeEach(() => {
 })
 
 describe("map commands", () => {
+  it("replaceAsset swaps an asset everywhere, or only in some entities, as one undo step", () => {
+    createMap(10, 10)
+    const use = (id: string): MapEntity => ({
+      ...entity(id),
+      params: { asset: "dd|textures/a.png" },
+    })
+    addEntities([use("a"), use("b"), entity("c")])
+    replaceAsset("dd|textures/a.png", "p|textures/b.png", ["a"])
+    const assets = () => useMapStore.getState().map?.entities.map((e) => e.params.asset)
+    expect(assets()).toEqual(["p|textures/b.png", "dd|textures/a.png", undefined])
+    replaceAsset("dd|textures/a.png", "p|textures/b.png")
+    expect(assets()).toEqual(["p|textures/b.png", "p|textures/b.png", undefined])
+    undo()
+    expect(assets()).toEqual(["p|textures/b.png", "dd|textures/a.png", undefined])
+  })
+
+  it("replaceAsset without a use of the asset changes nothing", () => {
+    createMap(10, 10)
+    addEntity(entity("a"))
+    const before = useMapStore.getState().map
+    replaceAsset("x|textures/a.png", "y|textures/b.png")
+    expect(useMapStore.getState().map).toBe(before)
+  })
+
   it("createMap clamps dimensions and starts a clean history", () => {
     createMap(10.6, 0)
     expect(useMapStore.getState().map).toMatchObject({ width: 11, height: 1, entities: [] })

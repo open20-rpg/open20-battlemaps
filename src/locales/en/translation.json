@@ -148,6 +148,7 @@
     "gridStyleThick": "Thick Line",
     "gridLineColor": "Line Color",
     "levelSettings": "Level Settings",
+    "replaceAssets": "Replace Assets",
     "referenceImage": "Reference Image",
     "text": "Text",
     "prefabs": "Prefabs",
@@ -522,5 +523,47 @@
     "missingBody_other": "The map's labels use {{count}} Google Fonts fonts that aren't downloaded: {{fonts}}. Download them? Otherwise they show in the default font.",
     "download": "Download",
     "notNow": "Not now"
+  },
+  "replaceAssets": {
+    "title": "Missing assets",
+    "summary_one": "{{count}} asset · {{uses}} uses",
+    "summary_other": "{{count}} assets · {{uses}} uses",
+    "hint": "Pick one to see it on the map and replace it with an asset from your packs. You can also click what's marked on the map.",
+    "noneTitle": "No assets are missing",
+    "noneHint": "Everything this map uses is available in your installed packs.",
+    "uses_one": "{{count}} use on the map",
+    "uses_other": "{{count}} uses on the map",
+    "locate": "Locate on the map",
+    "previous": "Previous use",
+    "next": "Next use",
+    "showAll": "Show all uses",
+    "allUses_one": "{{count}} use",
+    "allUses_other": "All uses ({{count}})",
+    "useOf": "Use {{n}} of {{count}}",
+    "onLevel": "Level: {{level}}",
+    "levelsCount_one": "On {{count}} level",
+    "levelsCount_other": "On {{count}} levels",
+    "replaceWith": "Replace with ({{kind}})",
+    "suggestion": "The closest match by name is suggested; search for another if it doesn't fit.",
+    "replaceAll_one": "Replace",
+    "replaceAll_other": "Replace all {{count}} uses",
+    "replaceThis": "Replace this use only",
+    "source": {
+      "builtin": "Dungeondraft built-in",
+      "embedded": "Embedded image",
+      "pack": "Pack “{{pack}}” not available"
+    },
+    "category": {
+      "tilesets": "Floor",
+      "walls": "Wall",
+      "portals": "Portal",
+      "caves": "Cave",
+      "roofs": "Roof",
+      "paths": "Path",
+      "objects": "Object",
+      "terrain": "Terrain",
+      "lights": "Light",
+      "materials": "Material"
+    }
   }
 }

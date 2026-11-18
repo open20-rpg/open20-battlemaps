@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import { Box, Flex, Icon, Tabs, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuLibrary } from "react-icons/lu"
@@ -10,6 +10,7 @@ import { withLoading } from "../../stores/loadingStore"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import { type AssetCategory } from "../../lib/categories"
 import { usedAssetIds } from "../map/packUsage"
+import { useViewportCover } from "../map/render/focus"
 import { LIBRARY_PARAM, libraryAssetsOf } from "../tools/params"
 import { Select } from "../../ui/Select"
 import { useSettingsStore } from "../../stores/settingsStore"
@@ -82,6 +83,9 @@ export function LibraryPanel({
   embedded?: boolean
 }) {
   const { t } = useTranslation()
+  const ref = useRef<HTMLDivElement>(null)
+  // Docked over the canvas's right edge (not inside the phone's sheet).
+  useViewportCover(ref, "right", !embedded)
   const [tab, setTab] = useState("all")
   const columns = useSettingsStore((s) => s.libraryColumns)
 
@@ -121,6 +125,7 @@ export function LibraryPanel({
 
   return (
     <Flex
+      ref={ref}
       {...(embedded
         ? { flex: "1", minH: "0", w: "full" }
         : {

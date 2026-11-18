@@ -5,6 +5,7 @@ import { useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
 import { useEditorStore } from "../../../stores/editorStore"
 import { translateEntity } from "../model/geometry"
+import { replaceAssetIn } from "../missingAssets"
 import {
   createDocument,
   DEFAULT_BUILDING_WEAR,
@@ -126,6 +127,25 @@ export function updateEntities(patches: ReadonlyMap<string, Partial<MapEntity>>)
 
 export function updateEntity(id: string, patch: Partial<MapEntity>): void {
   updateEntities(new Map([[id, patch]]))
+}
+
+/**
+ * Point every use of asset `from` at `to` (Replace Assets): in all entities,
+ * or only in `entityIds`. One undo step.
+ */
+export function replaceAsset(from: string, to: string, entityIds?: readonly string[]): void {
+  if (from === to) return
+  const only = entityIds ? new Set(entityIds) : null
+  edit((map) => {
+    let changed = false
+    const entities = map.entities.map((e) => {
+      if (only && !only.has(e.id)) return e
+      const next = replaceAssetIn(e, from, to)
+      if (next !== e) changed = true
+      return next
+    })
+    return changed ? { ...map, entities } : map
+  })
 }
 
 /** Move entities by a delta (in tiles). */

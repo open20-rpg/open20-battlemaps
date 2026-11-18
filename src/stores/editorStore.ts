@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { type Rect } from "../features/map/model/geometry"
 import { type MapEntity, type Vec2 } from "../features/map/model/types"
 
 /**
@@ -19,6 +20,11 @@ export type DraftShape =
   | { kind: "guide"; point: Vec2; width: number; height: number }
   /** Ruler measure from `a` to `b`, labeled with its length. */
   | { kind: "measure"; a: Vec2; b: Vec2 }
+  /**
+   * A marked area (Replace Assets' missing assets): `dim` for each one,
+   * `focus` for the picked asset's uses, `current` for the one shown.
+   */
+  | { kind: "highlight"; rect: Rect; emphasis: "dim" | "focus" | "current" }
 
 /** Inline text editor open over the canvas (Text tool). */
 export interface TextEditState {
