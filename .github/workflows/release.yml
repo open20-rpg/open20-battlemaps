@@ -10,7 +10,7 @@ name: "release"
 #      macOS (Intel + Apple Silicon) and Android from that tag and attach the
 #      installers to it. Pushes with nothing releasable (docs, chore, ci…) build
 #      nothing.
-#   3. `aliases` uploads a copy of each installer with a fixed name
+#   3. `aliases` uploads a copy of each release file with a fixed name
 #      (Open20-Battle-Maps-windows-setup.exe, …), so
 #      https://github.com/<repo>/releases/latest/download/<name> always points
 #      at the newest version: that's what open20.app and the README link to.
