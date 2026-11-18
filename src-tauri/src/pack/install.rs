@@ -10,9 +10,7 @@ use tauri::{AppHandle, Emitter};
 
 use super::format::{normalize_res_path, read_index, read_manifest};
 use super::library::clear_library;
-use super::registry::{
-    build_installed, pack_dir, read_registry, write_registry, InstalledPack, PackReg,
-};
+use super::registry::{build_installed, pack_dir, update_registry, InstalledPack, PackReg};
 use super::{PackError, Result};
 
 const COPY_BUF: usize = 1 << 20; // 1 MiB streaming buffer
@@ -164,9 +162,7 @@ pub(crate) fn install_from<R: Read + Seek>(
         file_count: Some(written.len()),
         size_bytes: Some(total_bytes),
     };
-    let mut reg = read_registry(app);
-    reg.insert(id.clone(), reg_entry.clone());
-    write_registry(app, &reg)?;
+    update_registry(app, |reg| reg.insert(id.clone(), reg_entry.clone()))?;
     clear_library(app);
 
     build_installed(app, &id, &reg_entry)

@@ -5,7 +5,7 @@ import { useViewStore } from "../../stores/viewStore"
 import { getToolParams, useToolsStore } from "../../stores/toolsStore"
 import { usePacksStore } from "../../stores/packsStore"
 import { useSettingsStore } from "../../stores/settingsStore"
-import { setPackEnabled } from "../packs/api"
+import { setPacksEnabled } from "../packs/api"
 import { TOOL_BY_ID } from "../tools/definitions"
 import {
   resolveParams,
@@ -184,7 +184,7 @@ async function enableMapPacks(packIds: string[]): Promise<string[]> {
     else if (!pack.enabled) toEnable.push(id)
   }
   if (toEnable.length > 0) {
-    await Promise.all(toEnable.map((id) => setPackEnabled(id, true)))
+    await withLoading(i18n.t("loading.updatingPacks"), () => setPacksEnabled(toEnable, true))
     usePacksStore.getState().applyEnabled(toEnable, true)
   }
   return missing

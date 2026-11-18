@@ -12,7 +12,7 @@ use tauri_plugin_opener::OpenerExt;
 use super::install::install_one;
 use super::library::{self, clear_library, LibItem, LibrarySearch, ResolvedAsset, SearchFilter};
 use super::registry::{
-    build_installed, pack_dir, packs_root, read_registry, write_registry, InstalledPack, PackReg,
+    build_installed, pack_dir, packs_root, read_registry, update_registry, InstalledPack,
 };
 use super::{mime_for, PackError, Result};
 
@@ -78,10 +78,10 @@ pub async fn install_packs(app: AppHandle, paths: Vec<String>) -> Result<Vec<Ins
 #[tauri::command]
 pub async fn list_installed(app: AppHandle) -> Result<Vec<InstalledPack>> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut reg = read_registry(&app);
+        let reg = read_registry(&app);
         let root = packs_root(&app)?;
         let mut out = Vec::new();
-        let mut dirty = false;
+        let mut computed = Vec::new();
         for entry in fs::read_dir(&root)?.flatten() {
             let path = entry.path();
             if !path.is_dir() {
@@ -91,24 +91,23 @@ pub async fn list_installed(app: AppHandle) -> Result<Vec<InstalledPack>> {
             let reg_entry = reg.get(&id).cloned().unwrap_or_default();
             let had_stats = reg_entry.file_count.is_some() && reg_entry.size_bytes.is_some();
             if let Some(pack) = build_installed(&app, &id, &reg_entry) {
-                // Persist stats we had to compute for a legacy pack so the next
-                // listing is instant.
                 if !had_stats {
-                    reg.insert(
-                        id.clone(),
-                        PackReg {
-                            enabled: pack.enabled,
-                            file_count: Some(pack.file_count),
-                            size_bytes: Some(pack.size_bytes),
-                        },
-                    );
-                    dirty = true;
+                    computed.push((id, pack.file_count, pack.size_bytes));
                 }
                 out.push(pack);
             }
         }
-        if dirty {
-            let _ = write_registry(&app, &reg);
+        // Persist stats we had to compute for a legacy pack so the next
+        // listing is instant. Merged into the registry as it is now (not the
+        // snapshot above): a toggle that landed meanwhile must survive.
+        if !computed.is_empty() {
+            let _ = update_registry(&app, |reg| {
+                for (id, file_count, size_bytes) in computed {
+                    let e = reg.entry(id).or_default();
+                    e.file_count = Some(file_count);
+                    e.size_bytes = Some(size_bytes);
+                }
+            });
         }
         out.sort_by_cached_key(|a| a.name.to_lowercase());
         Ok(out)
@@ -137,9 +136,7 @@ pub async fn uninstall_pack(app: AppHandle, id: String) -> Result<()> {
         if dir.is_dir() {
             fs::remove_dir_all(&dir)?;
         }
-        let mut reg = read_registry(&app);
-        reg.remove(&id);
-        write_registry(&app, &reg)?;
+        update_registry(&app, |reg| reg.remove(&id))?;
         clear_library(&app);
         Ok(())
     })
@@ -147,20 +144,26 @@ pub async fn uninstall_pack(app: AppHandle, id: String) -> Result<()> {
     .map_err(|e| PackError::Other(e.to_string()))?
 }
 
-/// Enable or disable a pack (toggles a flag; files stay on disk).
+/// Enable or disable several packs at once (toggles a flag; files stay on
+/// disk). One registry write for the whole batch, on a blocking thread.
 #[tauri::command]
-pub async fn set_pack_enabled(app: AppHandle, id: String, enabled: bool) -> Result<()> {
-    blocking(move || set_enabled(&app, id, enabled)).await
+pub async fn set_packs_enabled(app: AppHandle, ids: Vec<String>, enabled: bool) -> Result<()> {
+    blocking(move || set_enabled(&app, ids, enabled)).await
 }
 
-fn set_enabled(app: &AppHandle, id: String, enabled: bool) -> Result<()> {
-    if !pack_dir(app, &id)?.is_dir() {
-        return Err(PackError::NotInstalled(id));
+fn set_enabled(app: &AppHandle, ids: Vec<String>, enabled: bool) -> Result<()> {
+    // All or nothing: check every pack before touching the registry.
+    for id in &ids {
+        if !pack_dir(app, id)?.is_dir() {
+            return Err(PackError::NotInstalled(id.clone()));
+        }
     }
-    let mut reg = read_registry(app);
-    // Preserve cached stats when toggling.
-    reg.entry(id).or_default().enabled = enabled;
-    write_registry(app, &reg)?;
+    update_registry(app, |reg| {
+        for id in ids {
+            // Preserve cached stats when toggling.
+            reg.entry(id).or_default().enabled = enabled;
+        }
+    })?;
     clear_library(app);
     Ok(())
 }

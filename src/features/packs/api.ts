@@ -55,8 +55,9 @@ export function openPacksDir(): Promise<void> {
   return invoke("open_packs_dir")
 }
 
-export function setPackEnabled(id: string, enabled: boolean): Promise<void> {
-  return invoke("set_pack_enabled", { id, enabled })
+/** Enable or disable several packs in one registry write (concurrent toggles would race). */
+export function setPacksEnabled(ids: string[], enabled: boolean): Promise<void> {
+  return invoke("set_packs_enabled", { ids, enabled })
 }
 
 export function loadPackThumbnail(id: string): Promise<LoadedImage | null> {

@@ -25,7 +25,7 @@ pub fn run() {
             pack::list_installed,
             pack::open_packs_dir,
             pack::uninstall_pack,
-            pack::set_pack_enabled,
+            pack::set_packs_enabled,
             pack::list_pack_contents,
             pack::load_asset,
             pack::load_pack_thumbnail,

@@ -14,7 +14,7 @@ import {
 import { FloatingWindow } from "../../../ui/FloatingWindow"
 import { withLoading } from "../../../stores/loadingStore"
 import { usePacksStore } from "../../../stores/packsStore"
-import { openPacksDir, setPackEnabled, uninstallPack } from "../api"
+import { openPacksDir, setPacksEnabled, uninstallPack } from "../api"
 import { isPackUsed, clearPackReferences } from "../../map/packUsage"
 import { PackList } from "./PackList"
 import { PackPreview } from "./PackPreview"
@@ -90,7 +90,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
     setMutating(true)
     try {
       await withLoading(t("loading.updatingPacks"), async () => {
-        await Promise.all(ids.map((id) => setPackEnabled(id, enabled)))
+        await setPacksEnabled(ids, enabled)
         applyEnabled(ids, enabled)
         for (const id of usedIds) clearPackReferences(id)
       })

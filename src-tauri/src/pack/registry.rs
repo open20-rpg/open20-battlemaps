@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
@@ -71,12 +72,45 @@ impl Default for PackReg {
     }
 }
 
+/// Serializes every read-modify-write of registry.json. Commands run on the
+/// blocking pool, several at a time (enabling a map's packs, installing many
+/// packs), and without it concurrent updates would overwrite each other. Only
+/// ever taken there, never on the main thread, and held just for the small
+/// JSON read/write — never across an install's extraction.
+static REGISTRY_LOCK: Mutex<()> = Mutex::new(());
+
 /// Read registry.json into a map. Backward compatible with the old format
 /// where each value was a plain bool (enabled) with no cached stats.
 pub(crate) fn read_registry(app: &AppHandle) -> HashMap<String, PackReg> {
-    let Ok(path) = registry_path(app) else {
-        return HashMap::new();
-    };
+    match registry_path(app) {
+        Ok(path) => read_registry_at(&path),
+        Err(_) => HashMap::new(),
+    }
+}
+
+/// Apply `f` to the registry and persist the result, atomically with respect
+/// to every other update. Returns whatever `f` returns.
+pub(crate) fn update_registry<T>(
+    app: &AppHandle,
+    f: impl FnOnce(&mut HashMap<String, PackReg>) -> T,
+) -> Result<T> {
+    update_registry_at(&registry_path(app)?, f)
+}
+
+fn update_registry_at<T>(
+    path: &Path,
+    f: impl FnOnce(&mut HashMap<String, PackReg>) -> T,
+) -> Result<T> {
+    // A panic inside another update can't leave the file half-written (see
+    // write_registry_at), so a poisoned lock is safe to keep using.
+    let _guard = REGISTRY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut reg = read_registry_at(path);
+    let out = f(&mut reg);
+    write_registry_at(path, &reg)?;
+    Ok(out)
+}
+
+fn read_registry_at(path: &Path) -> HashMap<String, PackReg> {
     let Ok(text) = fs::read_to_string(path) else {
         return HashMap::new();
     };
@@ -109,8 +143,10 @@ pub(crate) fn read_registry(app: &AppHandle) -> HashMap<String, PackReg> {
     map
 }
 
-pub(crate) fn write_registry(app: &AppHandle, reg: &HashMap<String, PackReg>) -> Result<()> {
-    let path = registry_path(app)?;
+/// Write to a sibling temp file and rename it over registry.json: a reader
+/// (which takes no lock) never sees a truncated file, which would parse as an
+/// empty registry and reset every pack's flags.
+fn write_registry_at(path: &Path, reg: &HashMap<String, PackReg>) -> Result<()> {
     let mut obj = serde_json::Map::new();
     for (id, r) in reg {
         let mut e = serde_json::Map::new();
@@ -123,10 +159,12 @@ pub(crate) fn write_registry(app: &AppHandle, reg: &HashMap<String, PackReg>) ->
         }
         obj.insert(id.clone(), serde_json::Value::Object(e));
     }
+    let tmp = path.with_extension("json.tmp");
     fs::write(
-        path,
+        &tmp,
         serde_json::to_vec_pretty(&serde_json::Value::Object(obj))?,
     )?;
+    fs::rename(&tmp, path)?;
     Ok(())
 }
 
@@ -184,4 +222,88 @@ pub(crate) fn build_installed(app: &AppHandle, id: &str, reg: &PackReg) -> Optio
         file_count,
         size_bytes,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::thread;
+
+    fn temp_registry(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("open20-registry-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir.join("registry.json")
+    }
+
+    #[test]
+    fn concurrent_updates_are_not_lost() {
+        let path = Arc::new(temp_registry("concurrent"));
+        let initial: HashMap<String, PackReg> = (0..16)
+            .map(|i| {
+                (
+                    format!("p{i}"),
+                    PackReg {
+                        enabled: false,
+                        file_count: Some(i),
+                        size_bytes: Some(10),
+                    },
+                )
+            })
+            .collect();
+        write_registry_at(&path, &initial).unwrap();
+
+        let handles: Vec<_> = (0..16)
+            .map(|i| {
+                let path = Arc::clone(&path);
+                thread::spawn(move || {
+                    update_registry_at(&path, |reg| {
+                        reg.entry(format!("p{i}")).or_default().enabled = true;
+                    })
+                    .unwrap();
+                })
+            })
+            .collect();
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        let reg = read_registry_at(&path);
+        assert_eq!(reg.len(), 16);
+        for i in 0..16 {
+            let r = &reg[&format!("p{i}")];
+            assert!(r.enabled, "p{i} lost its update");
+            assert_eq!(r.file_count, Some(i), "p{i} lost its cached stats");
+        }
+        assert!(!path.with_extension("json.tmp").exists());
+    }
+
+    #[test]
+    fn reads_the_legacy_bool_format() {
+        let path = temp_registry("legacy");
+        fs::write(
+            &path,
+            r#"{"a": false, "b": {"enabled": true, "fileCount": 3}}"#,
+        )
+        .unwrap();
+        let reg = read_registry_at(&path);
+        assert!(!reg["a"].enabled);
+        assert!(reg["b"].enabled);
+        assert_eq!(reg["b"].file_count, Some(3));
+        assert_eq!(reg["b"].size_bytes, None);
+    }
+
+    #[test]
+    fn update_returns_the_closure_result() {
+        let path = temp_registry("result");
+        let n = update_registry_at(&path, |reg| {
+            reg.insert("x".into(), PackReg::default());
+            reg.len()
+        })
+        .unwrap();
+        assert_eq!(n, 1);
+        assert!(read_registry_at(&path)["x"].enabled);
+    }
 }
