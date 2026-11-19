@@ -42,6 +42,14 @@ export function screenTiles(px: number): number {
   return px / tileSizeForZoom(useViewStore.getState().zoom)
 }
 
+/**
+ * Whether the tool erases (brushes) or cuts out (shapes) instead of adding:
+ * while Alt (the invert shortcut) is held, or with its Paint/Erase control
+ * on Erase (touch has no Alt).
+ */
+export const erasing = (ctx: ToolCtx): boolean =>
+  isHeld("invert") || ctx.params.paintMode === "erase"
+
 /** Fill the fields every new entity needs (id, level, defaults). */
 export function makeEntity(
   ctx: ToolCtx,
@@ -135,9 +143,7 @@ export function polylineController(
     setDraft(
       points.length > 0
         ? [
-            ...(opts.closed && isHeld("invert")
-              ? []
-              : ghosts(ctx, pts, opts.minPoints, opts.preview)),
+            ...(opts.closed && erasing(ctx) ? [] : ghosts(ctx, pts, opts.minPoints, opts.preview)),
             { kind: "polyline", points: pts, closed: opts.closed && pts.length > 2 },
           ]
         : [],
@@ -241,7 +247,7 @@ export function shapeController(
     const degenerate = Math.abs(start.x - current.x) < 1e-6 || Math.abs(start.y - current.y) < 1e-6
     // While Alt cuts (Build, Pattern, Water) there's nothing to add: just the outline.
     setDraft([
-      ...(degenerate || isHeld("invert") ? [] : ghosts(ctx, polygon, 3, preview)),
+      ...(degenerate || erasing(ctx) ? [] : ghosts(ctx, polygon, 3, preview)),
       { kind: "polygon", points: polygon },
     ])
   }

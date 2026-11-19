@@ -312,6 +312,23 @@ const TEXT_BOX_PARAMS: ToolParamSpec[] = [
   when(customColor("boxBorderColor", "tools.boxBorderColor", "#000000"), hasBox),
 ]
 
+/**
+ * Paint or erase (cut out, for shapes): what Alt (or a right-drag) does,
+ * as a control too — touch has no Alt. Behaviors read it through `erasing`.
+ */
+const paintMode = (paintKey: string, eraseKey: string) =>
+  segmented(
+    "paintMode",
+    "tools.paintMode",
+    [
+      { value: "paint", labelKey: paintKey },
+      { value: "erase", labelKey: eraseKey },
+    ],
+    "paint",
+  )
+const brushMode = () => paintMode("tools.paintModePaint", "tools.paintModeErase")
+const shapeMode = () => paintMode("tools.paintModeAdd", "tools.paintModeCut")
+
 /** The top-level tool palette. Groups expand into their own panels. */
 export const TOOL_TREE: ToolNode[] = [
   {
@@ -322,6 +339,7 @@ export const TOOL_TREE: ToolNode[] = [
     children: [
       tool("build", "tools.build", LuHouse, {
         params: [
+          shapeMode(),
           shadow(true),
           shape("rectangle"),
           editPoints(false),
@@ -356,6 +374,7 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("cave", "tools.cave", LuMountainSnow, {
         params: [
+          brushMode(),
           // The five stamp sizes (cells.ts).
           brushSize(0, 4, 1, 1),
           // The defaults for both.
@@ -380,6 +399,7 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("pattern", "tools.pattern", LuGrid3X3, {
         params: [
+          shapeMode(),
           shadow(true),
           shape("rectangle"),
           editPoints(false),
@@ -457,6 +477,7 @@ export const TOOL_TREE: ToolNode[] = [
       tool("water", "tools.water", LuDroplets, {
         // Free-paint via the `brush` shape; the size slider is always visible.
         params: [
+          brushMode(),
           shape("brush", true),
           // The five stamp sizes (cells.ts).
           brushSize(0, 4, 1, 1),
@@ -468,6 +489,7 @@ export const TOOL_TREE: ToolNode[] = [
       }),
       tool("material", "tools.material", LuPaintBucket, {
         params: [
+          brushMode(),
           // The five stamp sizes, on its material grid (cells.ts).
           brushSize(0, 4, 1, 1),
           objectLayer(-400),

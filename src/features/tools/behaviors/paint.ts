@@ -20,7 +20,6 @@ import {
   stampOrigin,
   type TerrainData,
 } from "../../map/model/terrain"
-import { isHeld } from "../../shortcuts/held"
 import {
   brushCursorRadius,
   brushRadius,
@@ -45,11 +44,11 @@ import { usePacksStore } from "../../../stores/packsStore"
 import { withLoading } from "../../../stores/loadingStore"
 import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
 import i18n from "../../../i18n"
-import { brushController, makeEntity, paramNum, shapeController } from "./shared"
+import { brushController, erasing, makeEntity, paramNum, shapeController } from "./shared"
 import { type PointerInfo, type ToolBehavior, type ToolCtx } from "./types"
 
-/** A brush erases while the invert shortcut (Alt) is held, or when dragged with the right button. */
-const inverted = (_ctx: ToolCtx, e: PointerInfo) => e.button === 2 || isHeld("invert")
+/** A brush erases while erasing (Alt, or its Erase control), or when dragged with the right button. */
+const inverted = (ctx: ToolCtx, e: PointerInfo) => e.button === 2 || erasing(ctx)
 
 /** The cell-stamp brush (cave, water): its size, cursor and stamp spacing. */
 const stampBrush = {
@@ -105,7 +104,7 @@ export function createWaterBehavior(): ToolBehavior {
         points: polygon,
         closed: true,
         position: polygon[0],
-        params: { ...params(ctx), ...(isHeld("invert") ? { erase: true } : {}) },
+        params: { ...params(ctx), ...(erasing(ctx) ? { erase: true } : {}) },
       }),
     ]),
   )

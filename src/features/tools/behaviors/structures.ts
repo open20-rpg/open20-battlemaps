@@ -20,10 +20,10 @@ import {
 import { bridgeHoles, subtractPolygon } from "../../map/model/clip"
 import { sameOutline } from "../../map/model/links"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
-import { isHeld } from "../../shortcuts/held"
 import { type AssetSelection } from "../params"
 import {
   editPointsController,
+  erasing,
   makeEntity,
   paramNum,
   polylineController,
@@ -223,11 +223,11 @@ export function subtractShape(ctx: ToolCtx, toolId: string, cut: Vec2[]): void {
   endGesture()
 }
 
-/** A shape commit that adds `entities`, or with Alt (invert) cuts the shape out of `toolId`. */
+/** A shape commit that adds `entities`, or erasing (Alt, or the Cut out control) cuts the shape out of `toolId`. */
 const addOrSubtract =
   (toolId: string, entities: (ctx: ToolCtx, polygon: Vec2[]) => MapEntity[]) =>
   (ctx: ToolCtx, polygon: Vec2[]) => {
-    if (isHeld("invert")) subtractShape(ctx, toolId, polygon)
+    if (erasing(ctx)) subtractShape(ctx, toolId, polygon)
     else addEntities(entities(ctx, polygon))
   }
 
