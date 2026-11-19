@@ -301,3 +301,32 @@ jobs:
           copy '*_x64.dmg' Open20-Battle-Maps-macos-intel.dmg
           copy '*_amd64.AppImage' Open20-Battle-Maps-linux.AppImage
           copy '*universal*.apk' Open20-Battle-Maps-android.apk
+
+  # ---------------------------------------------------------------------------
+  # Discord announcement, once every build has finished. A failed build (macOS
+  # often fails on GitHub's side) doesn't stop it: the release is out anyway.
+  # Without the DISCORD_WEBHOOK_URL secret it's skipped. Manual rebuilds don't
+  # announce: the release was already announced.
+  # ---------------------------------------------------------------------------
+  notify-discord:
+    needs: [release, aliases]
+    if: ${{ !cancelled() && needs.release.outputs.version != '' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      TAG: v${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        if: env.DISCORD_WEBHOOK_URL != ''
+
+      - uses: actions/setup-node@v7
+        if: env.DISCORD_WEBHOOK_URL != ''
+        with:
+          node-version-file: .nvmrc
+
+      - name: announce on Discord
+        if: env.DISCORD_WEBHOOK_URL != ''
+        run: |
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body --jq .body > "$RUNNER_TEMP/notes.md"
+          node scripts/notify-discord-release.mjs "$TAG" "$RUNNER_TEMP/notes.md"
