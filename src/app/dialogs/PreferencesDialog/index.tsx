@@ -1,6 +1,7 @@
 import { Box, Button, Group, HStack, Slider, Stack, Tabs, Text } from "@chakra-ui/react"
+import { LuSettings } from "react-icons/lu"
 import { useTranslation } from "react-i18next"
-import { Modal } from "../../../ui/Modal"
+import { FloatingWindow } from "../../../ui/FloatingWindow"
 import { useSettingsStore } from "../../../stores/settingsStore"
 import { PerformanceTab } from "./PerformanceTab"
 import { DebugTab } from "./DebugTab"
@@ -25,17 +26,18 @@ export function PreferencesDialog({
   const { t, i18n } = useTranslation()
   const panelAlpha = useSettingsStore((s) => s.panelAlpha)
   const setPanelAlpha = useSettingsStore((s) => s.setPanelAlpha)
+  if (!open) return null
 
+  // A floating panel of its own size (not a dialog fitted to each tab):
+  // switching tabs never resizes it, the tab's content scrolls inside.
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
+    <FloatingWindow
       title={t("prefs.title")}
-      footer={
-        <Button variant="subtle" onClick={onClose}>
-          {t("prefs.close")}
-        </Button>
-      }
+      icon={LuSettings}
+      onClose={onClose}
+      initialSize={{ w: 600, h: 680 }}
+      minSize={{ w: 340, h: 320 }}
+      resizable
     >
       <Tabs.Root
         defaultValue={initialTab}
@@ -44,14 +46,18 @@ export function PreferencesDialog({
         size="sm"
         // Each tab mounts when first shown: Storage measures the disk then.
         lazyMount
+        display="flex"
+        flexDirection="column"
+        flex="1"
+        minH="0"
       >
-        <Tabs.List mb="4">
+        <Tabs.List px="3" flexShrink={0} overflowX="auto">
           <Tabs.Trigger value="general">{t("prefs.tabGeneral")}</Tabs.Trigger>
           <Tabs.Trigger value="performance">{t("prefs.tabPerformance")}</Tabs.Trigger>
           <Tabs.Trigger value="storage">{t("prefs.tabStorage")}</Tabs.Trigger>
           <Tabs.Trigger value="debug">{t("prefs.tabDebug")}</Tabs.Trigger>
         </Tabs.List>
-        <Tabs.Content value="general" p="0">
+        <Tabs.Content value="general" flex="1" minH="0" overflowY="auto" p="4">
           <Stack gap="4" fontSize="sm">
             <Box>
               <Text mb="2" color="fg.muted">
@@ -108,16 +114,16 @@ export function PreferencesDialog({
             <Text color="fg.muted">{t("prefs.theme")}</Text>
           </Stack>
         </Tabs.Content>
-        <Tabs.Content value="performance" p="0">
+        <Tabs.Content value="performance" flex="1" minH="0" overflowY="auto" p="4">
           <PerformanceTab />
         </Tabs.Content>
-        <Tabs.Content value="storage" p="0">
+        <Tabs.Content value="storage" flex="1" minH="0" overflowY="auto" p="4">
           <StorageTab />
         </Tabs.Content>
-        <Tabs.Content value="debug" p="0">
+        <Tabs.Content value="debug" flex="1" minH="0" overflowY="auto" p="4">
           <DebugTab />
         </Tabs.Content>
       </Tabs.Root>
-    </Modal>
+    </FloatingWindow>
   )
 }

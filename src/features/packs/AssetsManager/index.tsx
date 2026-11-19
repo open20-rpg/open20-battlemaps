@@ -174,7 +174,6 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       title={t("assets.title")}
       icon={LuGem}
       onClose={onClose}
-      initialPosition={{ x: 120, y: 90 }}
       initialSize={{ w: 760, h: 560 }}
       minSize={{ w: 560, h: 320 }}
       resizable
