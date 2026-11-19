@@ -57,6 +57,15 @@ export function getLibraryItems(key: string, offset: number, limit: number): Pro
   return invoke("get_library_items", { key, offset, limit })
 }
 
+/**
+ * Library thumbnails of placed asset ids (null when missing): what a picker
+ * shows for them, for textures chosen without the Library (built-in terrain
+ * slots). Terrain textures' alpha is blend height; their thumbnails leave it out.
+ */
+export function assetThumbnails(ids: string[]): Promise<(string | null)[]> {
+  return invoke("asset_thumbnails", { ids })
+}
+
 /** Free a browser instance's cached results (call when it unmounts). */
 export function releaseLibrarySearch(key: string): Promise<void> {
   return invoke("release_library_search", { key })

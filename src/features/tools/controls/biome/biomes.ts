@@ -68,3 +68,37 @@ export function withBuiltinBiomes(
   }
   return slotsByBiome === selection.slotsByBiome ? selection : { ...selection, slotsByBiome }
 }
+
+/** Every texture id in the selection's slots (deduplicated). */
+export const slotIds = (selection: BiomeSelection): string[] => [
+  ...new Set(
+    Object.values(selection.slotsByBiome).flatMap((slots) =>
+      slots.flatMap((slot) => (slot ? [slot.id] : [])),
+    ),
+  ),
+]
+
+/**
+ * Point every slot at its texture's library thumbnail (`thumbOf`, null when
+ * unknown: that slot is left as is). Slots seeded before thumbnails were
+ * looked up showed the texture file itself, its blend alpha included.
+ * Returns `selection` itself when nothing changes.
+ */
+export function withSlotThumbnails(
+  selection: BiomeSelection,
+  thumbOf: (id: string) => string | null,
+): BiomeSelection {
+  let changed = false
+  const slotsByBiome = Object.fromEntries(
+    Object.entries(selection.slotsByBiome).map(([biome, slots]) => [
+      biome,
+      slots.map((slot) => {
+        const thumb = slot ? thumbOf(slot.id) : null
+        if (!slot || !thumb || thumb === slot.thumb) return slot
+        changed = true
+        return { ...slot, thumb }
+      }),
+    ]),
+  )
+  return changed ? { ...selection, slotsByBiome } : selection
+}

@@ -371,21 +371,10 @@ pub(crate) fn get_items(
     let mut paths = Vec::with_capacity(window.len());
     for lite in window {
         let dir = pack_dir(app, &lite.pack_id)?;
-        let res_path = format!("res://packs/{}/{}", lite.pack_id, lite.rel_path);
-        let hash = format!("{:x}", md5::compute(res_path.as_bytes()));
-        let full = dir.join(&lite.rel_path);
-        let shipped = dir.join("thumbnails").join(format!("{hash}.png"));
-        paths.push((full, shipped));
+        paths.push(thumb_paths(&dir, &lite.pack_id, &lite.rel_path));
     }
-    let thumb_of = |(full, shipped): &(PathBuf, PathBuf), rel: &str| {
-        // Unreadable textures fall back to the file itself.
-        if shipped.is_file() || super::thumbs::generate(full, shipped, super::thumbs::rule_for(rel))
-        {
-            shipped.clone()
-        } else {
-            full.clone()
-        }
-    };
+    let thumb_of =
+        |(full, shipped): &(PathBuf, PathBuf), rel: &str| thumb_or_full(full, shipped, rel);
     // A few at a time: each big texture is decoded whole.
     let workers = std::thread::available_parallelism().map_or(4, |n| n.get());
     let jobs: Vec<_> = paths.iter().zip(window).collect();
@@ -414,6 +403,48 @@ pub(crate) fn get_items(
         });
     }
     Ok(out)
+}
+
+/// A texture's file and its library thumbnail's (`thumbnails/<md5 of its
+/// res:// path>.png` in the pack, made if the pack ships none).
+fn thumb_paths(dir: &Path, pack_id: &str, rel: &str) -> (PathBuf, PathBuf) {
+    let res_path = format!("res://packs/{pack_id}/{rel}");
+    let hash = format!("{:x}", md5::compute(res_path.as_bytes()));
+    (
+        dir.join(rel),
+        dir.join("thumbnails").join(format!("{hash}.png")),
+    )
+}
+
+/// The thumbnail, made if missing; the texture itself if it can't be read.
+fn thumb_or_full(full: &Path, shipped: &Path, rel: &str) -> PathBuf {
+    if shipped.is_file() || super::thumbs::generate(full, shipped, super::thumbs::rule_for(rel)) {
+        shipped.to_path_buf()
+    } else {
+        full.to_path_buf()
+    }
+}
+
+/// Library thumbnails of placed asset ids (None when missing): what a picker
+/// shows for them, e.g. a terrain slot filled without the Library (terrain
+/// textures' alpha is blend height, which their thumbnails leave out).
+pub(crate) fn thumbnails(app: &AppHandle, ids: &[String]) -> Vec<Option<String>> {
+    ids.iter()
+        .map(|id| {
+            let (pack_id, rel) = split_asset_id(id)?;
+            let dir = pack_dir(app, pack_id).ok()?;
+            let rel = locate(&dir, rel)?;
+            let (full, shipped) = thumb_paths(&dir, pack_id, &rel);
+            if !full.starts_with(&dir) {
+                return None;
+            }
+            Some(
+                thumb_or_full(&full, &shipped, &rel)
+                    .to_string_lossy()
+                    .into_owned(),
+            )
+        })
+        .collect()
 }
 
 /// A placed asset resolved to its file on disk (for rendering map entities).
@@ -508,6 +539,20 @@ pub(crate) fn release(app: &AppHandle, key: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn thumbnails_are_named_by_the_md5_of_the_res_path() {
+        let (full, thumb) = thumb_paths(Path::new("/p"), "pk", "textures/terrain/a.png");
+        assert_eq!(full, Path::new("/p/textures/terrain/a.png"));
+        let hash = format!(
+            "{:x}",
+            md5::compute(b"res://packs/pk/textures/terrain/a.png")
+        );
+        assert_eq!(
+            thumb,
+            Path::new("/p/thumbnails").join(format!("{hash}.png"))
+        );
+    }
 
     #[test]
     fn splits_asset_ids() {

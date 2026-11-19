@@ -35,6 +35,7 @@ pub fn run() {
             pack::release_library_search,
             pack::library_tags,
             pack::resolve_assets,
+            pack::asset_thumbnails,
             fonts::list_system_fonts,
             fonts::cached_font,
             fonts::download_font,
