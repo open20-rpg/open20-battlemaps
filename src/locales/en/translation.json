@@ -366,6 +366,8 @@
     "mirror": "Mirror",
     "flipHorizontal": "Mirror horizontally",
     "flipVertical": "Mirror vertically",
+    "flipHorizontalShort": "Mirror horiz.",
+    "flipVerticalShort": "Mirror vert.",
     "mirrorHorizontal": "Mirror horizontally",
     "mirrorVertical": "Mirror vertically",
     "selectHint": "Click something on the map, or select everything of a kind:",

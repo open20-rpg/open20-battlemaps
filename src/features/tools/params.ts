@@ -165,6 +165,8 @@ export type ToolParamSpec =
   /** Command button (Text's Delete); `disabled` gates it (always false for now). */
   | (BaseSpec<"button"> & {
       labelKey: string
+      /** A shorter name for its caption in a packed grid (the tooltip keeps the full one). */
+      shortLabelKey?: string
       icon: IconType
       colorPalette?: string
       disabled?: boolean
