@@ -33,6 +33,7 @@ import {
 } from "../../fonts/metrics"
 import { sdfFont } from "./sdfFont"
 import { tiledMesh } from "./tiling"
+import { type RenderPerformance } from "../../../lib/renderPerformance"
 
 /**
  * Per-entity renderers, keyed by the tool that created the entity. They draw
@@ -78,6 +79,8 @@ export interface RenderEnv {
   font: (font: FontChoice) => boolean
   /** The map's building wear texture (buildingWear.ts): none, or once loaded (remembers misses like `tex`). */
   buildingWear: () => Texture | undefined
+  /** How the map is rendered, traded against speed (Settings › Performance). */
+  perf: RenderPerformance
 }
 
 /** What casts a shadow (each kind can be turned off in the shadow settings). */

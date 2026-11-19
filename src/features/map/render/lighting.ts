@@ -20,15 +20,20 @@ export function lightingComposite(
   ambient: string,
   /** How soft the shadows' edges are: blur in tiles (0 = hard). */
   softness: number,
+  /** Settings › Performance: mask detail (fraction) and blur passes (0: none). */
+  quality: { maskDetail: number; blurQuality: number },
   map: MapBox,
   renderer: Renderer,
   env: RenderEnv,
 ): Composite {
-  const res = Math.max(4, Math.floor(maskResolution(map) / 2))
+  const res = Math.max(2, Math.floor(maskResolution(map, quality.maskDetail) / 2))
   // Shadows are cut with hard polygons at this coarse resolution: blurred
   // (once, here; Effects › Shadows sets how much) they get a soft edge
   // instead of jagged steps.
-  const soften = softness > 0 ? new BlurFilter({ strength: softness * res, quality: 3 }) : null
+  const soften =
+    softness > 0 && quality.blurQuality > 0
+      ? new BlurFilter({ strength: softness * res, quality: quality.blurQuality })
+      : null
   const rt = RenderTexture.create({ width: map.width * res, height: map.height * res })
   const stage = new Container()
   stage.scale.set(res)

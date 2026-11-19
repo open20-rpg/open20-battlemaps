@@ -16,10 +16,13 @@ import { MapScene, type SceneState } from "./scene"
 import { referenceImageUrl, subscribeReferenceImages } from "./referenceImages"
 import { subscribeLiveTerrain } from "../terrainLive"
 import { setActiveRenderer } from "./exportMap"
+import { setProfileTarget } from "./perfProfile"
+import { recordFrame, setStatsSource } from "./renderStats"
 import { subscribeViewGesture, viewGestureActive } from "./viewGesture"
 import { ViewSnapshot } from "./viewSnapshot"
 import { setViewportSize } from "./focus"
 import { getToolBehavior, toolOverlay } from "../../tools/behaviors"
+import { canvasResolution } from "../../../lib/renderPerformance"
 
 /** Fill color of the map rect under every layer. */
 const MAP_BG = 0x2b2b2f
@@ -53,11 +56,9 @@ function sceneState(): SceneState | null {
     transformHandles: tool?.id === "select",
     zoom: view.zoom,
     referenceUrl: ref ? referenceImageUrl(ref.path) : null,
+    performance: useSettingsStore.getState().performance,
   }
 }
-
-/** Highest canvas resolution (device pixels per CSS pixel). */
-const MAX_RESOLUTION = 2
 
 /** The level under `level` in the stack (the one Compare levels shows), if any. */
 function levelBelow(map: MapDocument, level: string | null): string | null {
@@ -127,10 +128,14 @@ export function MapCanvas() {
     let disposed = false
     // Map labels are distance-field text (sdfShader.ts): set up before the renderer exists.
     installSdfTextPipe()
-    // Pixi computes fragments at mediump, 16-bit floats on Apple and mobile
-    // GPUs: texture coordinates far from 0 (a fill or a wall far from the
-    // map's origin) lose their texels and the texture shows stretched.
-    GlProgram.defaultOptions.preferredFragmentPrecision = "highp"
+    // What only applies to a new canvas (MapEditor recreates this one when
+    // it changes): the WebGL context's options and how textures load.
+    const perf = useSettingsStore.getState().performance
+    // Pixi computes fragments at mediump: 16-bit floats on Apple and mobile
+    // GPUs, faster on some but coarse (texture coordinates are kept small
+    // for it, see tiling.ts).
+    GlProgram.defaultOptions.preferredFragmentPrecision = perf.highPrecision ? "highp" : "mediump"
+    assetCache.configure({ scale: perf.textureScale, mipmaps: perf.mipmaps })
     const app = new Application()
     // Follow the container's size (window resizes, panels opening), then repaint.
     const resizer = new ResizeObserver(() => {
@@ -146,9 +151,11 @@ export function MapCanvas() {
       frame = requestAnimationFrame(() => {
         frame = 0
         if (disposed) return
-        // Mid-gesture only the snapshot is drawn: no cache to bring up to date.
-        if (!snapshotRef.current?.active) sceneRef.current?.prerender()
-        app.render()
+        recordFrame(() => {
+          // Mid-gesture only the snapshot is drawn: no cache to bring up to date.
+          if (!snapshotRef.current?.active) sceneRef.current?.prerender()
+          app.render()
+        })
       })
     }
 
@@ -159,13 +166,14 @@ export function MapCanvas() {
         width: Math.max(1, el.clientWidth),
         height: Math.max(1, el.clientHeight),
         backgroundAlpha: 0,
-        antialias: true,
-        // Water reads what's drawn beneath it (waterFilter.ts).
-        useBackBuffer: true,
+        antialias: perf.antialias,
+        // Water reads what's drawn beneath it (waterFilter.ts): a copy of
+        // the screen each frame, skipped when its effect is off.
+        useBackBuffer: perf.waterEffect,
         autoDensity: true,
-        // Phones run at 3× and more: capped at 2× the canvas has less than
-        // half the pixels to fill, a difference hard to see at that density.
-        resolution: Math.min(window.devicePixelRatio || 1, MAX_RESOLUTION),
+        // Phones run at 3× and more: capped (2× by default) the canvas has
+        // less than half the pixels to fill, a difference hard to see there.
+        resolution: canvasResolution(window.devicePixelRatio, perf),
         // Render on demand (requestRender), not 60 times a second: an idle
         // map then costs nothing, and the painted-layer filters only run
         // when something actually changed.
@@ -192,6 +200,8 @@ export function MapCanvas() {
         sceneRef.current = scene
         snapshotRef.current = new ViewSnapshot(app, world)
         setActiveRenderer({ renderer: app.renderer, scene })
+        setProfileTarget({ app, scene, world, grid, requestRender })
+        setStatsSource({ renderer: app.renderer, stage: app.stage })
         setReady(true)
       })
 
@@ -200,6 +210,8 @@ export function MapCanvas() {
       cancelAnimationFrame(frame)
       resizer.disconnect()
       setActiveRenderer(null)
+      setProfileTarget(null)
+      setStatsSource(null)
       sceneRef.current?.destroy()
       sceneRef.current = null
       if (appRef.current) {
@@ -208,6 +220,19 @@ export function MapCanvas() {
       }
     }
   }, [])
+
+  // Settings › Performance's resolution applies live: same canvas, more or
+  // fewer pixels behind it.
+  const maxResolution = useSettingsStore((s) => s.performance.maxResolution)
+  useEffect(() => {
+    const app = appRef.current
+    const el = containerRef.current
+    if (!ready || !app || !el) return
+    const resolution = canvasResolution(window.devicePixelRatio, { maxResolution })
+    if (app.renderer.resolution === resolution) return
+    app.renderer.resize(Math.max(1, el.clientWidth), Math.max(1, el.clientHeight), resolution)
+    requestRenderRef.current()
+  }, [ready, maxResolution])
 
   // Re-render on canvas resizes so the world transform below is recomputed.
   // Separate from the init effect: the renderer only exists once init()

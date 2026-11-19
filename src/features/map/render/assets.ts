@@ -1,4 +1,4 @@
-import { Texture } from "pixi.js"
+import { ImageSource, Texture } from "pixi.js"
 import i18n from "../../../i18n"
 import { withLoading } from "../../../stores/loadingStore"
 import { recolorUrl, thumbUrl, type RecolorMode } from "../../library/api"
@@ -57,6 +57,22 @@ export class AssetCache {
   private alphas = new Map<string, AlphaMask | null>()
   /** Bumped on every notification (see missingIds). */
   private changes = 0
+  /** How textures load (Settings › Performance): fraction of their pixels, mipmaps. */
+  private loading: TextureLoading = { scale: 1, mipmaps: false }
+
+  /**
+   * Load textures at `scale` of their pixels (same size on the map: fewer
+   * texels, less memory and bandwidth) and/or with mipmaps. A change drops
+   * every loaded texture: call it only while nothing draws with them (a new
+   * canvas). Asset ids stay resolved.
+   */
+  configure(loading: TextureLoading): void {
+    if (loading.scale === this.loading.scale && loading.mipmaps === this.loading.mipmaps) return
+    this.loading = loading
+    for (const t of this.textures.values()) if (t instanceof Texture) t.destroy(true)
+    this.textures.clear()
+    this.alphas.clear()
+  }
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener)
@@ -80,6 +96,18 @@ export class AssetCache {
   /** Resolve ids not seen yet (e.g. on other levels, never drawn) so isMissing can tell. */
   prefetch(ids: readonly string[]): void {
     for (const id of ids) if (!this.resolved.has(id)) this.queueResolve(id)
+  }
+
+  /** Loaded textures and their GPU memory in MB (mipmaps not counted). Debug stats. */
+  stats(): { textures: number; megabytes: number } {
+    let textures = 0
+    let bytes = 0
+    for (const t of this.textures.values()) {
+      if (!(t instanceof Texture)) continue
+      textures++
+      bytes += t.source.pixelWidth * t.source.pixelHeight * 4
+    }
+    return { textures, megabytes: bytes / 2 ** 20 }
   }
 
   /** Texture for an asset id, or undefined while it's resolving/loading (or missing). */
@@ -219,7 +247,7 @@ export class AssetCache {
     // Needed so exporting the canvas (PNG) isn't blocked by a tainted canvas.
     img.crossOrigin = "anonymous"
     img.onload = () => {
-      this.textures.set(url, Texture.from(img))
+      this.textures.set(url, textureOf(img, this.loading))
       this.notify()
     }
     img.onerror = () => {
@@ -243,6 +271,39 @@ export class AssetCache {
       for (const l of this.listeners) l()
     })
   }
+}
+
+export interface TextureLoading {
+  /** Fraction of the image's pixels to keep (1: all). */
+  scale: number
+  mipmaps: boolean
+}
+
+/**
+ * A loaded image as a texture. Scaled down, the texture keeps the image's
+ * size (its source's resolution is the scale): everything sized from
+ * `texture.width`/`height` lands the same, just with fewer texels.
+ */
+function textureOf(img: HTMLImageElement, { scale, mipmaps }: TextureLoading): Texture {
+  if (scale >= 1 && !mipmaps) return Texture.from(img)
+  let resource: HTMLImageElement | HTMLCanvasElement = img
+  const w = Math.max(1, Math.round(img.naturalWidth * scale))
+  const h = Math.max(1, Math.round(img.naturalHeight * scale))
+  if (scale < 1 && typeof document !== "undefined") {
+    const canvas = document.createElement("canvas")
+    canvas.width = w
+    canvas.height = h
+    const g = canvas.getContext("2d")
+    if (g) {
+      g.imageSmoothingQuality = "high"
+      g.drawImage(img, 0, 0, w, h)
+      resource = canvas
+    }
+  }
+  const resolution = resource === img ? 1 : w / img.naturalWidth
+  return new Texture({
+    source: new ImageSource({ resource, resolution, autoGenerateMipmaps: mipmaps }),
+  })
 }
 
 const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>

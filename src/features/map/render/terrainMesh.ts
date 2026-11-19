@@ -235,6 +235,8 @@ export class TerrainLayer {
     private readonly slots: TerrainSlots,
     /** The weights' size in texels. */
     private readonly texels: { width: number; height: number },
+    /** The screen cache's resolution, a fraction of the canvas' (Settings › Performance). */
+    private readonly cacheScale = 1,
   ) {
     this.shader = terrainShader(slots)
     const full = quad(slots.map)
@@ -278,7 +280,7 @@ export class TerrainLayer {
   prerender(): void {
     if (this.direct || !this.view.parent) return
     const { width, height } = this.renderer.screen
-    const resolution = this.renderer.resolution
+    const resolution = this.renderer.resolution * this.cacheScale
     if (
       !this.rt ||
       this.rt.width !== width ||
