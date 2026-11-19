@@ -6,7 +6,12 @@ import i18n from "../../../i18n"
 import { withLoading } from "../../../stores/loadingStore"
 import { usePacksStore } from "../../../stores/packsStore"
 import { uninstallPacks } from "../../../features/packs/uninstall"
-import { clearStorage, storageUsage, type ClearableStorage } from "../../../features/storage/api"
+import {
+  clearStorage,
+  storageUsage,
+  type ClearableStorage,
+  type StorageUsage,
+} from "../../../features/storage/api"
 import { formatBytes } from "../../../lib/bytes"
 
 /**
@@ -19,6 +24,12 @@ const loadUsage = () => withLoading(i18n.t("storage.measuring"), () => storageUs
 
 export function StorageTab() {
   const { t } = useTranslation()
+  // The measure lives here, outside the Suspense: a component that suspends
+  // before it ever mounts loses its state, so it would start a new measure
+  // on every retry. Measured when the tab opens, again after each change.
+  const [request, setRequest] = useState(loadUsage)
+  // Keep showing the last measure while the new one comes.
+  const remeasure = () => startTransition(() => setRequest(loadUsage()))
   return (
     <Suspense
       fallback={
@@ -27,26 +38,27 @@ export function StorageTab() {
         </Text>
       }
     >
-      <StorageView />
+      <StorageView request={request} remeasure={remeasure} />
     </Suspense>
   )
 }
 
-function StorageView() {
+function StorageView({
+  request,
+  remeasure,
+}: {
+  request: Promise<StorageUsage>
+  remeasure: () => void
+}) {
   const { t, i18n: lang } = useTranslation()
   const packs = usePacksStore((s) => s.packs)
   const ensurePacks = usePacksStore((s) => s.ensureLoaded)
-  // Measured when the tab opens, again after each change (or Refresh).
-  const [request, setRequest] = useState(loadUsage)
   const usage = use(request)
   const [busy, setBusy] = useState(false)
   const size = (bytes: number) => formatBytes(bytes, lang.language)
 
   // Pack names come from the installed list.
   useEffect(() => ensurePacks(), [ensurePacks])
-
-  // Keep showing the last measure while the new one comes.
-  const remeasure = () => startTransition(() => setRequest(loadUsage()))
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true)
