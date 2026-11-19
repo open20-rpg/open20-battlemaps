@@ -70,7 +70,8 @@ export function createLightBehavior(): ToolBehavior {
   let dragging: { id: string; last: Vec2 } | null = null
   /** A press on empty map: the light goes where it's released. */
   let placing = false
-  const lights = (ctx: ToolCtx) => ctx.entities.filter((e) => e.toolId === "light")
+  // Locked ones are left alone: no widget, no dragging.
+  const lights = (ctx: ToolCtx) => ctx.entities.filter((e) => e.toolId === "light" && !e.locked)
   // Widgets (range circles + center handles of placed lights) follow the
   // Widgets param; the hover preview (the light's real glow) always shows.
   const showWidgets = (ctx: ToolCtx, hover?: Vec2) => {

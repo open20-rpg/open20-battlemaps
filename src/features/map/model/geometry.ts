@@ -303,7 +303,8 @@ export function isSelectable(entity: MapEntity, allowPaint = false): boolean {
 export function editablePointsOf(selected: readonly MapEntity[]): MapEntity | null {
   if (selected.length !== 1) return null
   const [e] = selected
-  return e.points && e.points.length > 0 ? e : null
+  // A locked one keeps its points as they are.
+  return !e.locked && e.points && e.points.length > 0 ? e : null
 }
 
 /** Axis-aligned bounds of an entity, for selection boxes and rubber-band selection. */

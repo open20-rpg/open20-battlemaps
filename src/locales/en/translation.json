@@ -368,6 +368,7 @@
     "flipVertical": "Mirror vertically",
     "flipHorizontalShort": "Mirror horiz.",
     "flipVerticalShort": "Mirror vert.",
+    "lockedHint": "Locked: unlock it with the padlock to change it.",
     "mirrorHorizontal": "Mirror horizontally",
     "mirrorVertical": "Mirror vertically",
     "selectHint": "Click something on the map, or select everything of a kind:",

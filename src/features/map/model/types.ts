@@ -81,8 +81,9 @@ export interface MapEntity {
    */
   link?: string
   /**
-   * Locked in place: clicks, rubber bands and Select All skip it; only an
-   * Alt rubber band (which picks locked entities alone) selects it.
+   * Locked: selected only on its own (a click on it, a rubber band that
+   * caught nothing unlocked) and never changed until it's unlocked: the map
+   * commands leave it as it is.
    */
   locked?: boolean
   /** Text content (Text tool). */

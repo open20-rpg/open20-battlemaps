@@ -490,7 +490,7 @@ export function editPointsController(
   let selected: { id: string; index: number } | null = null
   const tools = new Set(toolIds)
   const editable = (ctx: ToolCtx) =>
-    ctx.entities.filter((e) => tools.has(e.toolId) && e.points && e.points.length > 0)
+    ctx.entities.filter((e) => tools.has(e.toolId) && !e.locked && e.points && e.points.length > 0)
   // The control line joining each entity's points (a path's raw edit points,
   // before smoothing), then the draggable handles on top.
   const showHandles = (ctx: ToolCtx) => {
