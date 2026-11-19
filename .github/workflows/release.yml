@@ -87,12 +87,17 @@ jobs:
     if: needs.release.outputs.version != ''
     runs-on: ubuntu-latest
     steps:
+      # For the banner's background and icon.
+      - uses: actions/checkout@v7
+
       - uses: open20-rpg/open20-release/discord-announce@v1
         with:
           tag: v${{ needs.release.outputs.version }}
           title: Open20 Battle Maps
           download: https://open20.app/battle-maps
           status: "⏳ Las descargas se están preparando: cada plataforma suma su ✅ cuando está lista."
+          banner-background: .github/discord-banner.jpg
+          banner-icon: src/assets/brand/battle-maps-icon.svg
           bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
 
   # ---------------------------------------------------------------------------
