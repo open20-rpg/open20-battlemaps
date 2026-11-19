@@ -39,6 +39,10 @@ export function Select({
       collection={collection}
       size={size}
       value={[value]}
+      // The options exist only while it's open: a long list (a library's
+      // tags) re-rendered with everything around it otherwise.
+      lazyMount
+      unmountOnExit
       onValueChange={(e) => {
         const next = e.value[0]
         if (next != null) onChange(next)

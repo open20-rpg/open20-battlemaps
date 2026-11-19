@@ -110,8 +110,8 @@ export function LibraryPanel({
       ? (ids: string[]) => setToolParams(toolId, { [LIBRARY_PARAM]: ids })
       : undefined
 
-  const map = useMapStore((s) => s.map)
-  const usedKey = usedAssetIds(map, category).join("\n")
+  // Only what the Used tab lists: the panel doesn't re-render on every edit.
+  const usedKey = useMapStore((s) => usedAssetIds(s.map, category).join("\n"))
   const used = useMemo(() => (usedKey ? usedKey.split("\n") : []), [usedKey])
 
   const shared = {
