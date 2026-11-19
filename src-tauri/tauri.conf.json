@@ -24,7 +24,7 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/packs/**", "$APPDATA/fonts/**"]
+        "scope": ["$APPDATA/packs/**", "$APPDATA/fonts/**", "$APPDATA/import-previews/**"]
       }
     }
   },

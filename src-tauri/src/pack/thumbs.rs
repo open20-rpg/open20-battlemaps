@@ -9,6 +9,8 @@ use std::path::Path;
 use image::imageops::{self, FilterType};
 use image::RgbaImage;
 
+use super::optimize::opaque_bounds;
+
 /// How a category's thumbnails are cut (the rules packs' thumbnails follow).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Rule {
@@ -40,20 +42,6 @@ pub(crate) fn rule_for(rel_path: &str) -> Rule {
         "terrain" => Rule::Square(160),
         _ => Rule::Fit(CELL_PX),
     }
-}
-
-/// The smallest rectangle holding every non-transparent pixel (x, y, w, h).
-fn opaque_bounds(img: &RgbaImage) -> Option<(u32, u32, u32, u32)> {
-    let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0, 0);
-    for (x, y, px) in img.enumerate_pixels() {
-        if px.0[3] > 0 {
-            x0 = x0.min(x);
-            y0 = y0.min(y);
-            x1 = x1.max(x);
-            y1 = y1.max(y);
-        }
-    }
-    (x0 <= x1).then(|| (x0, y0, x1 - x0 + 1, y1 - y0 + 1))
 }
 
 /// Make a thumbnail of `img` by `rule`.

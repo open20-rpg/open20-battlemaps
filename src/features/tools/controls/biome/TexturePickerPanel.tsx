@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
-import { Flex, Text, VStack } from "@chakra-ui/react"
+import { Box, Button, Flex, Spinner, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
-import { LuMountain } from "react-icons/lu"
+import { LuImagePlus, LuMountain } from "react-icons/lu"
+import { startImport } from "../../../packs/importFlow"
 import { FloatingWindow } from "../../../../ui/FloatingWindow"
 import { usePacksStore } from "../../../../stores/packsStore"
 import { withLoading } from "../../../../stores/loadingStore"
@@ -26,6 +27,8 @@ export function TexturePickerPanel({
   // null = still loading the pack list.
   const [packIds, setPackIds] = useState<string[] | null>(null)
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
+  // Packs changed (terrain imported): list them again.
+  const libraryRev = usePacksStore((s) => s.libraryRev)
 
   useEffect(() => {
     let cancelled = false
@@ -37,7 +40,7 @@ export function TexturePickerPanel({
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [t, libraryRev])
 
   // Resolve pack names and keep a stable, name-sorted order.
   const packs = useMemo(() => {
@@ -99,11 +102,32 @@ export function TexturePickerPanel({
               </Flex>
             )
           })}
+          {packIds === null && (
+            <Flex justify="center" p="4">
+              <Spinner size="sm" color="brand.fg" />
+            </Flex>
+          )}
           {packIds !== null && packs.length === 0 && (
             <Text fontSize="xs" color="fg.muted" p="2">
               {t("tools.noTerrainPacks")}
             </Text>
           )}
+          <Box flex="1" />
+          <Button
+            size="xs"
+            variant="subtle"
+            mt="2"
+            onClick={() =>
+              void startImport({
+                category: "terrain",
+                // Open the pack they went to, to pick one.
+                onImported: (ids) => setSelectedPackId(ids[0]?.split("|")[0] ?? null),
+              })
+            }
+          >
+            <LuImagePlus />
+            {t("userPacks.importImages")}
+          </Button>
         </VStack>
 
         {/* Right: virtualized 180×180 grid for the active pack. */}

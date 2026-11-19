@@ -1,6 +1,14 @@
 import { useState } from "react"
 import { Box, Flex, IconButton, Text } from "@chakra-ui/react"
-import { LuChevronDown, LuMaximize2, LuMinimize2, LuRotateCcw, LuSearch } from "react-icons/lu"
+import {
+  LuChevronDown,
+  LuImagePlus,
+  LuMaximize2,
+  LuMinimize2,
+  LuRotateCcw,
+  LuSearch,
+} from "react-icons/lu"
+import { startImport } from "../../packs/importFlow"
 import { usePickerExpand } from "./pickerExpand"
 import { Tooltip } from "../../../ui/chakra/tooltip"
 import { useTranslation } from "react-i18next"
@@ -59,6 +67,15 @@ export function AssetPickerControl({
   const [searching, setSearching] = useState(false)
   // A search applied: its button stays marked once the box is closed.
   const [query, setQuery] = useState("")
+  // Imported images are picked right away (all of them in a multi picker).
+  const importImages = () =>
+    void startImport({
+      category,
+      onImported: (ids) => {
+        if (ids.length === 0) return
+        onChange({ ...value, assets: select === "single" ? ids.slice(0, 1) : ids })
+      },
+    })
 
   return (
     <Flex direction="column" flex="1" minH="0">
@@ -66,6 +83,16 @@ export function AssetPickerControl({
         <Text flex="1" fontSize="xs" color="fg.muted">
           {t(labelKey)}
         </Text>
+        <Tooltip content={t("userPacks.importImages")} showArrow>
+          <IconButton
+            aria-label={t("userPacks.importImages")}
+            size="2xs"
+            variant="ghost"
+            onClick={importImages}
+          >
+            <LuImagePlus />
+          </IconButton>
+        </Tooltip>
         {!expanded && (
           <Tooltip content={t("library.search")} showArrow>
             <IconButton
@@ -119,6 +146,7 @@ export function AssetPickerControl({
         onCloseSearch={() => setSearching(false)}
         onQueryChange={setQuery}
         allowNull={allowNull}
+        onImport={importImages}
       />
       {/* Own color selector below the browser (unless colored externally). */}
       {showColorSwatch && (

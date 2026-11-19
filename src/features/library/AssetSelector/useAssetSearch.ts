@@ -9,6 +9,7 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 import { withLoading } from "../../../stores/loadingStore"
+import { usePacksStore } from "../../../stores/packsStore"
 import { getLibraryItems, releaseLibrarySearch, searchLibrary, type LibItem } from "../api"
 import { registerLibraryBrowser } from "../browsers"
 
@@ -109,9 +110,25 @@ export function useAssetSearch({
 
   // A primitive key, so a new-but-equal ids array doesn't re-run the search.
   const idsKey = onlyIds ? onlyIds.join("\n") : null
+  // Packs changed (installed, toggled, assets imported): search again.
+  const libraryRev = usePacksStore((s) => s.libraryRev)
+
+  /**
+   * Whether results are on their way, to tell a grid that's loading from one
+   * that's empty. The search a render expects (`searchKey`) differs from the
+   * last one that finished until it lands; a search typed by the user is
+   * pending meanwhile too.
+   */
+  const searchKey = [browserKey, category, packId, tag, idsKey, libraryRev].join("\u0000")
+  const [settledKey, setSettledKey] = useState<string | null>(null)
+  const [userPending, setUserPending] = useState(false)
+
+  /** The last search run, so a refresh (packs changed) keeps what was typed. */
+  const applied = useRef<{ category: string; query: string } | null>(null)
 
   const runSearch = useCallback(
     (q: string) => {
+      applied.current = { category, query: q }
       const mine = ++gen.current
       searching.current = true
       items.current.clear()
@@ -136,12 +153,26 @@ export function useAssetSearch({
             bump()
           })
           .finally(() => {
-            if (mine === gen.current) searching.current = false
+            if (mine !== gen.current) return
+            searching.current = false
+            setSettledKey(searchKey)
+            setUserPending(false)
           }),
       )
     },
-    [browserKey, category, packId, tag, idsKey, t, scrollRef],
+    [browserKey, category, packId, tag, idsKey, t, scrollRef, searchKey],
   )
+
+  /** A search the user asked for (typed, cleared): shows as loading until done. */
+  const search = useCallback(
+    (q: string) => {
+      setUserPending(true)
+      return runSearch(q)
+    },
+    [runSearch],
+  )
+
+  const loading = settledKey !== searchKey || userPending
 
   // Reset the query box when the category changes (panel opens/switches),
   // adjusted during render so the stale query never hits the screen.
@@ -156,8 +187,9 @@ export function useAssetSearch({
   // recreated per category/pack/browser, so it doubles as the trigger).
   // freshQuery only changes along with the category (so with runSearch): one search.
   useEffect(() => {
-    void runSearch(freshQuery)
-  }, [runSearch, freshQuery])
+    const last = applied.current
+    void runSearch(last?.category === category ? last.query : freshQuery)
+  }, [runSearch, freshQuery, category])
 
   // Fetch the pages that cover the currently visible rows. The caller invokes
   // this from an effect fed by the virtualizer's window (rows are display rows,
@@ -231,7 +263,10 @@ export function useAssetSearch({
     setQueryInput,
     exactness,
     setExactness,
-    runSearch,
+    /** Run a search the user asked for (shows as loading). */
+    runSearch: search,
+    /** Results are on their way (a search is running). */
+    loading,
     loadVisibleRows,
     ensureLoaded,
   }

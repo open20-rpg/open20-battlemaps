@@ -116,6 +116,19 @@ ni accionable.
   hasta la próxima versión. Para traer una versión nueva:
   `git submodule update --remote src-tauri/resources/open20-essentials` y
   commitear el cambio del submódulo.
+- **Packs propios** (`features/packs/`, Rust en `pack/userpack.rs` +
+  `pack/optimize.rs`): el usuario crea packs en la app; viven desempaquetados
+  como cualquier pack instalado (layout de Dungeondraft) con `user: true` en
+  `registry.json` (`InstalledPack.editable`). Solo esos se editan y exportan
+  (`.dungeondraft_pack`); un pack instalado desde archivo nunca es editable.
+  Importar ("Importar imágenes" en cada selector de recursos → `startImport`,
+  `importFlow.ts`): primero se eligen las imágenes, después el pack destino.
+  Rust procesa imagen por imagen (memoria acotada a una), en el pool
+  bloqueante, y guarda WebP (con pérdida de alta calidad, o sin pérdida para
+  los coloreables). Las vistas previas son archivos chicos en
+  `<app data>/import-previews/` que se borran al cerrar. Tras cambiar packs,
+  `packsStore.libraryRev` hace que los selectores busquen de nuevo; tras
+  editar un asset, `bustFiles` + `assetCache.forget` recargan sus texturas.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para
@@ -123,7 +136,7 @@ ni accionable.
   `await invoke(...)` "pelado" en un flujo que el usuario dispara.
 - `localStorage` solo a través de `useSettingsStore` (clave versionada
   `open20-battle-maps.settings`).
-- Rust: la lógica vive en `src-tauri/src/pack/{format,registry,install,library,recolor}.rs`;
+- Rust: la lógica vive en `src-tauri/src/pack/{format,registry,install,library,recolor,userpack,optimize}.rs`;
   los `#[tauri::command]` en `commands.rs` son finos y delegan. Los nombres de
   comandos y los shapes serde camelCase son API del frontend — no cambiarlos
   sin actualizar `features/*/api.ts`.

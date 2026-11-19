@@ -71,9 +71,26 @@ export function releaseLibrarySearch(key: string): Promise<void> {
   return invoke("release_library_search", { key })
 }
 
+/**
+ * Files rewritten in place (a user pack's asset resized), with a counter
+ * that makes their URLs new: the webview caches images by URL and would
+ * keep showing the old pixels.
+ */
+const revisions = new Map<string, number>()
+
+/** Make the given files' URLs change, so they're loaded again. */
+export function bustFiles(paths: readonly string[]): void {
+  for (const p of paths) revisions.set(p, (revisions.get(p) ?? 0) + 1)
+}
+
+const revisionQuery = (path: string, sep: "?" | "&") => {
+  const rev = revisions.get(path)
+  return rev ? `${sep}v=${rev}` : ""
+}
+
 /** Turn a thumbnail file path into an asset-protocol URL the webview can load. */
 export function thumbUrl(path: string): string {
-  return convertFileSrc(path)
+  return `${convertFileSrc(path)}${revisionQuery(path, "?")}`
 }
 
 /**
@@ -82,7 +99,7 @@ export function thumbUrl(path: string): string {
  * the red region; the URL is stable per (path,color) so the webview caches it.
  */
 export function recolorUrl(path: string, color: string, mode: RecolorMode = "object"): string {
-  const base = `${convertFileSrc(path, "recolor")}?color=${color.replace(/^#/, "")}`
+  const base = `${convertFileSrc(path, "recolor")}?color=${color.replace(/^#/, "")}${revisionQuery(path, "&")}`
   return mode === "object" ? base : `${base}&mode=${mode}`
 }
 

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
-import { Box, Flex, Icon, Tabs, Text } from "@chakra-ui/react"
+import { Box, Flex, Icon, IconButton, Tabs, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
-import { LuLibrary } from "react-icons/lu"
+import { LuImagePlus, LuLibrary } from "react-icons/lu"
+import { Tooltip } from "../../ui/chakra/tooltip"
+import { startImport } from "../packs/importFlow"
 import { AssetSelector } from "./AssetSelector"
 import { libraryTags } from "./api"
 import { selectActiveTool, useToolsStore } from "../../stores/toolsStore"
@@ -114,6 +116,16 @@ export function LibraryPanel({
   const usedKey = useMapStore((s) => usedAssetIds(s.map, category).join("\n"))
   const used = useMemo(() => (usedKey ? usedKey.split("\n") : []), [usedKey])
 
+  // Imported images go to the library, and to the tool's pick when it picks from it.
+  const importImages = () =>
+    void startImport({
+      category,
+      onImported: (ids) => {
+        if (!select || !toolId || ids.length === 0) return
+        setToolParams(toolId, { [LIBRARY_PARAM]: select === "single" ? ids.slice(0, 1) : ids })
+      },
+    })
+
   const shared = {
     category,
     color,
@@ -121,6 +133,7 @@ export function LibraryPanel({
     selectedIds: selection,
     onSelectionChange,
     showPreview: true,
+    onImport: importImages,
   }
 
   return (
@@ -156,9 +169,19 @@ export function LibraryPanel({
           flexShrink={0}
         >
           <Icon as={LuLibrary} color="brand.fg" boxSize="4" />
-          <Text fontWeight="bold" fontSize="sm">
+          <Text fontWeight="bold" fontSize="sm" flex="1">
             {t("library.title")}
           </Text>
+          <Tooltip content={t("userPacks.importImages")} showArrow>
+            <IconButton
+              aria-label={t("userPacks.importImages")}
+              size="xs"
+              variant="ghost"
+              onClick={importImages}
+            >
+              <LuImagePlus />
+            </IconButton>
+          </Tooltip>
         </Flex>
       )}
 
@@ -178,6 +201,19 @@ export function LibraryPanel({
           <Tabs.Trigger value="all">{t("library.tabAll")}</Tabs.Trigger>
           <Tabs.Trigger value="used">{t("library.tabUsed")}</Tabs.Trigger>
           <Tabs.Trigger value="tags">{t("library.tabTags")}</Tabs.Trigger>
+          {/* Embedded (phone sheet) there's no header: the import button sits here. */}
+          {embedded && (
+            <IconButton
+              aria-label={t("userPacks.importImages")}
+              size="sm"
+              variant="ghost"
+              ml="auto"
+              alignSelf="center"
+              onClick={importImages}
+            >
+              <LuImagePlus />
+            </IconButton>
+          )}
         </Tabs.List>
 
         <Tabs.Content value="all" flex="1" minH="0" p="0" display="flex" flexDirection="column">

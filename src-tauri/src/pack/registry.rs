@@ -29,6 +29,9 @@ pub struct InstalledPack {
     pub file_count: usize,
     /// Total size on disk in bytes.
     pub size_bytes: u64,
+    /// Created in the app (not installed from a file): only these can be
+    /// edited and exported.
+    pub editable: bool,
 }
 
 pub(crate) fn packs_root(app: &AppHandle) -> Result<PathBuf> {
@@ -60,6 +63,8 @@ pub(crate) struct PackReg {
     pub(crate) enabled: bool,
     pub(crate) file_count: Option<usize>,
     pub(crate) size_bytes: Option<u64>,
+    /// A pack the user created in the app (see `userpack.rs`).
+    pub(crate) user: bool,
 }
 
 impl Default for PackReg {
@@ -68,6 +73,7 @@ impl Default for PackReg {
             enabled: true,
             file_count: None,
             size_bytes: None,
+            user: false,
         }
     }
 }
@@ -135,6 +141,7 @@ fn read_registry_at(path: &Path) -> HashMap<String, PackReg> {
                     .and_then(|x| x.as_u64())
                     .map(|n| n as usize),
                 size_bytes: o.get("sizeBytes").and_then(|x| x.as_u64()),
+                user: o.get("user").and_then(|x| x.as_bool()).unwrap_or(false),
             },
             _ => PackReg::default(),
         };
@@ -157,6 +164,9 @@ fn write_registry_at(path: &Path, reg: &HashMap<String, PackReg>) -> Result<()> 
         if let Some(sb) = r.size_bytes {
             e.insert("sizeBytes".into(), serde_json::json!(sb));
         }
+        if r.user {
+            e.insert("user".into(), serde_json::json!(true));
+        }
         obj.insert(id.clone(), serde_json::Value::Object(e));
     }
     let tmp = path.with_extension("json.tmp");
@@ -169,7 +179,7 @@ fn write_registry_at(path: &Path, reg: &HashMap<String, PackReg>) -> Result<()> 
 }
 
 /// Recursively sum size and count of files under `dir`.
-fn dir_stats(dir: &Path) -> (usize, u64) {
+pub(crate) fn dir_stats(dir: &Path) -> (usize, u64) {
     let mut count = 0usize;
     let mut bytes = 0u64;
     let mut stack = vec![dir.to_path_buf()];
@@ -188,7 +198,7 @@ fn dir_stats(dir: &Path) -> (usize, u64) {
     (count, bytes)
 }
 
-fn read_installed_manifest(dir: &Path) -> Manifest {
+pub(crate) fn read_installed_manifest(dir: &Path) -> Manifest {
     fs::read_to_string(dir.join("pack.json"))
         .ok()
         .and_then(|s| {
@@ -221,6 +231,7 @@ pub(crate) fn build_installed(app: &AppHandle, id: &str, reg: &PackReg) -> Optio
         path: dir.to_string_lossy().into_owned(),
         file_count,
         size_bytes,
+        editable: reg.user,
     })
 }
 
@@ -249,6 +260,7 @@ mod tests {
                         enabled: false,
                         file_count: Some(i),
                         size_bytes: Some(10),
+                        user: i % 2 == 0,
                     },
                 )
             })
@@ -276,6 +288,7 @@ mod tests {
             let r = &reg[&format!("p{i}")];
             assert!(r.enabled, "p{i} lost its update");
             assert_eq!(r.file_count, Some(i), "p{i} lost its cached stats");
+            assert_eq!(r.user, i % 2 == 0, "p{i} lost its user flag");
         }
         assert!(!path.with_extension("json.tmp").exists());
     }

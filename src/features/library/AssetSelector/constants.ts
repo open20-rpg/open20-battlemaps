@@ -53,8 +53,13 @@ export const nullCellStyle: CSSProperties = {
 }
 
 // Loaded items get the pointer cursor; the selected one gets a highlight ring.
+// Cells whose item is still on its way pulse, so a grid loading its next page
+// never looks like empty slots.
 export const THUMB_CSS =
   ".bm-thumb[data-name]{cursor:pointer}" +
+  ".bm-thumb:not([data-name]):not([data-null]):empty{border-radius:6px;background:var(--chakra-colors-panel-header);animation:bm-pulse 1.1s ease-in-out infinite}" +
+  "@keyframes bm-pulse{0%,100%{opacity:.35}50%{opacity:.8}}" +
+  "@media (prefers-reduced-motion: reduce){.bm-thumb:not([data-name]):not([data-null]):empty{animation:none;opacity:.5}}" +
   ".bm-thumb[data-selected]{outline:2px solid #e0534e;outline-offset:-2px;border-radius:6px;background:#3a1a1c}"
 
 // Positioned wrappers for the virtualized rows; the per-row translateY is the

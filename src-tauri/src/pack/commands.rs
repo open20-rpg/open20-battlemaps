@@ -11,8 +11,13 @@ use tauri_plugin_opener::OpenerExt;
 
 use super::install::install_one;
 use super::library::{self, clear_library, LibItem, LibrarySearch, ResolvedAsset, SearchFilter};
+use super::optimize::Quality;
 use super::registry::{
     build_installed, pack_dir, packs_root, read_registry, update_registry, InstalledPack,
+};
+use super::userpack::{
+    self, AssetEdit, EditResult, ImportItem, ImportPreview, ImportReport, PackMeta, UserAssetInfo,
+    UserPackInfo,
 };
 use super::{mime_for, PackError, Result};
 
@@ -324,4 +329,77 @@ pub async fn resolve_assets(app: AppHandle, ids: Vec<String>) -> Result<Vec<Reso
     tauri::async_runtime::spawn_blocking(move || library::resolve(&app, &ids))
         .await
         .map_err(|e| PackError::Other(e.to_string()))
+}
+
+// ---------------------------------------------------------------------------
+// User packs (created in the app): see userpack.rs
+// ---------------------------------------------------------------------------
+
+/// Create an empty, editable pack.
+#[tauri::command]
+pub async fn create_user_pack(app: AppHandle, meta: PackMeta) -> Result<InstalledPack> {
+    blocking(move || userpack::create(&app, &meta)).await
+}
+
+/// Change a user pack's name, author, version or keywords.
+#[tauri::command]
+pub async fn update_user_pack(app: AppHandle, id: String, meta: PackMeta) -> Result<InstalledPack> {
+    blocking(move || userpack::update_meta(&app, &id, &meta)).await
+}
+
+/// Decode an image the user picked and write a small preview of it.
+#[tauri::command]
+pub async fn import_preview(app: AppHandle, source: String) -> Result<ImportPreview> {
+    blocking(move || userpack::preview(&app, &source)).await
+}
+
+/// Drop the import previews (the import window closed).
+#[tauri::command]
+pub async fn clear_import_previews(app: AppHandle) -> Result<()> {
+    blocking(move || {
+        userpack::clear_previews(&app);
+        Ok(())
+    })
+    .await
+}
+
+/// Import images into a user pack, one at a time; emits `user-pack-import-progress`.
+#[tauri::command]
+pub async fn import_user_assets(
+    app: AppHandle,
+    pack_id: String,
+    items: Vec<ImportItem>,
+    quality: Quality,
+) -> Result<ImportReport> {
+    blocking(move || userpack::import(&app, &pack_id, &items, quality)).await
+}
+
+/// Details of an asset of a user pack (for the editor's properties).
+#[tauri::command]
+pub async fn user_asset_info(app: AppHandle, id: String) -> Result<UserAssetInfo> {
+    blocking(move || userpack::asset_info(&app, &id)).await
+}
+
+/// Rename, retag, recolor or re-process an asset of a user pack.
+#[tauri::command]
+pub async fn edit_user_asset(app: AppHandle, id: String, edit: AssetEdit) -> Result<EditResult> {
+    blocking(move || userpack::edit(&app, &id, &edit)).await
+}
+
+/// Delete assets of user packs.
+#[tauri::command]
+pub async fn delete_user_assets(app: AppHandle, ids: Vec<String>) -> Result<Option<InstalledPack>> {
+    blocking(move || userpack::delete(&app, &ids)).await
+}
+
+/// A user pack's object folders, tags and item counts.
+#[tauri::command]
+pub async fn user_pack_info(app: AppHandle, id: String) -> Result<UserPackInfo> {
+    blocking(move || userpack::pack_info(&app, &id)).await
+}
+
+/// Write a user pack as a `.dungeondraft_pack`; emits `user-pack-export-progress`.
+#[tauri::command]
+pub async fn export_user_pack(app: AppHandle, id: String, dest: String) -> Result<()> {
+    blocking(move || userpack::export(&app, &id, &dest)).await
 }

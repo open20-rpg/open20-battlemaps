@@ -12,6 +12,8 @@
 //! - [`library`]: asset-browser search over installed packs.
 //! - [`recolor`]: `recolor://` protocol and colorable-asset support.
 //! - [`tags`]: pack tag groups (Library "Tags" tab).
+//! - [`userpack`]: packs created in the app (import, edit, export).
+//! - [`optimize`]: image adjustments and encoding for imported assets.
 //! - [`commands`]: the thin `#[tauri::command]` facade.
 
 mod assetdefs;
@@ -20,15 +22,18 @@ mod commands;
 mod format;
 mod install;
 mod library;
+mod optimize;
 mod recolor;
 mod registry;
 mod tags;
 mod thumbs;
+mod userpack;
 
 pub(crate) use builtin::ensure_installed as ensure_builtin_pack;
 pub use commands::*;
 pub use library::LibraryState;
 pub use recolor::recolor_protocol;
+pub(crate) use userpack::clear_previews;
 
 use std::io;
 use std::path::Path;

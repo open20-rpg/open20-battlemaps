@@ -15,6 +15,8 @@ import { ShortcutsDialog } from "../features/shortcuts/ShortcutsDialog"
 import { RecentMapsDialog } from "./dialogs/RecentMapsDialog"
 import { ExportDialog } from "../features/map/ExportDialog"
 import { AssetsManager } from "../features/packs/AssetsManager"
+import { ImportAssetsHost } from "../features/packs/ImportAssets"
+import { PackEditorHost } from "../features/packs/PackEditor"
 import { NewMapDialog } from "../features/map/NewMapDialog"
 import { MapEditor } from "../features/map/MapEditor"
 import { closeMap, redo, undo } from "../features/map/commands"
@@ -159,6 +161,8 @@ export default function App() {
         {libraryCategory && !phone && <LibraryPanel category={libraryCategory} />}
 
         {assetsOpen && <AssetsManager onClose={() => setAssetsOpen(false)} />}
+        <PackEditorHost />
+        <ImportAssetsHost />
       </Box>
 
       <NewMapDialog

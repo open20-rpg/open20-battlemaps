@@ -360,8 +360,23 @@ export class MapScene {
     return changed
   }
 
+  /**
+   * Whether a drawn view must be redrawn: it was waiting for textures that
+   * may have arrived, or the cache was told its files changed (an edited
+   * asset of a user pack) and every view may show old pixels.
+   */
+  private redraws(view: { complete: boolean }, assetsChanged: boolean): boolean {
+    return this.reloading || (assetsChanged && !view.complete)
+  }
+
+  /** The cache's epoch when last drawn (see AssetCache.forget). */
+  private assetEpoch = 0
+  private reloading = false
+
   update(live: SceneState, assetsChanged = false): void {
     this.last = live
+    this.reloading = this.assets.epoch !== this.assetEpoch
+    this.assetEpoch = this.assets.epoch
     const state = this.drawn(live)
     // Everything the map's own look comes from (the overlay's inputs left out).
     const contentKey = [
@@ -385,7 +400,12 @@ export class MapScene {
       this.exporting,
       this.assets,
     ]
-    if (assetsChanged || !this.contentKey || !sameInputs(this.contentKey, contentKey)) {
+    if (
+      assetsChanged ||
+      this.reloading ||
+      !this.contentKey ||
+      !sameInputs(this.contentKey, contentKey)
+    ) {
       this.contentChanged = true
     }
     this.contentKey = contentKey
@@ -453,7 +473,7 @@ export class MapScene {
       if (!render) return
       seen.add(entity.id)
       const current = this.compareViews.get(entity.id)
-      if (current?.entity !== entity || (assetsChanged && !current.complete)) {
+      if (current?.entity !== entity || this.redraws(current, assetsChanged)) {
         current?.view.destroy({ children: true })
         const track = { complete: true }
         // No shadows: a faded level casting shadows on the active one would mislead.
@@ -553,7 +573,7 @@ export class MapScene {
         current.lighting === state.lighting &&
         current.wear === state.map.buildingWear &&
         current.textQuality === state.performance.textQuality &&
-        !(assetsChanged && !current.complete)
+        !this.redraws(current, assetsChanged)
       // Only moved (dragging an object, a label, a light): shift what's drawn.
       if (
         current &&
@@ -630,7 +650,7 @@ export class MapScene {
         if (
           current &&
           sameInputs(current.inputs, inputs) &&
-          !(assetsChanged && !current.complete)
+          !this.redraws(current, assetsChanged)
         ) {
           // Same document, but a stroke in progress may have painted since.
           const live = liveTerrainVersion()
@@ -685,7 +705,7 @@ export class MapScene {
       ...blockers,
     ]
     const current = this.lighting
-    if (current && sameInputs(current.inputs, inputs) && !(assetsChanged && !current.complete))
+    if (current && sameInputs(current.inputs, inputs) && !this.redraws(current, assetsChanged))
       return
     current?.comp.dispose()
     const track = { complete: true }

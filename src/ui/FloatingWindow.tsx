@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import type { IconType } from "react-icons"
 import { LuGripHorizontal, LuX } from "react-icons/lu"
 import { ModalLayer } from "./Modal"
+import { useIsPhone } from "./useIsPhone"
 import { keepOnScreen, openingRect, type WindowRect } from "../lib/windowLayout"
 
 interface Size {
@@ -43,7 +44,8 @@ export interface FloatingWindowProps {
  * opens at a comfortable size and place (its preferred size, centered,
  * shrunk to fit a phone) and stays wholly on screen while dragged, resized
  * or when the window changes size. On touch screens the title bar and the
- * resize corner are bigger to grab. Layering (and the backdrop for `modal`)
+ * resize corner are bigger to grab. On a phone it takes the whole screen
+ * instead, fixed (no dragging or resizing): there's no room to float. Layering (and the backdrop for `modal`)
  * is handled by the modal stack, not by z-index — see {@link ModalLayer}.
  */
 export function FloatingWindow({
@@ -60,6 +62,7 @@ export function FloatingWindow({
   children,
 }: FloatingWindowProps) {
   const { t } = useTranslation()
+  const phone = useIsPhone()
   const [rect, setRect] = useState<WindowRect>(() =>
     openingRect(viewport(), initialSize, minSize, initialPosition),
   )
@@ -124,20 +127,33 @@ export function FloatingWindow({
     onPointerCancel: end,
   }
 
+  // A phone shows it full screen (solid: nothing behind shows through), clear
+  // of the notch and the home bar.
+  const frame = phone
+    ? {
+        inset: "0",
+        bg: "panel.solid",
+        pt: "env(safe-area-inset-top)",
+        pb: "env(safe-area-inset-bottom)",
+      }
+    : {
+        left: `${rect.x}px`,
+        top: `${rect.y}px`,
+        w: `${rect.w}px`,
+        h: `${rect.h}px`,
+        bg: "panel.bg",
+        borderWidth: "1px",
+        borderColor: "panel.border",
+        borderRadius: "lg",
+        boxShadow: "lg",
+      }
+
   const windowBox = (
     <Box
       position="fixed"
-      left={`${rect.x}px`}
-      top={`${rect.y}px`}
-      w={`${rect.w}px`}
-      h={`${rect.h}px`}
+      {...frame}
       // Non-modal windows float over the editor (modal ones get their layer).
       zIndex={modal ? undefined : "overlay"}
-      bg="panel.bg"
-      borderWidth="1px"
-      borderColor="panel.border"
-      borderRadius="lg"
-      boxShadow="lg"
       display="flex"
       flexDirection="column"
       overflow="hidden"
@@ -150,20 +166,20 @@ export function FloatingWindow({
         bg="panel.header"
         borderBottomWidth="1px"
         borderColor="panel.border"
-        cursor="move"
+        cursor={phone ? undefined : "move"}
         flexShrink={0}
         position="relative"
         // Stop the browser from claiming the touch gesture as a scroll/pan
         // (which fires pointercancel and kills the drag on touch devices).
         touchAction="none"
         css={{ [COARSE]: { paddingTop: "14px", paddingBottom: "14px" } }}
-        {...moveHandlers}
+        {...(phone ? {} : moveHandlers)}
       >
         {icon && <Icon as={icon} color="brand.fg" boxSize="4" />}
         <Text fontWeight="bold" fontSize="sm" flex="1" truncate>
           {title}
         </Text>
-        {/* A visible grip on touch screens: the whole bar drags. */}
+        {/* A visible grip on touch screens: the whole bar drags (not on a phone: it's fixed). */}
         <Icon
           as={LuGripHorizontal}
           position="absolute"
@@ -173,7 +189,7 @@ export function FloatingWindow({
           boxSize="4"
           color="fg.muted"
           display="none"
-          css={{ [COARSE]: { display: "block" } }}
+          css={{ [COARSE]: { display: phone ? "none" : "block" } }}
         />
         <IconButton
           aria-label={t("assets.close")}
@@ -192,7 +208,7 @@ export function FloatingWindow({
         {children}
       </Box>
 
-      {resizable && (
+      {resizable && !phone && (
         <Box
           position="absolute"
           right="0"

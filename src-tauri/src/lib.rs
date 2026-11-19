@@ -19,6 +19,8 @@ pub fn run() {
             if let Err(e) = pack::ensure_builtin_pack(app.handle()) {
                 eprintln!("built-in pack: {e}");
             }
+            // Previews left by an import window the app closed with.
+            pack::clear_previews(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -37,6 +39,16 @@ pub fn run() {
             pack::library_tags,
             pack::resolve_assets,
             pack::asset_thumbnails,
+            pack::create_user_pack,
+            pack::update_user_pack,
+            pack::import_preview,
+            pack::clear_import_previews,
+            pack::import_user_assets,
+            pack::user_asset_info,
+            pack::edit_user_asset,
+            pack::delete_user_assets,
+            pack::user_pack_info,
+            pack::export_user_pack,
             fonts::list_system_fonts,
             storage::storage_usage,
             storage::clear_storage,

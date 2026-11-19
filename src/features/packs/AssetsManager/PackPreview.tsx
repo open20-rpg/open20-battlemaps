@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react"
-import { Badge, Box, Flex, Icon, Image, Spinner, Tag, Text, VStack, Wrap } from "@chakra-ui/react"
+import {
+  Badge,
+  Box,
+  Button,
+  Flex,
+  HStack,
+  Icon,
+  Image,
+  Spinner,
+  Tag,
+  Text,
+  VStack,
+  Wrap,
+} from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
-import { LuImageOff } from "react-icons/lu"
+import { LuDownload, LuImageOff, LuLock, LuPencil } from "react-icons/lu"
+import { usePacksStore } from "../../../stores/packsStore"
+import { exportPack } from "../exportPack"
 import { loadPackThumbnail, toDataUrl, type InstalledPack } from "../api"
 import { formatBytes } from "../../../lib/format"
 
@@ -18,6 +33,51 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+function PackBadges({ pack }: { pack: InstalledPack }) {
+  const { t } = useTranslation()
+  return (
+    <HStack mt="1" gap="1.5">
+      <Badge colorPalette={pack.enabled ? "green" : "gray"} variant="subtle">
+        {pack.enabled ? t("assets.active") : t("assets.inactive")}
+      </Badge>
+      {pack.editable && (
+        <Badge colorPalette="brand" variant="subtle">
+          {t("userPacks.mine")}
+        </Badge>
+      )}
+    </HStack>
+  )
+}
+
+/** A pack made in the app is edited and exported from here; an installed one is read-only. */
+function PackActions({ pack }: { pack: InstalledPack }) {
+  const { t } = useTranslation()
+  if (!pack.editable) {
+    return (
+      <HStack gap="1.5" color="fg.subtle" fontSize="xs">
+        <LuLock />
+        <Text>{t("userPacks.readOnly")}</Text>
+      </HStack>
+    )
+  }
+  return (
+    <VStack align="stretch" gap="1.5">
+      <Button
+        size="sm"
+        colorPalette="brand"
+        onClick={() => usePacksStore.getState().openEditor(pack.id)}
+      >
+        <LuPencil />
+        {t("userPacks.edit")}
+      </Button>
+      <Button size="sm" variant="subtle" onClick={() => void exportPack(pack)}>
+        <LuDownload />
+        {t("userPacks.export")}
+      </Button>
+    </VStack>
+  )
+}
+
 interface PreviewImageState {
   /** Pack the image belongs to, so stale state resets during render. */
   id: string | null
@@ -25,7 +85,20 @@ interface PreviewImageState {
   status: "loading" | "ok" | "none"
 }
 
-export function PackPreview({ pack }: { pack: InstalledPack | null }) {
+/** The side panel's box: a column on the right, or (stacked on a phone) a band below the list. */
+const sideBox = (stacked: boolean) =>
+  stacked
+    ? { w: "full", maxH: "45%", flexShrink: 0, borderTopWidth: "1px" }
+    : { w: "240px", flexShrink: 0, borderLeftWidth: "1px" }
+
+export function PackPreview({
+  pack,
+  stacked = false,
+}: {
+  pack: InstalledPack | null
+  /** Below the list (phones) instead of beside it. */
+  stacked?: boolean
+}) {
   const { t } = useTranslation()
   const packId = pack?.id ?? null
   const [img, setImg] = useState<PreviewImageState>({
@@ -63,9 +136,7 @@ export function PackPreview({ pack }: { pack: InstalledPack | null }) {
   if (!pack) {
     return (
       <Flex
-        w="240px"
-        flexShrink={0}
-        borderLeftWidth="1px"
+        {...sideBox(stacked)}
         borderColor="panel.border"
         bg="panel.header"
         align="center"
@@ -82,18 +153,17 @@ export function PackPreview({ pack }: { pack: InstalledPack | null }) {
   return (
     <Flex
       direction="column"
-      w="240px"
-      flexShrink={0}
-      borderLeftWidth="1px"
+      {...sideBox(stacked)}
       borderColor="panel.border"
       bg="panel.header"
       overflowY="auto"
     >
+      {/* Stacked on a phone, room goes to the details and actions, not the cover. */}
       <Box
         h="180px"
+        display={stacked ? "none" : "flex"}
         flexShrink={0}
         bg="black/40"
-        display="flex"
         alignItems="center"
         justifyContent="center"
         borderBottomWidth="1px"
@@ -116,10 +186,9 @@ export function PackPreview({ pack }: { pack: InstalledPack | null }) {
           <Text fontWeight="bold" fontSize="md" wordBreak="break-word">
             {pack.name}
           </Text>
-          <Badge mt="1" colorPalette={pack.enabled ? "green" : "gray"} variant="subtle">
-            {pack.enabled ? t("assets.active") : t("assets.inactive")}
-          </Badge>
+          <PackBadges pack={pack} />
         </Box>
+        <PackActions pack={pack} />
         {pack.author && <DetailRow label={t("preview.author")} value={pack.author} />}
         {pack.version && <DetailRow label={t("preview.version")} value={pack.version} />}
         <DetailRow label={t("preview.id")} value={pack.id} />

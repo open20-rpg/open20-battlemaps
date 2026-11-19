@@ -79,6 +79,23 @@ export class AssetCache {
     return this.loading
   }
 
+  /**
+   * Bumped when files behind assets changed (a user pack's asset edited,
+   * renamed or deleted): the scene redraws everything, not just what waited.
+   */
+  epoch = 0
+
+  /**
+   * Forget what's known about these ids (resolved files) and redraw: their
+   * files changed. Edited files get new URLs (see `bustFiles`), so their
+   * textures load afresh.
+   */
+  forget(ids: readonly string[]): void {
+    for (const id of ids) this.resolved.delete(id)
+    this.epoch++
+    this.notify()
+  }
+
   /** Free every loaded texture and stop notifying (a cache that's done, e.g. a benchmark's). */
   dispose(): void {
     for (const t of this.textures.values()) if (t instanceof Texture) t.destroy(true)

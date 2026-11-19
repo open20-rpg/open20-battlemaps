@@ -67,7 +67,7 @@ struct InstallProgress<'a> {
 /// it to a file descriptor through the platform ContentResolver (see
 /// `crate::android_fs`) and read the pack straight from it — no temporary
 /// copy, so disk/time cost matches desktop.
-fn open_pack_source(src: &str) -> Result<File> {
+pub(crate) fn open_pack_source(src: &str) -> Result<File> {
     #[cfg(target_os = "android")]
     {
         if src.starts_with("content://") {
@@ -161,6 +161,8 @@ pub(crate) fn install_from<R: Read + Seek>(
         enabled: enabled.unwrap_or(true),
         file_count: Some(written.len()),
         size_bytes: Some(total_bytes),
+        // Installed from a file: never editable, even if it was made here.
+        user: false,
     };
     update_registry(app, |reg| reg.insert(id.clone(), reg_entry.clone()))?;
     clear_library(app);

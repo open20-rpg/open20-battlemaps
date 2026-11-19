@@ -284,15 +284,16 @@ pub(crate) fn search(
 ) -> Result<LibrarySearch> {
     let state = app.state::<LibraryState>();
     let reg = read_registry(app);
+    // Scoped to one pack (the terrain picker, a user pack's editor), it's
+    // searched even while off: the editor lists a disabled pack's assets too.
     let mut enabled: Vec<String> = reg
         .iter()
-        .filter(|(_, r)| r.enabled)
+        .filter(|(id, r)| match &filter.pack_id {
+            Some(pid) => *id == pid,
+            None => r.enabled,
+        })
         .map(|(id, _)| id.clone())
         .collect();
-    // Optionally scope the search to a single pack (e.g. the terrain picker).
-    if let Some(pid) = &filter.pack_id {
-        enabled.retain(|id| id == pid);
-    }
     enabled.sort();
 
     let q = normalize_query(&filter.query);

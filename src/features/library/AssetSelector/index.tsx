@@ -7,9 +7,8 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react"
-import { Box, Flex, Text } from "@chakra-ui/react"
+import { Box, Flex } from "@chakra-ui/react"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import { useTranslation } from "react-i18next"
 import { usePreviewStore } from "../../../stores/previewStore"
 import { itemImageUrl, type LibItem, type ThumbColoring } from "../api"
 import {
@@ -22,6 +21,7 @@ import {
   tipArrowStyle,
   tipStyle,
 } from "./constants"
+import { GridEmpty, GridLoading } from "./GridStatus"
 import { AssetRows } from "./rows"
 import { SearchBar } from "./SearchBar"
 import { useAssetSearch } from "./useAssetSearch"
@@ -59,6 +59,12 @@ export interface AssetSelectorProps {
   onlyIds?: string[]
   /** Start with this search (e.g. a suggestion); single-select then picks its best match. */
   initialQuery?: string
+  /** Only one pack's assets (shown even while the pack is off: a pack's editor). */
+  packId?: string
+  /** Offer to import images when there's nothing to show. */
+  onImport?: () => void
+  /** The empty grid's suggestion, when the default doesn't fit (a pack's editor). */
+  emptyHint?: string
 }
 
 /** Each category's (stable) thumbnail coloring. */
@@ -97,8 +103,10 @@ export function AssetSelector({
   tag,
   onlyIds,
   initialQuery,
+  packId,
+  onImport,
+  emptyHint,
 }: AssetSelectorProps) {
-  const { t } = useTranslation()
   const coloring = coloringOf(category)
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -116,11 +124,13 @@ export function AssetSelector({
     exactness,
     setExactness,
     runSearch,
+    loading,
     loadVisibleRows,
     ensureLoaded,
   } = useAssetSearch({
     browserKey,
     category,
+    packId,
     tag,
     onlyIds,
     allowNull,
@@ -310,12 +320,10 @@ export function AssetSelector({
         onScroll={clearAll}
         onClick={select ? (e) => void handleClick(e) : undefined}
       >
-        {total === 0 && !allowNull ? (
-          <Flex h="full" align="center" justify="center" p="6">
-            <Text fontSize="xs" color="fg.muted">
-              {t("library.empty")}
-            </Text>
-          </Flex>
+        {total === 0 && !allowNull && loading ? (
+          <GridLoading />
+        ) : total === 0 && !allowNull ? (
+          <GridEmpty searched={queryInput.trim() !== ""} onImport={onImport} hint={emptyHint} />
         ) : (
           <Box position="relative" width="100%" height={`${rowVirtualizer.getTotalSize()}px`}>
             <AssetRows

@@ -8,15 +8,18 @@ import {
   LuFolderOpen,
   LuGem,
   LuPackagePlus,
+  LuPencilRuler,
   LuRefreshCw,
   LuTrash2,
 } from "react-icons/lu"
 import { FloatingWindow } from "../../../ui/FloatingWindow"
+import { useIsPhone } from "../../../ui/useIsPhone"
 import { withLoading } from "../../../stores/loadingStore"
 import { usePacksStore } from "../../../stores/packsStore"
 import { openPacksDir, setPacksEnabled } from "../api"
 import { uninstallPacks } from "../uninstall"
 import { isPackUsed, clearPackReferences } from "../../map/packUsage"
+import { CreatePackDialog } from "../CreatePackDialog"
 import { PackList } from "./PackList"
 import { PackPreview } from "./PackPreview"
 import { useInstallFlow } from "./useInstallFlow"
@@ -25,6 +28,7 @@ import { useInstallFlow } from "./useInstallFlow"
 
 export function AssetsManager({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
+  const phone = useIsPhone()
   const packs = usePacksStore((s) => s.packs)
   const loading = usePacksStore((s) => s.loading)
   const ensureLoaded = usePacksStore((s) => s.ensureLoaded)
@@ -34,6 +38,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [mutating, setMutating] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   const { installing, progress, install } = useInstallFlow(addOrUpdate)
   const busy = installing || mutating
@@ -123,6 +128,10 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
         <LuPackagePlus />
         {t("assets.install")}
       </Button>
+      <Button size="xs" variant="subtle" onClick={() => setCreating(true)} disabled={busy}>
+        <LuPencilRuler />
+        {t("userPacks.createPack")}
+      </Button>
       <Button size="xs" variant="subtle" onClick={() => openPacksDir()}>
         <LuFolderOpen />
         {t("assets.openFolder")}
@@ -180,9 +189,9 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
       modal
       toolbar={toolbar}
     >
-      <Flex flex="1" minH="0">
+      <Flex flex="1" minH="0" direction={phone ? "column" : "row"}>
         {/* Left: list column */}
-        <Flex direction="column" flex="1" minW="0">
+        <Flex direction="column" flex="1" minW="0" minH="0">
           <PackList
             packs={packs}
             loading={loading}
@@ -196,8 +205,9 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
         </Flex>
 
         {/* Right: preview panel */}
-        <PackPreview pack={focusedPack} />
+        <PackPreview pack={focusedPack} stacked={phone} />
       </Flex>
+      <CreatePackDialog open={creating} onClose={() => setCreating(false)} />
     </FloatingWindow>
   )
 }

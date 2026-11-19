@@ -20,7 +20,8 @@
 //!   u8[16]     md5 (may be all zero)
 //! ```
 
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::path::PathBuf;
 
 use serde::Deserialize;
 
@@ -160,9 +161,97 @@ pub(crate) fn split_keywords(kw: &Option<String>) -> Vec<String> {
         .unwrap_or_default()
 }
 
+// ---------------------------------------------------------------------------
+// PCK writing (exporting user packs)
+// ---------------------------------------------------------------------------
+
+/// One file going into a written pack: its `res://` path and where it is.
+pub(crate) struct PckFile {
+    pub(crate) res_path: String,
+    pub(crate) source: PathBuf,
+    pub(crate) size: u64,
+}
+
+/// Write a Godot 3 PCK (format 1, the layout read above) to `out`: header,
+/// index, then each file streamed through a fixed buffer — never the whole
+/// pack in memory. MD5s are left zero, which the format allows.
+/// `progress(done, total)` is called after each file.
+pub(crate) fn write_pck<W: Write>(
+    out: &mut W,
+    files: &[PckFile],
+    mut progress: impl FnMut(usize, usize),
+) -> Result<()> {
+    let index_size: u64 = files
+        .iter()
+        .map(|f| 4 + f.res_path.len() as u64 + 8 + 8 + 16)
+        .sum();
+    let mut offset = HEADER_SIZE + index_size;
+    // Magic, pack format 1, Godot 3.4.0 (what Dungeondraft writes).
+    for v in [MAGIC, 1, 3, 4, 0] {
+        out.write_all(&v.to_le_bytes())?;
+    }
+    out.write_all(&[0u8; 64])?;
+    out.write_all(&(files.len() as u32).to_le_bytes())?;
+    for f in files {
+        out.write_all(&(f.res_path.len() as u32).to_le_bytes())?;
+        out.write_all(f.res_path.as_bytes())?;
+        out.write_all(&offset.to_le_bytes())?;
+        out.write_all(&f.size.to_le_bytes())?;
+        out.write_all(&[0u8; 16])?;
+        offset += f.size;
+    }
+    let mut buf = vec![0u8; 1 << 20];
+    for (i, f) in files.iter().enumerate() {
+        let mut src = std::fs::File::open(&f.source)?;
+        let mut remaining = f.size;
+        while remaining > 0 {
+            let n = remaining.min(buf.len() as u64) as usize;
+            src.read_exact(&mut buf[..n])?;
+            out.write_all(&buf[..n])?;
+            remaining -= n as u64;
+        }
+        progress(i + 1, files.len());
+    }
+    out.flush()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn written_packs_read_back() {
+        let dir = std::env::temp_dir().join(format!("o20-pck-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = dir.join("a.json");
+        let b = dir.join("b.png");
+        std::fs::write(&a, br#"{"id": "xy12", "name": "Mine"}"#).unwrap();
+        std::fs::write(&b, vec![7u8; 3000]).unwrap();
+        let files: Vec<PckFile> = [
+            ("res://packs/xy12.json", &a),
+            ("res://packs/xy12/textures/objects/b.png", &b),
+        ]
+        .iter()
+        .map(|(r, p)| PckFile {
+            res_path: r.to_string(),
+            source: p.to_path_buf(),
+            size: std::fs::metadata(p).unwrap().len(),
+        })
+        .collect();
+        let mut out = io::Cursor::new(Vec::new());
+        let mut calls = 0;
+        write_pck(&mut out, &files, |_, _| calls += 1).unwrap();
+        assert_eq!(calls, 2);
+        let entries = read_index(&mut out).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[1].size, 3000);
+        let m = read_manifest(&mut out, &entries).unwrap();
+        assert_eq!(m.id.as_deref(), Some("xy12"));
+        let bytes = read_entry_bytes(&mut out, &entries[1]).unwrap();
+        assert!(bytes.iter().all(|&x| x == 7));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn normalize_res_path_variants() {

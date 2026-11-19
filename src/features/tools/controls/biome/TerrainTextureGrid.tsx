@@ -6,8 +6,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 import { Flex, Text } from "@chakra-ui/react"
+import { GridEmpty, GridLoading } from "../../../library/AssetSelector/GridStatus"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import { useTranslation } from "react-i18next"
 import { SearchBar } from "../../../library/AssetSelector/SearchBar"
 import { tipArrowStyle, tipStyle } from "../../../library/AssetSelector/constants"
 import { useAssetSearch } from "../../../library/AssetSelector/useAssetSearch"
@@ -31,7 +31,6 @@ export function TerrainTextureGrid({
   packId: string
   onPick: (item: LibItem) => void
 }) {
-  const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [cols, setCols] = useState(1)
 
@@ -45,6 +44,7 @@ export function TerrainTextureGrid({
     exactness,
     setExactness,
     runSearch,
+    loading,
   } = useAssetSearch({
     browserKey: "biome-terrain-grid",
     category: "terrain",
@@ -106,8 +106,6 @@ export function TerrainTextureGrid({
 
   useEffect(() => () => window.clearTimeout(tipTimer.current), [])
 
-  const empty = searchGen > 0 && total === 0
-
   return (
     <Flex direction="column" flex="1" minH="0">
       {/* Sticky search + exactness bar, always visible above the grid. */}
@@ -126,12 +124,10 @@ export function TerrainTextureGrid({
         onPointerLeave={clearTip}
         onScroll={clearTip}
       >
-        {empty ? (
-          <Flex h="full" align="center" justify="center" p="6">
-            <Text fontSize="sm" color="fg.muted">
-              {t("library.empty")}
-            </Text>
-          </Flex>
+        {total === 0 && loading ? (
+          <GridLoading />
+        ) : total === 0 ? (
+          <GridEmpty searched={queryInput.trim() !== ""} />
         ) : (
           <div
             style={{ position: "relative", width: "100%", height: rowVirtualizer.getTotalSize() }}

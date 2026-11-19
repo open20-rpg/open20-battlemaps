@@ -124,6 +124,11 @@ function PackRow({ pack, selected, focused, disabled, onToggle, onFocus }: PackR
         </Text>
       </Box>
 
+      {pack.editable && (
+        <Badge flexShrink={0} colorPalette="brand" variant="subtle">
+          {t("userPacks.mine")}
+        </Badge>
+      )}
       <Badge flexShrink={0} colorPalette={pack.enabled ? "green" : "gray"} variant="subtle">
         {pack.enabled ? t("assets.active") : t("assets.inactive")}
       </Badge>
@@ -219,6 +224,10 @@ export function PackList({
               <br />
               <Trans i18nKey="assets.emptyHint">
                 Usá <b>Instalar</b> para agregar archivos .dungeondraft_pack.
+              </Trans>
+              <br />
+              <Trans i18nKey="userPacks.emptyCreateHint">
+                O <b>Creá un pack</b> con tus propias imágenes.
               </Trans>
             </Text>
           </VStack>
