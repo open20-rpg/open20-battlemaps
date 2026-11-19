@@ -1,10 +1,13 @@
 import { Box, Flex, Slider, Text } from "@chakra-ui/react"
 import { formatStep } from "../../../lib/numbers"
 import { useTranslation } from "react-i18next"
+import { SliderTouchBubble } from "../../../ui/SliderTouchBubble"
+import { useFineSlider } from "../../../ui/useFineSlider"
 
 /**
  * Plain numeric slider param (e.g. Rotation, Brush Size). Label and range come
- * from the param spec.
+ * from the param spec. On touch, going up or resting the finger switches to a
+ * precise drag (ui/useFineSlider), its value shown over the finger.
  */
 export function SliderControl({
   value,
@@ -22,9 +25,10 @@ export function SliderControl({
   onChange: (value: number) => void
 }) {
   const { t } = useTranslation()
+  const { handlers, touch } = useFineSlider({ min, max, step }, value, onChange)
 
   return (
-    <Box px="3" py="1.5">
+    <Box px="3" py="1.5" {...handlers}>
       <Flex mb="2" align="center" justify="space-between">
         <Text fontSize="xs" color="fg.muted">
           {t(labelKey)}
@@ -50,6 +54,7 @@ export function SliderControl({
           </Slider.Thumb>
         </Slider.Control>
       </Slider.Root>
+      {touch && <SliderTouchBubble touch={touch} label={formatStep(value, step)} />}
     </Box>
   )
 }
