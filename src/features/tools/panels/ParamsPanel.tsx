@@ -1,4 +1,4 @@
-import { Flex, Grid, Icon, IconButton, Text, VStack } from "@chakra-ui/react"
+import { Box, Flex, Grid, Icon, IconButton, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuPanelLeftClose } from "react-icons/lu"
 import { useToolsStore } from "../../../stores/toolsStore"
@@ -6,7 +6,6 @@ import { Tooltip } from "../../../ui/chakra/tooltip"
 import { type ToolLeaf } from "../definitions"
 import { paramGrows, paramRuns, resolveParams, type ToolParamSpec } from "../params"
 import { ToolParamControl } from "../controls/ToolParamControl"
-import { useIsPhone } from "../../../ui/useIsPhone"
 
 /** Height of a growing param (asset picker, terrain slots) when the panel scrolls. */
 const GROWING_PARAM_H = "340px"
@@ -37,7 +36,6 @@ export function ParamsPanel({
   header?: boolean
 }) {
   const { t } = useTranslation()
-  const phone = useIsPhone()
   // Which params show: those whose visibleWhen predicate passes for the
   // current values (e.g. Portal shows Rotate 180 or Rotation depending on
   // `anchored`). Subscribed as a key string, so a value change that shows or
@@ -105,21 +103,21 @@ export function ParamsPanel({
           {paramRuns(params).map((run) => {
             if (run.kind === "buttons") {
               return (
-                <Grid
-                  key={run.specs.map(paramKeyOf).join("|")}
-                  templateColumns={
-                    phone ? "repeat(auto-fill, minmax(68px, 1fr))" : "repeat(auto-fill, 32px)"
-                  }
-                  justifyContent={phone ? undefined : "space-between"}
-                  gap="1"
-                  px="3"
-                  py="1.5"
-                  flexShrink={0}
-                >
-                  {run.specs.map((spec) => (
-                    <ToolParamControl key={paramKeyOf(spec)} toolId={tool.id} spec={spec} compact />
-                  ))}
-                </Grid>
+                <Box key={run.specs.map(paramKeyOf).join("|")} px="3" py="1.5" flexShrink={0}>
+                  <Text mb="1.5" fontSize="xs" color="fg.muted">
+                    {t("tools.actions")}
+                  </Text>
+                  <Grid templateColumns="repeat(auto-fill, minmax(68px, 1fr))" gap="1">
+                    {run.specs.map((spec) => (
+                      <ToolParamControl
+                        key={paramKeyOf(spec)}
+                        toolId={tool.id}
+                        spec={spec}
+                        compact
+                      />
+                    ))}
+                  </Grid>
+                </Box>
               )
             }
             const spec = run.spec

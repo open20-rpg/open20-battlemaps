@@ -1,8 +1,7 @@
-import { Box, Button, Flex, Icon, IconButton, Text } from "@chakra-ui/react"
+import { Box, Button, Flex, Icon, Text } from "@chakra-ui/react"
 import { type IconType } from "react-icons"
 import { useTranslation } from "react-i18next"
 import { Tooltip } from "../../../ui/chakra/tooltip"
-import { useIsPhone } from "../../../ui/useIsPhone"
 
 interface ButtonControlProps {
   labelKey: string
@@ -11,7 +10,7 @@ interface ButtonControlProps {
   icon: IconType
   colorPalette?: string
   disabled?: boolean
-  /** One of a packed row of buttons: just its icon (named by a tooltip, or a caption on phones). */
+  /** One of a packed grid of buttons: its icon over its name. */
   compact?: boolean
   onClick: () => void
 }
@@ -52,10 +51,10 @@ function CompactButton({
   onClick,
 }: ButtonControlProps & { label: string }) {
   const { t } = useTranslation()
-  const phone = useIsPhone()
-  if (phone) {
-    // No hover on a phone to show a tooltip: the name goes under the icon.
-    return (
+  // Its name under the icon (phones have no hover for a tooltip, and on
+  // desktop it reads at a glance); the tooltip adds the shortcut.
+  return (
+    <Tooltip content={label} showArrow>
       <Button
         variant="subtle"
         colorPalette={colorPalette}
@@ -80,20 +79,6 @@ function CompactButton({
           </Text>
         </Flex>
       </Button>
-    )
-  }
-  return (
-    <Tooltip content={label} showArrow>
-      <IconButton
-        aria-label={label}
-        size="sm"
-        variant="subtle"
-        colorPalette={colorPalette}
-        disabled={disabled}
-        onClick={onClick}
-      >
-        <Icon as={icon} />
-      </IconButton>
     </Tooltip>
   )
 }

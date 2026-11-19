@@ -463,7 +463,8 @@
     "paintModeErase": "Erase",
     "paintModeAdd": "Add",
     "paintModeCut": "Cut out",
-    "measure": "Measure"
+    "measure": "Measure",
+    "actions": "Actions"
   },
   "biomes": {
     "barren": "Barren",
