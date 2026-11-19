@@ -1,13 +1,16 @@
 import { Box, HStack, NumberInput, Slider, Text } from "@chakra-ui/react"
 import { formatStep } from "../../../lib/numbers"
 import { useTranslation } from "react-i18next"
+import { SliderTouchBubble } from "../../../ui/SliderTouchBubble"
+import { useFineSlider } from "../../../ui/useFineSlider"
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
 /**
  * Two-thumb range control: a numeric end, a dual slider, and the other numeric
  * end. Stores `[low, high]`; the ends never cross (each input is bounded by the
- * other). Used by Scatter's Rotation and Scale spread.
+ * other). Used by Scatter's Rotation and Scale spread. On touch, the nearest
+ * thumb takes the press, with the precise drag of ui/useFineSlider.
  */
 export function RangeSliderControl({
   value,
@@ -26,6 +29,7 @@ export function RangeSliderControl({
 }) {
   const { t } = useTranslation()
   const [low, high] = value
+  const { handlers, touch } = useFineSlider({ min, max, step }, value, ([a, b]) => onChange([a, b]))
 
   const setLow = (v: number) => {
     if (!Number.isNaN(v)) onChange([clamp(v, min, high), high])
@@ -35,7 +39,7 @@ export function RangeSliderControl({
   }
 
   return (
-    <Box px="3" py="1.5">
+    <Box px="3" py="1.5" {...handlers}>
       <Text mb="2" fontSize="xs" color="fg.muted">
         {t(labelKey)}
       </Text>
@@ -90,6 +94,7 @@ export function RangeSliderControl({
           <NumberInput.Control />
         </NumberInput.Root>
       </HStack>
+      {touch && <SliderTouchBubble touch={touch} label={formatStep(value[touch.thumb], step)} />}
     </Box>
   )
 }
