@@ -16,6 +16,7 @@ import {
   rectPolygon,
   rotateAround,
   snapPoint,
+  spriteCenter,
   textSize,
   translateEntity,
   wallPieces,
@@ -656,5 +657,34 @@ describe("bandTouchesSolid", () => {
     expect(bandTouchesSolid({ x: 0.5, y: 1, w: 0, h: 0 }, bounds, solid)).toBe(false)
     expect(bandTouchesSolid({ x: 1.5, y: 1, w: 0, h: 0 }, bounds, solid)).toBe(true)
     expect(bandTouchesSolid({ x: 3, y: 3, w: 1, h: 1 }, bounds, () => true)).toBe(false)
+  })
+})
+
+describe("text transforms", () => {
+  const label: MapEntity = {
+    id: "t",
+    toolId: "text",
+    layer: 900,
+    position: { x: 10, y: 4 },
+    rotation: 0,
+    text: "Hello",
+    params: { fontSize: 64 },
+  }
+  const center = (e: MapEntity) => spriteCenter(e, textSize(e))
+
+  it("turns about its own center (its position is a corner)", () => {
+    const c = center(label)
+    const t = transformEntity(label, c, 90, 1)
+    expect(t.rotation).toBe(90)
+    expect(center(t).x).toBeCloseTo(c.x)
+    expect(center(t).y).toBeCloseTo(c.y)
+  })
+
+  it("grows with a uniform scale, its box with it", () => {
+    const c = center(label)
+    const t = transformEntity(label, c, 0, 2)
+    expect(t.scale).toBe(2)
+    expect(textSize(t).w).toBeCloseTo(textSize(label).w * 2)
+    expect(center(t).x).toBeCloseTo(c.x)
   })
 })

@@ -35,9 +35,8 @@ export interface RenderPerformance {
    */
   waterEffect: boolean
   /**
-   * Map text quality: pixels each glyph of a font's atlas is drawn at. More
-   * keeps letters sharp when zoomed in (and takes more memory). Recreates
-   * the canvas.
+   * Map text's pixel density, as a fraction of the assets' (256 px per
+   * tile, Ultra): each label is rasterized once at it and kept as an image.
    */
   textQuality: number
 }
@@ -64,7 +63,7 @@ export const PRESET_SETTINGS: Record<GraphicsPreset, RenderPerformance> = {
     maskDetail: 0.5,
     lightBlurQuality: 1,
     waterEffect: true,
-    textQuality: 48,
+    textQuality: 0.25,
   },
   medium: {
     maxResolution: 1.5,
@@ -77,7 +76,7 @@ export const PRESET_SETTINGS: Record<GraphicsPreset, RenderPerformance> = {
     maskDetail: 0.75,
     lightBlurQuality: 2,
     waterEffect: true,
-    textQuality: 64,
+    textQuality: 0.5,
   },
   high: {
     maxResolution: 2,
@@ -90,7 +89,7 @@ export const PRESET_SETTINGS: Record<GraphicsPreset, RenderPerformance> = {
     maskDetail: 1,
     lightBlurQuality: 3,
     waterEffect: true,
-    textQuality: 96,
+    textQuality: 0.75,
   },
   ultra: {
     maxResolution: 3,
@@ -103,7 +102,7 @@ export const PRESET_SETTINGS: Record<GraphicsPreset, RenderPerformance> = {
     maskDetail: 1,
     lightBlurQuality: 4,
     waterEffect: true,
-    textQuality: 160,
+    textQuality: 1,
   },
 }
 
@@ -144,7 +143,6 @@ export const RESOLUTION_STEPS = [0.5, 0.75, 1, 1.5, 2, 3] as const
 export const TEXTURE_SCALES = [1, 0.5, 0.25] as const
 export const FRACTION_STEPS = [0.25, 0.5, 0.75, 1] as const
 export const BLUR_QUALITIES = [0, 1, 2, 3, 4] as const
-export const TEXT_QUALITIES = [48, 64, 96, 128, 160] as const
 
 /** The settings that only take effect on a new canvas (WebGL context, loaded textures). */
 const CANVAS_KEYS = [
@@ -153,7 +151,6 @@ const CANVAS_KEYS = [
   "textureScale",
   "mipmaps",
   "waterEffect",
-  "textQuality",
 ] as const
 
 /** A key that changes when the canvas has to be recreated for `perf` to apply. */
@@ -178,12 +175,21 @@ export function withPerformanceDefaults(
   saved: Partial<RenderPerformance> | undefined,
   defaults: RenderPerformance,
 ): RenderPerformance {
-  const keys = Object.keys(saved ?? {}) as (keyof RenderPerformance)[]
+  // Only today's settings: one saved by a version that had more is dropped,
+  // and so is a text quality saved in pixels (before it was a fraction).
+  const valid = (k: keyof RenderPerformance) =>
+    saved?.[k] !== undefined && !(k === "textQuality" && Number(saved[k]) > 1)
+  const keys = (Object.keys(defaults) as (keyof RenderPerformance)[]).filter(valid)
   // Only a whole saved set (missing just what was added since) can be a preset.
   const whole = keys.length >= Object.keys(defaults).length - 2
   const preset = whole
     ? GRAPHICS_PRESETS.find((p) => keys.every((k) => PRESET_SETTINGS[p][k] === saved?.[k]))
     : undefined
-
-  return { ...(preset ? PRESET_SETTINGS[preset] : defaults), ...saved }
+  const base = preset ? PRESET_SETTINGS[preset] : defaults
+  return Object.fromEntries(
+    (Object.keys(base) as (keyof RenderPerformance)[]).map((k) => [
+      k,
+      valid(k) ? saved?.[k] : base[k],
+    ]),
+  ) as unknown as RenderPerformance
 }

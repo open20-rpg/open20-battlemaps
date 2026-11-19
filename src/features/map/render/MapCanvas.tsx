@@ -1,5 +1,3 @@
-import { installSdfTextPipe } from "./sdfShader"
-import { configureSdfText } from "./sdfFont"
 import { type MapDocument } from "../model/types"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Box } from "@chakra-ui/react"
@@ -128,8 +126,6 @@ export function MapCanvas() {
     const el = containerRef.current
     if (!el) return
     let disposed = false
-    // Map labels are distance-field text (sdfShader.ts): set up before the renderer exists.
-    installSdfTextPipe()
     // What only applies to a new canvas (MapEditor recreates this one when
     // it changes): the WebGL context's options and how textures load.
     const perf = useSettingsStore.getState().performance
@@ -138,7 +134,6 @@ export function MapCanvas() {
     // for it, see tiling.ts).
     GlProgram.defaultOptions.preferredFragmentPrecision = perf.highPrecision ? "highp" : "mediump"
     assetCache.configure({ scale: perf.textureScale, mipmaps: perf.mipmaps })
-    configureSdfText(perf.textQuality)
     const app = new Application()
     // Follow the container's size (window resizes, panels opening), then repaint.
     const resizer = new ResizeObserver(() => {

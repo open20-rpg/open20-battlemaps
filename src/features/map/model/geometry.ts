@@ -180,7 +180,20 @@ export function entityAssetId(entity: MapEntity): string | undefined {
  */
 export function textSize(entity: MapEntity): { w: number; h: number } {
   const box = textLayout(entity.params, entity.text ?? "")
-  return { w: box.w / FONT_PX_PER_TILE, h: box.h / FONT_PX_PER_TILE }
+  const s = (entity.scale ?? 1) / FONT_PX_PER_TILE
+  return { w: box.w * s, h: box.h * s }
+}
+
+/**
+ * A text's position for its box centered on `center` (a text's position
+ * is its box's top-left corner; screen-left is the larger map x). Turning,
+ * scaling or mirroring a text moves its center, then this.
+ */
+const textCenter = (entity: MapEntity): Vec2 => spriteCenter(entity, textSize(entity))
+
+function textAt(entity: MapEntity, center: Vec2): Vec2 {
+  const { w, h } = textSize(entity)
+  return { x: center.x + w / 2, y: center.y - h / 2 }
 }
 
 /**
@@ -664,6 +677,11 @@ export function scaleEntity(entity: MapEntity, anchor: Vec2, sx: number, sy: num
       params: { ...entity.params, range: lightRange(entity) * factor },
     }
   }
+  if (entity.toolId === "text") {
+    // Its center moves; it grows only on a uniform scale.
+    const scaled = { ...entity, scale: sx === sy ? (entity.scale ?? 1) * sx : entity.scale }
+    return { ...scaled, position: textAt(scaled, move(textCenter(entity))) }
+  }
   return {
     ...entity,
     position: move(entity.position),
@@ -695,6 +713,15 @@ export function transformEntity(
     return { x: center.x + (r.x - center.x) * factor, y: center.y + (r.y - center.y) * factor }
   }
   const sprite = !entity.points && !entity.strokes
+  if (entity.toolId === "text") {
+    // A text turns and grows about its own center (its position is a corner).
+    const turned = {
+      ...entity,
+      rotation: normalizeDegrees(entity.rotation + screenDegrees),
+      scale: (entity.scale ?? 1) * factor,
+    }
+    return { ...turned, position: textAt(turned, move(textCenter(entity))) }
+  }
   return {
     ...entity,
     position: move(entity.position),
@@ -726,6 +753,11 @@ export function flipEntity(entity: MapEntity, center: Vec2, axis: "x" | "y"): Ma
   const reflect = (p: Vec2): Vec2 =>
     axis === "x" ? { x: 2 * center.x - p.x, y: p.y } : { x: p.x, y: 2 * center.y - p.y }
   const sprite = !entity.points && !entity.strokes
+  if (entity.toolId === "text") {
+    // Mirrored in place: its center reflects, its letters stay readable.
+    const turned = { ...entity, rotation: normalizeDegrees(-entity.rotation) }
+    return { ...turned, position: textAt(turned, reflect(textCenter(entity))) }
+  }
   return {
     ...entity,
     position: reflect(entity.position),
