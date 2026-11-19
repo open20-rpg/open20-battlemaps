@@ -20,6 +20,7 @@ import { setProfileTarget } from "./perfProfile"
 import { recordFrame, setStatsSource } from "./renderStats"
 import { subscribeViewGesture, viewGestureActive } from "./viewGesture"
 import { ViewSnapshot } from "./viewSnapshot"
+import { MapLayerCache } from "./layerCache"
 import { setViewportSize } from "./focus"
 import { getToolBehavior, toolOverlay } from "../../tools/behaviors"
 import { canvasResolution } from "../../../lib/renderPerformance"
@@ -89,7 +90,8 @@ export function MapCanvas() {
   const gridRef = useRef<Graphics | null>(null)
   const sceneRef = useRef<MapScene | null>(null)
   /** Repaint on the next frame (the canvas doesn't render continuously). */
-  const requestRenderRef = useRef<() => void>(() => {})
+  /** Repaint on the next frame; `mapChanged`: the map's own layers (ground, grid) changed. */
+  const requestRenderRef = useRef<(mapChanged?: boolean) => void>(() => {})
   // Flips once the async Pixi init resolves, just to trigger the render that
   // lets the effects below see the now-populated refs.
   const [ready, setReady] = useState(false)
@@ -146,15 +148,25 @@ export function MapCanvas() {
     })
     resizer.observe(el)
     let frame = 0
-    const requestRender = () => {
+    /** The map's picture (MapLayerCache) is out of date: ground or grid changed. */
+    let mapChanged = true
+    let layerCache: MapLayerCache | null = null
+    const requestRender = (changed = false) => {
+      mapChanged ||= changed
       if (frame || disposed) return
       frame = requestAnimationFrame(() => {
         frame = 0
         if (disposed) return
         recordFrame(() => {
           // Mid-gesture only the snapshot is drawn: no cache to bring up to date.
-          if (!snapshotRef.current?.active) sceneRef.current?.prerender()
-          app.render()
+          const scene = sceneRef.current
+          if (snapshotRef.current?.active || !scene || !layerCache) return app.render()
+          scene.prerender()
+          // Only the overlay changed (a hover, the cursor, a draft): the
+          // map's picture is reused and just the overlay is drawn over it.
+          const stale = scene.takeContentChanged() || mapChanged
+          mapChanged = false
+          layerCache.render(stale)
         })
       })
     }
@@ -199,6 +211,7 @@ export function MapCanvas() {
         gridRef.current = grid
         sceneRef.current = scene
         snapshotRef.current = new ViewSnapshot(app, world)
+        layerCache = new MapLayerCache(app, world, [mapBg, scene.content, grid], perf.antialias)
         setActiveRenderer({ renderer: app.renderer, scene })
         setProfileTarget({ app, scene, world, grid, requestRender })
         setStatsSource({ renderer: app.renderer, stage: app.stage })
@@ -212,6 +225,8 @@ export function MapCanvas() {
       setActiveRenderer(null)
       setProfileTarget(null)
       setStatsSource(null)
+      layerCache?.destroy()
+      layerCache = null
       sceneRef.current?.destroy()
       sceneRef.current = null
       if (appRef.current) {
@@ -335,7 +350,7 @@ export function MapCanvas() {
     const mapBg = mapBgRef.current
     if (!mapBg || mapWidth == null || mapHeight == null) return
     mapBg.clear().rect(0, 0, mapWidth, mapHeight).fill({ color: MAP_BG })
-    requestRenderRef.current()
+    requestRenderRef.current(true)
   }, [ready, mapWidth, mapHeight])
 
   // Rebuild the grid geometry on param/dimension changes, and on zoom changes
@@ -346,14 +361,14 @@ export function MapCanvas() {
     // Not while pinching (the snapshot shows the grid): once, when it ends.
     if (!grid || mapWidth == null || mapHeight == null || gesturing) return
     drawGrid(grid, mapWidth, mapHeight, { style: gridStyle, color: gridLineColor }, zoom)
-    requestRenderRef.current()
+    requestRenderRef.current(true)
   }, [ready, mapWidth, mapHeight, gridStyle, gridLineColor, zoom, gesturing])
 
   // Toggling the overlay is just a visibility flip, no rebuild.
   useEffect(() => {
     const grid = gridRef.current
     if (grid) grid.visible = gridOn
-    requestRenderRef.current()
+    requestRenderRef.current(true)
   }, [ready, gridOn])
 
   return <Box ref={containerRef} position="absolute" inset="0" overflow="hidden" />
