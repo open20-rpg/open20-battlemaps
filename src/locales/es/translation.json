@@ -463,7 +463,8 @@
     "paintModeErase": "Borrar",
     "paintModeAdd": "Agregar",
     "paintModeCut": "Recortar",
-    "measure": "Medir"
+    "measure": "Medir",
+    "actions": "Acciones"
   },
   "biomes": {
     "barren": "Yermo",
