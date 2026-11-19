@@ -6,7 +6,9 @@ import {
   builtinBiomeIds,
   builtinTerrainId,
   hasUnseededBiomes,
+  slotIds,
   withBuiltinBiomes,
+  withSlotThumbnails,
 } from "./biomes"
 
 const empty: BiomeSelection = {
@@ -69,5 +71,42 @@ describe("built-in biome defaults", () => {
     const ids = builtinBiomeIds()
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids).toContain(builtinTerrainId("Thick Moss"))
+  })
+})
+
+describe("slot thumbnails", () => {
+  const selection: BiomeSelection = {
+    biome: "prairie",
+    unlocked: false,
+    selectedSlot: 0,
+    slotsByBiome: {
+      prairie: [
+        { id: "p|a.webp", name: "A", thumb: "/packs/p/a.webp" },
+        null,
+        { id: "p|b.webp", name: "B", thumb: "/packs/p/thumbnails/b.png" },
+      ],
+      desert: [{ id: "p|a.webp", name: "A", thumb: "/packs/p/a.webp" }],
+    },
+  }
+  const thumbs: Record<string, string> = {
+    "p|a.webp": "/packs/p/thumbnails/a.png",
+    "p|b.webp": "/packs/p/thumbnails/b.png",
+  }
+
+  it("lists every slot's texture once", () => {
+    expect(slotIds(selection)).toEqual(["p|a.webp", "p|b.webp"])
+  })
+
+  it("points slots at their library thumbnail, in every biome", () => {
+    const next = withSlotThumbnails(selection, (id) => thumbs[id] ?? null)
+    expect(next.slotsByBiome.prairie[0]?.thumb).toBe("/packs/p/thumbnails/a.png")
+    expect(next.slotsByBiome.prairie[1]).toBeNull()
+    expect(next.slotsByBiome.desert[0]?.thumb).toBe("/packs/p/thumbnails/a.png")
+  })
+
+  it("keeps the selection when nothing changes or a thumbnail is unknown", () => {
+    const done = withSlotThumbnails(selection, (id) => thumbs[id] ?? null)
+    expect(withSlotThumbnails(done, (id) => thumbs[id] ?? null)).toBe(done)
+    expect(withSlotThumbnails(selection, () => null)).toBe(selection)
   })
 })

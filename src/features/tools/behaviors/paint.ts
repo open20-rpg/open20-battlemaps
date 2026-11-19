@@ -36,9 +36,11 @@ import {
   BUILTIN_PACK_ID,
   builtinBiomeIds,
   hasUnseededBiomes,
+  slotIds,
   withBuiltinBiomes,
+  withSlotThumbnails,
 } from "../controls/biome/biomes"
-import { resolveAssets } from "../../map/api"
+import { assetThumbnails } from "../../library/api"
 import { usePacksStore } from "../../../stores/packsStore"
 import { withLoading } from "../../../stores/loadingStore"
 import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
@@ -134,23 +136,26 @@ export function createWaterBehavior(): ToolBehavior {
  * While the built-in pack is enabled (it is out of the box), every biome the
  * user hasn't set up yet starts with its 4 built-in textures, so the brush
  * paints right away. Runs when the tool is picked: a pack enabled later seeds
- * then, and a biome the user changed or emptied is never touched.
+ * then, and a biome the user changed or emptied is never touched. Every slot
+ * shows its texture's library thumbnail (not the file: its alpha is blend
+ * height), including slots seeded before that was looked up.
  */
 async function seedBuiltinBiomes(): Promise<void> {
+  const pending = getToolParams("terrainBrush").biome as BiomeSelection | undefined
+  if (!pending) return
   const packs = usePacksStore.getState()
   if (!packs.loaded) await packs.refresh()
   const builtin = usePacksStore.getState().packs.find((p) => p.id === BUILTIN_PACK_ID)
-  if (!builtin?.enabled) return
-  const pending = getToolParams("terrainBrush").biome as BiomeSelection | undefined
-  if (!pending || !hasUnseededBiomes(pending)) return
-  const resolved = await withLoading(i18n.t("loading.loadingAssets"), () =>
-    resolveAssets(builtinBiomeIds()),
-  )
-  const pathOf = new Map(resolved.map((r) => [r.id, r.path]))
+  const seed = !!builtin?.enabled && hasUnseededBiomes(pending)
+  const ids = [...new Set([...(seed ? builtinBiomeIds() : []), ...slotIds(pending)])]
+  if (ids.length === 0) return
+  const thumbs = await withLoading(i18n.t("loading.loadingAssets"), () => assetThumbnails(ids))
+  const thumbOf = new Map(ids.map((id, i) => [id, thumbs[i] ?? null]))
+  const lookup = (id: string) => thumbOf.get(id) ?? null
   // Read the params again: the user may have picked textures meanwhile.
   const current = getToolParams("terrainBrush").biome as BiomeSelection
-  const seeded = withBuiltinBiomes(current, (id) => pathOf.get(id) ?? null)
-  if (seeded !== current) useToolsStore.getState().setToolParams("terrainBrush", { biome: seeded })
+  const next = withSlotThumbnails(seed ? withBuiltinBiomes(current, lookup) : current, lookup)
+  if (next !== current) useToolsStore.getState().setToolParams("terrainBrush", { biome: next })
 }
 
 /**

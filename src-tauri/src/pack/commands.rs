@@ -310,6 +310,14 @@ pub async fn library_tags(app: AppHandle, category: String) -> Result<Vec<String
         .map_err(|e| PackError::Other(e.to_string()))
 }
 
+/// Library thumbnails of placed asset ids (None when missing).
+#[tauri::command]
+pub async fn asset_thumbnails(app: AppHandle, ids: Vec<String>) -> Result<Vec<Option<String>>> {
+    tauri::async_runtime::spawn_blocking(move || library::thumbnails(&app, &ids))
+        .await
+        .map_err(|e| PackError::Other(e.to_string()))
+}
+
 /// Resolve placed asset ids to texture files (for drawing map entities).
 #[tauri::command]
 pub async fn resolve_assets(app: AppHandle, ids: Vec<String>) -> Result<Vec<ResolvedAsset>> {
