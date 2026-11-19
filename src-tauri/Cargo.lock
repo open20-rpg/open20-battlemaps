@@ -2484,7 +2484,7 @@ dependencies = [
 
 [[package]]
 name = "open20-battle-maps"
-version = "1.0.0"
+version = "0.3.40"
 dependencies = [
  "base64 0.23.1",
  "fontdb",
