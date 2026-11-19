@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  bandTouchesSolid,
   joinPolylines,
   tangentArc,
   appendSample,
@@ -638,5 +639,22 @@ describe("square-ended lines (paths, manual roofs)", () => {
     // Outside both segments' rectangles, at the outer corner of the bend.
     expect(entityHit(bent, { x: 3, y: 16 }, sizeOf, 0)).toBe(true)
     expect(entityHit(bent, { x: 16, y: 14 }, sizeOf, 0)).toBe(false)
+  })
+})
+
+describe("bandTouchesSolid", () => {
+  const bounds = { x: 0, y: 0, w: 2, h: 2 }
+  // Solid only in the right half.
+  const solid = (p: { x: number; y: number }) => p.x > 1
+
+  it("finds a solid point under the band", () => {
+    expect(bandTouchesSolid({ x: 0.5, y: 0.5, w: 1, h: 1 }, bounds, solid)).toBe(true)
+    expect(bandTouchesSolid({ x: 0.1, y: 0.1, w: 0.8, h: 1.8 }, bounds, solid)).toBe(false)
+  })
+
+  it("samples a click's one point, and nothing off the bounds", () => {
+    expect(bandTouchesSolid({ x: 0.5, y: 1, w: 0, h: 0 }, bounds, solid)).toBe(false)
+    expect(bandTouchesSolid({ x: 1.5, y: 1, w: 0, h: 0 }, bounds, solid)).toBe(true)
+    expect(bandTouchesSolid({ x: 3, y: 3, w: 1, h: 1 }, bounds, () => true)).toBe(false)
   })
 })

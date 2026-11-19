@@ -132,6 +132,38 @@ export function rectsIntersect(a: Rect, b: Rect): boolean {
 }
 
 /** Normalize a drag between two points into a rect. */
+/** Samples per tile when a rubber band looks for a sprite's opaque pixels. */
+const BAND_SAMPLES_PER_TILE = 32
+/** Most samples along each side (a big band over a big sprite stays cheap). */
+const BAND_MAX_SAMPLES = 48
+
+/**
+ * Whether `band` covers some point of `bounds` where `solid` holds (a
+ * sprite's opaque pixels), sampling their overlap on a grid fine enough for
+ * a texture's detail. A band of no size (a click) samples its one point.
+ */
+export function bandTouchesSolid(band: Rect, bounds: Rect, solid: (p: Vec2) => boolean): boolean {
+  const x0 = Math.max(band.x, bounds.x)
+  const y0 = Math.max(band.y, bounds.y)
+  const x1 = Math.min(band.x + band.w, bounds.x + bounds.w)
+  const y1 = Math.min(band.y + band.h, bounds.y + bounds.h)
+  if (x1 < x0 || y1 < y0) return false
+  const steps = (size: number) =>
+    Math.min(BAND_MAX_SAMPLES, Math.max(1, Math.ceil(size * BAND_SAMPLES_PER_TILE)))
+  const nx = steps(x1 - x0)
+  const ny = steps(y1 - y0)
+  for (let j = 0; j < ny; j++) {
+    for (let i = 0; i < nx; i++) {
+      const p = {
+        x: nx === 1 ? (x0 + x1) / 2 : x0 + ((x1 - x0) * i) / (nx - 1),
+        y: ny === 1 ? (y0 + y1) / 2 : y0 + ((y1 - y0) * j) / (ny - 1),
+      }
+      if (solid(p)) return true
+    }
+  }
+  return false
+}
+
 export function rectFromCorners(a: Vec2, b: Vec2): Rect {
   return boundsOf([a, b])
 }
