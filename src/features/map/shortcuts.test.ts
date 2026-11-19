@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { findConflicts } from "../../lib/keybindings"
 import { useEditorStore } from "../../stores/editorStore"
 import { useSettingsStore } from "../../stores/settingsStore"
-import { getToolParams, useToolsStore } from "../../stores/toolsStore"
+import { getToolParams, selectActiveTool, useToolsStore } from "../../stores/toolsStore"
 import { useViewStore } from "../../stores/viewStore"
 import { FIXED_CHORDS, PRESET_BINDINGS, effectiveBindings, knownPreset } from "../shortcuts/actions"
 import { closeMap, createMap } from "./commands"
@@ -83,12 +83,12 @@ describe("keyboard shortcuts (classic preset)", () => {
     expect(getToolParams("terrainBrush").brushSize).toBe(size)
   })
 
-  it("toggles the ruler, compare levels and pins the guide at the pointer", () => {
+  it("picks the Measure tool, toggles compare levels and pins the guide at the pointer", () => {
     useEditorStore.getState().setPointer({ x: 3, y: 4 })
     press("h")
     expect(useEditorStore.getState().guide).toEqual({ x: 3, y: 4 })
     press("r")
-    expect(useEditorStore.getState().rulerOn).toBe(true)
+    expect(selectActiveTool(useToolsStore.getState())?.id).toBe("measure")
     press("c")
     expect(useEditorStore.getState().compareLevels).toBe(true)
   })

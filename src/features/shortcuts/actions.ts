@@ -47,6 +47,7 @@ const TOOL_KEYS: Record<string, string[]> = {
   light: ["I"],
   text: ["K"],
   prefabs: ["Shift+B"],
+  measure: ["R"],
 }
 
 const action = (
@@ -81,7 +82,6 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   action("shadows", "view"),
   action("outside", "view"),
   action("guide", "view"),
-  action("ruler", "view"),
   action("reference", "view"),
   action("compareLevels", "view"),
   action("levelUp", "view"),
@@ -122,7 +122,6 @@ export const PRESET_BINDINGS: Record<PresetId, Record<string, string[]>> = {
     shadows: ["Shift+L"],
     outside: ["Shift+O"],
     guide: ["H"],
-    ruler: ["R"],
     reference: ["T"],
     compareLevels: ["C"],
     levelUp: ["PageUp"],

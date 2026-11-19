@@ -179,9 +179,6 @@ export function runAction(id: string): boolean {
     case "guide":
       editor.setGuide(editor.guide ? null : editor.pointer)
       return true
-    case "ruler":
-      editor.setRulerOn(!editor.rulerOn)
-      return true
     case "reference":
       if (map.referenceImage) updateReferenceImage({ visible: !map.referenceImage.visible })
       return true

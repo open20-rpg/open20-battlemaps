@@ -1,3 +1,4 @@
+import { createMeasureBehavior } from "./measure"
 import { buildToolCtx } from "./context"
 import { createLightBehavior, environmentBehavior, mapSettingsBehavior } from "./effects"
 import { createScatterBehavior, objectBehavior } from "./objects"
@@ -61,6 +62,7 @@ export const TOOL_BEHAVIORS: Record<string, ToolBehavior> = {
   postProcessing: createPostProcessingBehavior(),
   text: createTextBehavior(),
   prefabs: createPrefabsBehavior(),
+  measure: createMeasureBehavior(),
   select: createSelectBehavior(),
   replaceAssets: createReplaceAssetsBehavior(),
 }

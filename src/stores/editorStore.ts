@@ -18,7 +18,7 @@ export type DraftShape =
   | { kind: "handles"; points: Vec2[]; active?: Vec2 }
   /** Pinned guide: lines through `point` across a `width` × `height` map. */
   | { kind: "guide"; point: Vec2; width: number; height: number }
-  /** Ruler measure from `a` to `b`, labeled with its length. */
+  /** A measure from `a` to `b`, labeled with its length (the Measure tool). */
   | { kind: "measure"; a: Vec2; b: Vec2 }
   /**
    * A marked area (Replace Assets' missing assets): `dim` for each one,
@@ -51,9 +51,6 @@ interface EditorState {
   clipboard: MapEntity[]
   /** Pinned guide: crosshair lines through this point (H). */
   guide: Vec2 | null
-  /** Ruler mode (R): dragging measures instead of using the tool; the current measure. */
-  ruler: { from: Vec2; to: Vec2 } | null
-  rulerOn: boolean
   /** Show the level below the active one, faded (C). */
   compareLevels: boolean
   select: (ids: string[]) => void
@@ -66,8 +63,6 @@ interface EditorState {
   setPointer: (p: Vec2 | null) => void
   setClipboard: (entities: MapEntity[]) => void
   setGuide: (p: Vec2 | null) => void
-  setRuler: (ruler: { from: Vec2; to: Vec2 } | null) => void
-  setRulerOn: (on: boolean) => void
   setCompareLevels: (on: boolean) => void
   /** Clear the whole session (map created/opened/closed). */
   reset: (activeLevel: string | null) => void
@@ -81,8 +76,6 @@ export const useEditorStore = create<EditorState>()((set) => ({
   pointer: null,
   clipboard: [],
   guide: null,
-  ruler: null,
-  rulerOn: false,
   compareLevels: false,
   select: (ids) => set({ selection: ids }),
   toggleSelect: (ids) =>
@@ -106,8 +99,6 @@ export const useEditorStore = create<EditorState>()((set) => ({
   setPointer: (pointer) => set({ pointer }),
   setClipboard: (clipboard) => set({ clipboard }),
   setGuide: (guide) => set({ guide }),
-  setRuler: (ruler) => set({ ruler }),
-  setRulerOn: (rulerOn) => set({ rulerOn, ruler: null }),
   setCompareLevels: (compareLevels) => set({ compareLevels }),
   reset: (activeLevel) =>
     set({
@@ -117,8 +108,6 @@ export const useEditorStore = create<EditorState>()((set) => ({
       textEdit: null,
       pointer: null,
       guide: null,
-      ruler: null,
-      rulerOn: false,
       compareLevels: false,
     }),
 }))

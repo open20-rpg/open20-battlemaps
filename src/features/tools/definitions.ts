@@ -26,6 +26,7 @@ import {
   LuMountain,
   LuMountainSnow,
   LuMousePointer2,
+  LuRuler,
   LuPaintBucket,
   LuRotateCcw,
   LuReplace,
@@ -726,6 +727,8 @@ export const TOOL_TREE: ToolNode[] = [
       { kind: "prefabs", paramKey: "prefab", labelKey: "tools.prefabList", default: null },
     ],
   }),
+  // Drag to measure a distance (R).
+  tool("measure", "tools.measure", LuRuler),
   tool("select", "tools.select", LuMousePointer2, {
     params: [
       {
