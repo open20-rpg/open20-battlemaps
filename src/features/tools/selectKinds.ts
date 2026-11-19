@@ -84,11 +84,11 @@ const KIND_OF_TOOL = new Map(SELECT_KINDS.flatMap((k) => k.toolIds.map((t) => [t
  * Whether the Select tool may pick `e` with the element filter `enabled`
  * (kind ids). Entities of no listed kind are always pickable, and so are
  * floors left without their wall. Locked entities are skipped — or, with
- * `locked`, are the only ones picked.
+ * `locked`, are the only ones picked; with "any", they're picked like the rest.
  */
 export function selectableBy(
   enabled: readonly string[],
-  locked = false,
+  locked: boolean | "any" = false,
   /** The level's entities: a floor whose wall is gone is pickable like a pattern. */
   entities: readonly MapEntity[] = [],
 ): (e: MapEntity) => boolean {
@@ -98,7 +98,7 @@ export function selectableBy(
   const walled = new Set(entities.flatMap((w) => (w.toolId === "wall" && w.link ? [w.link] : [])))
   const wallless = (e: MapEntity) => e.toolId === "build" && !(e.link && walled.has(e.link))
   return (e) => {
-    if (!!e.locked !== locked || NEVER_SELECTED.has(e.toolId)) return false
+    if ((locked !== "any" && !!e.locked !== locked) || NEVER_SELECTED.has(e.toolId)) return false
     const k = KIND_OF_TOOL.get(e.toolId)
     if (!k) return isSelectable(e)
     return (on.has(k.id) || wallless(e)) && isSelectable(e, k.paint === true)
@@ -121,3 +121,17 @@ export function idsOfKind(kind: SelectKind, entities: readonly MapEntity[]): str
     .map((e) => e.id)
   return picked.length > 0 ? expandGroups(picked, entities) : []
 }
+
+/**
+ * Locked entities are only selected by themselves: once the selection has
+ * any unlocked entity, the locked ones are dropped from it.
+ */
+export function lockedAlone(ids: readonly string[], entities: readonly MapEntity[]): string[] {
+  const locked = new Set(entities.flatMap((e) => (e.locked ? [e.id] : [])))
+  const unlocked = ids.filter((id) => !locked.has(id))
+  return unlocked.length > 0 ? unlocked : [...ids]
+}
+
+/** Whether the selection is locked entities (what it can do is unlock them). */
+export const isLockedSelection = (selected: readonly MapEntity[]): boolean =>
+  selected.length > 0 && selected.every((e) => e.locked)

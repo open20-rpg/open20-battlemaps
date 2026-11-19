@@ -368,6 +368,7 @@
     "flipVertical": "Espejar vertical",
     "flipHorizontalShort": "Espejar horiz.",
     "flipVerticalShort": "Espejar vert.",
+    "lockedHint": "Bloqueado: desbloquéalo con el candado para cambiarlo.",
     "mirrorHorizontal": "Espejar horizontal",
     "mirrorVertical": "Espejar vertical",
     "selectHint": "Hacé clic en un elemento del mapa, o seleccioná todos los de un tipo:",

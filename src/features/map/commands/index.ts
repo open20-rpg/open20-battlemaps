@@ -87,6 +87,13 @@ export function closeMap(): void {
 
 // -- entities ----------------------------------------------------------------
 
+/**
+ * Whether `patch` only locks or unlocks: the one change a locked entity
+ * takes. Locked entities can't be moved, edited or deleted by any tool,
+ * shortcut or panel: the commands themselves leave them as they are.
+ */
+const onlyLock = (patch: Partial<MapEntity>) => Object.keys(patch).every((k) => k === "locked")
+
 /** Insert an entity. The id must be unique (caller generates it). */
 export function addEntity(entity: MapEntity): void {
   addEntities([entity])
@@ -104,26 +111,38 @@ export function addEntities(entities: readonly MapEntity[], under = false): void
   }))
 }
 
+/** Delete entities (locked ones stay). */
 export function removeEntities(ids: readonly string[]): void {
   if (ids.length === 0) return
   const drop = new Set(ids)
+  const removed: string[] = []
   edit((map) => {
-    const entities = map.entities.filter((e) => !drop.has(e.id))
+    const entities = map.entities.filter((e) => {
+      const gone = drop.has(e.id) && !e.locked
+      if (gone) removed.push(e.id)
+      return !gone
+    })
     return entities.length === map.entities.length ? map : { ...map, entities }
   })
-  useEditorStore.getState().deselect(ids)
+  useEditorStore.getState().deselect(removed)
 }
 
-/** Replace fields of existing entities (by id). Unknown ids are ignored. */
+/**
+ * Replace fields of existing entities (by id). Unknown ids are ignored, and
+ * so are locked entities, except to unlock them.
+ */
 export function updateEntities(patches: ReadonlyMap<string, Partial<MapEntity>>): void {
   if (patches.size === 0) return
-  edit((map) => ({
-    ...map,
-    entities: map.entities.map((e) => {
+  edit((map) => {
+    let changed = false
+    const entities = map.entities.map((e) => {
       const patch = patches.get(e.id)
-      return patch ? { ...e, ...patch, id: e.id } : e
-    }),
-  }))
+      if (!patch || (e.locked && !onlyLock(patch))) return e
+      changed = true
+      return { ...e, ...patch, id: e.id }
+    })
+    return changed ? { ...map, entities } : map
+  })
 }
 
 export function updateEntity(id: string, patch: Partial<MapEntity>): void {
@@ -132,7 +151,8 @@ export function updateEntity(id: string, patch: Partial<MapEntity>): void {
 
 /**
  * Point every use of asset `from` at `to` (Replace Assets): in all entities,
- * or only in `entityIds`. One undo step.
+ * or only in `entityIds`. One undo step. A repair, not an edit: locked
+ * entities get it too (a missing asset would have no other fix).
  */
 export function replaceAsset(from: string, to: string, entityIds?: readonly string[]): void {
   if (from === to) return
@@ -149,14 +169,19 @@ export function replaceAsset(from: string, to: string, entityIds?: readonly stri
   })
 }
 
-/** Move entities by a delta (in tiles). */
+/** Move entities by a delta (in tiles); locked ones stay put. */
 export function moveEntities(ids: readonly string[], delta: Vec2): void {
   if (ids.length === 0 || (delta.x === 0 && delta.y === 0)) return
   const move = new Set(ids)
-  edit((map) => ({
-    ...map,
-    entities: map.entities.map((e) => (move.has(e.id) ? translateEntity(e, delta) : e)),
-  }))
+  edit((map) => {
+    let changed = false
+    const entities = map.entities.map((e) => {
+      if (!move.has(e.id) || e.locked) return e
+      changed = true
+      return translateEntity(e, delta)
+    })
+    return changed ? { ...map, entities } : map
+  })
 }
 
 // -- map-wide settings -------------------------------------------------------

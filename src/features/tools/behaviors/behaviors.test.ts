@@ -4,7 +4,17 @@ import { useMapStore } from "../../../stores/mapStore"
 import { useSettingsStore } from "../../../stores/settingsStore"
 import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
-import { canUndo, closeMap, createMap, redo, undo } from "../../map/commands"
+import {
+  canUndo,
+  closeMap,
+  createMap,
+  moveEntities,
+  redo,
+  undo,
+  updateEntity,
+} from "../../map/commands"
+import { deleteSelection } from "../../map/clipboard"
+import { commitTextEdit } from "./text"
 import { normalizeDocument, type MapEntity } from "../../map/model/types"
 import { LIBRARY_PARAM } from "../params"
 import { buildToolCtx } from "./context"
@@ -47,7 +57,8 @@ const down = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) 
   act(tool, (b, c) => b.onPointerDown?.(c, at(x, y, extra)))
 const move = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) =>
   act(tool, (b, c) => b.onPointerMove?.(c, at(x, y, extra)))
-const up = (tool: string, x: number, y: number) => act(tool, (b, c) => b.onPointerUp?.(c, at(x, y)))
+const up = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) =>
+  act(tool, (b, c) => b.onPointerUp?.(c, at(x, y, extra)))
 /** Press and release at the same point (tools that place on release). */
 const tap = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) => {
   down(tool, x, y, extra)
@@ -915,32 +926,68 @@ describe("effects, text, select, prefabs", () => {
     expect(entitiesInRect(off, { x: 3.1, y: 3.5 }, { x: 3.6, y: 4.5 })).toHaveLength(1)
   })
 
-  it("Locked entities skip clicks and bands; an Alt band picks only them", () => {
+  it("Locked entities are selected only by themselves, and only unlocking changes them", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
     tap("object", 2, 2)
     tap("object", 6, 6)
     useToolsStore.getState().selectToolById("select")
     const [a, b] = entities().map((e) => e.id)
+    const selection = () => useEditorStore.getState().selection
     useEditorStore.getState().select([a])
     expect(isToolActionDisabled("select", "unlock")).toBe(true)
     runToolAction("select", "lock")
     expect(entities()[0].locked).toBe(true)
-    useEditorStore.getState().select([])
-    down("select", 2, 2)
-    up("select", 2, 2)
-    expect(useEditorStore.getState().selection).toEqual([])
-    const band = (altKey: boolean) => {
-      down("select", 10, 10, { altKey })
-      move("select", 0, 0, { altKey })
-      up("select", 0, 0)
-      return useEditorStore.getState().selection
+    const click = (x: number, y: number, shiftKey = false) => {
+      down("select", x, y, { shiftKey })
+      up("select", x, y, { shiftKey })
+      return selection()
     }
-    expect(band(false)).toEqual([b])
-    expect(band(true)).toEqual([a])
+    // A click selects it alone; Shift adding an unlocked one drops it.
+    expect(click(2, 2)).toEqual([a])
+    expect(click(6, 6, true)).toEqual([b])
+    // Shift on a locked one while unlocked ones are selected: nothing changes.
+    expect(click(2, 2, true)).toEqual([b])
+    const band = (from: number, to: number) => {
+      down("select", from, from)
+      move("select", to, to)
+      up("select", to, to)
+      return selection()
+    }
+    // A band takes the unlocked ones; locked ones only if it caught nothing else.
+    expect(band(10, 0)).toEqual([b])
+    expect(band(0, 3)).toEqual([a])
+    // Selected, it can't be moved, turned, flipped or deleted: only unlocked.
+    const before = entities()[0]
+    down("select", 2, 2)
+    move("select", 4, 4)
+    up("select", 4, 4)
+    wheel("select", 1)
+    for (const action of ["delete", "flipH", "duplicate", "lock"])
+      expect(isToolActionDisabled("select", action), action).toBe(true)
+    deleteSelection()
+    updateEntity(a, { rotation: 90 })
+    moveEntities([a], { x: 1, y: 1 })
+    expect(entities()[0]).toEqual(before)
+    useEditorStore.getState().select([a])
+    expect(isToolActionDisabled("select", "unlock")).toBe(false)
     runToolAction("select", "unlock")
     expect(entities()[0].locked).toBeUndefined()
     undo()
     expect(entities()[0].locked).toBe(true)
+  })
+
+  it("Text doesn't open a locked label", () => {
+    down("text", 4, 4)
+    up("text", 4, 4)
+    useEditorStore.getState().setTextEdit({ ...useEditorStore.getState().textEdit!, value: "Inn" })
+    commitTextEdit()
+    const [label] = entities()
+    updateEntity(label.id, { locked: true })
+    useEditorStore.getState().select([])
+    down("text", 3.8, 4.2)
+    up("text", 3.8, 4.2)
+    expect(useEditorStore.getState().textEdit).toBeNull()
+    expect(useEditorStore.getState().selection).toEqual([])
   })
 
   it("Select mirrors the selection (panel buttons / flip shortcuts)", () => {

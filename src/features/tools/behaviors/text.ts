@@ -34,11 +34,11 @@ function showLabel(label: MapEntity): void {
   useToolsStore.getState().setToolParams("text", own)
 }
 
-/** The lone selected label, if the selection is one. */
+/** The lone selected label, if the selection is one (and it isn't locked). */
 function selectedLabel(ctx: ToolCtx): MapEntity | undefined {
   const [id, ...rest] = useEditorStore.getState().selection
   if (!id || rest.length) return undefined
-  return ctx.entities.find((e) => e.id === id && e.toolId === "text")
+  return ctx.entities.find((e) => e.id === id && e.toolId === "text" && !e.locked)
 }
 
 /**
@@ -100,7 +100,7 @@ export function cancelTextEdit(): void {
  * released: its top-left corner) or click a label to edit it. The clicked
  * label is selected and its look shown in the panel; font params apply to
  * it as they change. Moving and deleting labels is the Select tool's (and
- * Delete's) job.
+ * Delete's) job. Locked labels are left alone.
  */
 export function createTextBehavior(): ToolBehavior {
   let pendingEdit: TextEditState | null = null
@@ -109,6 +109,8 @@ export function createTextBehavior(): ToolBehavior {
       if (e.button !== 0) return
       if (useEditorStore.getState().textEdit) commitTextEdit()
       const hit = hitText(ctx, e)
+      // A locked label can't be written in (nor a new one started over it).
+      if (hit?.locked) return
       // Its look in the panel: changing one param changes just that.
       if (hit) showLabel(hit)
       // The editor opens on release: opening it on press would let the
@@ -137,7 +139,7 @@ export function createTextBehavior(): ToolBehavior {
       if (Object.keys(changed).length === 0) return
       const ids = new Set(useEditorStore.getState().selection)
       for (const e of ctx.entities) {
-        if (e.toolId === "text" && ids.has(e.id))
+        if (e.toolId === "text" && !e.locked && ids.has(e.id))
           updateEntity(e.id, { params: { ...e.params, ...changed } })
       }
     },

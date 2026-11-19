@@ -32,7 +32,7 @@ import {
 } from "../../map/model/geometry"
 import { expandGroups, hasGroups } from "../../map/model/groups"
 import { vertexPatches, withLinked } from "../../map/model/links"
-import { elementFilter, selectableBy } from "../selectKinds"
+import { elementFilter, isLockedSelection, lockedAlone, selectableBy } from "../selectKinds"
 import { screenAngle } from "./structures"
 import {
   doubleTapDetector,
@@ -81,7 +81,8 @@ export function handleAt(
   selected: readonly MapEntity[],
 ): TransformDrag | null {
   const box = selectionBounds(selected, ctx.sizeOf)
-  if (!box) return null
+  // Locked: no handles to drag.
+  if (!box || isLockedSelection(selected)) return null
   const h = transformHandles(box, screenTiles(1), isStretchable(selected))
   const grab = screenTiles(HANDLE_GRAB_PX)
   const start = { x: p.x, y: p.y }
@@ -231,9 +232,25 @@ const solidAt = (ctx: ToolCtx) => (e: MapEntity, p: Vec2) => {
   return alpha === undefined || alpha >= ALPHA_PICK_MIN
 }
 
-/** What clicks and rubber bands may pick: the Select tool's element filter (locked ones alone with `locked`). */
-const pickable = (ctx: ToolCtx, locked = false) =>
-  selectableBy(elementFilter(ctx.params), locked, ctx.entities)
+/** What clicks and rubber bands may pick: the Select tool's element filter, locked or not. */
+const pickable = (ctx: ToolCtx) => selectableBy(elementFilter(ctx.params), "any", ctx.entities)
+
+/** `selection` with `ids` toggled (Shift): those in it leave, the rest join. */
+function toggled(selection: readonly string[], ids: readonly string[]): string[] {
+  const next = new Set(selection)
+  for (const id of ids) {
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+  }
+  return [...next]
+}
+
+/** Where a locked selection's unlock button sits: the rotate handle's spot (it can't turn). */
+export function unlockHandleAt(ctx: ToolCtx, selected: readonly MapEntity[]): Vec2 | null {
+  if (!isLockedSelection(selected)) return null
+  const box = selectionBounds(selected, ctx.sizeOf)
+  return box ? transformHandles(box, screenTiles(1)).rotate : null
+}
 
 /** Lock (or unlock) the selection in place. */
 export function lockSelection(ctx: ToolCtx, locked: boolean): void {
@@ -253,21 +270,29 @@ export function rotateSelection(ctx: ToolCtx, delta: number): void {
   updateEntities(patches)
 }
 
-/** Entities whose bounds intersect the rubber band (only the locked ones with `locked`). */
-export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2, locked = false): MapEntity[] {
+/**
+ * Entities whose bounds intersect the rubber band. Locked ones count only
+ * when the band caught nothing else.
+ */
+export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
   const band = rectFromCorners(a, b)
-  const pick = pickable(ctx, locked)
+  const pick = pickable(ctx)
   // Click through transparency: a band picks a sprite only where it covers
   // some of its opaque pixels (a click on its transparent part, a band of
   // no size, picks nothing), as a click does.
   const solid = ctx.params.alphaPick === true ? solidAt(ctx) : undefined
-  return ctx.entities.filter((e) => {
+  const caught = ctx.entities.filter((e) => {
     if (!pick(e)) return false
     const bounds = entityBounds(e, ctx.sizeOf)
     if (!solid || !isSprite(e)) return rectsIntersect(bounds, band)
     return bandTouchesSolid(band, bounds, (p) => solid(e, p))
   })
+  const unlocked = caught.filter((e) => !e.locked)
+  return unlocked.length > 0 ? unlocked : caught
 }
+
+/** Screen px a press may travel and still be a click (not a rubber band). */
+const CLICK_SLOP_PX = 4
 
 /**
  * Select: click picks the topmost entity (Shift adds/toggles), dragging a
@@ -278,13 +303,16 @@ export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2, locked = false): 
  * its center (Shift snaps to 15°). The flip shortcuts (or the panel buttons) mirror the
  * selection left↔right / top↔bottom. `[`/`]`
  * rotate the selection too; Delete/Ctrl+C/V/X are the global shortcuts.
- * Locked entities are left out of clicks and bands; an Alt band picks only
- * them (to unlock, move or delete them).
+ * Locked entities are selected only by themselves (a click on one, a band
+ * that caught nothing else; Shift adding an unlocked one drops them) and
+ * can't be changed: the lock button at their rotate handle's spot unlocks
+ * them, the one thing they allow.
  */
 export function createSelectBehavior(): ToolBehavior {
   let mode:
     | { kind: "move"; from: Vec2; moved: Vec2 }
-    | { kind: "band"; from: Vec2; to: Vec2; locked: boolean }
+    // `tap`: a press on a locked entity, selected if it doesn't become a band.
+    | { kind: "band"; from: Vec2; to: Vec2; tap?: string[] }
     | { kind: "transform"; drag: TransformDrag }
     | { kind: "vertex"; id: string; index: number }
     | null = null
@@ -306,6 +334,12 @@ export function createSelectBehavior(): ToolBehavior {
       }
       if (e.button !== 0) return
       const doubleTap = isDoubleTap(e)
+      // A locked selection's lock button unlocks it.
+      const unlock = unlockHandleAt(ctx, selectedOf(ctx))
+      if (unlock && dist(e, unlock) <= screenTiles(HANDLE_GRAB_PX)) {
+        lockSelection(ctx, false)
+        return
+      }
       // A lone wall/path/area shows its points: dragging one moves just it.
       const editable = editablePointsOf(selectedOf(ctx))
       const index = editable && nearestVertex(editable.points ?? [], e, screenTiles(8))
@@ -333,11 +367,19 @@ export function createSelectBehavior(): ToolBehavior {
       const solid = ctx.params.alphaPick === true ? solidAt(ctx) : undefined
       const hit = hitTest(ctx.entities, e, ctx.sizeOf, pickable(ctx), reach, solid)
       const { selection } = editor()
+      const from = { x: e.x, y: e.y }
       if (hit) {
         // A group member picks the whole group.
         const picked = expandGroups([hit.id], ctx.entities)
+        // A locked one can't be dragged: a press on it still bands, and
+        // selects it if it ends up a click.
+        if (hit.locked) {
+          if (!e.shiftKey) editor().select([])
+          mode = { kind: "band", from, to: from, tap: picked }
+          return
+        }
         if (e.shiftKey) {
-          editor().toggleSelect(picked)
+          editor().select(lockedAlone(toggled(selection, picked), ctx.entities))
           return
         }
         if (!selection.includes(hit.id)) editor().select(picked)
@@ -346,7 +388,7 @@ export function createSelectBehavior(): ToolBehavior {
         return
       }
       if (!e.shiftKey) editor().select([])
-      mode = { kind: "band", from: { x: e.x, y: e.y }, to: { x: e.x, y: e.y }, locked: e.altKey }
+      mode = { kind: "band", from, to: from }
     },
     onPointerMove: (ctx, e) => {
       if (!mode || !e.buttons) return
@@ -377,7 +419,7 @@ export function createSelectBehavior(): ToolBehavior {
     },
     // Wheel turns the selection ±15° (±5° with Z held).
     onWheel: (ctx, e) => {
-      if (editor().selection.length === 0) return false
+      if (editor().selection.length === 0 || isLockedSelection(selectedOf(ctx))) return false
       rotateSelection(ctx, e.dir * wheelDegrees())
       return true
     },
@@ -385,12 +427,16 @@ export function createSelectBehavior(): ToolBehavior {
       if (mode?.kind === "move" || mode?.kind === "transform" || mode?.kind === "vertex")
         endGesture()
       if (mode?.kind === "band") {
-        const ids = expandGroups(
-          entitiesInRect(ctx, mode.from, mode.to, mode.locked).map((x) => x.id),
-          ctx.entities,
-        )
-        if (e.shiftKey) editor().toggleSelect(ids)
-        else editor().select(ids)
+        const click = dist(mode.from, mode.to) <= screenTiles(CLICK_SLOP_PX)
+        const ids =
+          click && mode.tap
+            ? mode.tap
+            : expandGroups(
+                entitiesInRect(ctx, mode.from, mode.to).map((x) => x.id),
+                ctx.entities,
+              )
+        const next = e.shiftKey ? toggled(editor().selection, ids) : ids
+        editor().select(lockedAlone(next, ctx.entities))
         editor().setDraft([])
       }
       mode = null
@@ -412,6 +458,8 @@ export function createSelectBehavior(): ToolBehavior {
       if (action === "paste") return editor().clipboard.length === 0
       if (action === "selectAll") return false
       const selected = selectedOf(ctx)
+      // Locked: unlocking (or letting go of them) is all they allow.
+      if (isLockedSelection(selected)) return action !== "unlock" && action !== "deselect"
       if (action === "group") return selected.length < 2
       if (action === "ungroup") return !hasGroups(selected)
       if (action === "lock") return !selected.some((x) => !x.locked)

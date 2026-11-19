@@ -195,6 +195,12 @@ export function drawOverlay(
     const h = transformHandles(box, px, isStretchable(selected))
     const topCenter = { x: box.x + box.w / 2, y: box.y }
     g.moveTo(-topCenter.x, topCenter.y).lineTo(-h.rotate.x, h.rotate.y).stroke(line)
+    if (selected.every((e) => e.locked)) {
+      // Locked: no handles, a padlock where the rotate one goes (it unlocks them).
+      drawPadlock(g, { x: -h.rotate.x, y: h.rotate.y }, px)
+      root.addChild(g)
+      return
+    }
     // regularPoly, not circle: circle() picks its segment count from the tiny
     // tile-unit radius (before the world's ~64× scale) and renders a diamond.
     g.regularPoly(-h.rotate.x, h.rotate.y, 5 * px, 16)
@@ -222,4 +228,18 @@ export function drawOverlay(
     }
   }
   root.addChild(g)
+}
+
+/** A padlock button centered at `c` (content coordinates), `px` tiles a screen pixel. */
+function drawPadlock(g: Graphics, c: Vec2, px: number): void {
+  g.regularPoly(c.x, c.y, 10 * px, 24)
+    .fill({ color: ACCENT })
+    .stroke({ color: 0xffffff, width: 1.5 * px })
+  // The shackle: an arch over the body.
+  g.moveTo(c.x - 3 * px, c.y - 0.5 * px)
+    .lineTo(c.x - 3 * px, c.y - 3 * px)
+    .arc(c.x, c.y - 3 * px, 3 * px, Math.PI, 0)
+    .lineTo(c.x + 3 * px, c.y - 0.5 * px)
+    .stroke({ color: 0xffffff, width: 1.5 * px })
+  g.rect(c.x - 4.5 * px, c.y - 0.5 * px, 9 * px, 6 * px).fill({ color: 0xffffff })
 }

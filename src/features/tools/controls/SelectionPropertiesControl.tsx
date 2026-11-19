@@ -9,7 +9,7 @@ import { linkedGroups } from "../../map/model/links"
 import { TOOL_TREE, findToolPath } from "../definitions"
 import { type ToolParamSpec } from "../params"
 import { propertyPatches, sharedProperties } from "../properties"
-import { SELECT_KINDS, idsOfKind } from "../selectKinds"
+import { SELECT_KINDS, idsOfKind, isLockedSelection } from "../selectKinds"
 import { ButtonControl } from "./ButtonControl"
 
 /** Quiet time after the last change that closes the current undo step. */
@@ -84,28 +84,43 @@ export function SelectionPropertiesControl({
   // A room's wall and floor are one shape: selecting one also shows the
   // other's properties, editable from here.
   const linked = linkedGroups(selected, all)
+  // Locked: shown, but nothing in it can be changed until they're unlocked.
+  const locked = isLockedSelection(selected)
 
   return (
     <VStack align="stretch" gap="0" borderTopWidth="1px" borderColor="panel.border" mt="2">
-      <PropertyList
-        title={sameTool && selected.length > 1 && tool ? `${t(tool.nameKey)} · ${title}` : title}
-        entities={selected}
-        all={all}
-        renderControl={renderControl}
-      />
-      {linked.map((group) => {
-        const name = findToolPath(TOOL_TREE, group[0].toolId)?.at(-1)?.nameKey
-        return (
-          <Box key={group[0].id} borderTopWidth="1px" borderColor="panel.border" mt="1">
-            <PropertyList
-              title={t("tools.linkedProperties", { name: name ? t(name) : group[0].toolId })}
-              entities={group}
-              all={all}
-              renderControl={renderControl}
-            />
-          </Box>
-        )
-      })}
+      {locked && (
+        <Text px="3" pt="3" fontSize="xs" color="fg.muted">
+          {t("tools.lockedHint")}
+        </Text>
+      )}
+      <VStack
+        align="stretch"
+        gap="0"
+        inert={locked}
+        aria-disabled={locked}
+        opacity={locked ? 0.45 : undefined}
+      >
+        <PropertyList
+          title={sameTool && selected.length > 1 && tool ? `${t(tool.nameKey)} · ${title}` : title}
+          entities={selected}
+          all={all}
+          renderControl={renderControl}
+        />
+        {linked.map((group) => {
+          const name = findToolPath(TOOL_TREE, group[0].toolId)?.at(-1)?.nameKey
+          return (
+            <Box key={group[0].id} borderTopWidth="1px" borderColor="panel.border" mt="1">
+              <PropertyList
+                title={t("tools.linkedProperties", { name: name ? t(name) : group[0].toolId })}
+                entities={group}
+                all={all}
+                renderControl={renderControl}
+              />
+            </Box>
+          )
+        })}
+      </VStack>
     </VStack>
   )
 }
