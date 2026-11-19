@@ -271,7 +271,8 @@ describe("Dungeondraft import", () => {
     expect(text.position).toEqual({ x: 4, y: 0 })
     expect(text.params).toMatchObject({
       font: "Libre Baskerville Bold",
-      boxShape: "pill",
+      box: true,
+      boxRadius: 100,
       boxBorderWidth: 3,
       boxColor: "#ffffff",
       boxBorderColor: "#102030",

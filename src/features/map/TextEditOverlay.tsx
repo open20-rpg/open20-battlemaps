@@ -8,7 +8,8 @@ import { getToolParams } from "../../stores/toolsStore"
 import { cancelTextEdit, commitTextEdit, registerTextEditorInput } from "../tools/behaviors/text"
 import { cssFont } from "../fonts/catalog"
 import {
-  borderOf,
+  boxRadius,
+  frameOf,
   FONT_PX_PER_TILE,
   layoutTextBox,
   measureText,
@@ -31,9 +32,14 @@ function editorLook(
   if (!edit || !corner) {
     return { left: "0", top: "0", w: "1px", h: "1px", opacity: 0, pointerEvents: "none" } as const
   }
-  const bw = borderOf(style)
-  const box = layoutTextBox(measureText(style.font, style.size, edit.value), bw)
-  const boxed = style.box !== "none"
+  const frame = frameOf(style)
+  const bw = frame.border
+  const m = measureText(style.font, style.size, edit.value)
+  const box = layoutTextBox(m, frame)
+  const boxed = style.box
+  // CSS has no negative padding: the editor keeps the text inside its box.
+  const top = Math.max(0, frame.top)
+  const bottom = Math.max(0, frame.bottom)
   return {
     left: `${corner.x}px`,
     top: `${corner.y}px`,
@@ -41,13 +47,15 @@ function editorLook(
     w: `${Math.max(box.w, style.size * 3) * k}px`,
     h: `${box.h * k}px`,
     // The text's inset from the box edge, less the border drawn before it.
-    pl: `${(box.textX - bw) * k}px`,
+    pl: `${Math.max(0, box.textX - bw) * k}px`,
+    pt: `${top * k}px`,
+    pb: `${bottom * k}px`,
     borderWidth: boxed ? `${bw * k}px` : "0",
-    borderRadius: style.box === "pill" ? `${(Math.min(box.w, box.h) / 2) * k}px` : "0",
+    borderRadius: `${boxRadius(style, box) * k}px`,
     boxShadow: boxed ? undefined : "0 0 0 1px var(--chakra-colors-brand-fg)",
     style: {
       font: cssFont(style.font, style.size * k),
-      lineHeight: `${(box.h - 2 * bw) * k}px`,
+      lineHeight: `${Math.max(1, box.h - 2 * bw - top - bottom) * k}px`,
       color: style.color,
       background: boxed ? style.background : "transparent",
       borderColor: style.borderColor,

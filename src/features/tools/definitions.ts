@@ -308,15 +308,23 @@ const when = (
   visibleWhen: (values: ToolParamValues) => boolean,
 ): ToolParamSpec => ({ ...spec, visibleWhen })
 
-/** A label's box (none, rectangle or pill; border inside it). */
-export const TEXT_BOX_SHAPES: SegmentedChoice[] = [
-  { value: "none", labelKey: "tools.boxNone" },
-  { value: "rectangle", labelKey: "tools.boxRectangle" },
-  { value: "pill", labelKey: "tools.boxPill" },
-]
-const hasBox = (p: ToolParamValues) => p.boxShape !== "none"
+/** Padding a label's box takes on each side, font px (negative: the text sticks out). */
+export const TEXT_PAD_RANGE = { min: -64, max: 128 } as const
+/** Each side's padding: top, right, bottom, left. */
+export const TEXT_PAD_KEYS = [
+  ["boxPadTop", "tools.boxPadTop"],
+  ["boxPadRight", "tools.boxPadRight"],
+  ["boxPadBottom", "tools.boxPadBottom"],
+  ["boxPadLeft", "tools.boxPadLeft"],
+] as const
+const hasBox = (p: ToolParamValues) => p.box === true
+/** A label's box: its rounding (100%: a pill), padding per side and border inside it. */
 const TEXT_BOX_PARAMS: ToolParamSpec[] = [
-  segmented("boxShape", "tools.boxShape", TEXT_BOX_SHAPES, "none"),
+  switchParam("box", "tools.textBox", false),
+  when(sliderParam("boxRadius", "tools.boxRadius", 0, 100, 1, 0), hasBox),
+  ...TEXT_PAD_KEYS.map(([key, label]) =>
+    when(sliderParam(key, label, TEXT_PAD_RANGE.min, TEXT_PAD_RANGE.max, 1, 0), hasBox),
+  ),
   when(sliderParam("boxBorderWidth", "tools.boxBorderWidth", 0, 32, 1, 2), hasBox),
   when(customColor("boxColor", "tools.boxColor", "#ffffff"), hasBox),
   when(customColor("boxBorderColor", "tools.boxBorderColor", "#000000"), hasBox),

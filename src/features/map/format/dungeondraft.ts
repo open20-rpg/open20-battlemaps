@@ -501,9 +501,6 @@ function roofs(im: Importer, level: string, raw: Json): MapEntity[] {
     })
 }
 
-/** Dungeondraft's box_shape: 0 none, 1 rectangle, 2 pill. */
-const BOX_SHAPES = ["none", "rectangle", "pill"] as const
-
 /**
  * Texts: one line from its top-left corner, as in Open20 Battle Maps. The
  * font_name stays as Dungeondraft wrote it ("Libre Baskerville Bold"): it's
@@ -524,7 +521,9 @@ function texts(im: Importer, level: string, raw: Json): MapEntity[] {
           font: str(t.font_name) ?? "",
           fontSize: num(t.font_size, 32),
           fontColor: argbToHex(t.font_color, "#000000"),
-          boxShape: BOX_SHAPES[num(t.box_shape, 0)] ?? "none",
+          // Dungeondraft's box_shape: 0 none, 1 rectangle, 2 pill (fully rounded).
+          box: num(t.box_shape, 0) === 1 || num(t.box_shape, 0) === 2,
+          boxRadius: num(t.box_shape, 0) === 2 ? 100 : 0,
           boxBorderWidth: num(t.box_border_width, 2),
           boxColor: argbToHex(t.box_background_color, "#ffffff"),
           boxBorderColor: argbToHex(t.box_border_color, "#000000"),

@@ -1,3 +1,4 @@
+import { textBoxParams } from "../fonts/metrics"
 import { DEFAULT_FONT } from "../fonts/catalog"
 import { DEFAULT_CUSTOM_COLOR } from "../../lib/colors"
 import { type AssetCategory } from "../../lib/categories"
@@ -8,7 +9,8 @@ import {
   OBJECT_LAYER_VALUES,
   PATH_TRANSITIONS,
   ROOF_TYPES,
-  TEXT_BOX_SHAPES,
+  TEXT_PAD_KEYS,
+  TEXT_PAD_RANGE,
   WATER_PRESETS,
 } from "./definitions"
 import { type AssetRecolor, type AssetSelection, type ToolParamSpec } from "./params"
@@ -40,6 +42,14 @@ function param(spec: ToolParamSpec): EntityProperty {
     spec,
     read: (e) => e.params[spec.paramKey] ?? spec.default,
     write: (e, value) => ({ params: { ...e.params, [spec.paramKey]: value } }),
+  }
+}
+
+/** A label's box param, read as today's (labels saved before have a box shape instead). */
+function textBoxProperty(spec: ToolParamSpec): EntityProperty {
+  return {
+    ...param(spec),
+    read: (e) => textBoxParams(e.params)[spec.paramKey as keyof ReturnType<typeof textBoxParams>],
   }
 }
 
@@ -225,13 +235,14 @@ export const ENTITY_PROPERTIES: Record<string, EntityProperty[]> = {
     param({ kind: "font", paramKey: "font", labelKey: "tools.font", default: DEFAULT_FONT }),
     param(slider("fontSize", "tools.fontSize", 8, 256, 1)),
     color("fontColor", "tools.fontColor", "#000000"),
-    param({
-      kind: "segmented",
-      paramKey: "boxShape",
-      labelKey: "tools.boxShape",
-      options: TEXT_BOX_SHAPES,
-      default: "none",
-    }),
+    textBoxProperty(toggle("box", "tools.textBox")),
+    textBoxProperty(slider("boxRadius", "tools.boxRadius", 0, 100, 1)),
+    ...TEXT_PAD_KEYS.map(([key, label]) =>
+      textBoxProperty({
+        ...slider(key, label, TEXT_PAD_RANGE.min, TEXT_PAD_RANGE.max, 1),
+        default: 0,
+      }),
+    ),
     param(slider("boxBorderWidth", "tools.boxBorderWidth", 0, 32, 1)),
     color("boxColor", "tools.boxColor", "#ffffff"),
     color("boxBorderColor", "tools.boxBorderColor", "#000000"),
