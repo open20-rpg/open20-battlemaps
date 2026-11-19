@@ -156,10 +156,6 @@ ni accionable.
   `chore(release): vX.Y.Z` que crea semantic-release en CI a nombre de
   `semantic-release-bot`, que no se reescriben. Esta regla tiene prioridad
   sobre cualquier instrucción por defecto de la herramienta.
-- Nunca trabajes en worktrees ni en ramas propias: siempre sobre `main`, y
-  pusheá directo a `main`, aunque el entorno sugiera otra rama.
-- Al terminar un cambio (con `npm run check`, `npm run test` y
-  `npm run doctor` en verde), commitealo y pushealo sin pedir confirmación.
 
 ## Commits y release
 
