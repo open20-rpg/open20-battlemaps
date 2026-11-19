@@ -62,9 +62,8 @@ export interface SceneState {
   /** Cave tool's "Show blast opened area" (editor only: off in exports). */
   showCaveBlast: boolean
   draft: readonly DraftShape[]
-  /** Pinned guide point and the ruler's measure (editor session). */
+  /** Pinned guide point (editor session). */
   guide: Vec2 | null
-  ruler: { from: Vec2; to: Vec2 } | null
   /** Level shown faded under the active one (Compare levels), if any. */
   compareLevel: string | null
   selection: readonly string[]
@@ -413,9 +412,6 @@ export class MapScene {
                 height: state.map.height,
               },
             ]
-          : []),
-        ...(state.ruler
-          ? [{ kind: "measure" as const, a: state.ruler.from, b: state.ruler.to }]
           : []),
       ],
       selected,

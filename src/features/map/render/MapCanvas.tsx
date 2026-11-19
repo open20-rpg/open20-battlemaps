@@ -51,7 +51,6 @@ function sceneState(): SceneState | null {
     showCaveBlast: getToolParams("cave").showBlast === true,
     draft: tool ? [...editor.draft, ...toolOverlay(tool.id)] : editor.draft,
     guide: editor.guide,
-    ruler: editor.ruler,
     compareLevel: editor.compareLevels ? levelBelow(map, editor.activeLevel) : null,
     selection: editor.selection,
     transformHandles: tool?.id === "select",

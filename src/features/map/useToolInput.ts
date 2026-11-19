@@ -104,12 +104,10 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
      * move would paint or drag).
      */
     const refreshHover = () => {
-      if (!hover || pressedButton !== null || rulerFrom) return
+      if (!hover || pressedButton !== null) return
       const a = active()
       a?.behavior.onPointerMove?.(a.ctx, hover)
     }
-    /** Where a ruler measure started (ruler mode drags measure, not use the tool). */
-    let rulerFrom: { x: number; y: number } | null = null
 
     /**
      * Touch: one finger uses the tool, two pan and zoom (useViewportGestures).
@@ -136,11 +134,6 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
 
     /** A press reaching the tool (`e` is the event that started it). */
     const press = (e: PointerEvent, info: PointerInfo) => {
-      if (info.button === 0 && useEditorStore.getState().rulerOn) {
-        rulerFrom = { x: info.x, y: info.y }
-        useEditorStore.getState().setRuler({ from: rulerFrom, to: rulerFrom })
-        return
-      }
       const a = active()
       if (!a) return
       pressedButton = info.button
@@ -187,7 +180,6 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
         const a = active()
         a?.behavior.onPointerUp?.(a.ctx, { ...last, buttons: 0 })
       }
-      rulerFrom = null
       let extra = useMapStore.temporal.getState().pastStates.length - history
       while (extra-- > 0) undo()
     }
@@ -246,10 +238,6 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
       if (touchPress?.pointerId === e.pointerId) touchPress.last = info
       useEditorStore.getState().setPointer({ x: info.x, y: info.y })
       hover = { ...info, buttons: 0 }
-      if (rulerFrom) {
-        useEditorStore.getState().setRuler({ from: rulerFrom, to: { x: info.x, y: info.y } })
-        return
-      }
       const a = active()
       if (!a) return
       // Only the button that started the gesture counts as "dragging".
@@ -268,14 +256,10 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
           if (e.type === "pointercancel") return
           press(e, info)
         }
-        if (touchPress?.pointerId !== e.pointerId && !rulerFrom) return
+        if (touchPress?.pointerId !== e.pointerId) return
         touchPress = null
       }
       cancelLongPress()
-      if (rulerFrom) {
-        rulerFrom = null
-        return
-      }
       if (pressedButton === null || e.button !== pressedButton) return
       const info = toMap(e, pressedButton)
       pressedButton = null

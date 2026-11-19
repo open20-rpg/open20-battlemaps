@@ -137,7 +137,6 @@ async function measurePreset(preset: GraphicsPreset, doc: MapDocument): Promise<
       showCaveBlast: false,
       draft: [],
       guide: null,
-      ruler: null,
       compareLevel: null,
       selection: [],
       transformHandles: false,

@@ -463,7 +463,8 @@
     "paintModePaint": "Paint",
     "paintModeErase": "Erase",
     "paintModeAdd": "Add",
-    "paintModeCut": "Cut out"
+    "paintModeCut": "Cut out",
+    "measure": "Measure"
   },
   "biomes": {
     "barren": "Barren",
@@ -630,7 +631,6 @@
     "action_shadows": "Toggle shadows",
     "action_outside": "Show outside the map",
     "action_guide": "Pin/remove guide",
-    "action_ruler": "Ruler (measure)",
     "action_reference": "Toggle reference image",
     "action_compareLevels": "Compare levels",
     "action_levelUp": "Level above",

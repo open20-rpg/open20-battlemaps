@@ -463,7 +463,8 @@
     "paintModePaint": "Pintar",
     "paintModeErase": "Borrar",
     "paintModeAdd": "Agregar",
-    "paintModeCut": "Recortar"
+    "paintModeCut": "Recortar",
+    "measure": "Medir"
   },
   "biomes": {
     "barren": "Yermo",
@@ -630,7 +631,6 @@
     "action_shadows": "Activar/desactivar sombras",
     "action_outside": "Mostrar fuera del mapa",
     "action_guide": "Fijar/quitar guía",
-    "action_ruler": "Regla (medir)",
     "action_reference": "Mostrar/ocultar imagen de referencia",
     "action_compareLevels": "Comparar niveles",
     "action_levelUp": "Nivel de arriba",
