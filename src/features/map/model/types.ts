@@ -48,9 +48,12 @@ export interface MapEntity {
   layer: number
   /** Level (floor) the entity belongs to; see {@link MapDocument.levels}. */
   level?: string
-  /** Anchor point: center of objects/lights/text, origin of shapes. */
+  /**
+   * Anchor point: center of objects/lights/text, origin of shapes (where a
+   * floor's or pattern's texture is laid from; moves with the shape).
+   */
   position: Vec2
-  /** Degrees, clockwise on screen. */
+  /** Degrees, clockwise on screen (a shape's: its texture's). */
   rotation: number
   /** Uniform scale multiplier (objects, portals). Defaults to 1. */
   scale?: number

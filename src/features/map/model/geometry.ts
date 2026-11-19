@@ -647,8 +647,9 @@ export function scaleEntity(entity: MapEntity, anchor: Vec2, sx: number, sy: num
 
 /**
  * Rotate (`screenDegrees`, clockwise on screen) and uniformly scale
- * (`factor`) an entity around `center`. Every coordinate moves; sprite-like
- * entities also turn and grow, brush strokes widen. Map x is mirrored, so a
+ * (`factor`) an entity around `center`. Every coordinate moves and its
+ * rotation turns (a shape's is its texture's); sprite-like entities also
+ * grow, brush strokes widen. Map x is mirrored, so a
  * clockwise turn on screen is counter-clockwise in map space.
  */
 export function transformEntity(
@@ -665,7 +666,8 @@ export function transformEntity(
   return {
     ...entity,
     position: move(entity.position),
-    rotation: sprite ? normalizeDegrees(entity.rotation + screenDegrees) : entity.rotation,
+    // Shapes turn too: their rotation is their texture's (floors, patterns).
+    rotation: normalizeDegrees(entity.rotation + screenDegrees),
     scale: sprite ? (entity.scale ?? 1) * factor : entity.scale,
     points: entity.points?.map(move),
     strokes: entity.strokes?.map((s) => ({
@@ -685,8 +687,8 @@ export function normalizeDegrees(deg: number): number {
 /**
  * Mirror an entity across the vertical (`"x"`, left↔right on screen) or
  * horizontal (`"y"`, top↔bottom) line through `center`. Every coordinate is
- * reflected; sprite-like entities also toggle their own flip and reverse
- * their rotation, so they look exactly mirrored in place.
+ * reflected and the rotation reversed; sprite-like entities also toggle
+ * their own flip, so they look exactly mirrored in place.
  */
 export function flipEntity(entity: MapEntity, center: Vec2, axis: "x" | "y"): MapEntity {
   const reflect = (p: Vec2): Vec2 =>
@@ -695,7 +697,7 @@ export function flipEntity(entity: MapEntity, center: Vec2, axis: "x" | "y"): Ma
   return {
     ...entity,
     position: reflect(entity.position),
-    rotation: sprite ? normalizeDegrees(-entity.rotation) : entity.rotation,
+    rotation: normalizeDegrees(-entity.rotation),
     flipX: sprite && axis === "x" ? !entity.flipX : entity.flipX,
     flipY: sprite && axis === "y" ? !entity.flipY : entity.flipY,
     points: entity.points?.map(reflect),

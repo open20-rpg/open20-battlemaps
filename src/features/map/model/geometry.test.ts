@@ -401,7 +401,7 @@ describe("transform handles", () => {
     expect(t.position.y).toBeCloseTo(-4)
   })
 
-  it("moves polyline points and widens strokes, keeping their rotation", () => {
+  it("moves polyline points and widens strokes", () => {
     const wall: MapEntity = { ...obj("w", 0, 0), points: [{ x: 1, y: 0 }], rotation: 0 }
     const t = transformEntity(wall, { x: 0, y: 0 }, 0, 3)
     expect(t.points).toEqual([{ x: 3, y: 0 }])
@@ -471,6 +471,28 @@ describe("flipping", () => {
       position: { x: 3, y: 3 },
       flipY: true,
     })
+  })
+
+  it("turns a shape's origin and rotation with it (its texture follows)", () => {
+    const floor: MapEntity = {
+      ...obj("f", 2, 0),
+      toolId: "build",
+      points: [
+        { x: 2, y: 0 },
+        { x: 4, y: 0 },
+        { x: 4, y: 2 },
+      ],
+      closed: true,
+      rotation: 10,
+    }
+    const t = transformEntity(floor, { x: 0, y: 0 }, 90, 1)
+    expect(t.rotation).toBe(100)
+    // Clockwise on screen is counter-clockwise in (mirrored) map space.
+    expect(t.position.x).toBeCloseTo(0)
+    expect(t.position.y).toBeCloseTo(-2)
+    expect(t.points?.[0].x).toBeCloseTo(t.position.x)
+    expect(t.points?.[0].y).toBeCloseTo(t.position.y)
+    expect(flipEntity(floor, { x: 0, y: 0 }, "y").rotation).toBe(-10)
   })
 
   it("reflects polyline points without flipping them", () => {

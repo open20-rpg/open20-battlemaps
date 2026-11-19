@@ -167,7 +167,6 @@ const buildEntities = (ctx: ToolCtx, polygon: Vec2[]) => {
       layer: LAYER.floor,
       points: polygon,
       closed: true,
-      position: polygon[0],
       params: {
         floor: selection(ctx.params.floor),
         bevelCorners: ctx.params.bevelCorners !== false,
@@ -192,8 +191,9 @@ export function subtractShape(ctx: ToolCtx, toolId: string, cut: Vec2[]): void {
   const reshape = (e: MapEntity, rings: Vec2[][]) => {
     const [first, ...rest] = rings
     if (!first) return removed.push(e.id)
-    patches.set(e.id, { points: first, position: first[0] })
-    for (const ring of rest) added.push({ ...e, id: newId(), points: ring, position: ring[0] })
+    // The pieces keep the shape's origin: the texture stays where it was.
+    patches.set(e.id, { points: first })
+    for (const ring of rest) added.push({ ...e, id: newId(), points: ring })
   }
   for (const e of ctx.entities) {
     if (e.toolId !== toolId || !e.closed || !e.points || e.locked) continue
@@ -247,7 +247,6 @@ const patternEntities = (ctx: ToolCtx, polygon: Vec2[]) => [
     layer: paramNum(ctx.params.layer, 100),
     points: polygon,
     closed: true,
-    position: polygon[0],
     params: {
       pattern: selection(ctx.params.pattern),
       customColor: ctx.params.customColor,
