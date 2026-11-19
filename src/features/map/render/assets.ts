@@ -74,6 +74,14 @@ export class AssetCache {
     this.alphas.clear()
   }
 
+  /** Free every loaded texture and stop notifying (a cache that's done, e.g. a benchmark's). */
+  dispose(): void {
+    for (const t of this.textures.values()) if (t instanceof Texture) t.destroy(true)
+    this.textures.clear()
+    this.alphas.clear()
+    this.listeners.clear()
+  }
+
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)

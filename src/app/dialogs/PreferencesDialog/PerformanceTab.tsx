@@ -12,19 +12,23 @@ import {
 } from "../../../features/map/render/perfProfile"
 import {
   BLUR_QUALITIES,
-  DEFAULT_RENDER_PERFORMANCE,
   FRACTION_STEPS,
-  LIGHT_RENDER_PERFORMANCE,
+  GRAPHICS_PRESETS,
+  PRESET_SETTINGS,
+  presetOf,
   type RenderPerformance,
   RESOLUTION_STEPS,
   TEXTURE_SCALES,
 } from "../../../lib/renderPerformance"
+import { roundTo } from "../../../lib/numbers"
+import { useGraphicsBenchmark } from "../../../features/map/benchmark/useGraphicsBenchmark"
 
 const percent = (v: number) => `${Math.round(v * 100)}%`
 
 /**
- * Settings › Performance: measure what the map costs to draw on this
- * device, part by part, and every setting that trades quality for speed.
+ * Settings › Performance: the graphics preset (or every setting by hand),
+ * the automatic setup that picks the preset for this device, and (with
+ * Settings › Debug's graphics detail) what each part of a frame costs.
  */
 export function PerformanceTab() {
   const { t } = useTranslation()
@@ -33,6 +37,8 @@ export function PerformanceTab() {
   const replacePerformance = useSettingsStore((s) => s.replacePerformance)
   const snapshotGestures = useSettingsStore((s) => s.snapshotViewGestures)
   const setSnapshotGestures = useSettingsStore((s) => s.setSnapshotViewGestures)
+  const graphicsDetail = useSettingsStore((s) => s.graphicsDetail)
+  const preset = presetOf(perf)
 
   const numeric = <K extends keyof RenderPerformance>(
     key: K,
@@ -52,28 +58,23 @@ export function PerformanceTab() {
   return (
     <Stack gap="4" fontSize="sm">
       <Text color="fg.muted">{t("perf.intro")}</Text>
-      <Measurement />
-
-      <HStack gap="2" wrap="wrap">
-        <Button
-          size="xs"
-          variant="outline"
-          onClick={() => replacePerformance(DEFAULT_RENDER_PERFORMANCE)}
-        >
-          {t("perf.presetFull")}
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          onClick={() => replacePerformance(LIGHT_RENDER_PERFORMANCE)}
-        >
-          {t("perf.presetLight")}
-        </Button>
-      </HStack>
+      <Box mx="-3">
+        <SegmentedControl
+          label={t("perf.preset")}
+          value={preset ?? "custom"}
+          options={GRAPHICS_PRESETS.map((p) => ({ value: p, label: t(`perf.presets.${p}`) }))}
+          onChange={(p) => replacePerformance(PRESET_SETTINGS[p as keyof typeof PRESET_SETTINGS])}
+        />
+        {!preset && <Hint>{t("perf.customPreset")}</Hint>}
+      </Box>
+      <AutoSetup />
+      {graphicsDetail && <Measurement />}
 
       <Section title={t("perf.sectionPixels")}>
         {numeric("maxResolution", "perf.maxResolution", RESOLUTION_STEPS, (v) => `${v}×`)}
-        <Hint>{t("perf.maxResolutionHint", { screen: window.devicePixelRatio || 1 })}</Hint>
+        <Hint>
+          {t("perf.maxResolutionHint", { screen: roundTo(window.devicePixelRatio || 1) })}
+        </Hint>
         <Toggle
           label={t("perf.antialias")}
           hint={t("perf.antialiasHint")}
@@ -128,6 +129,55 @@ export function PerformanceTab() {
         />
       </Section>
     </Stack>
+  )
+}
+
+/** The automatic setup: each preset's frames per second here, and the suggested one to apply. */
+export function AutoSetup() {
+  const { t } = useTranslation()
+  const replacePerformance = useSettingsStore((s) => s.replacePerformance)
+  const current = useSettingsStore((s) => presetOf(s.performance))
+  const { running, results, suggested, failed, run } = useGraphicsBenchmark()
+  return (
+    <Box borderWidth="1px" borderColor="panel.border" borderRadius="md" p="3">
+      <HStack justify="space-between" gap="3">
+        <Text fontWeight="semibold">{t("perf.auto.title")}</Text>
+        <Button size="xs" colorPalette="brand" loading={running} onClick={() => void run()}>
+          {t(results.length ? "perf.auto.again" : "perf.auto.run")}
+        </Button>
+      </HStack>
+      <Text mt="1" fontSize="xs" color="fg.muted">
+        {t("perf.auto.hint")}
+      </Text>
+      {failed && (
+        <Text mt="2" fontSize="xs" color="fg.error">
+          {t("perf.auto.failed")}
+        </Text>
+      )}
+      {results.length > 0 && (
+        <Stack mt="2" gap="1">
+          {results.map((r) => (
+            <HStack key={r.preset} justify="space-between" fontSize="xs">
+              <Text fontWeight={r.preset === suggested ? "semibold" : undefined}>
+                {t(`perf.presets.${r.preset}`)}
+                {r.preset === suggested ? ` · ${t("perf.auto.suggested")}` : ""}
+              </Text>
+              <Text color="fg.muted">{t("perf.auto.fps", { fps: Math.round(r.fps) })}</Text>
+            </HStack>
+          ))}
+        </Stack>
+      )}
+      {suggested && suggested !== current && !running && (
+        <Button
+          mt="2"
+          size="xs"
+          variant="outline"
+          onClick={() => replacePerformance(PRESET_SETTINGS[suggested])}
+        >
+          {t("perf.auto.apply", { preset: t(`perf.presets.${suggested}`) })}
+        </Button>
+      )}
+    </Box>
   )
 }
 
@@ -190,7 +240,7 @@ function ProfileResult({ profile }: { profile: RenderProfile }) {
         {t("perf.canvas", {
           width: Math.round(profile.width * profile.resolution),
           height: Math.round(profile.height * profile.resolution),
-          resolution: profile.resolution,
+          resolution: roundTo(profile.resolution),
         })}
       </Text>
       <Stack gap="1.5" mt="1">

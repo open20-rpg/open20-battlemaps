@@ -5,10 +5,14 @@ import { type MapTemplate } from "../lib/templates"
 import { type MapEntity } from "../features/map/model/types"
 import { isMobilePlatform } from "../lib/platform"
 import {
-  DEFAULT_RENDER_PERFORMANCE,
+  defaultPreset,
+  PRESET_SETTINGS,
   type RenderPerformance,
   withPerformanceDefaults,
 } from "../lib/renderPerformance"
+
+/** A new install's graphics: Low on phones and tablets, Medium elsewhere. */
+const DEVICE_PERFORMANCE = PRESET_SETTINGS[defaultPreset(isMobilePlatform())]
 
 /** A saved group of entities (Prefabs tool), stored relative to its center. */
 export interface Prefab {
@@ -104,6 +108,12 @@ interface SettingsState {
   /** Settings › Debug: show the stats panel (frames per second…) over the map. */
   statsPanel: boolean
   setStatsPanel: (on: boolean) => void
+  /** Settings › Debug: show Performance's per-part measurement (ms each part of a frame costs). */
+  graphicsDetail: boolean
+  setGraphicsDetail: (on: boolean) => void
+  /** The first-launch notice about the graphics level was answered (or dismissed). */
+  graphicsIntroSeen: boolean
+  setGraphicsIntroSeen: (seen: boolean) => void
   /** Thumbnail columns of the docked Library (its width, dragged by its left edge). */
   libraryColumns: number
   setLibraryColumns: (columns: number) => void
@@ -118,6 +128,19 @@ interface SettingsState {
   /** Move `path` to the top of the recent list. */
   pushRecentMap: (path: string) => void
   removeRecentMap: (path: string) => void
+}
+
+/**
+ * Version of the saved settings. 2: graphics come in presets (Low on
+ * phones and tablets, Medium elsewhere), so the graphics settings saved
+ * before are dropped and the device's preset applies.
+ */
+export const SETTINGS_VERSION = 2
+
+/** Bring settings saved as `version` up to date (the rest of them are kept). */
+export function migrateSettings(persisted: unknown, version: number): unknown {
+  if (version >= 2 || !persisted || typeof persisted !== "object") return persisted
+  return Object.fromEntries(Object.entries(persisted).filter(([key]) => key !== "performance"))
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -141,11 +164,15 @@ export const useSettingsStore = create<SettingsState>()(
       setDisableBuildingWear: (disableBuildingWear) => set({ disableBuildingWear }),
       snapshotViewGestures: isMobilePlatform(),
       setSnapshotViewGestures: (snapshotViewGestures) => set({ snapshotViewGestures }),
-      performance: DEFAULT_RENDER_PERFORMANCE,
+      performance: DEVICE_PERFORMANCE,
       setPerformance: (patch) => set((s) => ({ performance: { ...s.performance, ...patch } })),
       replacePerformance: (performance) => set({ performance }),
       statsPanel: false,
       setStatsPanel: (statsPanel) => set({ statsPanel }),
+      graphicsDetail: false,
+      setGraphicsDetail: (graphicsDetail) => set({ graphicsDetail }),
+      graphicsIntroSeen: false,
+      setGraphicsIntroSeen: (graphicsIntroSeen) => set({ graphicsIntroSeen }),
       libraryColumns: 4,
       setLibraryColumns: (libraryColumns) => set({ libraryColumns }),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),
@@ -169,7 +196,8 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "open20-battle-maps.settings",
-      version: 1,
+      version: SETTINGS_VERSION,
+      migrate: (persisted, version) => migrateSettings(persisted, version),
       // Settings saved before a shadow option existed get its default.
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<SettingsState>
@@ -177,7 +205,7 @@ export const useSettingsStore = create<SettingsState>()(
           ...current,
           ...saved,
           shadowStyle: { ...DEFAULT_SHADOW_STYLE, ...saved.shadowStyle },
-          performance: withPerformanceDefaults(saved.performance),
+          performance: withPerformanceDefaults(saved.performance, DEVICE_PERFORMANCE),
           // A preset that was renamed (or removed) falls back to the default.
           shortcutPreset: knownPreset(saved.shortcutPreset),
         }

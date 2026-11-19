@@ -12,7 +12,16 @@ import { StorageTab } from "./StorageTab"
  * the settings store, never in maps. Shadow looks live in the Settings ›
  * Shadows tool.
  */
-export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function PreferencesDialog({
+  open,
+  initialTab = "general",
+  onClose,
+}: {
+  open: boolean
+  /** The tab it opens on (general, performance, storage, debug). */
+  initialTab?: string
+  onClose: () => void
+}) {
   const { t, i18n } = useTranslation()
   const panelAlpha = useSettingsStore((s) => s.panelAlpha)
   const setPanelAlpha = useSettingsStore((s) => s.setPanelAlpha)
@@ -29,7 +38,7 @@ export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: (
       }
     >
       <Tabs.Root
-        defaultValue="general"
+        defaultValue={initialTab}
         variant="line"
         colorPalette="brand"
         size="sm"
