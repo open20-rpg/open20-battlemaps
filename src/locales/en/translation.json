@@ -343,7 +343,8 @@
     "paramsTab": "Parameters",
     "showParams": "Show parameters",
     "backToGroups": "Back to groups",
-    "viewControls": "View"
+    "viewControls": "View",
+    "linkedProperties": "Linked: {{name}}"
   },
   "biomes": {
     "barren": "Barren",

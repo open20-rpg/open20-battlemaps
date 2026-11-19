@@ -343,7 +343,8 @@
     "paramsTab": "Parámetros",
     "showParams": "Mostrar parámetros",
     "backToGroups": "Volver a los grupos",
-    "viewControls": "Vista"
+    "viewControls": "Vista",
+    "linkedProperties": "Vinculado: {{name}}"
   },
   "biomes": {
     "barren": "Yermo",
