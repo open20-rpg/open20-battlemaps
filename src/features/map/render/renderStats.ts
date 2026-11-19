@@ -116,8 +116,8 @@ export function renderStats(): RenderStats | null {
   const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
   return {
     ...frameStats(frames, performance.now()),
-    width: renderer.width,
-    height: renderer.height,
+    width: renderer.canvas.width,
+    height: renderer.canvas.height,
     resolution: renderer.resolution,
     nodes: countNodes(stage),
     heapMb: memory ? memory.usedJSHeapSize / 2 ** 20 : null,
