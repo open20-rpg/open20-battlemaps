@@ -96,8 +96,8 @@ interface SettingsState {
   setDisableBuildingWear: (disable: boolean) => void
   /**
    * Pinch/pan/wheel-zoom move a snapshot of the map instead of redrawing it
-   * every frame (viewSnapshot.ts). Smooth on phones, but the map looks blurry
-   * until the gesture ends, so it's on by default only on mobile.
+   * every frame (viewSnapshot.ts). Smoother on slow devices, but the map
+   * looks blurry until the gesture ends: off by default, at every quality.
    */
   snapshotViewGestures: boolean
   /** How the map is rendered, traded against speed (Settings › Performance). */
@@ -132,15 +132,25 @@ interface SettingsState {
 
 /**
  * Version of the saved settings. 2: graphics come in presets (Low on
- * phones and tablets, Medium elsewhere), so the graphics settings saved
- * before are dropped and the device's preset applies.
+ * phones and tablets, Medium elsewhere). 3: the presets were rebalanced and
+ * moving a snapshot of the map is off by default. Each time, the graphics
+ * settings saved before are dropped, so the device's preset applies.
  */
-export const SETTINGS_VERSION = 2
+export const SETTINGS_VERSION = 3
+
+/** Settings each version resets to their defaults. */
+const RESET_IN: Record<number, readonly string[]> = {
+  2: ["performance"],
+  3: ["performance", "snapshotViewGestures"],
+}
 
 /** Bring settings saved as `version` up to date (the rest of them are kept). */
 export function migrateSettings(persisted: unknown, version: number): unknown {
-  if (version >= 2 || !persisted || typeof persisted !== "object") return persisted
-  return Object.fromEntries(Object.entries(persisted).filter(([key]) => key !== "performance"))
+  if (version >= SETTINGS_VERSION || !persisted || typeof persisted !== "object") return persisted
+  const reset = new Set(
+    Object.entries(RESET_IN).flatMap(([v, keys]) => (Number(v) > version ? keys : [])),
+  )
+  return Object.fromEntries(Object.entries(persisted).filter(([key]) => !reset.has(key)))
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -162,7 +172,7 @@ export const useSettingsStore = create<SettingsState>()(
       resetShortcuts: () => set({ shortcutOverrides: {} }),
       disableBuildingWear: false,
       setDisableBuildingWear: (disableBuildingWear) => set({ disableBuildingWear }),
-      snapshotViewGestures: isMobilePlatform(),
+      snapshotViewGestures: false,
       setSnapshotViewGestures: (snapshotViewGestures) => set({ snapshotViewGestures }),
       performance: DEVICE_PERFORMANCE,
       setPerformance: (patch) => set((s) => ({ performance: { ...s.performance, ...patch } })),

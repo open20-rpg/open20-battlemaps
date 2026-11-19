@@ -51,7 +51,6 @@
     "tabStorage": "Storage"
   },
   "perf": {
-    "intro": "Pick the graphics quality, let the app test this device and pick it, or tune every setting by hand.",
     "measureTitle": "Measurement",
     "measure": "Measure",
     "measureAgain": "Measure again",
@@ -76,31 +75,17 @@
       "base": "Frame base (ground, screen copy, presenting)"
     },
     "none": "No",
-    "sectionPixels": "Pixels",
     "maxResolution": "Maximum resolution",
-    "maxResolutionHint": "Canvas pixels per screen pixel (your screen: {{screen}}×). It weighs the most: the cost grows with its square. 1.5× usually looks almost like 2×.",
+    "maxResolutionHint": "Your screen: {{screen}}×. It weighs the most.",
     "antialias": "Edge smoothing (antialiasing)",
-    "antialiasHint": "Lines and shapes without jagged edges. Costly on mobile GPUs. Recreates the canvas.",
     "highPrecision": "High shader precision",
-    "highPrecisionHint": "32-bit math. Off, phones and tablets compute at 16 bits: somewhat faster on some, with a risk of shimmering detail. Recreates the canvas.",
-    "sectionTextures": "Textures",
     "textureScale": "Texture quality",
-    "textureScaleHint": "How many of each pack texture's pixels are loaded. Same size on the map, less detail up close; less memory and faster loading. Recreates the canvas.",
     "mipmaps": "Mipmaps",
-    "mipmapsHint": "Reduced copies of every texture: smoother and lighter zoomed out, a third more memory. Recreates the canvas.",
-    "sectionLayers": "Painted layers",
     "terrainResolution": "Terrain resolution",
-    "terrainResolutionHint": "The terrain is redrawn on every frame the view moves. Lower, it moves more smoothly and looks a bit softer.",
     "maskDetail": "Detail of caves, water, materials and lights",
-    "maskDetailHint": "Resolution of their masks: lower means softer edges, less memory and faster rebuilds while editing.",
     "waterEffect": "Water effect over what's beneath",
-    "waterEffectHint": "Water darkens with what's under it, which needs a copy of the screen every frame. Off, water looks flat. Recreates the canvas.",
-    "sectionShadows": "Shadows",
     "shadowBlurQuality": "Shadow blur passes",
-    "shadowBlurQualityHint": "Each pass goes over the shadow layer every frame. With “No”, shadows have hard edges.",
     "lightBlurQuality": "Light shadow blur passes",
-    "lightBlurQualityHint": "Only costs when lighting is rebuilt (editing lights or walls), not every frame.",
-    "sectionMotion": "Motion",
     "preset": "Graphics quality",
     "presets": {
       "low": "Low",
@@ -110,16 +95,17 @@
     },
     "customPreset": "Custom",
     "auto": {
-      "title": "Automatic setup",
+      "title": "Which one?",
       "run": "Test this device",
       "again": "Test again",
       "running": "Testing graphics quality",
-      "hint": "Draws a test map (your open map is left alone) with each quality, from Low up, and suggests the one closest to 60 frames per second. It stops going up once a quality drops under 15.",
+      "hint": "Tries each quality on a sample map (yours is left alone) and suggests the one running at ~60 frames per second.",
       "failed": "This device couldn't be tested.",
       "suggested": "suggested",
       "fps": "~{{fps}} frames/s",
       "apply": "Apply {{preset}}"
-    }
+    },
+    "advanced": "Advanced settings"
   },
   "graphicsIntro": {
     "title": "Graphics on {{level}} quality",

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Box, Button, Flex, HStack, Stack, Switch, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
+import { LuChevronDown, LuChevronRight } from "react-icons/lu"
 import { useSettingsStore } from "../../../stores/settingsStore"
 import { withLoading } from "../../../stores/loadingStore"
 import { SegmentedControl } from "../../../features/tools/controls/SegmentedControl"
@@ -26,9 +27,10 @@ import { useGraphicsBenchmark } from "../../../features/map/benchmark/useGraphic
 const percent = (v: number) => `${Math.round(v * 100)}%`
 
 /**
- * Settings › Performance: the graphics preset (or every setting by hand),
- * the automatic setup that picks the preset for this device, and (with
- * Settings › Debug's graphics detail) what each part of a frame costs.
+ * Settings › Performance, kept simple: the graphics quality and the
+ * automatic setup that picks it for this device; every setting by hand
+ * folded under Advanced; and (with Settings › Debug's graphics detail)
+ * what each part of a frame costs.
  */
 export function PerformanceTab() {
   const { t } = useTranslation()
@@ -39,6 +41,7 @@ export function PerformanceTab() {
   const setSnapshotGestures = useSettingsStore((s) => s.setSnapshotViewGestures)
   const graphicsDetail = useSettingsStore((s) => s.graphicsDetail)
   const preset = presetOf(perf)
+  const [advanced, setAdvanced] = useState(false)
 
   const numeric = <K extends keyof RenderPerformance>(
     key: K,
@@ -57,7 +60,6 @@ export function PerformanceTab() {
 
   return (
     <Stack gap="4" fontSize="sm">
-      <Text color="fg.muted">{t("perf.intro")}</Text>
       <Box mx="-3">
         <SegmentedControl
           label={t("perf.preset")}
@@ -68,66 +70,62 @@ export function PerformanceTab() {
         {!preset && <Hint>{t("perf.customPreset")}</Hint>}
       </Box>
       <AutoSetup />
+
+      {/* Every setting by hand, out of the way until asked for. */}
+      <Box>
+        <Button
+          size="xs"
+          variant="ghost"
+          colorPalette="gray"
+          px="1"
+          onClick={() => setAdvanced((v) => !v)}
+          aria-expanded={advanced}
+        >
+          {advanced ? <LuChevronDown /> : <LuChevronRight />}
+          {t("perf.advanced")}
+        </Button>
+        {advanced && (
+          <Stack gap="0" mx="-3" mt="1">
+            {numeric("maxResolution", "perf.maxResolution", RESOLUTION_STEPS, (v) => `${v}×`)}
+            <Hint>
+              {t("perf.maxResolutionHint", { screen: roundTo(window.devicePixelRatio || 1) })}
+            </Hint>
+            {numeric("textureScale", "perf.textureScale", TEXTURE_SCALES, percent)}
+            {numeric("terrainResolution", "perf.terrainResolution", FRACTION_STEPS, percent)}
+            {numeric("maskDetail", "perf.maskDetail", FRACTION_STEPS, percent)}
+            {numeric("shadowBlurQuality", "perf.shadowBlurQuality", BLUR_QUALITIES, blurLabel)}
+            {numeric("lightBlurQuality", "perf.lightBlurQuality", BLUR_QUALITIES, blurLabel)}
+            <Toggle
+              label={t("perf.antialias")}
+              checked={perf.antialias}
+              onChange={(antialias) => setPerformance({ antialias })}
+            />
+            <Toggle
+              label={t("perf.mipmaps")}
+              checked={perf.mipmaps}
+              onChange={(mipmaps) => setPerformance({ mipmaps })}
+            />
+            <Toggle
+              label={t("perf.waterEffect")}
+              checked={perf.waterEffect}
+              onChange={(waterEffect) => setPerformance({ waterEffect })}
+            />
+            <Toggle
+              label={t("perf.highPrecision")}
+              checked={perf.highPrecision}
+              onChange={(highPrecision) => setPerformance({ highPrecision })}
+            />
+            <Toggle
+              label={t("prefs.snapshotGestures")}
+              hint={t("prefs.snapshotGesturesHint")}
+              checked={snapshotGestures}
+              onChange={setSnapshotGestures}
+            />
+          </Stack>
+        )}
+      </Box>
+
       {graphicsDetail && <Measurement />}
-
-      <Section title={t("perf.sectionPixels")}>
-        {numeric("maxResolution", "perf.maxResolution", RESOLUTION_STEPS, (v) => `${v}×`)}
-        <Hint>
-          {t("perf.maxResolutionHint", { screen: roundTo(window.devicePixelRatio || 1) })}
-        </Hint>
-        <Toggle
-          label={t("perf.antialias")}
-          hint={t("perf.antialiasHint")}
-          checked={perf.antialias}
-          onChange={(antialias) => setPerformance({ antialias })}
-        />
-        <Toggle
-          label={t("perf.highPrecision")}
-          hint={t("perf.highPrecisionHint")}
-          checked={perf.highPrecision}
-          onChange={(highPrecision) => setPerformance({ highPrecision })}
-        />
-      </Section>
-
-      <Section title={t("perf.sectionTextures")}>
-        {numeric("textureScale", "perf.textureScale", TEXTURE_SCALES, percent)}
-        <Hint>{t("perf.textureScaleHint")}</Hint>
-        <Toggle
-          label={t("perf.mipmaps")}
-          hint={t("perf.mipmapsHint")}
-          checked={perf.mipmaps}
-          onChange={(mipmaps) => setPerformance({ mipmaps })}
-        />
-      </Section>
-
-      <Section title={t("perf.sectionLayers")}>
-        {numeric("terrainResolution", "perf.terrainResolution", FRACTION_STEPS, percent)}
-        <Hint>{t("perf.terrainResolutionHint")}</Hint>
-        {numeric("maskDetail", "perf.maskDetail", FRACTION_STEPS, percent)}
-        <Hint>{t("perf.maskDetailHint")}</Hint>
-        <Toggle
-          label={t("perf.waterEffect")}
-          hint={t("perf.waterEffectHint")}
-          checked={perf.waterEffect}
-          onChange={(waterEffect) => setPerformance({ waterEffect })}
-        />
-      </Section>
-
-      <Section title={t("perf.sectionShadows")}>
-        {numeric("shadowBlurQuality", "perf.shadowBlurQuality", BLUR_QUALITIES, blurLabel)}
-        <Hint>{t("perf.shadowBlurQualityHint")}</Hint>
-        {numeric("lightBlurQuality", "perf.lightBlurQuality", BLUR_QUALITIES, blurLabel)}
-        <Hint>{t("perf.lightBlurQualityHint")}</Hint>
-      </Section>
-
-      <Section title={t("perf.sectionMotion")}>
-        <Toggle
-          label={t("prefs.snapshotGestures")}
-          hint={t("prefs.snapshotGesturesHint")}
-          checked={snapshotGestures}
-          onChange={setSnapshotGestures}
-        />
-      </Section>
     </Stack>
   )
 }
@@ -265,19 +263,6 @@ function ProfileResult({ profile }: { profile: RenderProfile }) {
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <Box>
-      <Text mb="1" fontWeight="semibold">
-        {title}
-      </Text>
-      <Stack gap="1" mx="-3">
-        {children}
-      </Stack>
-    </Box>
-  )
-}
-
 function Hint({ children }: { children: React.ReactNode }) {
   return (
     <Text px="3" mt="-1" mb="1" fontSize="xs" color="fg.muted">
@@ -293,7 +278,7 @@ function Toggle({
   onChange,
 }: {
   label: string
-  hint: string
+  hint?: string
   checked: boolean
   onChange: (on: boolean) => void
 }) {
@@ -301,9 +286,11 @@ function Toggle({
     <Flex px="3" py="1.5" gap="3" justify="space-between" align="center">
       <Box>
         <Text>{label}</Text>
-        <Text fontSize="xs" color="fg.muted">
-          {hint}
-        </Text>
+        {hint && (
+          <Text fontSize="xs" color="fg.muted">
+            {hint}
+          </Text>
+        )}
       </Box>
       <Switch.Root
         colorPalette="brand"

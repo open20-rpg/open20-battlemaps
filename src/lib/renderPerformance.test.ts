@@ -22,7 +22,7 @@ describe("render performance", () => {
     const base = canvasKey(high)
     expect(canvasKey({ ...high, shadowBlurQuality: 0 })).toBe(base)
     expect(canvasKey({ ...high, maxResolution: 1 })).toBe(base)
-    expect(canvasKey({ ...high, antialias: false })).not.toBe(base)
+    expect(canvasKey({ ...high, antialias: !high.antialias })).not.toBe(base)
     expect(canvasKey({ ...high, textureScale: 0.5 })).not.toBe(base)
     expect(canvasKey({ ...high, waterEffect: false })).not.toBe(base)
   })
@@ -66,5 +66,45 @@ describe("graphics presets", () => {
       ]),
     ).toBe("high")
     expect(suggestPreset([])).toBeNull()
+  })
+})
+
+describe("preset balance", () => {
+  const order = ["low", "medium", "high", "ultra"] as const
+  it("only Ultra antialiases; every preset keeps 32-bit shaders and the water effect", () => {
+    for (const p of order) {
+      expect(PRESET_SETTINGS[p].antialias).toBe(p === "ultra")
+      expect(PRESET_SETTINGS[p].highPrecision).toBe(true)
+      expect(PRESET_SETTINGS[p].waterEffect).toBe(true)
+    }
+  })
+
+  it("Low: 1×, textures and painted layers at 50%, one blur pass", () => {
+    expect(PRESET_SETTINGS.low).toMatchObject({
+      maxResolution: 1,
+      textureScale: 0.5,
+      terrainResolution: 0.5,
+      maskDetail: 0.5,
+      shadowBlurQuality: 1,
+      lightBlurQuality: 1,
+    })
+  })
+
+  it("never lowers a setting going up", () => {
+    const keys = [
+      "maxResolution",
+      "textureScale",
+      "terrainResolution",
+      "maskDetail",
+      "shadowBlurQuality",
+      "lightBlurQuality",
+    ] as const
+    for (let i = 1; i < order.length; i++) {
+      for (const k of keys) {
+        expect(PRESET_SETTINGS[order[i]][k]).toBeGreaterThanOrEqual(
+          PRESET_SETTINGS[order[i - 1]][k],
+        )
+      }
+    }
   })
 })
