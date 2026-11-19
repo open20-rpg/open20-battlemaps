@@ -22,7 +22,7 @@ import {
 import { regroup } from "../../map/model/groups"
 import { type MapEntity, type ReferenceImage, type Vec2 } from "../../map/model/types"
 import { SHADOW_KINDS } from "../../map/render/entities"
-import { paramNum } from "./shared"
+import { paramNum, placeController } from "./shared"
 import { type ToolBehavior, type ToolCtx } from "./types"
 
 const IMAGE_FILTERS = [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }]
@@ -154,33 +154,27 @@ const selectedPrefab = (ctx: ToolCtx): Prefab | undefined => {
   return useSettingsStore.getState().prefabs.find((p) => p.id === id)
 }
 
-/** Prefabs: stamp the selected prefab where clicked; hover previews it. */
+/** Prefabs: stamp the selected prefab where released (placeController); hover previews it. */
 export function createPrefabsBehavior(): ToolBehavior {
   return {
-    onPointerMove: (ctx, e) => {
-      const prefab = selectedPrefab(ctx)
-      useEditorStore.getState().setDraft(
-        prefab
-          ? instantiatePrefab(prefab, ctx.snap(e, 0.5), ctx.level).map((entity) => ({
-              kind: "ghost" as const,
-              entity,
-            }))
-          : [],
-      )
-    },
-    onPointerDown: (ctx, e) => {
-      const prefab = selectedPrefab(ctx)
-      if (!prefab || e.button !== 0) return
-      const copies = instantiatePrefab(prefab, ctx.snap(e, 0.5), ctx.level)
-      addEntities(copies)
-      useEditorStore.getState().select(copies.map((c) => c.id))
-    },
+    ...placeController({
+      preview: (ctx, e) => {
+        const prefab = selectedPrefab(ctx)
+        return prefab ? instantiatePrefab(prefab, ctx.snap(e, 0.5), ctx.level) : []
+      },
+      place: (ctx, e) => {
+        const prefab = selectedPrefab(ctx)
+        if (!prefab) return
+        const copies = instantiatePrefab(prefab, ctx.snap(e, 0.5), ctx.level)
+        addEntities(copies)
+        useEditorStore.getState().select(copies.map((c) => c.id))
+      },
+    }),
     onAction: (ctx, action) => {
       if (action === "save") saveSelectionAsPrefab(ctx)
     },
     isActionDisabled: (_ctx, action) =>
       action === "save" && useEditorStore.getState().selection.length === 0,
-    onDeactivate: () => useEditorStore.getState().setDraft([]),
     cursor: () => "crosshair",
   }
 }

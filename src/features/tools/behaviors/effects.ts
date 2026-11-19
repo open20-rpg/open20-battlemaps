@@ -61,9 +61,15 @@ export function lightAt(ctx: ToolCtx, p: Vec2): MapEntity {
   })
 }
 
-/** Light: click to place a light; drag an existing light's center to move it. */
+/**
+ * Light: a tap places a light where it's released (pressing previews it,
+ * dragging moves the preview — touch has no hover); dragging an existing
+ * light's center moves it.
+ */
 export function createLightBehavior(): ToolBehavior {
   let dragging: { id: string; last: Vec2 } | null = null
+  /** A press on empty map: the light goes where it's released. */
+  let placing = false
   const lights = (ctx: ToolCtx) => ctx.entities.filter((e) => e.toolId === "light")
   // Widgets (range circles + center handles of placed lights) follow the
   // Widgets param; the hover preview (the light's real glow) always shows.
@@ -99,7 +105,8 @@ export function createLightBehavior(): ToolBehavior {
         dragging = { id: hit.id, last: { x: e.x, y: e.y } }
         return
       }
-      addEntities([lightAt(ctx, ctx.snap(e, 0.5))])
+      placing = true
+      showWidgets(ctx, ctx.snap(e, 0.5))
     },
     onPointerMove: (ctx, e) => {
       if (dragging && e.buttons) {
@@ -111,14 +118,17 @@ export function createLightBehavior(): ToolBehavior {
       }
       showWidgets(ctx, dragging ? undefined : ctx.snap(e, 0.5))
     },
-    onPointerUp: () => {
+    onPointerUp: (ctx, e) => {
       if (dragging) endGesture()
       dragging = null
+      if (placing) addEntities([lightAt(ctx, ctx.snap(e, 0.5))])
+      placing = false
     },
     onParamsChange: (ctx) => showWidgets(ctx),
     onDeactivate: () => {
       if (dragging) endGesture()
       dragging = null
+      placing = false
       useEditorStore.getState().setDraft([])
     },
     cursor: () => "crosshair",

@@ -3,7 +3,7 @@ import { useToolsStore } from "../../../stores/toolsStore"
 import { addEntities, beginGesture, endGesture } from "../../map/commands"
 import { dist, normalizeDegrees } from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
-import { makeEntity, nudgeParam, paramNum, wheelDegrees } from "./shared"
+import { makeEntity, nudgeParam, paramNum, placeController, wheelDegrees } from "./shared"
 import { type ToolBehavior, type ToolCtx } from "./types"
 import { stepLibraryAsset } from "../../library/browsers"
 import { TOOL_BY_ID } from "../definitions"
@@ -42,15 +42,25 @@ async function stepAsset(ctx: ToolCtx, dir: 1 | -1): Promise<void> {
   if (next) useToolsStore.getState().setToolParams(ctx.toolId, { [LIBRARY_PARAM]: [next] })
 }
 
-/** Object: click to stamp the asset picked in the Library; hover shows a preview. */
-export const objectBehavior: ToolBehavior = {
-  onPointerMove: (ctx, e) => {
+/** Where the Object tool places: the Library's asset at `e`, snapped. */
+const objectPlacing = placeController({
+  preview: (ctx, e) => {
     const id = ctx.libraryAssets[0]
-    if (!id) return
-    useEditorStore
-      .getState()
-      .setDraft([{ kind: "ghost", entity: objectAt(ctx, ctx.snap(e, OBJECT_SNAP), id) }])
+    return id ? [objectAt(ctx, ctx.snap(e, OBJECT_SNAP), id)] : []
   },
+  place: (ctx, e) => {
+    const id = ctx.libraryAssets[0]
+    if (id) addEntities([objectAt(ctx, ctx.snap(e, OBJECT_SNAP), id)], under(ctx))
+  },
+})
+
+/**
+ * Object: the asset picked in the Library, placed where the pointer is
+ * released (placeController: press shows it, drag moves it, release
+ * places it). Right-click turns it.
+ */
+export const objectBehavior: ToolBehavior = {
+  ...objectPlacing,
   onPointerDown: (ctx, e) => {
     // Right-click: rotate 90° (snapped to quarter turns; −90° with Alt).
     if (e.button === 2) {
@@ -59,9 +69,7 @@ export const objectBehavior: ToolBehavior = {
       useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(quarter) })
       return
     }
-    const id = ctx.libraryAssets[0]
-    if (!id || e.button !== 0) return
-    addEntities([objectAt(ctx, ctx.snap(e, OBJECT_SNAP), id)], under(ctx))
+    objectPlacing.onPointerDown(ctx, e)
   },
   // Wheel: rotate (±15°, ±5° with Z); Alt+wheel: scale ±0.1; Shift+wheel
   // (or a sideways scroll): the next/previous asset of the Library grid.
@@ -77,7 +85,6 @@ export const objectBehavior: ToolBehavior = {
     }
     return true
   },
-  onDeactivate: () => useEditorStore.getState().setDraft([]),
   cursor: () => "crosshair",
 }
 
