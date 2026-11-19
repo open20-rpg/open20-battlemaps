@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { fineValueAt, leftSpot, snapToStep, valueAt, wentUp } from "./fineDrag"
+import {
+  fineValueAt,
+  leftSpot,
+  nearestThumb,
+  snapToStep,
+  valueAt,
+  wentUp,
+  withThumb,
+} from "./fineDrag"
 
 const r = { min: 0, max: 100, step: 1 }
 const track = { left: 50, width: 200 }
@@ -26,5 +34,16 @@ describe("slider fine drag", () => {
     expect(wentUp(300, 400)).toBe(false)
     expect(leftSpot({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(false)
     expect(leftSpot({ x: 0, y: 0 }, { x: 6, y: 4 })).toBe(true)
+  })
+
+  it("takes the nearest thumb of a range, which never crosses the other", () => {
+    expect(nearestThumb([20, 80], 30)).toBe(0)
+    expect(nearestThumb([20, 80], 70)).toBe(1)
+    // On the same spot: the upper one goes up, the lower one down.
+    expect(nearestThumb([50, 50], 60)).toBe(1)
+    expect(nearestThumb([50, 50], 40)).toBe(0)
+    expect(withThumb([20, 80], 0, 95)).toEqual([80, 80])
+    expect(withThumb([20, 80], 1, 5)).toEqual([20, 20])
+    expect(withThumb([42], 0, 7)).toEqual([7])
   })
 })

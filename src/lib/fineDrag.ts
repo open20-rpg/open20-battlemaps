@@ -55,3 +55,24 @@ export const wentUp = (startY: number, y: number): boolean => startY - y >= UP_T
 /** Whether the finger moved off the spot it was resting on. */
 export const leftSpot = (spot: { x: number; y: number }, p: { x: number; y: number }): boolean =>
   Math.hypot(p.x - spot.x, p.y - spot.y) > STILL_PX
+
+/**
+ * Which thumb a press at value `v` takes: the nearest; on a tie (thumbs on
+ * the same spot) the one it can move, the upper going up, the lower down.
+ */
+export function nearestThumb(values: readonly number[], v: number): number {
+  let best = 0
+  for (let i = 1; i < values.length; i++) {
+    const d = Math.abs(values[i] - v)
+    const bestD = Math.abs(values[best] - v)
+    if (d < bestD || (d === bestD && v > values[i])) best = i
+  }
+  return best
+}
+
+/** `values` with thumb `i` at `v`, kept between its neighbours (thumbs never cross). */
+export function withThumb(values: readonly number[], i: number, v: number): number[] {
+  const lo = i > 0 ? values[i - 1] : -Infinity
+  const hi = i < values.length - 1 ? values[i + 1] : Infinity
+  return values.map((x, j) => (j === i ? Math.min(hi, Math.max(lo, v)) : x))
+}

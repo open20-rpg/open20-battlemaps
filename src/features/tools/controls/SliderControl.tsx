@@ -25,7 +25,7 @@ export function SliderControl({
   onChange: (value: number) => void
 }) {
   const { t } = useTranslation()
-  const { handlers, touch } = useFineSlider({ min, max, step }, value, onChange)
+  const { handlers, touch } = useFineSlider({ min, max, step }, [value], ([v]) => onChange(v))
 
   return (
     <Box px="3" py="1.5" {...handlers}>
