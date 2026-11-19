@@ -165,23 +165,29 @@ ni accionable.
   rompen). Lo verifica commitlint (`commitlint.config.js`) con el hook
   `.githooks/commit-msg` (lo activa `npm install`) en cada commit; CI no
   corre lint, solo los builds de release. La versión sale de ahí.
-- El release es automático con **semantic-release** (`.releaserc.json`) en cada
-  push a `main` (`.github/workflows/release.yml`). Mientras estemos en `0.x`:
-  `feat`/`fix`/`perf` → patch (`0.1.x`), breaking → minor. `docs`, `chore`,
-  `ci`, etc. no generan versión ni build.
-- Al publicar, semantic-release actualiza la versión en los 5 lugares que la
-  llevan (`package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`,
+- El release es automático en cada push a `main`
+  (`.github/workflows/release.yml`), con las acciones compartidas de
+  [open20-release](https://github.com/open20-rpg/open20-release): las mismas
+  reglas y notas que el resto de Open20. `feat`/`fix`/`perf` → patch,
+  breaking → minor; `docs`, `chore`, `ci`, etc. no generan versión ni build.
+  En las notas, `feat` sale como **Nuevo**, `perf` como **Mejora** y `fix`
+  como **Corrección**: el asunto del commit **es** la línea de las notas, así
+  que se escribe en español y para quien usa la app. Lo interno (workflows,
+  scripts, docs) va con `ci:`/`chore:`/`docs:` aunque arregle algo.
+- **Nunca trabajes en `main`**: cada push publica una versión y la anuncia en
+  Discord. Trabajá en una rama propia (`feat/…`, `fix/…`) y no mergees sin que
+  te lo pidan.
+- Al publicar se actualiza la versión en los 5 lugares que la llevan
+  (`package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`,
   `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, vía
-  `scripts/bump-version.mjs`), commitea `chore(release): vX.Y.Z [skip ci]`,
-  taggea `vX.Y.Z` y crea la GitHub Release con las notas (no se marca
-  `prerelease`: así `releases/latest` siempre apunta a la última). Recién
-  entonces corren los builds (Windows, macOS Intel y Apple Silicon, Linux y
-  Android), adjuntan los instaladores y el job `aliases` sube una copia de cada
-  uno con nombre fijo (`Open20-Battle-Maps-windows-setup.exe`, …), que es a lo
-  que enlazan el README y open20.app. **No bumpees versiones ni crees tags a
-  mano.**
-- semantic-release se ejecuta en CI con `npx` y versiones fijadas, no como
-  devDependency (trae su propio npm, que ensucia `npm audit`).
+  `scripts/bump-version.mjs`), se commitea `chore(release): vX.Y.Z [skip ci]`,
+  se taggea `vX.Y.Z` y se crea la GitHub Release (no se marca `prerelease`:
+  así `releases/latest` siempre apunta a la última). El bot de Open20 la
+  anuncia en Discord. Recién entonces corren los builds (Windows, macOS Intel
+  y Apple Silicon, Linux y Android): cada uno adjunta su instalador, sube una
+  copia con nombre fijo (`Open20-Battle-Maps-windows-setup.exe`, …), que es a
+  lo que enlazan el README y open20.app, y reacciona al anuncio con el emoji
+  de su plataforma. **No bumpees versiones ni crees tags a mano.**
 
 ## Verificación
 
