@@ -134,9 +134,6 @@ export function FloatingWindow({
       // Non-modal windows float over the editor (modal ones get their layer).
       zIndex={modal ? undefined : "overlay"}
       bg="panel.bg"
-      // Panels are translucent (Preferences › panel opacity): blur what's
-      // behind so the window's contents stay readable.
-      backdropFilter="blur(14px)"
       borderWidth="1px"
       borderColor="panel.border"
       borderRadius="lg"
