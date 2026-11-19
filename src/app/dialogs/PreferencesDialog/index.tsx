@@ -4,6 +4,7 @@ import { Modal } from "../../../ui/Modal"
 import { useSettingsStore } from "../../../stores/settingsStore"
 import { PerformanceTab } from "./PerformanceTab"
 import { DebugTab } from "./DebugTab"
+import { StorageTab } from "./StorageTab"
 
 /**
  * App preferences: language and panel translucency (App applies the CSS
@@ -27,10 +28,18 @@ export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: (
         </Button>
       }
     >
-      <Tabs.Root defaultValue="general" variant="line" colorPalette="brand" size="sm">
+      <Tabs.Root
+        defaultValue="general"
+        variant="line"
+        colorPalette="brand"
+        size="sm"
+        // Each tab mounts when first shown: Storage measures the disk then.
+        lazyMount
+      >
         <Tabs.List mb="4">
           <Tabs.Trigger value="general">{t("prefs.tabGeneral")}</Tabs.Trigger>
           <Tabs.Trigger value="performance">{t("prefs.tabPerformance")}</Tabs.Trigger>
+          <Tabs.Trigger value="storage">{t("prefs.tabStorage")}</Tabs.Trigger>
           <Tabs.Trigger value="debug">{t("prefs.tabDebug")}</Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="general" p="0">
@@ -92,6 +101,9 @@ export function PreferencesDialog({ open, onClose }: { open: boolean; onClose: (
         </Tabs.Content>
         <Tabs.Content value="performance" p="0">
           <PerformanceTab />
+        </Tabs.Content>
+        <Tabs.Content value="storage" p="0">
+          <StorageTab />
         </Tabs.Content>
         <Tabs.Content value="debug" p="0">
           <DebugTab />

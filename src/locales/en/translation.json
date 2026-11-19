@@ -47,7 +47,8 @@
     "close": "Close",
     "tabGeneral": "General",
     "tabPerformance": "Performance",
-    "tabDebug": "Debug"
+    "tabDebug": "Debug",
+    "tabStorage": "Storage"
   },
   "perf": {
     "intro": "Tune how the map is drawn on this device. Measure first: it shows which part of drawing costs the most here, so you know what to lower.",
@@ -116,6 +117,33 @@
     "textures": "Textures",
     "zoom": "Zoom",
     "heap": "JS memory"
+  },
+  "storage": {
+    "intro": "What the app keeps on this device and how much space it takes. Only what the app makes or downloads again by itself can be cleared; packs are uninstalled.",
+    "measuring": "Measuring used space",
+    "clearing": "Clearing data",
+    "total": "Total: {{size}}",
+    "refresh": "Refresh",
+    "packs": "Asset packs",
+    "packsHint": "{{count}} pack(s) installed. Uninstalling one removes it from the Library; the built-in one comes back with the app's next version.",
+    "uninstall": "Uninstall",
+    "thumbnails": "Library thumbnails",
+    "thumbnailsHint": "Asset previews. Cleared, they're made again while browsing the Library.",
+    "fonts": "Downloaded fonts",
+    "fontsHint": "{{count}} Google Fonts file(s). Cleared, they're downloaded again when a map uses them.",
+    "other": "Other app data",
+    "otherHint": "The pack registry and other files the app needs.",
+    "clearAction": "Clear",
+    "clear": {
+      "thumbnails": {
+        "title": "Clear thumbnails",
+        "confirm": "Clear the Library's thumbnails? They're made again while browsing it, which can take a moment the first time."
+      },
+      "fonts": {
+        "title": "Clear downloaded fonts",
+        "confirm": "Clear the downloaded fonts? Maps that use them will ask to download them again."
+      }
+    }
   },
   "about": {
     "title": "About Open20 Battle Maps",

@@ -47,7 +47,8 @@
     "close": "Cerrar",
     "tabGeneral": "General",
     "tabPerformance": "Rendimiento",
-    "tabDebug": "Depuración"
+    "tabDebug": "Depuración",
+    "tabStorage": "Almacenamiento"
   },
   "perf": {
     "intro": "Ajustá cómo se dibuja el mapa en este equipo. Medí primero: muestra qué parte del dibujo cuesta más acá, así sabés qué bajar.",
@@ -116,6 +117,33 @@
     "textures": "Texturas",
     "zoom": "Zoom",
     "heap": "Memoria JS"
+  },
+  "storage": {
+    "intro": "Lo que la app guarda en este equipo y cuánto ocupa. Solo se puede borrar lo que la app vuelve a generar o bajar sola; los paquetes se desinstalan.",
+    "measuring": "Midiendo el espacio usado",
+    "clearing": "Borrando datos",
+    "total": "Total: {{size}}",
+    "refresh": "Actualizar",
+    "packs": "Paquetes de assets",
+    "packsHint": "{{count}} paquete(s) instalado(s). Desinstalar uno lo quita de la biblioteca; el integrado vuelve con la próxima versión de la app.",
+    "uninstall": "Desinstalar",
+    "thumbnails": "Miniaturas de la biblioteca",
+    "thumbnailsHint": "Vistas previas de los assets. Si las borrás, se vuelven a generar al navegar la biblioteca.",
+    "fonts": "Fuentes descargadas",
+    "fontsHint": "{{count}} archivo(s) de Google Fonts. Si las borrás, se vuelven a bajar cuando un mapa las use.",
+    "other": "Otros datos de la app",
+    "otherHint": "El registro de paquetes y otros archivos que la app necesita.",
+    "clearAction": "Borrar",
+    "clear": {
+      "thumbnails": {
+        "title": "Borrar miniaturas",
+        "confirm": "¿Borrar las miniaturas de la biblioteca? Se vuelven a generar al navegarla, lo que puede tardar un poco la primera vez."
+      },
+      "fonts": {
+        "title": "Borrar fuentes descargadas",
+        "confirm": "¿Borrar las fuentes descargadas? Los mapas que las usan van a pedir bajarlas de nuevo."
+      }
+    }
   },
   "about": {
     "title": "Acerca de Open20 Battle Maps",
