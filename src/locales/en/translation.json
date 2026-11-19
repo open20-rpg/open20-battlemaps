@@ -51,7 +51,7 @@
     "tabStorage": "Storage"
   },
   "perf": {
-    "intro": "Tune how the map is drawn on this device. Measure first: it shows which part of drawing costs the most here, so you know what to lower.",
+    "intro": "Pick the graphics quality, let the app test this device and pick it, or tune every setting by hand.",
     "measureTitle": "Measurement",
     "measure": "Measure",
     "measureAgain": "Measure again",
@@ -75,8 +75,6 @@
       "resolution": "Resolution above 1×",
       "base": "Frame base (ground, screen copy, presenting)"
     },
-    "presetFull": "Full quality",
-    "presetLight": "Light (slow devices)",
     "none": "No",
     "sectionPixels": "Pixels",
     "maxResolution": "Maximum resolution",
@@ -102,7 +100,36 @@
     "shadowBlurQualityHint": "Each pass goes over the shadow layer every frame. With “No”, shadows have hard edges.",
     "lightBlurQuality": "Light shadow blur passes",
     "lightBlurQualityHint": "Only costs when lighting is rebuilt (editing lights or walls), not every frame.",
-    "sectionMotion": "Motion"
+    "sectionMotion": "Motion",
+    "preset": "Graphics quality",
+    "presets": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "ultra": "Ultra"
+    },
+    "customPreset": "Custom",
+    "auto": {
+      "title": "Automatic setup",
+      "run": "Test this device",
+      "again": "Test again",
+      "running": "Testing graphics quality",
+      "hint": "Draws a test map (your open map is left alone) with each quality, from Low up, and suggests the one closest to 60 frames per second. It stops going up once a quality drops under 15.",
+      "failed": "This device couldn't be tested.",
+      "suggested": "suggested",
+      "fps": "~{{fps}} frames/s",
+      "apply": "Apply {{preset}}"
+    }
+  },
+  "graphicsIntro": {
+    "title": "Graphics on {{level}} quality",
+    "body": "The app starts with graphics on {{level}} quality. You can tune it by hand in Preferences › Performance, or let it test this device and pick the best.",
+    "running": "Testing this device… ({{tested}})",
+    "applied": "Done: graphics on {{level}} (~{{fps}} frames per second). You can change it any time in Preferences › Performance.",
+    "later": "Not now",
+    "manual": "Tune by hand",
+    "auto": "Tune automatically",
+    "close": "Got it"
   },
   "debug": {
     "statsPanel": "Stats panel",
@@ -116,7 +143,9 @@
     "entities": "Elements",
     "textures": "Textures",
     "zoom": "Zoom",
-    "heap": "JS memory"
+    "heap": "JS memory",
+    "graphicsDetail": "Graphics detail",
+    "graphicsDetailHint": "Shows in Preferences › Performance the measurement of what each part of drawing costs (ms per frame)."
   },
   "storage": {
     "intro": "What the app keeps on this device and how much space it takes. Only what the app makes or downloads again by itself can be cleared; packs are uninstalled.",

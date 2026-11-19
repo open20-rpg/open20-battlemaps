@@ -80,7 +80,37 @@ export function costsFrom(
   return [...costs, base].sort((a, b) => b.ms - a.ms)
 }
 
-const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+export const nextFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+
+/**
+ * Median time (ms) of {@link FRAMES} frames of `app` (after one to warm
+ * up), each timed until the GPU has finished it (reading a pixel back waits
+ * for it). `before(i)` runs before frame `i` (e.g. to move the view).
+ */
+export function timeFrames(
+  app: Application,
+  prerender: () => void,
+  before?: (i: number) => void,
+): number {
+  const renderer = app.renderer
+  const gl = "gl" in renderer ? (renderer.gl as WebGL2RenderingContext) : null
+  const pixel = new Uint8Array(4)
+  const draw = () => {
+    prerender()
+    app.render()
+    gl?.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel)
+  }
+  draw()
+  const times: number[] = []
+  for (let i = 0; i < FRAMES; i++) {
+    before?.(i)
+    const start = performance.now()
+    draw()
+    times.push(performance.now() - start)
+  }
+  return median(times)
+}
 
 /** Measure the current view; null when no map is shown. */
 export async function profileRender(): Promise<RenderProfile | null> {
@@ -88,25 +118,7 @@ export async function profileRender(): Promise<RenderProfile | null> {
   if (!t) return null
   const { app, scene, world, grid } = t
   const renderer = app.renderer
-  const gl = "gl" in renderer ? (renderer.gl as WebGL2RenderingContext) : null
-  const pixel = new Uint8Array(4)
-  const draw = () => {
-    scene.prerender()
-    app.render()
-    // Waits for the GPU to finish the frame.
-    gl?.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel)
-  }
-  const time = (before?: (i: number) => void) => {
-    draw()
-    const times: number[] = []
-    for (let i = 0; i < FRAMES; i++) {
-      before?.(i)
-      const start = performance.now()
-      draw()
-      times.push(performance.now() - start)
-    }
-    return median(times)
-  }
+  const time = (before?: (i: number) => void) => timeFrames(app, () => scene.prerender(), before)
 
   try {
     const frameMs = time()

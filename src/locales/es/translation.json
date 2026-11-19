@@ -51,7 +51,7 @@
     "tabStorage": "Almacenamiento"
   },
   "perf": {
-    "intro": "Ajustá cómo se dibuja el mapa en este equipo. Medí primero: muestra qué parte del dibujo cuesta más acá, así sabés qué bajar.",
+    "intro": "Elegí la calidad gráfica, dejá que la app pruebe este equipo y la elija, o ajustá cada parámetro a mano.",
     "measureTitle": "Medición",
     "measure": "Medir",
     "measureAgain": "Medir de nuevo",
@@ -75,8 +75,6 @@
       "resolution": "Resolución por encima de 1×",
       "base": "Base del cuadro (fondo, copia de pantalla, presentación)"
     },
-    "presetFull": "Calidad máxima",
-    "presetLight": "Liviano (equipos lentos)",
     "none": "No",
     "sectionPixels": "Píxeles",
     "maxResolution": "Resolución máxima",
@@ -102,7 +100,36 @@
     "shadowBlurQualityHint": "Cada pasada recorre la capa de sombras en cada cuadro. Con “No”, las sombras tienen bordes duros.",
     "lightBlurQuality": "Pasadas de desenfoque de las sombras de luces",
     "lightBlurQualityHint": "Solo cuesta al rehacer la iluminación (al editar luces o paredes), no en cada cuadro.",
-    "sectionMotion": "Movimiento"
+    "sectionMotion": "Movimiento",
+    "preset": "Calidad gráfica",
+    "presets": {
+      "low": "Bajo",
+      "medium": "Medio",
+      "high": "Alto",
+      "ultra": "Ultra"
+    },
+    "customPreset": "Personalizado",
+    "auto": {
+      "title": "Ajuste automático",
+      "run": "Probar este equipo",
+      "again": "Probar de nuevo",
+      "running": "Probando la calidad gráfica",
+      "hint": "Dibuja un mapa de prueba (sin tocar el que tenés abierto) con cada calidad, de Bajo hacia arriba, y sugiere la más cercana a 60 cuadros por segundo. Deja de subir si una calidad baja de 15.",
+      "failed": "No se pudo probar este equipo.",
+      "suggested": "sugerido",
+      "fps": "~{{fps}} cuadros/s",
+      "apply": "Aplicar {{preset}}"
+    }
+  },
+  "graphicsIntro": {
+    "title": "Gráficos en calidad {{level}}",
+    "body": "La app arranca con la calidad gráfica en {{level}}. Podés ajustarla a mano en Preferencias › Rendimiento, o dejar que pruebe este equipo y elija la mejor.",
+    "running": "Probando este equipo… ({{tested}})",
+    "applied": "Listo: gráficos en {{level}} (~{{fps}} cuadros por segundo). Podés cambiarlo cuando quieras en Preferencias › Rendimiento.",
+    "later": "Ahora no",
+    "manual": "Ajustar a mano",
+    "auto": "Ajustar automáticamente",
+    "close": "Entendido"
   },
   "debug": {
     "statsPanel": "Panel de estadísticas",
@@ -116,7 +143,9 @@
     "entities": "Elementos",
     "textures": "Texturas",
     "zoom": "Zoom",
-    "heap": "Memoria JS"
+    "heap": "Memoria JS",
+    "graphicsDetail": "Detalle de gráficos",
+    "graphicsDetailHint": "Muestra en Preferencias › Rendimiento la medición de cuánto cuesta cada parte del dibujo (en ms por cuadro)."
   },
   "storage": {
     "intro": "Lo que la app guarda en este equipo y cuánto ocupa. Solo se puede borrar lo que la app vuelve a generar o bajar sola; los paquetes se desinstalan.",

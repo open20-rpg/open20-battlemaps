@@ -9,6 +9,7 @@ import { StatusBar } from "./StatusBar"
 import { STATUS_BAR_HEIGHT } from "../ui/layout"
 import { EmptyState } from "./EmptyState"
 import { PreferencesDialog } from "./dialogs/PreferencesDialog"
+import { GraphicsIntro } from "./GraphicsIntro"
 import { AboutDialog } from "./dialogs/AboutDialog"
 import { ShortcutsDialog } from "../features/shortcuts/ShortcutsDialog"
 import { RecentMapsDialog } from "./dialogs/RecentMapsDialog"
@@ -54,7 +55,8 @@ export default function App() {
   }, [panelAlpha])
 
   const [assetsOpen, setAssetsOpen] = useState(false)
-  const [prefsOpen, setPrefsOpen] = useState(false)
+  // The Preferences tab to show, or null while it's closed.
+  const [prefsTab, setPrefsTab] = useState<string | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [newMapOpen, setNewMapOpen] = useState(false)
@@ -131,7 +133,7 @@ export default function App() {
         assetsOpen={assetsOpen}
         mapOpen={hasMap}
         onToggleAssets={() => setAssetsOpen((v) => !v)}
-        onOpenPreferences={() => setPrefsOpen(true)}
+        onOpenPreferences={() => setPrefsTab("general")}
         onOpenShortcuts={() => setShortcutsOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
         onOpenRecent={() => setRecentOpen(true)}
@@ -168,7 +170,14 @@ export default function App() {
 
       <StatusBar />
 
-      <PreferencesDialog open={prefsOpen} onClose={() => setPrefsOpen(false)} />
+      <PreferencesDialog
+        // Each opening starts on the tab asked for.
+        key={prefsTab ?? "closed"}
+        open={prefsTab !== null}
+        initialTab={prefsTab ?? "general"}
+        onClose={() => setPrefsTab(null)}
+      />
+      <GraphicsIntro onOpenSettings={() => setPrefsTab("performance")} />
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <RecentMapsDialog
