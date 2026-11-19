@@ -6,6 +6,7 @@ import { useViewStore } from "../../../stores/viewStore"
 import { useEditorStore } from "../../../stores/editorStore"
 import { translateEntity } from "../model/geometry"
 import { replaceAssetIn } from "../missingAssets"
+import { type PostProcess } from "../../../lib/postProcess"
 import {
   createDocument,
   DEFAULT_BUILDING_WEAR,
@@ -162,6 +163,11 @@ export function moveEntities(ids: readonly string[], delta: Vec2): void {
 
 export function setEnvironment(patch: Partial<MapEnvironment>): void {
   edit((map) => ({ ...map, environment: { ...map.environment, ...patch } }))
+}
+
+/** Change the map's post-processing (Settings › Post-processing). */
+export function setPostProcess(patch: Partial<PostProcess>): void {
+  edit((map) => ({ ...map, postProcess: { ...map.postProcess, ...patch } }))
 }
 
 /** The map's building wear (Map Settings). */

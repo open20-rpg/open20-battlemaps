@@ -9,6 +9,8 @@
  * render/viewport.ts for why x is mirrored).
  */
 
+import { DEFAULT_POST_PROCESS, POST_FILTERS, type PostProcess } from "../../../lib/postProcess"
+
 export interface Vec2 {
   x: number
   y: number
@@ -133,6 +135,8 @@ export interface MapDocument {
   levels: MapLevel[]
   environment: MapEnvironment
   buildingWear: BuildingWear
+  /** Color adjustments over the whole map (Settings › Post-processing), saved with it. */
+  postProcess: PostProcess
   referenceImage?: ReferenceImage | null
 }
 
@@ -146,6 +150,7 @@ export function createDocument(
 ): MapDocument {
   return {
     buildingWear,
+    postProcess: DEFAULT_POST_PROCESS,
     width: Math.max(1, Math.round(width)),
     height: Math.max(1, Math.round(height)),
     entities: [],
@@ -172,7 +177,21 @@ export function normalizeDocument(
     levels,
     environment: { ...base.environment, ...doc.environment },
     buildingWear: isBuildingWear(doc.buildingWear) ? doc.buildingWear : base.buildingWear,
+    postProcess: normalizePostProcess(doc.postProcess),
     referenceImage: doc.referenceImage ?? null,
     entities: (doc.entities ?? []).map((e) => (e.level ? e : { ...e, level: fallbackLevel })),
+  }
+}
+
+/** A saved post-process completed with the defaults (maps saved before it existed: none). */
+function normalizePostProcess(saved: Partial<PostProcess> | undefined): PostProcess {
+  const num = (v: unknown, fallback: number) => (typeof v === "number" ? v : fallback)
+  const d = DEFAULT_POST_PROCESS
+  return {
+    brightness: num(saved?.brightness, d.brightness),
+    contrast: num(saved?.contrast, d.contrast),
+    saturation: num(saved?.saturation, d.saturation),
+    threshold: num(saved?.threshold, d.threshold),
+    filter: POST_FILTERS.find((f) => f === saved?.filter) ?? d.filter,
   }
 }
