@@ -16,7 +16,8 @@ import { wearOverlay, wornMesh } from "./buildingWear"
 import { blockingSegments, lightPolygon, type Segment } from "../model/lightBlock"
 import { cssFont, type FontChoice } from "../../fonts/catalog"
 import {
-  borderOf,
+  boxRadius,
+  frameOf,
   FONT_PX_PER_TILE,
   layoutTextBox,
   measureText,
@@ -564,7 +565,7 @@ const textRenderer: EntityRenderer = (e, env) => {
   const text = (e.text ?? "").replace(/\s*\n\s*/g, " ")
   const style = textStyle(e.params)
   const ready = env.font(style.font)
-  const box = layoutTextBox(measureText(style.font, style.size, text), borderOf(style))
+  const box = layoutTextBox(measureText(style.font, style.size, text), frameOf(style))
   const scale = (e.scale ?? 1) / FONT_PX_PER_TILE
   root.pivot.set(box.w / 2, box.h / 2)
   root.position.set(-e.position.x + (box.w * scale) / 2, e.position.y + (box.h * scale) / 2)
@@ -601,20 +602,23 @@ function labelImage(
   ready: boolean,
   density: number,
 ): Sprite | null {
-  if (typeof document === "undefined" || (!text && style.box === "none")) return null
-  const k = Math.min(density, TEXT_MAX_PX / Math.max(1, box.w, box.h))
+  if (typeof document === "undefined" || (!text && !style.box)) return null
+  // The box and the text (which a negative padding lets stick out of it).
+  const area = box.bounds
+  const k = Math.min(density, TEXT_MAX_PX / Math.max(1, area.w, area.h))
   const canvas = document.createElement("canvas")
-  canvas.width = Math.max(1, Math.ceil(box.w * k))
-  canvas.height = Math.max(1, Math.ceil(box.h * k))
+  canvas.width = Math.max(1, Math.ceil(area.w * k))
+  canvas.height = Math.max(1, Math.ceil(area.h * k))
   const ctx = canvas.getContext("2d")
   if (!ctx) return null
   ctx.scale(k, k)
+  ctx.translate(-area.x, -area.y)
   // Older webviews have no roundRect: square corners there.
   const shape = (x: number, y: number, w: number, h: number, r: number) =>
     typeof ctx.roundRect === "function" ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h)
-  if (style.box !== "none") {
-    const bw = style.borderWidth
-    const r = style.box === "pill" ? Math.min(box.w, box.h) / 2 : 0
+  if (style.box) {
+    const bw = Math.max(0, style.borderWidth)
+    const r = boxRadius(style, box)
     const inner = Math.max(0, r - bw)
     if (bw > 0) {
       // The border: the outer shape minus the inner one.
@@ -637,7 +641,8 @@ function labelImage(
   }
   const texture = Texture.from(canvas)
   const sprite = new Sprite(texture)
-  sprite.scale.set(box.w / canvas.width, box.h / canvas.height)
+  sprite.position.set(area.x, area.y)
+  sprite.scale.set(area.w / canvas.width, area.h / canvas.height)
   sprite.once("destroyed", () => texture.destroy(true))
   return sprite
 }

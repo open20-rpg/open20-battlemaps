@@ -2,6 +2,7 @@ import { useEditorStore, type TextEditState } from "../../../stores/editorStore"
 import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
 import { useMapStore } from "../../../stores/mapStore"
 import { addEntities, removeEntities, updateEntity } from "../../map/commands"
+import { textBoxParams } from "../../fonts/metrics"
 import { entityHit, newId } from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type ToolBehavior, type ToolCtx } from "./types"
@@ -14,7 +15,12 @@ const TEXT_KEYS = [
   "font",
   "fontSize",
   "fontColor",
-  "boxShape",
+  "box",
+  "boxRadius",
+  "boxPadTop",
+  "boxPadRight",
+  "boxPadBottom",
+  "boxPadLeft",
   "boxBorderWidth",
   "boxColor",
   "boxBorderColor",
@@ -28,8 +34,10 @@ const textParams = (params: Record<string, unknown>) =>
  * panel shows is what it has. Params set here don't reach onParamsChange.
  */
 function showLabel(label: MapEntity): void {
+  // Its box as today's params (labels saved before have a box shape instead).
+  const params: Record<string, unknown> = { ...label.params, ...textBoxParams(label.params) }
   const own = Object.fromEntries(
-    TEXT_KEYS.flatMap((k) => (label.params[k] === undefined ? [] : [[k, label.params[k]]])),
+    TEXT_KEYS.flatMap((k) => (params[k] === undefined ? [] : [[k, params[k]]])),
   )
   useToolsStore.getState().setToolParams("text", own)
 }
