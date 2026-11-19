@@ -7,7 +7,6 @@ import {
   BitmapText,
   Sprite,
   type Texture,
-  TilingSprite,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
 import { boundsOf, sub, wallRuns, type WallOpening } from "../model/geometry"
@@ -33,7 +32,7 @@ import {
   textStyle,
 } from "../../fonts/metrics"
 import { sdfFont } from "./sdfFont"
-import { latticeOrigin } from "./tiling"
+import { tiledMesh } from "./tiling"
 
 /**
  * Per-entity renderers, keyed by the tool that created the entity. They draw
@@ -376,21 +375,21 @@ function tiledPolygon(
   const y0 = Math.floor(b.y) - 1
   const w = Math.ceil(b.w) + 2
   const h = Math.ceil(b.h) + 2
-  const fill = new TilingSprite({ texture, width: w, height: h })
-  fill.position.set(x0, y0)
-  // tilePosition is in the sprite's units (tiles): where the texture's
-  // origin sits, as a lattice point next to the sprite's corner.
-  const rotation = rad(frame.rotation)
-  const origin = { x: -frame.origin.x - x0, y: frame.origin.y - y0 }
-  const at = latticeOrigin(
-    origin,
-    rotation,
-    texture.width / TEXTURE_PX_PER_TILE,
-    texture.height / TEXTURE_PX_PER_TILE,
-  )
-  fill.tileScale.set(1 / TEXTURE_PX_PER_TILE)
-  fill.tilePosition.set(at.x, at.y)
-  fill.tileRotation = rotation
+  // A mesh with our own uvs, not a TilingSprite: its texture can only turn
+  // and move (never scale with the fill's size), and its uvs stay small.
+  texture.source.style.addressMode = "repeat"
+  const fill = new Mesh({
+    geometry: new MeshGeometry(
+      tiledMesh(
+        { x: x0, y: y0, w, h },
+        toContent(frame.origin),
+        rad(frame.rotation),
+        texture.width / TEXTURE_PX_PER_TILE,
+        texture.height / TEXTURE_PX_PER_TILE,
+      ),
+    ),
+    texture,
+  })
   if (tint) fill.tint = hexToPixiColor(tint).color
   const mask = new Graphics().poly(flat, true).fill({ color: 0xffffff })
   const body = new Container()
