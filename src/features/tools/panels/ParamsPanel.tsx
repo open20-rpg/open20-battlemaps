@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Box, Flex, Grid, Icon, IconButton, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuPanelLeftClose } from "react-icons/lu"
@@ -6,6 +7,7 @@ import { Tooltip } from "../../../ui/chakra/tooltip"
 import { type ToolLeaf } from "../definitions"
 import { paramGrows, paramRuns, resolveParams, type ToolParamSpec } from "../params"
 import { ToolParamControl } from "../controls/ToolParamControl"
+import { PickerExpandContext } from "../controls/pickerExpand"
 
 /** Height of a growing param (asset picker, terrain slots) when the panel scrolls. */
 const GROWING_PARAM_H = "340px"
@@ -50,6 +52,10 @@ export function ParamsPanel({
   })
   const visible = new Set(shown.split("|"))
   const params = (tool.params ?? []).filter((p) => visible.has(paramKeyOf(p)))
+  // The asset picker filling the panel, if one is expanded: the rest are
+  // hidden (kept mounted, so nothing loses its state).
+  const [expanded, setExpanded] = useState<{ tool: string; key: string } | null>(null)
+  const expandedKey = expanded?.tool === tool.id && visible.has(expanded.key) ? expanded.key : null
 
   return (
     <VStack
@@ -98,12 +104,18 @@ export function ParamsPanel({
           gap="0"
           flex="1"
           minH="0"
-          overflowY={!scroll && params.some(paramGrows) ? "hidden" : "auto"}
+          overflowY={expandedKey || (!scroll && params.some(paramGrows)) ? "hidden" : "auto"}
         >
           {paramRuns(params).map((run) => {
             if (run.kind === "buttons") {
               return (
-                <Box key={run.specs.map(paramKeyOf).join("|")} px="3" py="1.5" flexShrink={0}>
+                <Box
+                  key={run.specs.map(paramKeyOf).join("|")}
+                  px="3"
+                  py="1.5"
+                  flexShrink={0}
+                  display={expandedKey ? "none" : undefined}
+                >
                   <Text mb="1.5" fontSize="xs" color="fg.muted">
                     {t("tools.actions")}
                   </Text>
@@ -126,17 +138,33 @@ export function ParamsPanel({
               )
             }
             const spec = run.spec
-            const grows = paramGrows(spec)
+            const key = paramKeyOf(spec)
+            const mine = expandedKey === key
+            // Expanded, it takes the whole column (the phone's too).
+            const fills = paramGrows(spec) && (!scroll || mine)
+            const control = <ToolParamControl toolId={tool.id} spec={spec} />
             return (
               <Flex
-                key={paramKeyOf(spec)}
+                key={key}
                 direction="column"
-                flex={grows && !scroll ? "1" : undefined}
-                minH={grows && !scroll ? "0" : undefined}
-                h={grows && scroll ? GROWING_PARAM_H : undefined}
-                flexShrink={grows && !scroll ? 1 : 0}
+                flex={fills ? "1" : undefined}
+                minH={fills ? "0" : undefined}
+                h={paramGrows(spec) && !fills ? GROWING_PARAM_H : undefined}
+                flexShrink={fills ? 1 : 0}
+                display={expandedKey && !mine ? "none" : undefined}
               >
-                <ToolParamControl toolId={tool.id} spec={spec} />
+                {spec.kind === "assetPicker" ? (
+                  <PickerExpandContext
+                    value={{
+                      expanded: mine,
+                      toggle: () => setExpanded(mine ? null : { tool: tool.id, key }),
+                    }}
+                  >
+                    {control}
+                  </PickerExpandContext>
+                ) : (
+                  control
+                )}
               </Flex>
             )
           })}

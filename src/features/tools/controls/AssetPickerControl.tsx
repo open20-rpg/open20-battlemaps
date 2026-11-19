@@ -1,5 +1,7 @@
+import { useState } from "react"
 import { Box, Flex, IconButton, Text } from "@chakra-ui/react"
-import { LuChevronDown, LuRotateCcw } from "react-icons/lu"
+import { LuChevronDown, LuMaximize2, LuMinimize2, LuRotateCcw, LuSearch } from "react-icons/lu"
+import { usePickerExpand } from "./pickerExpand"
 import { Tooltip } from "../../../ui/chakra/tooltip"
 import { useTranslation } from "react-i18next"
 import { AssetSelector } from "../../library/AssetSelector"
@@ -13,7 +15,9 @@ const DEFAULT_ASSET_COLOR = "#ffffff"
 /**
  * Asset-picker param: an embedded asset browser (search + grid, same as the
  * Library) plus a color selector below. Lets a tool store a chosen asset (or
- * assets) with a color. Grows to fill the available panel height.
+ * assets) with a color. Grows to fill the available panel height; its
+ * expand button gives it the whole panel (and the search box), its search
+ * button a search floating over the grid.
  *
  * The grid color is decided by the caller: `showColorSwatch` renders the own
  * color swatch (and recolors by the stored color); otherwise `recolorColor`
@@ -50,12 +54,48 @@ export function AssetPickerControl({
   // Own swatch → recolor by the stored color; else by the external color (or
   // "" = plain thumbnails when there is no color at all).
   const gridColor = showColorSwatch ? value.color : (recolorColor ?? "")
+  const expand = usePickerExpand()
+  const expanded = expand?.expanded ?? false
+  const [searching, setSearching] = useState(false)
+  // A search applied: its button stays marked once the box is closed.
+  const [query, setQuery] = useState("")
 
   return (
     <Flex direction="column" flex="1" minH="0">
-      <Text px="3" pt="3" pb="2" fontSize="xs" color="fg.muted">
-        {t(labelKey)}
-      </Text>
+      <Flex px="3" pt="2" pb="1" align="center" gap="1">
+        <Text flex="1" fontSize="xs" color="fg.muted">
+          {t(labelKey)}
+        </Text>
+        {!expanded && (
+          <Tooltip content={t("library.search")} showArrow>
+            <IconButton
+              aria-label={t("library.search")}
+              aria-pressed={searching}
+              size="2xs"
+              variant={searching || query ? "subtle" : "ghost"}
+              color={query ? "brand.fg" : undefined}
+              onClick={() => setSearching((s) => !s)}
+            >
+              <LuSearch />
+            </IconButton>
+          </Tooltip>
+        )}
+        {expand && (
+          <Tooltip content={t(expanded ? "library.collapse" : "library.expand")} showArrow>
+            <IconButton
+              aria-label={t(expanded ? "library.collapse" : "library.expand")}
+              size="2xs"
+              variant="ghost"
+              onClick={() => {
+                setSearching(false)
+                expand.toggle()
+              }}
+            >
+              {expanded ? <LuMinimize2 /> : <LuMaximize2 />}
+            </IconButton>
+          </Tooltip>
+        )}
+      </Flex>
       <AssetSelector
         browserKey={browserKey}
         category={category}
@@ -74,7 +114,10 @@ export function AssetPickerControl({
           )
         }}
         showPreview
-        showSearch={false}
+        showSearch={expanded}
+        floatingSearch={searching}
+        onCloseSearch={() => setSearching(false)}
+        onQueryChange={setQuery}
         allowNull={allowNull}
       />
       {/* Own color selector below the browser (unless colored externally). */}

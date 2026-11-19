@@ -12,7 +12,6 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 import { useTranslation } from "react-i18next"
 import { usePreviewStore } from "../../../stores/previewStore"
 import { itemImageUrl, type LibItem, type ThumbColoring } from "../api"
-import { ListCell, NullCell, ThumbCell } from "./cells"
 import {
   CELL,
   GAP,
@@ -20,12 +19,10 @@ import {
   TINTED_CATEGORIES,
   LIST_ROW_EST,
   THUMB_CSS,
-  fillerStyle,
-  gridRowStyle,
-  listRowStyle,
   tipArrowStyle,
   tipStyle,
 } from "./constants"
+import { AssetRows } from "./rows"
 import { SearchBar } from "./SearchBar"
 import { useAssetSearch } from "./useAssetSearch"
 
@@ -48,6 +45,12 @@ export interface AssetSelectorProps {
   showPreview?: boolean
   /** Show the search box + exactness slider (hidden for param pickers). */
   showSearch?: boolean
+  /** Without `showSearch`: the search floating over the grid (a picker's search button). */
+  floatingSearch?: boolean
+  /** Closes the floating search. */
+  onCloseSearch?: () => void
+  /** Whether a search is applied (the picker marks its search button). */
+  onQueryChange?: (query: string) => void
   /** Show an empty first cell that selects "no asset" (empty selection). */
   allowNull?: boolean
   /** Only show textures in this pack tag. */
@@ -87,6 +90,9 @@ export function AssetSelector({
   onSelectionChange,
   showPreview = false,
   showSearch = true,
+  floatingSearch = false,
+  onCloseSearch,
+  onQueryChange,
   allowNull = false,
   tag,
   onlyIds,
@@ -275,16 +281,20 @@ export function AssetSelector({
   }, [loadVisibleRows, firstRow, lastRow, cols, searchGen])
 
   return (
-    <Flex direction="column" flex="1" minH="0">
+    <Flex direction="column" flex="1" minH="0" position="relative">
       <style>{THUMB_CSS}</style>
-      {showSearch && (
+      {(showSearch || floatingSearch) && (
         <SearchBar
           queryInput={queryInput}
           setQueryInput={setQueryInput}
           exactness={exactness}
           setExactness={setExactness}
-          runSearch={runSearch}
+          runSearch={(q) => {
+            onQueryChange?.(q.trim())
+            return runSearch(q)
+          }}
           total={total}
+          onClose={showSearch ? undefined : onCloseSearch}
         />
       )}
 
@@ -308,59 +318,20 @@ export function AssetSelector({
           </Flex>
         ) : (
           <Box position="relative" width="100%" height={`${rowVirtualizer.getTotalSize()}px`}>
-            {virtualRows.map((vr) =>
-              layout === "list" ? (
-                // One natural-size item per row, measured for dynamic height.
-                <div
-                  key={vr.key}
-                  data-index={vr.index}
-                  ref={rowVirtualizer.measureElement}
-                  style={{ ...listRowStyle, transform: `translateY(${vr.start}px)` }}
-                >
-                  {(() => {
-                    if (allowNull && vr.index === 0) return <NullCell selected={noneSelected} />
-                    const idx = vr.index - nullOffset
-                    const item = items.current.get(idx)
-                    return (
-                      <ListCell
-                        idx={idx}
-                        item={item}
-                        color={color}
-                        coloring={coloring}
-                        selected={item ? selectedSet.has(item.id) : false}
-                      />
-                    )
-                  })()}
-                </div>
-              ) : (
-                <div
-                  key={vr.key}
-                  style={{ ...gridRowStyle, transform: `translateY(${vr.start}px)` }}
-                >
-                  {Array.from({ length: cols }, (_, c) => {
-                    const displayIdx = vr.index * cols + c
-                    if (displayIdx >= displayTotal) {
-                      return <div key={c} style={fillerStyle} />
-                    }
-                    if (allowNull && displayIdx === 0) {
-                      return <NullCell key="null" selected={noneSelected} />
-                    }
-                    const idx = displayIdx - nullOffset
-                    const item = items.current.get(idx)
-                    return (
-                      <ThumbCell
-                        key={idx}
-                        idx={idx}
-                        item={item}
-                        color={color}
-                        coloring={coloring}
-                        selected={item ? selectedSet.has(item.id) : false}
-                      />
-                    )
-                  })}
-                </div>
-              ),
-            )}
+            <AssetRows
+              rows={virtualRows}
+              measureElement={rowVirtualizer.measureElement}
+              layout={layout}
+              cols={cols}
+              displayTotal={displayTotal}
+              allowNull={allowNull}
+              nullOffset={nullOffset}
+              noneSelected={noneSelected}
+              items={items.current}
+              color={color}
+              coloring={coloring}
+              selectedSet={selectedSet}
+            />
           </Box>
         )}
       </Box>
