@@ -1,6 +1,6 @@
 [package]
 name = "open20-battle-maps"
-version = "0.3.44"
+version = "0.3.45"
 description = "Open20 Battle Maps - open source RPG map designer"
 authors = ["Pablo"]
 edition = "2021"
