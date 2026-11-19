@@ -705,16 +705,6 @@ export const TOOL_TREE: ToolNode[] = [
   tool("text", "tools.text", LuType, {
     params: [
       switchParam("visible", "tools.visible", true),
-      segmented(
-        "mode",
-        "tools.mode",
-        [
-          { value: "edit", labelKey: "tools.modeEdit" },
-          { value: "move", labelKey: "tools.modeMove" },
-        ],
-        "edit",
-      ),
-      button("delete", "tools.delete", LuTrash2, "danger"),
       font("font", "tools.font"),
       sliderParam("fontSize", "tools.fontSize", 8, 256, 1, 32),
       customColor("fontColor", "tools.fontColor", "#000000"),

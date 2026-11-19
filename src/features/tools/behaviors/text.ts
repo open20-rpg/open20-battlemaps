@@ -1,14 +1,7 @@
 import { useEditorStore, type TextEditState } from "../../../stores/editorStore"
-import { getToolParams } from "../../../stores/toolsStore"
+import { getToolParams, useToolsStore } from "../../../stores/toolsStore"
 import { useMapStore } from "../../../stores/mapStore"
-import {
-  addEntities,
-  beginGesture,
-  endGesture,
-  moveEntities,
-  removeEntities,
-  updateEntity,
-} from "../../map/commands"
+import { addEntities, removeEntities, updateEntity } from "../../map/commands"
 import { entityHit, newId } from "../../map/model/geometry"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type ToolBehavior, type ToolCtx } from "./types"
@@ -29,6 +22,24 @@ const TEXT_KEYS = [
 
 const textParams = (params: Record<string, unknown>) =>
   Object.fromEntries(TEXT_KEYS.map((k) => [k, params[k]]))
+
+/**
+ * Show a label's look in the tool's panel (its font and box), so what the
+ * panel shows is what it has. Params set here don't reach onParamsChange.
+ */
+function showLabel(label: MapEntity): void {
+  const own = Object.fromEntries(
+    TEXT_KEYS.flatMap((k) => (label.params[k] === undefined ? [] : [[k, label.params[k]]])),
+  )
+  useToolsStore.getState().setToolParams("text", own)
+}
+
+/** The lone selected label, if the selection is one. */
+function selectedLabel(ctx: ToolCtx): MapEntity | undefined {
+  const [id, ...rest] = useEditorStore.getState().selection
+  if (!id || rest.length) return undefined
+  return ctx.entities.find((e) => e.id === id && e.toolId === "text")
+}
 
 /**
  * The inline editor's input (TextEditOverlay keeps one mounted). Phones and
@@ -85,78 +96,52 @@ export function cancelTextEdit(): void {
 }
 
 /**
- * Text: in Edit mode, click empty map to type a new label there (the click is
- * its top-left corner) or click a label
- * to edit it; in Move mode, drag labels around. The clicked label is
- * selected, which is what the Delete button removes. Font params apply to
- * the selected label as they change.
+ * Text: click empty map to type a new label there (where the press is
+ * released: its top-left corner) or click a label to edit it. The clicked
+ * label is selected and its look shown in the panel; font params apply to
+ * it as they change. Moving and deleting labels is the Select tool's (and
+ * Delete's) job.
  */
 export function createTextBehavior(): ToolBehavior {
-  let dragging: Vec2 | null = null
   let pendingEdit: TextEditState | null = null
   return {
     onPointerDown: (ctx, e) => {
       if (e.button !== 0) return
       if (useEditorStore.getState().textEdit) commitTextEdit()
       const hit = hitText(ctx, e)
-      const editor = useEditorStore.getState()
-      if (ctx.params.mode === "move") {
-        if (!hit) return editor.select([])
-        editor.select([hit.id])
-        beginGesture()
-        dragging = ctx.snap(e, 0.5)
-        return
-      }
+      // Its look in the panel: changing one param changes just that.
+      if (hit) showLabel(hit)
       // The editor opens on release: opening it on press would let the
       // press's own default focus handling blur (and so commit) it at once.
       pendingEdit = hit
         ? { entityId: hit.id, position: hit.position, value: hit.text ?? "" }
         : { entityId: null, position: ctx.snap(e, 0.5), value: "" }
-      editor.select(hit ? [hit.id] : [])
-    },
-    onPointerMove: (ctx, e) => {
-      if (!dragging || !e.buttons) return
-      const p = ctx.snap(e, 0.5)
-      moveEntities(useEditorStore.getState().selection, {
-        x: p.x - dragging.x,
-        y: p.y - dragging.y,
-      })
-      dragging = p
+      useEditorStore.getState().select(hit ? [hit.id] : [])
     },
     onPointerUp: (ctx, e) => {
       // A new label goes where the press is released (touch has no hover).
       if (pendingEdit?.entityId === null) pendingEdit.position = ctx.snap(e, 0.5)
       if (pendingEdit) openTextEdit(pendingEdit)
       pendingEdit = null
-      if (dragging) endGesture()
-      dragging = null
+    },
+    onActivate: (ctx) => {
+      const label = selectedLabel(ctx)
+      if (label) showLabel(label)
     },
     onParamsChange: (ctx, patch) => {
-      // Font params edit the selected label, like a text panel.
-      if (!TEXT_KEYS.some((k) => k in patch)) return
+      // Font params edit the selected labels, like a text panel: only what
+      // changed, so each keeps the rest of its own look.
+      const changed = Object.fromEntries(
+        TEXT_KEYS.flatMap((k) => (k in patch ? [[k, patch[k]]] : [])),
+      )
+      if (Object.keys(changed).length === 0) return
       const ids = new Set(useEditorStore.getState().selection)
       for (const e of ctx.entities) {
         if (e.toolId === "text" && ids.has(e.id))
-          updateEntity(e.id, { params: textParams(ctx.params) })
+          updateEntity(e.id, { params: { ...e.params, ...changed } })
       }
     },
-    onAction: (ctx, action) => {
-      if (action !== "delete") return
-      const ids = new Set(useEditorStore.getState().selection)
-      removeEntities(
-        ctx.entities.filter((e) => e.toolId === "text" && ids.has(e.id)).map((e) => e.id),
-      )
-    },
-    isActionDisabled: (ctx, action) => {
-      if (action !== "delete") return false
-      const ids = new Set(useEditorStore.getState().selection)
-      return !ctx.entities.some((e) => e.toolId === "text" && ids.has(e.id))
-    },
-    onDeactivate: () => {
-      commitTextEdit()
-      if (dragging) endGesture()
-      dragging = null
-    },
-    cursor: (params) => (params.mode === "move" ? "move" : "text"),
+    onDeactivate: () => commitTextEdit(),
+    cursor: () => "text",
   }
 }

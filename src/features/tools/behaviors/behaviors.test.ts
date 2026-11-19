@@ -611,7 +611,7 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()[0].position).toEqual({ x: 8, y: 6 })
   })
 
-  it("Text opens an editor; committing creates the label; Delete removes it", async () => {
+  it("Text opens an editor; committing creates the label", async () => {
     const { commitTextEdit } = await import("./text")
     useToolsStore.getState().selectToolById("text")
     down("text", 4, 4)
@@ -621,9 +621,27 @@ describe("effects, text, select, prefabs", () => {
     useEditorStore.getState().setTextEdit({ ...edit!, value: "Tavern" })
     commitTextEdit()
     expect(entities()[0]).toMatchObject({ toolId: "text", text: "Tavern" })
-    expect(isToolActionDisabled("text", "delete")).toBe(false)
-    runToolAction("text", "delete")
-    expect(entities()).toEqual([])
+  })
+
+  it("Text shows a label's own look when it's picked; a change edits just that", async () => {
+    const { commitTextEdit } = await import("./text")
+    // A label with a look of its own…
+    setParams("text", { fontSize: 40, fontColor: "#ff0000" })
+    down("text", 4, 4)
+    up("text", 4, 4)
+    useEditorStore.getState().setTextEdit({ ...useEditorStore.getState().textEdit!, value: "Inn" })
+    commitTextEdit()
+    // …while the tool moved on to another one.
+    setParams("text", { fontSize: 96, fontColor: "#00ff00" })
+    // (Its position is the box's top-left corner: map x grows leftward.)
+    down("text", 3.8, 4.2)
+    up("text", 3.8, 4.2)
+    expect(getToolParams("text")).toMatchObject({ fontSize: 40, fontColor: "#ff0000" })
+    commitTextEdit()
+    // Changing the color keeps its size.
+    useToolsStore.getState().setToolParams("text", { fontColor: "#0000ff" })
+    act("text", (b, c) => b.onParamsChange?.(c, { fontColor: "#0000ff" }))
+    expect(entities()[0].params).toMatchObject({ fontSize: 40, fontColor: "#0000ff" })
   })
 
   it("double tap on a line adds a point that drags at once; right-click removes one", () => {
