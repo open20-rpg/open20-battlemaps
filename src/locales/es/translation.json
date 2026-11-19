@@ -105,7 +105,8 @@
       "fps": "~{{fps}} cuadros/s",
       "apply": "Aplicar {{preset}}"
     },
-    "advanced": "Ajustes avanzados"
+    "advanced": "Ajustes avanzados",
+    "textQuality": "Calidad del texto"
   },
   "graphicsIntro": {
     "title": "Gráficos en calidad {{level}}",

@@ -4,20 +4,37 @@ import { sdfFromCoverage } from "./sdf"
 
 /**
  * Distance-field bitmap fonts for map text: each font's glyphs are drawn
- * once on a canvas at {@link BASE_PX} and turned into a signed distance
+ * once on a canvas at the text quality's size (Settings › Performance:
+ * more pixels per glyph, sharper edges zoomed in) and turned into a signed distance
  * field (sdf.ts), so a label is a handful of textured quads that stay sharp
  * at any zoom and size — instead of a canvas text rasterized per label.
  * Atlases cover Latin text up front and are rebuilt with any other
  * character a label needs; kerning is measured per pair as labels use them.
  */
 
-/** Glyph size the atlas is drawn at. */
-const BASE_PX = 64
-/** Field reach (px) on each side of a glyph's edge. */
-const RADIUS = 8
+/** Glyph size the atlas is drawn at (the text quality); the rest follows from it. */
+let BASE_PX = 64
+/** Field reach (px) on each side of a glyph's edge: an eighth of the glyph. */
+let RADIUS = 8
 /** Margin around each glyph: the field plus a pixel. */
-const PAD = RADIUS + 1
-const ATLAS_WIDTH = 1024
+let PAD = RADIUS + 1
+/** Atlas width: wide enough for a dozen or more glyphs a row at any size. */
+let ATLAS_WIDTH = 1024
+
+/**
+ * Draw the atlases at `px` per glyph from now on (Settings › Performance's
+ * text quality). A change drops every atlas: call it only while nothing
+ * draws text (a new canvas).
+ */
+export function configureSdfText(px: number): void {
+  if (px === BASE_PX) return
+  BASE_PX = px
+  RADIUS = Math.max(4, Math.round(px / 8))
+  PAD = RADIUS + 1
+  ATLAS_WIDTH = px <= 64 ? 1024 : px <= 128 ? 2048 : 4096
+  for (const atlas of atlases.values()) atlas.font.destroy()
+  atlases.clear()
+}
 
 const range = (from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => String.fromCharCode(from + i))
@@ -166,6 +183,3 @@ export function sdfFont(font: FontChoice, ready: boolean, text: string): string 
   ensureKerning(atlas, text)
   return atlas.name
 }
-
-/** Font px of the atlases: BitmapText's fontSize is in the same unit. */
-export const SDF_BASE_PX = BASE_PX

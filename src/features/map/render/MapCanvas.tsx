@@ -1,4 +1,5 @@
 import { installSdfTextPipe } from "./sdfShader"
+import { configureSdfText } from "./sdfFont"
 import { type MapDocument } from "../model/types"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Box } from "@chakra-ui/react"
@@ -137,6 +138,7 @@ export function MapCanvas() {
     // for it, see tiling.ts).
     GlProgram.defaultOptions.preferredFragmentPrecision = perf.highPrecision ? "highp" : "mediump"
     assetCache.configure({ scale: perf.textureScale, mipmaps: perf.mipmaps })
+    configureSdfText(perf.textQuality)
     const app = new Application()
     // Follow the container's size (window resizes, panels opening), then repaint.
     const resizer = new ResizeObserver(() => {
