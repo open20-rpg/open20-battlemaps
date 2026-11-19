@@ -87,3 +87,12 @@ pub(crate) fn mime_for(path: &Path) -> String {
     }
     .to_string()
 }
+
+/// Each installed pack's size on disk as cached at install (registry.json),
+/// by id: what Settings › Storage shows without walking every pack's files.
+pub(crate) fn cached_pack_sizes(app: &tauri::AppHandle) -> std::collections::HashMap<String, u64> {
+    registry::read_registry(app)
+        .into_iter()
+        .filter_map(|(id, reg)| reg.size_bytes.map(|size| (id, size)))
+        .collect()
+}

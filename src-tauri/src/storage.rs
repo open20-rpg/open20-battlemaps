@@ -5,6 +5,7 @@
 //! browsing, fonts downloaded again when a map uses them); packs are
 //! uninstalled with `uninstall_pack`. No arbitrary file access.
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -50,40 +51,49 @@ fn dir_size(path: &Path) -> (u64, usize) {
     })
 }
 
-/// The usage of the data folder at `root` (`packs/<id>/`, `fonts/`, the rest).
-pub(crate) fn usage(root: &Path) -> StorageUsage {
+/// The usage of the data folder at `root` (`packs/<id>/`, `fonts/`, the
+/// rest). A pack's size comes from `cached` (its size at install, by id)
+/// when known: walking every file of every pack is slow on phones. Only its
+/// thumbnails (made over time) are measured, and taken out of it.
+pub(crate) fn usage(root: &Path, cached: &HashMap<String, u64>) -> StorageUsage {
     let packs_root = root.join("packs");
-    let mut packs: Vec<PackUsage> = fs::read_dir(&packs_root)
-        .map(|it| {
-            it.flatten()
-                .filter(|e| e.path().is_dir())
-                .map(|e| {
-                    let dir = e.path();
-                    let (all, _) = dir_size(&dir);
-                    let (thumbs, _) = dir_size(&dir.join("thumbnails"));
-                    PackUsage {
-                        id: e.file_name().to_string_lossy().into_owned(),
-                        bytes: all - thumbs,
-                        thumbnail_bytes: thumbs,
-                    }
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let mut other_bytes = 0;
+    let mut packs = Vec::new();
+    if let Ok(entries) = fs::read_dir(&packs_root) {
+        for e in entries.flatten() {
+            let dir = e.path();
+            if !dir.is_dir() {
+                other_bytes += e.metadata().map(|m| m.len()).unwrap_or(0);
+                continue;
+            }
+            let id = e.file_name().to_string_lossy().into_owned();
+            let (thumbs, _) = dir_size(&dir.join("thumbnails"));
+            let size = cached.get(&id).copied().unwrap_or_else(|| dir_size(&dir).0);
+            packs.push(PackUsage {
+                id,
+                bytes: size.saturating_sub(thumbs),
+                thumbnail_bytes: thumbs,
+            });
+        }
+    }
     packs.sort_by(|a, b| (b.bytes + b.thumbnail_bytes).cmp(&(a.bytes + a.thumbnail_bytes)));
     let (fonts_bytes, fonts_count) = dir_size(&root.join("fonts"));
-    let (total_bytes, _) = dir_size(root);
-    let counted: u64 = packs
-        .iter()
-        .map(|p| p.bytes + p.thumbnail_bytes)
-        .sum::<u64>()
-        + fonts_bytes;
+    // Whatever else the app keeps beside packs and fonts.
+    if let Ok(entries) = fs::read_dir(root) {
+        for e in entries.flatten() {
+            let name = e.file_name();
+            if name != "packs" && name != "fonts" {
+                other_bytes += dir_size(&e.path()).0;
+            }
+        }
+    }
+    let counted: u64 = packs.iter().map(|p| p.bytes + p.thumbnail_bytes).sum();
     StorageUsage {
         packs,
         fonts_bytes,
         fonts_count,
-        other_bytes: total_bytes.saturating_sub(counted),
-        total_bytes,
+        other_bytes,
+        total_bytes: counted + fonts_bytes + other_bytes,
     }
 }
 
@@ -118,9 +128,11 @@ fn data_root(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 #[tauri::command]
 pub async fn storage_usage(app: AppHandle) -> Result<StorageUsage, String> {
     let root = data_root(&app)?;
-    tauri::async_runtime::spawn_blocking(move || usage(&root))
-        .await
-        .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        usage(&root, &crate::pack::cached_pack_sizes(&app))
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Clear one kind of the app's data that it can bring back: "thumbnails" or "fonts".
@@ -162,13 +174,15 @@ mod tests {
         file(root.join("packs/registry.json"), 7);
         file(root.join("fonts/A-Regular.ttf"), 100);
         file(root.join("fonts/B-Bold.ttf"), 50);
-        let u = usage(&root);
+        // "big"'s size as cached at install (thumbnails included then); "small"'s is walked.
+        let cached = HashMap::from([("big".to_string(), 330)]);
+        let u = usage(&root, &cached);
         assert_eq!(
             u.packs,
             vec![
                 PackUsage {
                     id: "big".into(),
-                    bytes: 300,
+                    bytes: 290,
                     thumbnail_bytes: 40
                 },
                 PackUsage {
@@ -180,7 +194,7 @@ mod tests {
         );
         assert_eq!((u.fonts_bytes, u.fonts_count), (150, 2));
         assert_eq!(u.other_bytes, 7);
-        assert_eq!(u.total_bytes, 507);
+        assert_eq!(u.total_bytes, 497);
         fs::remove_dir_all(&root).unwrap();
     }
 
@@ -198,7 +212,7 @@ mod tests {
         // Nothing there: nothing to do.
         clear_fonts(&root).unwrap();
         let empty = temp_root("empty");
-        assert_eq!(usage(&empty).total_bytes, 0);
+        assert_eq!(usage(&empty, &HashMap::new()).total_bytes, 0);
         clear_thumbnails(&empty).unwrap();
         fs::remove_dir_all(&root).unwrap();
         fs::remove_dir_all(&empty).unwrap();
