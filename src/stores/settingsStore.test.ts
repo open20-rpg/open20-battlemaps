@@ -8,6 +8,11 @@ describe("settings migration", () => {
     expect(migrateSettings(saved, 0)).not.toHaveProperty("performance")
   })
 
+  it("resets the graphics again in version 3, and moving a snapshot", () => {
+    const saved = { performance: { maxResolution: 1 }, snapshotViewGestures: true, prefabs: [] }
+    expect(migrateSettings(saved, 2)).toEqual({ prefabs: [] })
+  })
+
   it("leaves current settings alone", () => {
     const saved = { performance: { maxResolution: 1 } }
     expect(migrateSettings(saved, SETTINGS_VERSION)).toBe(saved)

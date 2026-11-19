@@ -41,27 +41,27 @@ export const GRAPHICS_PRESETS = ["low", "medium", "high", "ultra"] as const
 export type GraphicsPreset = (typeof GRAPHICS_PRESETS)[number]
 
 /**
- * What each preset sets. Low cuts what costs the most per frame on slow
- * phones and tablets (pixels, the back-buffer copy, blur passes) keeping the
- * map readable; High is the full quality the app always drew with; Ultra
- * goes past it (more pixels on dense screens, more blur passes, mipmaps).
+ * What each preset sets, each step adding more. Every one keeps 32-bit
+ * shaders and the water effect; Low halves textures and painted layers at
+ * 1 device pixel per screen pixel, with one blur pass for shadows; only
+ * Ultra multisamples edges (antialiasing).
  */
 export const PRESET_SETTINGS: Record<GraphicsPreset, RenderPerformance> = {
   low: {
-    maxResolution: 1.5,
+    maxResolution: 1,
     antialias: false,
     highPrecision: true,
     textureScale: 0.5,
-    mipmaps: true,
+    mipmaps: false,
     terrainResolution: 0.5,
     shadowBlurQuality: 1,
     maskDetail: 0.5,
     lightBlurQuality: 1,
-    waterEffect: false,
+    waterEffect: true,
   },
   medium: {
     maxResolution: 1.5,
-    antialias: true,
+    antialias: false,
     highPrecision: true,
     textureScale: 1,
     mipmaps: true,
@@ -73,10 +73,10 @@ export const PRESET_SETTINGS: Record<GraphicsPreset, RenderPerformance> = {
   },
   high: {
     maxResolution: 2,
-    antialias: true,
+    antialias: false,
     highPrecision: true,
     textureScale: 1,
-    mipmaps: false,
+    mipmaps: true,
     terrainResolution: 1,
     shadowBlurQuality: 3,
     maskDetail: 1,

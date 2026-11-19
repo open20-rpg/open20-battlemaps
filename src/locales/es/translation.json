@@ -51,7 +51,6 @@
     "tabStorage": "Almacenamiento"
   },
   "perf": {
-    "intro": "Elegí la calidad gráfica, dejá que la app pruebe este equipo y la elija, o ajustá cada parámetro a mano.",
     "measureTitle": "Medición",
     "measure": "Medir",
     "measureAgain": "Medir de nuevo",
@@ -76,31 +75,17 @@
       "base": "Base del cuadro (fondo, copia de pantalla, presentación)"
     },
     "none": "No",
-    "sectionPixels": "Píxeles",
     "maxResolution": "Resolución máxima",
-    "maxResolutionHint": "Píxeles del lienzo por píxel de pantalla (tu pantalla: {{screen}}×). Es lo que más pesa: el costo crece con el cuadrado. 1,5× suele verse casi igual que 2×.",
+    "maxResolutionHint": "Tu pantalla: {{screen}}×. Es lo que más pesa.",
     "antialias": "Suavizado de bordes (antialiasing)",
-    "antialiasHint": "Bordes de líneas y formas sin escalones. Cuesta en GPUs de móviles. Recrea el lienzo.",
     "highPrecision": "Precisión alta en los shaders",
-    "highPrecisionHint": "Cálculos de 32 bits. Apagado, móviles y tablets calculan a 16 bits: algo más rápido en algunos, con riesgo de detalles que tiemblan. Recrea el lienzo.",
-    "sectionTextures": "Texturas",
     "textureScale": "Calidad de las texturas",
-    "textureScaleHint": "Píxeles de cada textura de los paquetes que se cargan. Mismo tamaño en el mapa, menos detalle de cerca; menos memoria y carga más rápida. Recrea el lienzo.",
     "mipmaps": "Mipmaps",
-    "mipmapsHint": "Versiones reducidas de cada textura: más suave y liviano con poco zoom, un tercio más de memoria. Recrea el lienzo.",
-    "sectionLayers": "Capas pintadas",
     "terrainResolution": "Resolución del terreno",
-    "terrainResolutionHint": "El terreno se redibuja en cada cuadro en que la vista se mueve. Más baja, se mueve más fluido y se ve algo más suave.",
     "maskDetail": "Detalle de cuevas, agua, materiales y luces",
-    "maskDetailHint": "Resolución de sus máscaras: más baja, bordes más suaves, menos memoria y se rehacen más rápido al editar.",
     "waterEffect": "Efecto del agua sobre el fondo",
-    "waterEffectHint": "El agua se oscurece con lo que tiene debajo, lo que obliga a copiar la pantalla en cada cuadro. Apagado, el agua se ve plana. Recrea el lienzo.",
-    "sectionShadows": "Sombras",
     "shadowBlurQuality": "Pasadas de desenfoque de las sombras",
-    "shadowBlurQualityHint": "Cada pasada recorre la capa de sombras en cada cuadro. Con “No”, las sombras tienen bordes duros.",
     "lightBlurQuality": "Pasadas de desenfoque de las sombras de luces",
-    "lightBlurQualityHint": "Solo cuesta al rehacer la iluminación (al editar luces o paredes), no en cada cuadro.",
-    "sectionMotion": "Movimiento",
     "preset": "Calidad gráfica",
     "presets": {
       "low": "Bajo",
@@ -110,16 +95,17 @@
     },
     "customPreset": "Personalizado",
     "auto": {
-      "title": "Ajuste automático",
+      "title": "¿Cuál elijo?",
       "run": "Probar este equipo",
       "again": "Probar de nuevo",
       "running": "Probando la calidad gráfica",
-      "hint": "Dibuja un mapa de prueba (sin tocar el que tenés abierto) con cada calidad, de Bajo hacia arriba, y sugiere la más cercana a 60 cuadros por segundo. Deja de subir si una calidad baja de 15.",
+      "hint": "Prueba cada calidad con un mapa de ejemplo (sin tocar el tuyo) y sugiere la que va a ~60 cuadros por segundo.",
       "failed": "No se pudo probar este equipo.",
       "suggested": "sugerido",
       "fps": "~{{fps}} cuadros/s",
       "apply": "Aplicar {{preset}}"
-    }
+    },
+    "advanced": "Ajustes avanzados"
   },
   "graphicsIntro": {
     "title": "Gráficos en calidad {{level}}",
