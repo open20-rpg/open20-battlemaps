@@ -1,19 +1,11 @@
-import {
-  GlProgram,
-  Mesh,
-  Shader,
-  TilingSprite,
-  UniformGroup,
-  type MeshGeometry,
-  type Texture,
-} from "pixi.js"
+import { GlProgram, Mesh, Shader, MeshGeometry, UniformGroup, type Texture } from "pixi.js"
 import dustUrl from "../../../assets/wear/dust.webp"
 import grimeUrl from "../../../assets/wear/grime.webp"
 import noiseUrl from "../../../assets/wear/noise.webp"
 import scratchedUrl from "../../../assets/wear/scratched.webp"
 import { type BuildingWear } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
-import { latticeOrigin } from "./tiling"
+import { tiledMesh } from "./tiling"
 
 /**
  * Building wear: the grime multiplied over walls (and their
@@ -98,8 +90,8 @@ export function wornMesh(
 }
 
 /**
- * The wear over a map-covering area (floors, caves): a tiling sprite
- * covering `x, y, w, h` (content space, tiles) that multiplies what's under
+ * The wear over a map-covering area (floors, caves): a tiled mesh
+ * (tiling.ts, small uvs) covering `x, y, w, h` (content space, tiles) that multiplies what's under
  * it, anchored to the world so it lines up with the walls' wear.
  */
 export function wearOverlay(
@@ -110,16 +102,13 @@ export function wearOverlay(
   h: number,
   /** World px per texture px: 1 on walls and caves, 2 on floor tiles. */
   stretch = 1,
-): TilingSprite {
+): Mesh<MeshGeometry, Shader> {
   wear.source.style.addressMode = "repeat"
-  const t = new TilingSprite({ texture: wear, width: w, height: h })
-  t.position.set(x, y)
-  // Anchored at the world's origin, as the lattice point next to the
-  // sprite's corner (tilePosition is in tiles; small keeps it precise).
   const tiles = stretch / TEXTURE_PX_PER_TILE
-  const at = latticeOrigin({ x: -x, y: -y }, 0, wear.width * tiles, wear.height * tiles)
-  t.tileScale.set(tiles)
-  t.tilePosition.set(at.x, at.y)
+  const geometry = new MeshGeometry(
+    tiledMesh({ x, y, w, h }, { x: 0, y: 0 }, 0, wear.width * tiles, wear.height * tiles),
+  )
+  const t = new Mesh({ geometry, texture: wear })
   t.blendMode = "multiply"
   return t
 }
