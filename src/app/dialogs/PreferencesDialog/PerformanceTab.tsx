@@ -19,7 +19,6 @@ import {
   presetOf,
   type RenderPerformance,
   RESOLUTION_STEPS,
-  TEXT_QUALITIES,
   TEXTURE_SCALES,
 } from "../../../lib/renderPerformance"
 import { roundTo } from "../../../lib/numbers"
@@ -96,7 +95,7 @@ export function PerformanceTab() {
             {numeric("maskDetail", "perf.maskDetail", FRACTION_STEPS, percent)}
             {numeric("shadowBlurQuality", "perf.shadowBlurQuality", BLUR_QUALITIES, blurLabel)}
             {numeric("lightBlurQuality", "perf.lightBlurQuality", BLUR_QUALITIES, blurLabel)}
-            {numeric("textQuality", "perf.textQuality", TEXT_QUALITIES, (v) => `${v}px`)}
+            {numeric("textQuality", "perf.textQuality", FRACTION_STEPS, percent)}
             <Toggle
               label={t("perf.antialias")}
               checked={perf.antialias}

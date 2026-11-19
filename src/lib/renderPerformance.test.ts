@@ -36,11 +36,18 @@ describe("render performance", () => {
     expect(withPerformanceDefaults(undefined, high)).toEqual(high)
   })
 
-  it("completes a saved preset with that preset's newer settings", () => {
+  it("completes a saved preset with that preset's newer settings, dropping retired ones", () => {
     const savedUltra: Partial<RenderPerformance> = { ...PRESET_SETTINGS.ultra }
-    delete savedUltra.textQuality
-    expect(withPerformanceDefaults(savedUltra, PRESET_SETTINGS.low)).toEqual(PRESET_SETTINGS.ultra)
-    expect(canvasKey({ ...high, textQuality: 160 })).not.toBe(canvasKey(high))
+    delete savedUltra.mipmaps
+    // A text quality saved in pixels (v0.3.48) and a setting that's gone.
+    const old = { ...savedUltra, textQuality: 160, gone: 1 } as Partial<RenderPerformance>
+    expect(withPerformanceDefaults(old, PRESET_SETTINGS.low)).toEqual(PRESET_SETTINGS.ultra)
+  })
+
+  it("rasterizes text at the assets' density in Ultra, fractions of it below", () => {
+    expect(
+      ["low", "medium", "high", "ultra"].map((p) => PRESET_SETTINGS[p as "low"].textQuality),
+    ).toEqual([0.25, 0.5, 0.75, 1])
   })
 })
 
@@ -85,10 +92,6 @@ describe("preset balance", () => {
       expect(PRESET_SETTINGS[p].highPrecision).toBe(true)
       expect(PRESET_SETTINGS[p].waterEffect).toBe(true)
     }
-  })
-
-  it("text gets sharper going up, Ultra the sharpest", () => {
-    expect(order.map((p) => PRESET_SETTINGS[p].textQuality)).toEqual([48, 64, 96, 160])
   })
 
   it("Low: 1×, textures and painted layers at 50%, one blur pass", () => {

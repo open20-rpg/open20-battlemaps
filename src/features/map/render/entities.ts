@@ -1,13 +1,4 @@
-import {
-  Container,
-  Graphics,
-  Mesh,
-  MeshGeometry,
-  Point,
-  BitmapText,
-  Sprite,
-  type Texture,
-} from "pixi.js"
+import { Container, Graphics, Mesh, MeshGeometry, Point, Sprite, Texture } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
 import { boundsOf, sub, wallRuns, type WallOpening } from "../model/geometry"
 import {
@@ -23,7 +14,7 @@ import { lightFalloffTexture } from "./generated"
 import { quickboxRoof, roofFaceShade, roofGeometry, slopeUv, type RoofType } from "./roofGeometry"
 import { wearOverlay, wornMesh } from "./buildingWear"
 import { blockingSegments, lightPolygon, type Segment } from "../model/lightBlock"
-import { type FontChoice } from "../../fonts/catalog"
+import { cssFont, type FontChoice } from "../../fonts/catalog"
 import {
   borderOf,
   FONT_PX_PER_TILE,
@@ -31,7 +22,6 @@ import {
   measureText,
   textStyle,
 } from "../../fonts/metrics"
-import { sdfFont } from "./sdfFont"
 import { tiledMesh } from "./tiling"
 import { type RenderPerformance } from "../../../lib/renderPerformance"
 
@@ -559,49 +549,97 @@ const roofRenderer: EntityRenderer = (e, env) => {
 }
 
 /**
- * A text label: one line in a distance-field
- * bitmap font (sdfFont.ts) inside its optional box, laid out in font px from
+ * A text label: one line inside its optional box, laid out in font px from
  * the top-left corner (fonts/metrics) and scaled to tiles (64 font px per
- * tile). Moving it only moves this container (see the scene).
+ * tile). Box and text are drawn together on a 2D canvas, once, at the
+ * assets' density (256 px per tile) times the text quality, and kept as an
+ * image: sharp like an object's texture and zoomed like one, with smooth
+ * (antialiased) edges at any quality. Turned and scaled about the box's
+ * center (its position is the box's top-left corner). Moving it only moves
+ * this container (see the scene).
  */
 const textRenderer: EntityRenderer = (e, env) => {
   const root = new Container()
   root.visible = env.textVisible
-  root.position.copyFrom(toContent(e.position))
-  root.scale.set(1 / FONT_PX_PER_TILE)
   const text = (e.text ?? "").replace(/\s*\n\s*/g, " ")
   const style = textStyle(e.params)
   const ready = env.font(style.font)
   const box = layoutTextBox(measureText(style.font, style.size, text), borderOf(style))
+  const scale = (e.scale ?? 1) / FONT_PX_PER_TILE
+  root.pivot.set(box.w / 2, box.h / 2)
+  root.position.set(-e.position.x + (box.w * scale) / 2, e.position.y + (box.h * scale) / 2)
+  root.scale.set(scale)
+  root.rotation = rad(e.rotation)
+  const image = labelImage(
+    text,
+    style,
+    box,
+    ready,
+    TEXTURE_PX_PER_TILE * env.perf.textQuality * scale,
+  )
+  if (image) root.addChild(image)
+  return root
+}
+
+/** Largest side (px) a label's image may take. */
+const TEXT_MAX_PX = 4096
+
+const rgba = (hex: string) => {
+  const { color, alpha } = hexToPixiColor(hex)
+  return `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, ${alpha})`
+}
+
+/**
+ * A label's box and text painted on a 2D canvas (its antialiasing gives
+ * smooth edges whatever the canvas's) at `density` pixels per font px,
+ * capped at TEXT_MAX_PX a side, as a sprite in font px.
+ */
+function labelImage(
+  text: string,
+  style: ReturnType<typeof textStyle>,
+  box: ReturnType<typeof layoutTextBox>,
+  ready: boolean,
+  density: number,
+): Sprite | null {
+  if (typeof document === "undefined" || (!text && style.box === "none")) return null
+  const k = Math.min(density, TEXT_MAX_PX / Math.max(1, box.w, box.h))
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.max(1, Math.ceil(box.w * k))
+  canvas.height = Math.max(1, Math.ceil(box.h * k))
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return null
+  ctx.scale(k, k)
+  // Older webviews have no roundRect: square corners there.
+  const shape = (x: number, y: number, w: number, h: number, r: number) =>
+    typeof ctx.roundRect === "function" ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h)
   if (style.box !== "none") {
     const bw = style.borderWidth
     const r = style.box === "pill" ? Math.min(box.w, box.h) / 2 : 0
-    const bg = hexToPixiColor(style.background)
-    const border = hexToPixiColor(style.borderColor)
-    const g = new Graphics()
+    const inner = Math.max(0, r - bw)
     if (bw > 0) {
-      g.roundRect(0, 0, box.w, box.h, r).fill({ color: border.color, alpha: border.alpha })
-      g.roundRect(bw, bw, box.w - 2 * bw, box.h - 2 * bw, Math.max(0, r - bw)).cut()
+      // The border: the outer shape minus the inner one.
+      ctx.beginPath()
+      shape(0, 0, box.w, box.h, r)
+      shape(bw, bw, box.w - 2 * bw, box.h - 2 * bw, inner)
+      ctx.fillStyle = rgba(style.borderColor)
+      ctx.fill("evenodd")
     }
-    g.roundRect(bw, bw, box.w - 2 * bw, box.h - 2 * bw, Math.max(0, r - bw)).fill({
-      color: bg.color,
-      alpha: bg.alpha,
-    })
-    root.addChild(g)
+    ctx.beginPath()
+    shape(bw, bw, box.w - 2 * bw, box.h - 2 * bw, inner)
+    ctx.fillStyle = rgba(style.background)
+    ctx.fill()
   }
   if (text) {
-    const color = hexToPixiColor(style.color)
-    const label = new BitmapText({
-      text,
-      style: { fontFamily: sdfFont(style.font, ready, text), fontSize: style.size, fill: 0xffffff },
-    })
-    label.tint = color.color
-    label.alpha = color.alpha
-    // The atlas's line top: the baseline lands `ascent` below it.
-    label.position.set(box.textX, borderOf(style))
-    root.addChild(label)
+    ctx.font = cssFont(style.font, style.size, ready)
+    ctx.textBaseline = "alphabetic"
+    ctx.fillStyle = rgba(style.color)
+    ctx.fillText(text, box.textX, box.baseline)
   }
-  return root
+  const texture = Texture.from(canvas)
+  const sprite = new Sprite(texture)
+  sprite.scale.set(box.w / canvas.width, box.h / canvas.height)
+  sprite.once("destroyed", () => texture.destroy(true))
+  return sprite
 }
 
 /** Renderers by tool id. Painted tools (cave, water, terrain, material) and lights are composited separately. */

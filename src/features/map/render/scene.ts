@@ -85,6 +85,8 @@ interface EntityView {
   lighting: boolean
   /** The map's building wear it was drawn with (walls and floors use it). */
   wear: BuildingWear
+  /** The text quality it was drawn with (labels' images). */
+  textQuality: number
   view: Container
   /** Drop-shadow silhouettes it cast (they live in the shared shadow layer). */
   shadows: Container[]
@@ -460,7 +462,8 @@ export class MapScene {
         this.compareViews.set(entity.id, { entity, view, complete: track.complete })
       }
       const entry = this.compareViews.get(entity.id)
-      if (entry) entry.view.zIndex = zFor(drawLayer(entity), index)
+      if (!entry) return
+      entry.view.zIndex = zFor(drawLayer(entity), index)
     })
     for (const [id, entry] of this.compareViews) {
       if (seen.has(id)) continue
@@ -549,6 +552,7 @@ export class MapScene {
         current.textVisible === state.textVisible &&
         current.lighting === state.lighting &&
         current.wear === state.map.buildingWear &&
+        current.textQuality === state.performance.textQuality &&
         !(assetsChanged && !current.complete)
       // Only moved (dragging an object, a label, a light): shift what's drawn.
       if (
@@ -579,6 +583,7 @@ export class MapScene {
           textVisible: state.textVisible,
           lighting: state.lighting,
           wear: state.map.buildingWear,
+          textQuality: state.performance.textQuality,
           view,
           shadows,
           complete: track.complete,
