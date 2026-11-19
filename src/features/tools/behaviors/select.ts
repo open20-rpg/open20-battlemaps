@@ -8,6 +8,7 @@ import {
 import { useEditorStore } from "../../../stores/editorStore"
 import { beginGesture, endGesture, moveEntities, updateEntities } from "../../map/commands"
 import {
+  bandTouchesSolid,
   boundsOf,
   dist,
   editablePointsOf,
@@ -216,8 +217,12 @@ const ALPHA_PICK_MIN = 8
  * portal) only picks it where its texture isn't transparent: elsewhere it
  * goes through to what's under it. Until the texture is loaded, its shape decides.
  */
+/** Entities drawn from a texture (objects, portals…), whose transparent parts clicks go through. */
+const isSprite = (e: MapEntity) =>
+  !e.points && !e.strokes && e.toolId !== "text" && e.toolId !== "light"
+
 const solidAt = (ctx: ToolCtx) => (e: MapEntity, p: Vec2) => {
-  if (e.points || e.strokes || e.toolId === "text" || e.toolId === "light") return true
+  if (!isSprite(e)) return true
   const id = entityAssetId(e)
   const size = id ? ctx.sizeOf(id) : undefined
   if (!id || !size) return true
@@ -252,7 +257,16 @@ export function rotateSelection(ctx: ToolCtx, delta: number): void {
 export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2, locked = false): MapEntity[] {
   const band = rectFromCorners(a, b)
   const pick = pickable(ctx, locked)
-  return ctx.entities.filter((e) => pick(e) && rectsIntersect(entityBounds(e, ctx.sizeOf), band))
+  // Click through transparency: a band picks a sprite only where it covers
+  // some of its opaque pixels (a click on its transparent part, a band of
+  // no size, picks nothing), as a click does.
+  const solid = ctx.params.alphaPick === true ? solidAt(ctx) : undefined
+  return ctx.entities.filter((e) => {
+    if (!pick(e)) return false
+    const bounds = entityBounds(e, ctx.sizeOf)
+    if (!solid || !isSprite(e)) return rectsIntersect(bounds, band)
+    return bandTouchesSolid(band, bounds, (p) => solid(e, p))
+  })
 }
 
 /**

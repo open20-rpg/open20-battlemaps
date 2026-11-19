@@ -14,6 +14,7 @@ import { terrainSlots } from "./paint"
 import { decodeWeights, type TerrainData } from "../../map/model/terrain"
 import { instantiatePrefab, prefabFrom } from "./settings"
 import { nearestWall, screenAngle } from "./structures"
+import { entitiesInRect } from "./select"
 import { type PointerInfo } from "./types"
 import { pressKey, releaseAll } from "../../shortcuts/held"
 import { runShortcut } from "../../map/shortcuts"
@@ -778,6 +779,33 @@ describe("effects, text, select, prefabs", () => {
     expect(entities().every((e) => !e.group)).toBe(true)
     undo()
     expect(entities()[0].group).toBeDefined()
+  })
+
+  it("Click through transparency: bands (and clicks) skip a sprite's transparent part", () => {
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
+    down("object", 4, 4)
+    setParams("select", { alphaPick: true })
+    const base = buildToolCtx("select")
+    if (!base) throw new Error("no ctx")
+    // A 2×2-tile sprite whose texture is opaque only in its left half
+    // (texture u < 0.5; map x is mirrored, so that's the larger map x).
+    const ctx = {
+      ...base,
+      sizeOf: () => ({ w: 2, h: 2 }),
+      alphaAt: (_id: string, u: number, v: number) =>
+        u >= 0 && u < 0.5 && v >= 0 && v <= 1 ? 255 : 0,
+    }
+    const picked = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      entitiesInRect(ctx, a, b).map((e) => e.toolId)
+    // Over the transparent half only: nothing; a click there: nothing.
+    expect(picked({ x: 3.1, y: 3.5 }, { x: 3.6, y: 4.5 })).toEqual([])
+    expect(picked({ x: 3.5, y: 4 }, { x: 3.5, y: 4 })).toEqual([])
+    // Reaching the opaque half picks it.
+    expect(picked({ x: 3.1, y: 3.5 }, { x: 4.5, y: 4.5 })).toEqual(["object"])
+    // Off, the band goes by the sprite's box as before.
+    setParams("select", { alphaPick: false })
+    const off = { ...ctx, params: { ...ctx.params, alphaPick: false } }
+    expect(entitiesInRect(off, { x: 3.1, y: 3.5 }, { x: 3.6, y: 4.5 })).toHaveLength(1)
   })
 
   it("Locked entities skip clicks and bands; an Alt band picks only them", () => {
