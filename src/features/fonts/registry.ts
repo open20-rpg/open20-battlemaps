@@ -2,19 +2,23 @@ import i18n from "../../i18n"
 import { withLoading } from "../../stores/loadingStore"
 import { cachedFont, downloadFont, fontFileUrl } from "./api"
 import {
+  cachedFileName,
   findFamily,
+  fontFile,
   fontFileName,
   fontUrl,
   loadCatalog,
-  nearestStyle,
   styleName,
+  type CatalogFamily,
   type FontChoice,
+  type FontFile,
 } from "./catalog"
 
 /**
  * Which Google fonts the webview has: a cached .ttf is registered as a
- * FontFace (family + weight + slant), so the edit <input>, canvas measuring
- * and the SDF atlases all use it. Fonts are only downloaded when asked to
+ * FontFace (family + weights + slant), so the edit <input> and the canvas
+ * the labels are drawn on use it. A variable font's file is registered once
+ * with its whole weight range: every weight of it draws from that one face. Fonts are only downloaded when asked to
  * (picking one, or accepting to fetch a map's missing fonts); anything
  * else just loads what's already on disk. Listeners hear when a font becomes
  * available, so the map redraws the texts that were using the fallback.
@@ -43,14 +47,31 @@ function notify(): void {
   })
 }
 
-/** Register the font file at `path` for `font`'s family, weight and slant. */
-async function register(font: FontChoice, path: string): Promise<void> {
-  const face = new FontFace(font.family, `url("${fontFileUrl(path)}")`, {
-    weight: String(font.weight),
-    style: font.italic ? "italic" : "normal",
-  })
-  await face.load()
-  document.fonts.add(face)
+/** Registered files (family + file index): each is added to the page once. */
+const registered = new Map<string, Promise<void>>()
+
+/**
+ * Register the font file at `path` for its family, weights and slant. A
+ * variable file's range lets the browser set its `wght` axis from the
+ * weight asked for (a single weight would draw its default instance on
+ * some engines).
+ */
+function register(fam: CatalogFamily, file: FontFile, path: string): Promise<void> {
+  const key = `${fam.f}|${file.file}`
+  let done = registered.get(key)
+  if (!done) {
+    const [min, max] = file.weights
+    const face = new FontFace(fam.f, `url("${fontFileUrl(path)}")`, {
+      weight: min === max ? String(min) : `${min} ${max}`,
+      style: file.italic ? "italic" : "normal",
+    })
+    done = face.load().then(() => {
+      document.fonts.add(face)
+    })
+    done.catch(() => registered.delete(key))
+    registered.set(key, done)
+  }
+  return done
 }
 
 /**
@@ -74,14 +95,17 @@ export async function ensureFont(font: FontChoice, download = false): Promise<bo
     return true
   }
   try {
-    const fileName = fontFileName(font)
-    let path = await cachedFont(fileName)
+    const file = fontFile(fam, font.weight, font.italic)
+    const fileName = cachedFileName(fam, file)
+    // A variable style downloaded before was cached under its style's name.
+    let path =
+      (await cachedFont(fileName)) ?? (file.variable ? await cachedFont(fontFileName(font)) : null)
     if (!path && download) {
-      const [weight, italic] = nearestStyle(fam, font.weight, font.italic)
+      const style = file.variable
+        ? styleName(font.weight, file.italic)
+        : styleName(file.weights[0], file.italic)
       path = await withLoading(
-        i18n.t("loading.downloadingFont", {
-          font: `${font.family} ${styleName(weight, !!italic)}`,
-        }),
+        i18n.t("loading.downloadingFont", { font: `${font.family} ${style}` }),
         () => downloadFont(fontUrl(fam, font.weight, font.italic), fileName),
       )
     }
@@ -89,7 +113,7 @@ export async function ensureFont(font: FontChoice, download = false): Promise<bo
       states.set(key, "missing")
       return false
     }
-    await register(font, path)
+    await register(fam, file, path)
     states.set(key, "ready")
     notify()
     return true

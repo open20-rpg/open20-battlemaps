@@ -115,10 +115,48 @@ export function fontUrl(fam: CatalogFamily, weight: number, italic: boolean): st
   return `https://raw.githubusercontent.com/google/fonts/main/${fam.d}/${encodeURIComponent(fam.files[file])}`
 }
 
-/** The cached file's name: `<Family>-<Style>.ttf`, without spaces. */
+const clean = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "")
+
+/**
+ * The cached file's name for one style: `<Family>-<Style>.ttf`, without
+ * spaces. A variable font's file is cached once for all its styles (see
+ * {@link FontFace}); this was its name before, still looked for.
+ */
 export function fontFileName(font: FontChoice): string {
-  const clean = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "")
   return `${clean(font.family)}-${clean(styleName(font.weight, font.italic))}.ttf`
+}
+
+/**
+ * The file a style comes from and the weights it covers. A variable font's
+ * file holds every weight of its slant (`wght` axis): registered once with
+ * the whole range, the browser picks any of them from it.
+ */
+export interface FontFile {
+  /** Index in the family's `files`. */
+  file: number
+  italic: boolean
+  /** Lightest and heaviest weight it covers (the same for a static file). */
+  weights: [number, number]
+  variable: boolean
+}
+
+/** The file `weight`/`italic` is drawn from: the family's nearest style's. */
+export function fontFile(fam: CatalogFamily, weight: number, italic: boolean): FontFile {
+  const [, slant, file] = nearestStyle(fam, weight, italic)
+  const weights = fam.s.filter(([, , f]) => f === file).map(([w]) => w)
+  return {
+    file,
+    italic: !!slant,
+    weights: [Math.min(...weights), Math.max(...weights)],
+    variable: weights.length > 1,
+  }
+}
+
+/** A file's cached name: a static style's `Family-Style.ttf`, a variable one's `Family-Variable[Italic].ttf`. */
+export function cachedFileName(fam: CatalogFamily, face: FontFile): string {
+  if (!face.variable)
+    return fontFileName({ family: fam.f, weight: face.weights[0], italic: face.italic })
+  return `${clean(fam.f)}-Variable${face.italic ? "Italic" : ""}.ttf`
 }
 
 /** The CSS font shorthand for `font` at `px` (also what canvas measuring takes). */

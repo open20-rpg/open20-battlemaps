@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
+  cachedFileName,
   cssFont,
+  fontFile,
   fontFileName,
   fontUrl,
   nearestStyle,
@@ -87,6 +89,31 @@ describe("font files", () => {
     expect(fontFileName({ family: "Libre Baskerville", weight: 700, italic: true })).toBe(
       "LibreBaskerville-BoldItalic.ttf",
     )
+  })
+
+  it("caches a variable font's file once, for every weight of its slant", () => {
+    const face = fontFile(baskerville, 700, true)
+    expect(face).toEqual({ file: 1, italic: true, weights: [400, 700], variable: true })
+    expect(fontFile(baskerville, 400, true)).toEqual(face)
+    expect(cachedFileName(baskerville, face)).toBe("LibreBaskerville-VariableItalic.ttf")
+    expect(cachedFileName(baskerville, fontFile(baskerville, 400, false))).toBe(
+      "LibreBaskerville-Variable.ttf",
+    )
+  })
+
+  it("keeps a static font's file per style", () => {
+    const lato: CatalogFamily = {
+      f: "Lato",
+      d: "ofl/lato",
+      files: ["Lato-Regular.ttf", "Lato-Bold.ttf"],
+      s: [
+        [400, 0, 0],
+        [700, 0, 1],
+      ],
+    }
+    const bold = fontFile(lato, 650, false)
+    expect(bold).toEqual({ file: 1, italic: false, weights: [700, 700], variable: false })
+    expect(cachedFileName(lato, bold)).toBe("Lato-Bold.ttf")
   })
 
   it("falls back to the default family", () => {
