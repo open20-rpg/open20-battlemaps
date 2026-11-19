@@ -10,6 +10,7 @@ import {
   endGesture,
   setPostProcess,
   setReferenceImage,
+  updateEntities,
   updateReferenceImage,
 } from "../../map/commands"
 import {
@@ -135,13 +136,20 @@ export function instantiatePrefab(prefab: Prefab, p: Vec2, level: string): MapEn
   return regroup(prefab.entities).map((e) => ({ ...translateEntity(e, p), id: newId(), level }))
 }
 
-/** Save the current selection as a prefab (Prefabs panel "Save selection"). */
+/**
+ * Save the current selection as a prefab (Prefabs panel "Save selection").
+ * Several things are grouped first (on the map too), so the prefab, and
+ * every copy of it, moves and transforms as one.
+ */
 export function saveSelectionAsPrefab(ctx: ToolCtx): Prefab | null {
   const ids = new Set(useEditorStore.getState().selection)
-  const prefab = prefabFrom(
-    ctx.entities.filter((e) => ids.has(e.id)),
-    ctx.sizeOf,
-  )
+  let selected = ctx.entities.filter((e) => ids.has(e.id))
+  if (selected.length > 1) {
+    const group = newId()
+    updateEntities(new Map(selected.map((e) => [e.id, { group }])))
+    selected = selected.map((e) => ({ ...e, group }))
+  }
+  const prefab = prefabFrom(selected, ctx.sizeOf)
   if (prefab) {
     useSettingsStore.getState().addPrefab(prefab)
     useToolsStore.getState().setToolParams(ctx.toolId, { prefab: prefab.id })

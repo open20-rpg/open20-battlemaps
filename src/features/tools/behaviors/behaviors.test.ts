@@ -757,6 +757,25 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()[1].position).toEqual({ x: 8, y: 8 })
   })
 
+  it("saving several things as a prefab groups them first; each copy is a group of its own", () => {
+    useSettingsStore.setState({ prefabs: [] })
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
+    tap("object", 2, 2)
+    tap("object", 4, 2)
+    useEditorStore.getState().select(entities().map((e) => e.id))
+    useToolsStore.getState().selectToolById("prefabs")
+    runToolAction("prefabs", "save")
+    const [a, b] = entities()
+    expect(a.group).toBeDefined()
+    expect(b.group).toBe(a.group)
+    tap("prefabs", 10, 10)
+    const copies = entities().slice(2)
+    expect(copies).toHaveLength(2)
+    expect(copies[0].group).toBeDefined()
+    expect(copies[1].group).toBe(copies[0].group)
+    expect(copies[0].group).not.toBe(a.group)
+  })
+
   it("Select's corner handle scales from the opposite corner; the top handle rotates", () => {
     useViewStore.setState({ zoom: 100 })
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
