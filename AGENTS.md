@@ -100,8 +100,9 @@ ni accionable.
   google/fonts (sin red conserva el commiteado). Las fuentes se bajan solo
   cuando el usuario lo pide (elegirla, o aceptar al abrir un mapa) y quedan
   cacheadas en `<app data>/fonts/`; `registry.ts` las registra como FontFace.
-  Los textos se dibujan con BitmapText sobre atlas SDF (`render/sdfFont.ts`,
-  shader con `fwidth` en `render/sdfShader.ts`); el cuadro sigue
+  Cada texto se rasteriza una vez en un canvas 2D (`labelImage` en
+  `render/entities.ts`) a la densidad de los assets por la calidad de texto, y
+  se guarda como imagen; la caja (borde, redondeo, espaciado por lado) sigue
   `fonts/metrics.ts`. Un texto es una línea y su `position` es la esquina
   superior izquierda.
 - **Pack integrado** ("Open20 Essentials"): vive en su propio repo,
