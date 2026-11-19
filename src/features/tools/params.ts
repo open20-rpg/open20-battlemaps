@@ -103,6 +103,8 @@ export interface ParamValueByKind {
   iconToggles: string[]
   /** The map's missing assets, to locate and replace (Replace Assets). */
   missingAssets: MissingFocus
+  /** The library items picked for the tool (its `LIBRARY_PARAM`). */
+  librarySelection: string[]
 }
 
 export type ParamKind = keyof ParamValueByKind
@@ -181,6 +183,8 @@ export type ToolParamSpec =
   | BaseSpec<"properties">
   /** The map's missing assets: pick one to show it, swap it for an installed one. */
   | BaseSpec<"missingAssets">
+  /** What's picked in the Library (Scatter's objects): shown in the panel, a tap removes one. */
+  | (BaseSpec<"librarySelection"> & { labelKey: string; category: AssetCategory })
   /** Square on/off icon buttons in rows, under a title (Select's element filter). */
   | (BaseSpec<"iconToggles"> & {
       labelKey: string
@@ -228,7 +232,8 @@ export function paramGrows(spec: ToolParamSpec): boolean {
     spec.kind === "assetPicker" ||
     spec.kind === "biome" ||
     spec.kind === "prefabs" ||
-    spec.kind === "missingAssets"
+    spec.kind === "missingAssets" ||
+    spec.kind === "librarySelection"
   )
 }
 

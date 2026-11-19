@@ -24,6 +24,7 @@ import { useActionBinding } from "../../shortcuts/bindings"
 import { SelectionPropertiesControl } from "./SelectionPropertiesControl"
 import { IconTogglesControl } from "./IconTogglesControl"
 import { MissingAssetsControl } from "./MissingAssetsControl"
+import { LibrarySelectionControl } from "./LibrarySelectionControl"
 
 interface RenderArgs<K extends ParamKind> {
   toolId: string
@@ -140,6 +141,15 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
     <FontControl value={value} labelKey={spec.labelKey} onChange={onChange} />
   ),
   levels: () => <LevelsPanel />,
+  librarySelection: ({ toolId, spec, value, onChange }) => (
+    <LibrarySelectionControl
+      toolId={toolId}
+      value={value}
+      labelKey={spec.labelKey}
+      category={spec.category}
+      onChange={onChange}
+    />
+  ),
   prefabs: ({ spec, value, onChange }) => (
     <PrefabsControl value={value} labelKey={spec.labelKey} onChange={onChange} />
   ),
