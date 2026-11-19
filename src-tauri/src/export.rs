@@ -210,13 +210,28 @@ pub async fn export_begin(
     .await
 }
 
-/// Append a band of rows, sent as the raw request body.
+/// The pixels a request carries: its raw body (desktop), or, where the IPC
+/// only carries JSON (Android's), `{ "data": "<base64>" }`.
+fn body_bytes(body: &tauri::ipc::InvokeBody) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    match body {
+        tauri::ipc::InvokeBody::Raw(bytes) => Ok(bytes.clone()),
+        tauri::ipc::InvokeBody::Json(json) => {
+            let data = json
+                .get("data")
+                .and_then(|v| v.as_str())
+                .ok_or("expected image bytes")?;
+            base64::engine::general_purpose::STANDARD
+                .decode(data)
+                .map_err(|e| e.to_string())
+        }
+    }
+}
+
+/// Append a band of rows: the request's bytes (see [`body_bytes`]).
 #[tauri::command]
 pub async fn export_rows(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<(), String> {
-    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
-        return Err("expected a raw byte body".into());
-    };
-    let rows = bytes.clone();
+    let rows = body_bytes(request.body())?;
     blocking(move || {
         let state = app.state::<ExportState>();
         let mut guard = state.0.lock().unwrap();
@@ -249,26 +264,43 @@ struct Sample {
     height: u32,
 }
 
-/// Encoded size of a sample picture (raw RGBA body; format and size in the
-/// `x-export-sample` header): the frontend scales it to estimate a file size.
+/// Encoded size of a sample picture (RGBA, see [`body_bytes`]; format and
+/// size in the `x-export-sample` header, or in the JSON body beside `data`):
+/// the frontend scales it to estimate a file size.
 #[tauri::command]
 pub async fn export_estimate(request: tauri::ipc::Request<'_>) -> Result<u64, String> {
-    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
-        return Err("expected a raw byte body".into());
+    let rgba = body_bytes(request.body())?;
+    let sample: Sample = match request.body() {
+        tauri::ipc::InvokeBody::Json(json) => {
+            serde_json::from_value(json.clone()).map_err(|e| e.to_string())?
+        }
+        tauri::ipc::InvokeBody::Raw(_) => {
+            let header = request
+                .headers()
+                .get(ESTIMATE_HEADER)
+                .and_then(|v| v.to_str().ok())
+                .ok_or("missing sample header")?;
+            serde_json::from_str(header).map_err(|e| e.to_string())?
+        }
     };
-    let header = request
-        .headers()
-        .get(ESTIMATE_HEADER)
-        .and_then(|v| v.to_str().ok())
-        .ok_or("missing sample header")?;
-    let sample: Sample = serde_json::from_str(header).map_err(|e| e.to_string())?;
-    let rgba = bytes.clone();
     blocking(move || encoded_size(sample.format, &rgba, sample.width, sample.height)).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_pixels_raw_or_as_base64_json() {
+        use tauri::ipc::InvokeBody;
+        assert_eq!(
+            body_bytes(&InvokeBody::Raw(vec![1, 2, 3])).unwrap(),
+            vec![1, 2, 3]
+        );
+        let json = InvokeBody::Json(serde_json::json!({ "data": "AQID", "format": "png" }));
+        assert_eq!(body_bytes(&json).unwrap(), vec![1, 2, 3]);
+        assert!(body_bytes(&InvokeBody::Json(serde_json::json!([1, 2]))).is_err());
+    }
     use std::sync::{Arc, Mutex as StdMutex};
 
     /// A sink that keeps what's written, readable after the encoder drops it.
