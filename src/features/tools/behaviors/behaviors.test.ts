@@ -367,6 +367,31 @@ describe("walls, build, portals", () => {
     expect(entities().find((e) => e.toolId === "water")?.params.erase).toBe(true)
   })
 
+  it("the Paint/Erase control does what Alt does (touch has no Alt)", () => {
+    const drag = (tool: string, a: [number, number], b: [number, number]) => {
+      down(tool, ...a)
+      move(tool, ...b)
+      up(tool, ...b)
+    }
+    setParams("pattern", { shape: "rectangle", paintMode: "paint" })
+    drag("pattern", [10, 0], [14, 4])
+    setParams("pattern", { paintMode: "erase" })
+    drag("pattern", [12, -1], [15, 5])
+    const [pattern] = entities().filter((e) => e.toolId === "pattern")
+    expect(Math.max(...(pattern.points ?? []).map((p) => p.x))).toBe(12)
+
+    setParams("water", { shape: "rectangle", paintMode: "erase" })
+    drag("water", [0, 10], [2, 12])
+    expect(entities().find((e) => e.toolId === "water")?.params.erase).toBe(true)
+    setParams("water", { paintMode: "paint" })
+    drag("water", [4, 10], [6, 12])
+    expect(
+      entities()
+        .filter((e) => e.toolId === "water")
+        .at(-1)?.params.erase,
+    ).toBeUndefined()
+  })
+
   it("previews the real wall and room while they're being drawn", () => {
     useToolsStore.getState().selectToolById("wall")
     down("wall", 0, 0)

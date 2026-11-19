@@ -443,7 +443,12 @@
     "showParams": "Mostrar parámetros",
     "backToGroups": "Volver a los grupos",
     "viewControls": "Vista",
-    "linkedProperties": "Vinculado: {{name}}"
+    "linkedProperties": "Vinculado: {{name}}",
+    "paintMode": "Modo",
+    "paintModePaint": "Pintar",
+    "paintModeErase": "Borrar",
+    "paintModeAdd": "Agregar",
+    "paintModeCut": "Recortar"
   },
   "biomes": {
     "barren": "Yermo",

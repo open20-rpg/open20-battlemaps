@@ -443,7 +443,12 @@
     "showParams": "Show parameters",
     "backToGroups": "Back to groups",
     "viewControls": "View",
-    "linkedProperties": "Linked: {{name}}"
+    "linkedProperties": "Linked: {{name}}",
+    "paintMode": "Mode",
+    "paintModePaint": "Paint",
+    "paintModeErase": "Erase",
+    "paintModeAdd": "Add",
+    "paintModeCut": "Cut out"
   },
   "biomes": {
     "barren": "Barren",
