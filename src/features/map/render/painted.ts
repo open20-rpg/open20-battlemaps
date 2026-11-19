@@ -77,22 +77,25 @@ export interface MapBox {
  * the textures' detail.
  */
 const MASK_MAX_PX = 2048
-export function maskResolution(map: MapBox): number {
-  return Math.max(4, Math.min(32, Math.floor(MASK_MAX_PX / Math.max(map.width, map.height))))
+export function maskResolution(
+  map: MapBox,
+  /** Settings › Performance's mask detail (fraction of the full resolution). */
+  detail = 1,
+): number {
+  const full = Math.max(4, Math.min(32, Math.floor(MASK_MAX_PX / Math.max(map.width, map.height))))
+  return Math.max(2, Math.round(full * detail))
 }
 
 /** A map-sized render target plus the container transform to draw into it in content space. */
 class MapMask {
   readonly rt: RenderTexture
-  readonly res: number
 
   constructor(
     private renderer: Renderer,
     private map: MapBox,
-    /** Px per tile (default: as fine as the map's size allows, maskResolution). */
-    res?: number,
+    /** Px per tile (maskResolution). */
+    readonly res: number,
   ) {
-    this.res = res ?? maskResolution(map)
     this.rt = RenderTexture.create({ width: map.width * this.res, height: map.height * this.res })
   }
 
@@ -223,7 +226,7 @@ function caveComposite(
     return g
   }
   const fade = blastFade(blasted)
-  const floor = new MapMask(renderer, map)
+  const floor = new MapMask(renderer, map, maskResolution(map, env.perf.maskDetail))
   floor.draw(
     [
       ...loops.flatMap((l, i) => (holes[i] ? [] : [shape(l, false)])),
@@ -356,7 +359,12 @@ function rgbOf(hex: string): [number, number, number] {
  * exact polygons; the ripples run along that field's iso-lines (round
  * inward offsets).
  */
-function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer): Composite {
+function waterComposite(
+  entities: MapEntity[],
+  map: MapBox,
+  renderer: Renderer,
+  env: RenderEnv,
+): Composite {
   const last = entities[entities.length - 1]
   const deep = rgbOf(str(last.params.deepColor, "#3aa19a"))
   const shallow = rgbOf(str(last.params.shallowColor, "#8bceb0"))
@@ -381,7 +389,7 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
     }
     return g
   }
-  const area = new MapMask(renderer, map)
+  const area = new MapMask(renderer, map, maskResolution(map, env.perf.maskDetail))
   area.draw([filled()], true)
   const res = area.res
   const { pixels, width: W, height: H } = renderer.extract.pixels({ target: area.rt })
@@ -443,8 +451,9 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
   // Mask pixel (px, py) is content (−map.width + px/res, py/res).
   sprite.position.set(-map.width + x0 / res, y0 / res)
   sprite.scale.set(1 / res)
-  const filter = new WaterFilter()
-  sprite.filters = [filter]
+  // Settings › Performance's water effect off: flat water, no backdrop copy.
+  const filter = env.perf.waterEffect ? new WaterFilter() : null
+  if (filter) sprite.filters = [filter]
   const clip = filled()
   sprite.mask = clip
   view.addChild(sprite, clip)
@@ -493,7 +502,7 @@ function waterComposite(entities: MapEntity[], map: MapBox, renderer: Renderer):
     ...comp,
     dispose: () => {
       comp.dispose()
-      filter.destroy()
+      filter?.destroy()
       texture.destroy(true)
     },
   }
@@ -550,6 +559,7 @@ function terrainComposite(
       map,
     },
     data,
+    env.perf.terrainResolution,
   )
   return {
     view: layer.view,
@@ -671,7 +681,7 @@ function materialComposite(
       if (hole) g.blendMode = "erase"
       return g
     }
-    const area = new MapMask(renderer, map)
+    const area = new MapMask(renderer, map, maskResolution(map, env.perf.maskDetail))
     area.draw(
       [
         ...loops.flatMap((l, i) => (holes[i] ? [] : [shape(l, false)])),

@@ -1,3 +1,4 @@
+import { type RenderPerformance } from "../../../lib/renderPerformance"
 import { BlurFilter, Container, Graphics, Sprite, type Renderer } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import { type ShadowStyle } from "../../../stores/settingsStore"
@@ -66,6 +67,8 @@ export interface SceneState {
   zoom: number
   /** Reference image as a loaded data URL (null when none/hidden). */
   referenceUrl: string | null
+  /** How the map is rendered, traded against speed (Settings › Performance). */
+  performance: RenderPerformance
 }
 
 interface EntityView {
@@ -85,11 +88,22 @@ interface EntityView {
 }
 
 interface CompositeView {
+  /** The painted tool it composites. */
+  toolId: string
   inputs: readonly unknown[]
   comp: Composite
   complete: boolean
   /** Live terrain version last shown (see terrainLive.ts). */
   live: number
+}
+
+/** A part of the scene that can be hidden to measure its cost (see MapScene.profileParts). */
+export interface ProfilePart {
+  id: string
+  /** i18n key of its name; `tool` fills its {{tool}} with a tool's name. */
+  labelKey: string
+  tool?: string
+  show: (on: boolean) => void
 }
 
 const sameInputs = (a: readonly unknown[], b: readonly unknown[]) =>
@@ -259,6 +273,7 @@ export class MapScene {
         if (pending) track.complete = false
         return ready
       },
+      perf: state.performance,
       textVisible: state.textVisible,
       lighting: state.lighting,
       terrainSmooth: state.terrainSmooth,
@@ -339,6 +354,13 @@ export class MapScene {
     // Blur works in output pixels, so convert the tile radius at the current scale.
     const px = this.shadowPxPerTile ?? tileSizeForZoom(state.zoom)
     this.shadowBlur.strength = style.blur * px
+    // Settings › Performance: fewer blur passes, or none (hard edges).
+    const quality = state.performance.shadowBlurQuality
+    if (quality > 0) this.shadowBlur.quality = quality
+    const blur = quality > 0 && style.blur > 0
+    if (blur !== this.shadowLayer.filters?.includes(this.shadowBlur)) {
+      this.shadowLayer.filters = blur ? [this.shadowBlur, this.shadowTint] : [this.shadowTint]
+    }
   }
 
   private syncCompare(state: SceneState, assetsChanged: boolean): void {
@@ -517,6 +539,9 @@ export class MapScene {
           state.terrainSmooth,
           state.showCaveBlast,
           state.map.buildingWear,
+          state.performance.maskDetail,
+          state.performance.terrainResolution,
+          state.performance.waterEffect,
           ...mine,
         ]
         if (
@@ -539,6 +564,7 @@ export class MapScene {
         comp.view.zIndex = zFor(paintedLayer(toolId, mine), -1)
         this.content.addChild(comp.view)
         this.composites.set(key, {
+          toolId,
           inputs,
           comp,
           complete: track.complete,
@@ -563,11 +589,14 @@ export class MapScene {
     }
     const blockers = lightBlockers(onLevel)
     const softness = state.shadowStyle.lightSoftness
+    const { maskDetail, lightBlurQuality } = state.performance
     const inputs = [
       state.map.width,
       state.map.height,
       ambient,
       softness,
+      maskDetail,
+      lightBlurQuality,
       lights.length,
       ...lights,
       ...blockers,
@@ -581,13 +610,14 @@ export class MapScene {
       lights,
       ambient,
       softness,
+      { maskDetail, blurQuality: lightBlurQuality },
       state.map,
       this.renderer,
       this.env(state, track, [], null, blockers),
     )
     comp.view.zIndex = Number.MAX_SAFE_INTEGER
     this.content.addChild(comp.view)
-    this.lighting = { inputs, comp, complete: track.complete, live: 0 }
+    this.lighting = { toolId: "light", inputs, comp, complete: track.complete, live: 0 }
   }
 
   /**
@@ -613,6 +643,75 @@ export class MapScene {
     this.base.visible = true
     if (this.last) this.update(this.last)
     this.onDirty()
+  }
+
+  /**
+   * The parts of what's drawn that can be switched off one at a time, to
+   * measure what each costs (Settings › Performance's measurement,
+   * perfProfile.ts). `show(false)` hides the part; `show(true)` puts it back
+   * as it was.
+   */
+  profileParts(): ProfilePart[] {
+    const parts: ProfilePart[] = []
+    const toggle = (id: string, labelKey: string, items: Container[], tool?: string) => {
+      if (items.length === 0) return
+      const was = items.map((c) => c.visible)
+      parts.push({
+        id,
+        labelKey,
+        tool,
+        show: (on) => items.forEach((c, i) => (c.visible = on ? was[i] : false)),
+      })
+    }
+    if (this.shadowLayer.visible) {
+      toggle("shadows", "perf.part.shadows", [this.shadowLayer])
+      const filters = [...this.shadowLayer.filters]
+      if (filters.includes(this.shadowBlur)) {
+        parts.push({
+          id: "shadowBlur",
+          labelKey: "perf.part.shadowBlur",
+          show: (on) => {
+            this.shadowLayer.filters = on ? filters : [this.shadowTint]
+          },
+        })
+      }
+    }
+    if (this.lighting) toggle("lighting", "perf.part.lighting", [this.lighting.comp.view])
+    const post = this.content.filters ? [...this.content.filters] : []
+    if (post.length) {
+      parts.push({
+        id: "postProcess",
+        labelKey: "perf.part.postProcess",
+        show: (on) => {
+          this.content.filters = on ? post : null
+        },
+      })
+    }
+    const clip = this.content.mask
+    if (clip) {
+      parts.push({
+        id: "clip",
+        labelKey: "perf.part.clip",
+        show: (on) => {
+          this.content.mask = on ? clip : null
+        },
+      })
+    }
+    const painted = new Map<string, Container[]>()
+    for (const c of this.composites.values()) {
+      painted.set(c.toolId, [...(painted.get(c.toolId) ?? []), c.comp.view])
+    }
+    for (const [tool, views] of painted) toggle(`painted:${tool}`, "perf.part.tool", views, tool)
+    const byTool = new Map<string, Container[]>()
+    for (const e of this.entities.values()) {
+      const tool = e.entity.toolId
+      byTool.set(tool, [...(byTool.get(tool) ?? []), e.view])
+    }
+    for (const [tool, views] of byTool) toggle(`entities:${tool}`, "perf.part.tool", views, tool)
+    if (this.compare.children.length) toggle("compare", "perf.part.compare", [this.compare])
+    if (this.reference) toggle("reference", "perf.part.reference", [this.reference.sprite])
+    toggle("overlay", "perf.part.overlay", [this.overlay])
+    return parts
   }
 
   /** Bring screen caches (the terrain) up to date: call right before rendering the screen. */
