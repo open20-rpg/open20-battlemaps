@@ -74,6 +74,14 @@ export function useAssetSearch({
   const [searchGen, setSearchGen] = useState(0)
   const items = useRef<Map<number, LibItem>>(new Map())
   const requestedPages = useRef<Set<number>>(new Set())
+  /**
+   * The search pages belong to, and whether it's still running. Pages asked
+   * for meanwhile (the scroll back to the top fires as it starts) would read
+   * the backend's previous results and stay marked as fetched: none is asked
+   * for until it's done, and one from an older search is dropped.
+   */
+  const gen = useRef(0)
+  const searching = useRef(false)
   const [, bump] = useReducer((x) => x + 1, 0)
 
   // The null option occupies display slot 0; real items shift up by one.
@@ -104,6 +112,8 @@ export function useAssetSearch({
 
   const runSearch = useCallback(
     (q: string) => {
+      const mine = ++gen.current
+      searching.current = true
       items.current.clear()
       requestedPages.current.clear()
       scrollRef.current?.scrollTo({ top: 0 })
@@ -114,11 +124,18 @@ export function useAssetSearch({
           packId,
           tag,
           ids: idsKey === null ? undefined : idsKey ? idsKey.split("\n") : [],
-        }).then((res) => {
-          setTotal(res.total)
-          setSearchGen((n) => n + 1)
-          bump()
-        }),
+        })
+          .then((res) => {
+            if (mine !== gen.current) return
+            items.current.clear()
+            requestedPages.current.clear()
+            setTotal(res.total)
+            setSearchGen((n) => n + 1)
+            bump()
+          })
+          .finally(() => {
+            if (mine === gen.current) searching.current = false
+          }),
       )
     },
     [browserKey, category, packId, tag, idsKey, t, scrollRef],
@@ -145,7 +162,8 @@ export function useAssetSearch({
   // i.e. including the null slot).
   const loadVisibleRows = useCallback(
     (firstRow: number, lastRow: number, cols: number) => {
-      if (total === 0) return
+      if (total === 0 || searching.current) return
+      const mine = gen.current
       // Map the visible display range back to real item indices (minus the null slot).
       const startIdx = Math.max(0, firstRow * cols - nullOffset)
       const endIdx = Math.min(total, (lastRow + 1) * cols - nullOffset)
@@ -157,11 +175,15 @@ export function useAssetSearch({
         requestedPages.current.add(p)
         getLibraryItems(browserKey, p * PAGE, PAGE)
           .then((batch) => {
+            // A newer search replaced the results meanwhile.
+            if (mine !== gen.current) return
             batch.forEach((it, i) => items.current.set(p * PAGE + i, it))
             if (p === 0) applyDefaultSelection()
             bump()
           })
-          .catch(() => requestedPages.current.delete(p))
+          .catch(() => {
+            if (mine === gen.current) requestedPages.current.delete(p)
+          })
       }
     },
     [browserKey, total, nullOffset, applyDefaultSelection],
@@ -170,6 +192,7 @@ export function useAssetSearch({
   // Ensure every index in [from, to] is loaded (used by shift-range selection).
   const ensureLoaded = useCallback(
     async (from: number, to: number) => {
+      const mine = gen.current
       const first = Math.floor(from / PAGE)
       const last = Math.floor(to / PAGE)
       const jobs: Promise<void>[] = []
@@ -177,7 +200,7 @@ export function useAssetSearch({
         if (items.current.has(p * PAGE)) continue
         jobs.push(
           getLibraryItems(browserKey, p * PAGE, PAGE).then((batch) => {
-            batch.forEach((it, i) => items.current.set(p * PAGE + i, it))
+            if (mine === gen.current) batch.forEach((it, i) => items.current.set(p * PAGE + i, it))
           }),
         )
       }
