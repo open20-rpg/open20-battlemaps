@@ -1,4 +1,5 @@
 import { Box, HStack, NumberInput, Slider, Text } from "@chakra-ui/react"
+import { formatStep } from "../../../lib/numbers"
 import { useTranslation } from "react-i18next"
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
@@ -44,7 +45,7 @@ export function RangeSliderControl({
           min={min}
           max={high}
           step={step}
-          value={String(low)}
+          value={formatStep(low, step)}
           onValueChange={(e) => setLow(e.valueAsNumber)}
           width="76px"
           flexShrink={0}
@@ -80,7 +81,7 @@ export function RangeSliderControl({
           min={low}
           max={max}
           step={step}
-          value={String(high)}
+          value={formatStep(high, step)}
           onValueChange={(e) => setHigh(e.valueAsNumber)}
           width="76px"
           flexShrink={0}

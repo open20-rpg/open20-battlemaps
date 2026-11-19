@@ -1,4 +1,5 @@
 import { Box, Flex, Slider, Text } from "@chakra-ui/react"
+import { formatStep } from "../../../lib/numbers"
 import { useTranslation } from "react-i18next"
 
 /**
@@ -29,7 +30,7 @@ export function SliderControl({
           {t(labelKey)}
         </Text>
         <Text fontSize="xs" color="fg" fontVariantNumeric="tabular-nums">
-          {value}
+          {formatStep(value, step)}
         </Text>
       </Flex>
       <Slider.Root
