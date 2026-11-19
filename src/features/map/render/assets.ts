@@ -74,6 +74,11 @@ export class AssetCache {
     this.alphas.clear()
   }
 
+  /** How its textures load (see configure). */
+  get textureLoading(): TextureLoading {
+    return this.loading
+  }
+
   /** Free every loaded texture and stop notifying (a cache that's done, e.g. a benchmark's). */
   dispose(): void {
     for (const t of this.textures.values()) if (t instanceof Texture) t.destroy(true)

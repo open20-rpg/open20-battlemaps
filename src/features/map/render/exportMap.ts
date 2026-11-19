@@ -4,6 +4,8 @@ import { getToolParams } from "../../../stores/toolsStore"
 import { SAMPLE_MAX_PX, supportsTransparency, type ExportFormat } from "../exportFormat"
 import { drawGrid, type GridStyle } from "./grid"
 import { MAP_GROUND_COLOR, type ExportLook, type MapScene } from "./scene"
+import { AssetCache, assetCache } from "./assets"
+import { PRESET_SETTINGS, type GraphicsPreset } from "../../../lib/renderPerformance"
 
 /**
  * PNG export. The live canvas registers its renderer + scene here so the
@@ -28,6 +30,43 @@ export interface ExportOptions extends ExportLook {
   pxPerTile: number
   grid: boolean
   format: ExportFormat
+  /** Graphics quality the image is drawn with, whatever the screen's (Ultra by default). */
+  quality: GraphicsPreset
+}
+
+/**
+ * Textures at the export quality's detail, when it isn't the screen's (a
+ * phone on Low loads them at half size): kept between an export's size
+ * estimates and the export itself, freed by {@link releaseExportTextures}.
+ */
+let exportAssets: AssetCache | null = null
+
+function texturesFor(quality: GraphicsPreset): AssetCache {
+  const { textureScale: scale, mipmaps } = PRESET_SETTINGS[quality]
+  const live = assetCache.textureLoading
+  if (live.scale === scale && live.mipmaps === mipmaps) return assetCache
+  const current = exportAssets?.textureLoading
+  if (!exportAssets || current?.scale !== scale || current.mipmaps !== mipmaps) {
+    exportAssets?.dispose()
+    exportAssets = new AssetCache()
+    exportAssets.configure({ scale, mipmaps })
+  }
+  return exportAssets
+}
+
+/** Free the export's own textures (the export dialog closed). */
+export function releaseExportTextures(): void {
+  exportAssets?.dispose()
+  exportAssets = null
+}
+
+/** Longest wait for the export's textures before drawing without the missing ones. */
+const SETTLE_MS = 20000
+
+/** Wait until the scene has every texture it draws (or SETTLE_MS passed). */
+async function settled(scene: MapScene): Promise<void> {
+  const until = performance.now() + SETTLE_MS
+  while (!scene.isComplete() && performance.now() < until) await nextFrame()
 }
 
 /** Most RGBA bytes one band carries (the export holds one band at a time). */
@@ -100,8 +139,9 @@ async function exportStage<T>(
   // Mimic the world container: mirrored x with the origin at the map's
   // top-right corner (see viewport.ts), scaled to `ppt`.
   stage.scale.set(-ppt, ppt)
+  const preset = PRESET_SETTINGS[opts.quality]
   const render: RenderRect = (x, y, w, h) => {
-    const rt = RenderTexture.create({ width: w, height: h })
+    const rt = RenderTexture.create({ width: w, height: h, antialias: preset.antialias })
     stage.position.set(width - x, -y)
     const content = scene.content
     const parent = content.parent
@@ -118,10 +158,16 @@ async function exportStage<T>(
     rt.destroy(true)
     return new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength)
   }
+  // The quality's textures (its own cache when it isn't the screen's) and
+  // scene settings, every view drawn with them before the first pixel.
+  const textures = texturesFor(opts.quality)
+  scene.useAssets(textures)
   scene.beginExport(ppt, { ...opts, transparent })
   try {
+    await settled(scene)
     return await fn({ width, height }, render)
   } finally {
+    scene.useAssets(assetCache)
     scene.endExport()
     stage.destroy()
     bg.destroy()

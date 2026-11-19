@@ -16,13 +16,15 @@ import {
   type ExportFormatKind,
 } from "./exportFormat"
 import { estimateExportSize, exportImageFlow } from "./io"
-import { exportPxPerTile, type ExportOptions } from "./render/exportMap"
+import { exportPxPerTile, releaseExportTextures, type ExportOptions } from "./render/exportMap"
+import { GRAPHICS_PRESETS, type GraphicsPreset } from "../../lib/renderPerformance"
 
 /** Wait after the last option change before estimating the file size (it renders a sample). */
 const ESTIMATE_DELAY_MS = 400
 
 /**
- * Export the map as an image: format (and JPEG quality), resolution, what
+ * Export the map as an image: format (and JPEG quality), resolution,
+ * graphics quality (Ultra by default, whatever the screen's), what
  * to include (grid, lighting, shadows, color adjustments, transparent
  * ground), with the resulting size in pixels and an estimate of the file's.
  */
@@ -39,6 +41,13 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [shadows, setShadows] = useState(view.shadows)
   const [postProcess, setPostProcess] = useState(true)
   const [transparent, setTransparent] = useState(false)
+  // The image's graphics quality: the richest by default, whatever the screen's.
+  const [graphics, setGraphics] = useState<GraphicsPreset>("ultra")
+  const close = () => {
+    // The export's own textures (a quality the screen doesn't use) go.
+    releaseExportTextures()
+    onClose()
+  }
   const [busy, setBusy] = useState(false)
 
   const canBeTransparent = supportsTransparency(kind)
@@ -52,8 +61,10 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
       shadows,
       postProcess,
       transparent: transparent && canBeTransparent,
+      quality: graphics,
     }
   }, [
+    graphics,
     kind,
     quality,
     pxPerTile,
@@ -75,7 +86,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     try {
       if (await exportImageFlow(opts)) {
         toaster.create({ title: t("toast.exported"), type: "success" })
-        onClose()
+        close()
       }
     } catch (err) {
       toaster.create({ title: t("toast.exportError", { error: String(err) }), type: "error" })
@@ -87,11 +98,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={close}
       title={t("export.title")}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={close}>
             {t("export.cancel")}
           </Button>
           <Button colorPalette="brand" onClick={() => void run()} disabled={!map} loading={busy}>
@@ -148,6 +159,14 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               label: t("export.pxPerTile", { px: r }),
             }))}
             onChange={(v) => setPxPerTile(Number(v))}
+          />
+        </Row>
+
+        <Row label={t("export.graphics")}>
+          <Select
+            value={graphics}
+            items={GRAPHICS_PRESETS.map((p) => ({ value: p, label: t(`perf.presets.${p}`) }))}
+            onChange={(v) => setGraphics(v as GraphicsPreset)}
           />
         </Row>
 
