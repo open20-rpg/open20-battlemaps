@@ -24,6 +24,7 @@ import { type AssetSelection } from "../params"
 import {
   editPointsController,
   erasing,
+  placeController,
   makeEntity,
   paramNum,
   polylineController,
@@ -408,12 +409,24 @@ export function portalAt(ctx: ToolCtx, p: Vec2): MapEntity | null {
   })
 }
 
-/** Portal: doors/windows. Anchored ones snap onto the nearest wall and align with it. */
-export const portalBehavior: ToolBehavior = {
-  onPointerMove: (ctx, e) => {
-    const ghost = portalAt(ctx, e)
-    useEditorStore.getState().setDraft(ghost ? [{ kind: "ghost", entity: ghost }] : [])
+/** Where the Portal tool places: released like objects (placeController). */
+const portalPlacing = placeController({
+  preview: (ctx, e) => {
+    const portal = portalAt(ctx, e)
+    return portal ? [portal] : []
   },
+  place: (ctx, e) => {
+    const portal = portalAt(ctx, e)
+    if (portal) addEntities([portal])
+  },
+})
+
+/**
+ * Portal: doors/windows, placed where released. Anchored ones snap onto
+ * the nearest wall and align with it.
+ */
+export const portalBehavior: ToolBehavior = {
+  ...portalPlacing,
   onPointerDown: (ctx, e) => {
     // Freestanding portals: right-click turns 90° (−90° with Shift).
     if (e.button === 2 && ctx.params.anchored === false) {
@@ -421,9 +434,7 @@ export const portalBehavior: ToolBehavior = {
       useToolsStore.getState().setToolParams(ctx.toolId, { rotation: normalizeDegrees(r) })
       return
     }
-    if (e.button !== 0) return
-    const portal = portalAt(ctx, e)
-    if (portal) addEntities([portal])
+    portalPlacing.onPointerDown(ctx, e)
   },
   // Freestanding portals: wheel turns ±5° (±15° with Shift).
   onWheel: (ctx, e) => {

@@ -123,7 +123,9 @@ export function createTextBehavior(): ToolBehavior {
       })
       dragging = p
     },
-    onPointerUp: () => {
+    onPointerUp: (ctx, e) => {
+      // A new label goes where the press is released (touch has no hover).
+      if (pendingEdit?.entityId === null) pendingEdit.position = ctx.snap(e, 0.5)
       if (pendingEdit) openTextEdit(pendingEdit)
       pendingEdit = null
       if (dragging) endGesture()

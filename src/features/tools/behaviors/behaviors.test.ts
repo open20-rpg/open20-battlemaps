@@ -48,6 +48,11 @@ const down = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) 
 const move = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) =>
   act(tool, (b, c) => b.onPointerMove?.(c, at(x, y, extra)))
 const up = (tool: string, x: number, y: number) => act(tool, (b, c) => b.onPointerUp?.(c, at(x, y)))
+/** Press and release at the same point (tools that place on release). */
+const tap = (tool: string, x: number, y: number, extra?: Partial<PointerInfo>) => {
+  down(tool, x, y, extra)
+  up(tool, x, y)
+}
 const wheel = (tool: string, dir: 1 | -1, extra?: Partial<PointerInfo>) =>
   act(tool, (b, c) => b.onWheel?.(c, { ...at(5, 5, extra), dir, horizontal: false }))
 const dbl = (tool: string, x: number, y: number) =>
@@ -72,16 +77,16 @@ describe("wheel and right-click mouse shortcuts", () => {
     expect(getToolParams("object").rotation).toBe(15)
     wheel("object", -1, { altKey: true })
     expect(getToolParams("object").scale).toBeCloseTo(0.9)
-    down("object", 5, 5, { button: 2 })
+    tap("object", 5, 5, { button: 2 })
     expect(getToolParams("object").rotation).toBe(90)
-    down("object", 5, 5, { button: 2, altKey: true })
+    tap("object", 5, 5, { button: 2, altKey: true })
     expect(getToolParams("object").rotation).toBe(0)
     expect(entities()).toEqual([])
   })
 
   it("Select: wheel turns the selection; Light: wheel changes its range", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"], rotation: 0 })
-    down("object", 5, 5)
+    tap("object", 5, 5)
     useToolsStore.getState().selectToolById("select")
     useEditorStore.getState().select([entities()[0].id])
     wheel("select", -1)
@@ -101,7 +106,7 @@ describe("object & scatter", () => {
       rotation: 45,
       scale: 2,
     })
-    down("object", 3.3, 4.6)
+    tap("object", 3.3, 4.6)
     const [e] = entities()
     expect(e).toMatchObject({
       toolId: "object",
@@ -116,7 +121,7 @@ describe("object & scatter", () => {
 
   it("Object does nothing without a library pick", () => {
     useToolsStore.getState().selectToolById("object")
-    down("object", 1, 1)
+    tap("object", 1, 1)
     expect(entities()).toEqual([])
   })
 
@@ -457,12 +462,12 @@ describe("walls, build, portals", () => {
     down("wall", 0, 6)
     dbl("wall", 0, 6)
     setParams("portal", { style: { assets: ["p|textures/portals/door.png"], color: "#fff" } })
-    down("portal", 0.4, 3.1)
+    tap("portal", 0.4, 3.1)
     const portal = entities().find((e) => e.toolId === "portal")
     expect(portal?.position).toEqual({ x: 0, y: 3 })
     expect(portal?.rotation).toBe(90)
     // Far from any wall: nothing placed.
-    down("portal", 10, 10)
+    tap("portal", 10, 10)
     expect(entities().filter((e) => e.toolId === "portal")).toHaveLength(1)
   })
 
@@ -576,6 +581,24 @@ describe("effects, text, select, prefabs", () => {
     expect(useMapStore.getState().map?.environment.ambientLight).toBe("#101020")
   })
 
+  it("places objects and lights where released, previewing them while pressed", () => {
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
+    down("object", 2, 2)
+    // Pressed: shown, not placed yet; dragging moves it.
+    expect(entities()).toHaveLength(0)
+    expect(useEditorStore.getState().draft[0]?.kind).toBe("ghost")
+    move("object", 6, 4)
+    up("object", 6, 4)
+    expect(entities().map((e) => e.position)).toEqual([{ x: 6, y: 4 }])
+
+    useToolsStore.getState().selectToolById("light")
+    down("light", 10, 10)
+    expect(entities()).toHaveLength(1)
+    move("light", 12, 11)
+    up("light", 12, 11)
+    expect(entities()[1]).toMatchObject({ toolId: "light", position: { x: 12, y: 11 } })
+  })
+
   it("Light places lights and drags them by their center", () => {
     useToolsStore.getState().selectToolById("light")
     down("light", 5, 5)
@@ -663,8 +686,8 @@ describe("effects, text, select, prefabs", () => {
 
   it("Select picks, rubber-bands and drag-moves (one undo step)", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
-    down("object", 2, 2)
-    down("object", 6, 6)
+    tap("object", 2, 2)
+    tap("object", 6, 6)
     useToolsStore.getState().selectToolById("select")
     down("select", 2, 2)
     up("select", 2, 2)
@@ -706,12 +729,12 @@ describe("effects, text, select, prefabs", () => {
   it("Prefabs saves the selection and stamps it where clicked", () => {
     useSettingsStore.setState({ prefabs: [] })
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
-    down("object", 2, 2)
+    tap("object", 2, 2)
     useEditorStore.getState().select([entities()[0].id])
     useToolsStore.getState().selectToolById("prefabs")
     runToolAction("prefabs", "save")
     expect(useSettingsStore.getState().prefabs).toHaveLength(1)
-    down("prefabs", 8, 8)
+    tap("prefabs", 8, 8)
     expect(entities()).toHaveLength(2)
     expect(entities()[1].position).toEqual({ x: 8, y: 8 })
   })
@@ -719,7 +742,7 @@ describe("effects, text, select, prefabs", () => {
   it("Select's corner handle scales from the opposite corner; the top handle rotates", () => {
     useViewStore.setState({ zoom: 100 })
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
-    down("object", 5, 5)
+    tap("object", 5, 5)
     useToolsStore.getState().selectToolById("select")
     useEditorStore.getState().select([entities()[0].id])
     // Box 4.5..5.5: drag the (5.5, 5.5) corner to (6.5, 6.5) → ×2, (4.5, 4.5) fixed.
@@ -793,7 +816,7 @@ describe("effects, text, select, prefabs", () => {
   it("Shift snaps handle rotation to 15° steps", () => {
     useViewStore.setState({ zoom: 100 })
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
-    down("object", 5, 5)
+    tap("object", 5, 5)
     useToolsStore.getState().selectToolById("select")
     useEditorStore.getState().select([entities()[0].id])
     down("select", 5, 4.5 - 24 / 64)
@@ -804,9 +827,9 @@ describe("effects, text, select, prefabs", () => {
 
   it("Select picks whole groups; Group / Ungroup (one undo step each)", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
-    down("object", 2, 2)
-    down("object", 6, 6)
-    down("object", 10, 10)
+    tap("object", 2, 2)
+    tap("object", 6, 6)
+    tap("object", 10, 10)
     useToolsStore.getState().selectToolById("select")
     const [a, b, c] = entities().map((e) => e.id)
     useEditorStore.getState().select([a, b])
@@ -830,7 +853,7 @@ describe("effects, text, select, prefabs", () => {
 
   it("Click through transparency: bands (and clicks) skip a sprite's transparent part", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
-    down("object", 4, 4)
+    tap("object", 4, 4)
     setParams("select", { alphaPick: true })
     const base = buildToolCtx("select")
     if (!base) throw new Error("no ctx")
@@ -857,8 +880,8 @@ describe("effects, text, select, prefabs", () => {
 
   it("Locked entities skip clicks and bands; an Alt band picks only them", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
-    down("object", 2, 2)
-    down("object", 6, 6)
+    tap("object", 2, 2)
+    tap("object", 6, 6)
     useToolsStore.getState().selectToolById("select")
     const [a, b] = entities().map((e) => e.id)
     useEditorStore.getState().select([a])
@@ -885,9 +908,9 @@ describe("effects, text, select, prefabs", () => {
 
   it("Select mirrors the selection (panel buttons / flip shortcuts)", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"], mirror: true })
-    down("object", 2, 2)
+    tap("object", 2, 2)
     expect(entities()[0].flipX).toBe(true)
-    down("object", 4, 2)
+    tap("object", 4, 2)
     useToolsStore.getState().selectToolById("select")
     expect(isToolActionDisabled("select", "flipH")).toBe(true)
     useEditorStore.getState().select(entities().map((e) => e.id))

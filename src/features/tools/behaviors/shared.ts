@@ -73,6 +73,45 @@ export function dedupe(points: Vec2[]): Vec2[] {
   return points.filter((p, i) => i === 0 || dist(p, points[i - 1]) > 1e-6)
 }
 
+// -- place on release ---------------------------------------------------------
+
+/**
+ * Tools that place with a tap (objects, portals, prefabs): pressing shows
+ * what would be placed, dragging moves it, releasing places it where the
+ * pointer is lifted. Touch has no hover, so the thing is seen (and can be
+ * nudged) before it lands. Hovering previews it too.
+ */
+export function placeController(opts: {
+  /** What would be placed at `e` (shown as ghosts; empty: nothing). */
+  preview: (ctx: ToolCtx, e: PointerInfo) => MapEntity[]
+  /** Place it at `e`. */
+  place: (ctx: ToolCtx, e: PointerInfo) => void
+}): Required<
+  Pick<ToolBehavior, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onDeactivate">
+> {
+  /** A press that places where it's released. */
+  let pressed = false
+  const show = (ctx: ToolCtx, e: PointerInfo) =>
+    setDraft(opts.preview(ctx, e).map((entity) => ({ kind: "ghost" as const, entity })))
+  return {
+    onPointerDown: (ctx, e) => {
+      if (e.button !== 0) return
+      pressed = true
+      show(ctx, e)
+    },
+    onPointerMove: show,
+    onPointerUp: (ctx, e) => {
+      if (!pressed) return
+      pressed = false
+      opts.place(ctx, e)
+    },
+    onDeactivate: () => {
+      pressed = false
+      setDraft([])
+    },
+  }
+}
+
 // -- polyline ----------------------------------------------------------------
 
 /** Modifiers held when a polyline was finished. */
