@@ -6,12 +6,14 @@ import {
   RenderTexture,
   Sprite,
   Texture,
-  TilingSprite,
+  Mesh,
+  MeshGeometry,
   type Renderer,
 } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
 import { type MapEntity, type Vec2 } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
+import { tiledMesh } from "./tiling"
 import { lineMesh, type RenderEnv, selectionAsset } from "./entities"
 import {
   CELLS_PER_TILE,
@@ -122,9 +124,14 @@ class MapMask {
 function mapFill(map: MapBox, texture: Texture | undefined, tint: string | undefined): Container {
   if (texture) {
     texture.source.style.addressMode = "repeat"
-    const t = new TilingSprite({ texture, width: map.width, height: map.height })
-    t.position.set(-map.width, 0)
-    t.tileScale.set(1 / TEXTURE_PX_PER_TILE)
+    // Our own uvs (tiling.ts): kept small, else mobile GPUs (16-bit
+    // fragments) round them and the texture shows stretched far from 0.
+    const rect = { x: -map.width, y: 0, w: map.width, h: map.height }
+    const size = { w: texture.width / TEXTURE_PX_PER_TILE, h: texture.height / TEXTURE_PX_PER_TILE }
+    const t = new Mesh({
+      geometry: new MeshGeometry(tiledMesh(rect, { x: rect.x, y: 0 }, 0, size.w, size.h)),
+      texture,
+    })
     if (tint) t.tint = hexToPixiColor(tint).color
     return t
   }
