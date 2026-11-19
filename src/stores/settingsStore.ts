@@ -1,10 +1,14 @@
 import { create } from "zustand"
-import { DEFAULT_POST_PROCESS, type PostProcess } from "../lib/postProcess"
 import { knownPreset, type PresetId } from "../features/shortcuts/actions"
 import { persist } from "zustand/middleware"
 import { type MapTemplate } from "../lib/templates"
 import { type MapEntity } from "../features/map/model/types"
 import { isMobilePlatform } from "../lib/platform"
+import {
+  DEFAULT_RENDER_PERFORMANCE,
+  type RenderPerformance,
+  withPerformanceDefaults,
+} from "../lib/renderPerformance"
 
 /** A saved group of entities (Prefabs tool), stored relative to its center. */
 export interface Prefab {
@@ -83,8 +87,6 @@ interface SettingsState {
   setShortcutPreset: (preset: PresetId) => void
   /** Back to the preset's bindings (drops every change). */
   resetShortcuts: () => void
-  /** Map post-processing (Settings › Post-processing). */
-  postProcess: PostProcess
   /** New Map's "Disable building wear": new maps start without wear (remembered). */
   disableBuildingWear: boolean
   setDisableBuildingWear: (disable: boolean) => void
@@ -94,12 +96,18 @@ interface SettingsState {
    * until the gesture ends, so it's on by default only on mobile.
    */
   snapshotViewGestures: boolean
+  /** How the map is rendered, traded against speed (Settings › Performance). */
+  performance: RenderPerformance
+  setPerformance: (patch: Partial<RenderPerformance>) => void
+  /** Replace every performance setting (a preset, or back to the defaults). */
+  replacePerformance: (perf: RenderPerformance) => void
+  /** Settings › Debug: show the stats panel (frames per second…) over the map. */
+  statsPanel: boolean
+  setStatsPanel: (on: boolean) => void
   /** Thumbnail columns of the docked Library (its width, dragged by its left edge). */
   libraryColumns: number
   setLibraryColumns: (columns: number) => void
   setSnapshotViewGestures: (on: boolean) => void
-  setPostProcess: (patch: Partial<PostProcess>) => void
-  resetPostProcess: () => void
   setPanelAlpha: (alpha: number) => void
   addColorPreset: (color: string) => void
   addTemplate: (tpl: MapTemplate) => void
@@ -129,15 +137,17 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({ shortcutOverrides: { ...s.shortcutOverrides, [actionId]: bindings } })),
       setShortcutPreset: (shortcutPreset) => set({ shortcutPreset, shortcutOverrides: {} }),
       resetShortcuts: () => set({ shortcutOverrides: {} }),
-      postProcess: DEFAULT_POST_PROCESS,
       disableBuildingWear: false,
       setDisableBuildingWear: (disableBuildingWear) => set({ disableBuildingWear }),
       snapshotViewGestures: isMobilePlatform(),
       setSnapshotViewGestures: (snapshotViewGestures) => set({ snapshotViewGestures }),
+      performance: DEFAULT_RENDER_PERFORMANCE,
+      setPerformance: (patch) => set((s) => ({ performance: { ...s.performance, ...patch } })),
+      replacePerformance: (performance) => set({ performance }),
+      statsPanel: false,
+      setStatsPanel: (statsPanel) => set({ statsPanel }),
       libraryColumns: 4,
       setLibraryColumns: (libraryColumns) => set({ libraryColumns }),
-      setPostProcess: (patch) => set((s) => ({ postProcess: { ...s.postProcess, ...patch } })),
-      resetPostProcess: () => set({ postProcess: DEFAULT_POST_PROCESS }),
       setPanelAlpha: (panelAlpha) => set({ panelAlpha }),
       addColorPreset: (color) =>
         set((s) =>
@@ -167,7 +177,7 @@ export const useSettingsStore = create<SettingsState>()(
           ...current,
           ...saved,
           shadowStyle: { ...DEFAULT_SHADOW_STYLE, ...saved.shadowStyle },
-          postProcess: { ...DEFAULT_POST_PROCESS, ...saved.postProcess },
+          performance: withPerformanceDefaults(saved.performance),
           // A preset that was renamed (or removed) falls back to the default.
           shortcutPreset: knownPreset(saved.shortcutPreset),
         }

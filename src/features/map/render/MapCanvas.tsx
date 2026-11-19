@@ -39,7 +39,7 @@ function sceneState(): SceneState | null {
     shadows: view.shadows,
     showOutside: view.outside,
     shadowStyle: useSettingsStore.getState().shadowStyle,
-    postProcess: useSettingsStore.getState().postProcess,
+    postProcess: map.postProcess,
     textVisible: getToolParams("text").visible !== false,
     editingText: editor.textEdit?.entityId ?? null,
     terrainEnabled: getToolParams("terrainBrush").enable !== false,

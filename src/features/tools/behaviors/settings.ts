@@ -1,12 +1,14 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog"
-import { POST_FILTERS, type PostProcess } from "../../../lib/postProcess"
+import { DEFAULT_POST_PROCESS, POST_FILTERS, type PostProcess } from "../../../lib/postProcess"
 import { useEditorStore } from "../../../stores/editorStore"
 import { useSettingsStore, type Prefab, type ShadowStyle } from "../../../stores/settingsStore"
 import { useToolsStore } from "../../../stores/toolsStore"
+import { useMapStore } from "../../../stores/mapStore"
 import {
   addEntities,
   beginGesture,
   endGesture,
+  setPostProcess,
   setReferenceImage,
   updateReferenceImage,
 } from "../../map/commands"
@@ -211,24 +213,31 @@ export function createShadowSettingsBehavior(): ToolBehavior {
   }
 }
 
-/** Post-processing: color adjustments over the rendered map (an app setting the params mirror). */
+/**
+ * Post-processing: color adjustments over the rendered map. Part of the
+ * map (saved and loaded with it; new maps start without any): the params
+ * mirror the document's, and changes are undoable commands.
+ */
 export function createPostProcessingBehavior(): ToolBehavior {
-  const mirror = (toolId: string) =>
-    useToolsStore.getState().setToolParams(toolId, { ...useSettingsStore.getState().postProcess })
+  const mirror = (toolId: string) => {
+    const pp = useMapStore.getState().map?.postProcess
+    if (pp) useToolsStore.getState().setToolParams(toolId, { ...pp })
+  }
   return {
     onActivate: (ctx) => mirror(ctx.toolId),
-    onParamsChange: (_ctx, patch) => {
+    onParamsChange: (ctx, patch) => {
+      const current = ctx.map.postProcess
       const next: Partial<PostProcess> = {}
       for (const key of ["brightness", "contrast", "saturation", "threshold"] as const) {
-        if (typeof patch[key] === "number") next[key] = patch[key]
+        if (typeof patch[key] === "number" && patch[key] !== current[key]) next[key] = patch[key]
       }
       const filter = POST_FILTERS.find((f) => f === patch.filter)
-      if (filter) next.filter = filter
-      if (Object.keys(next).length > 0) useSettingsStore.getState().setPostProcess(next)
+      if (filter && filter !== current.filter) next.filter = filter
+      if (Object.keys(next).length > 0) setPostProcess(next)
     },
     onAction: (ctx, action) => {
       if (action !== "reset") return
-      useSettingsStore.getState().resetPostProcess()
+      setPostProcess(DEFAULT_POST_PROCESS)
       mirror(ctx.toolId)
     },
   }

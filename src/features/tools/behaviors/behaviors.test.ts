@@ -196,6 +196,28 @@ describe("map settings", () => {
     expect(getToolParams("mapSettings").buildingWear).toBe("none")
     expect(normalizeDocument({ width: 2, height: 2 }).buildingWear).toBe("grime")
   })
+
+  it("Post-processing is the map's: undoable, saved with it, new maps start neutral", () => {
+    const pp = () => useMapStore.getState().map?.postProcess
+    useToolsStore.getState().selectToolById("postProcessing")
+    act("postProcessing", (b, c) => b.onActivate?.(c))
+    act("postProcessing", (b, c) => b.onParamsChange?.(c, { brightness: 0.3, filter: "sepia" }))
+    expect(pp()).toMatchObject({ brightness: 0.3, filter: "sepia" })
+    undo()
+    expect(pp()).toMatchObject({ brightness: 0, filter: "none" })
+    redo()
+    closeMap()
+    createMap(5, 5)
+    expect(pp()).toMatchObject({ brightness: 0, filter: "none" })
+    // Saved maps carry it; older ones (and bad values) get the defaults.
+    const loaded = normalizeDocument({
+      width: 2,
+      height: 2,
+      postProcess: { brightness: 0.5, contrast: 0, saturation: 0, threshold: 0.5, filter: "bogus" },
+    } as never)
+    expect(loaded.postProcess).toMatchObject({ brightness: 0.5, filter: "none" })
+    expect(normalizeDocument({ width: 2, height: 2 }).postProcess.brightness).toBe(0)
+  })
 })
 
 describe("walls, build, portals", () => {
