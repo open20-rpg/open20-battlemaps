@@ -54,6 +54,7 @@ import { DEFAULT_SHADOW_STYLE } from "../../stores/settingsStore"
 import { SELECT_FILTER_DEFAULT, SELECT_KINDS } from "./selectKinds"
 import { type ToolAlertId } from "./alerts"
 import {
+  LIBRARY_PARAM,
   NO_FOCUS,
   shapeVsEditPoints,
   type AssetRecolor,
@@ -573,6 +574,13 @@ export const TOOL_TREE: ToolNode[] = [
           sliderParam("spread", "tools.spread", -1, 4, 0.01, 0.5),
           shadow(true),
           customColor(),
+          {
+            kind: "librarySelection",
+            paramKey: LIBRARY_PARAM,
+            labelKey: "tools.librarySelected",
+            category: "objects",
+            default: [],
+          },
         ],
       }),
     ],
