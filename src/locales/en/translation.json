@@ -571,7 +571,8 @@
     "transparentNoJpeg": "JPEG has no transparency",
     "estimating": "Estimating the file size…",
     "estimateFailed": "Couldn't estimate the file size",
-    "fileSize": "File: ≈ {{size}}"
+    "fileSize": "File: ≈ {{size}}",
+    "graphics": "Render quality"
   },
   "levels": {
     "title": "Levels",

@@ -1,4 +1,8 @@
-import { type RenderPerformance } from "../../../lib/renderPerformance"
+import {
+  PRESET_SETTINGS,
+  type GraphicsPreset,
+  type RenderPerformance,
+} from "../../../lib/renderPerformance"
 import { BlurFilter, Container, Graphics, Sprite, type Renderer } from "pixi.js"
 import { type DraftShape } from "../../../stores/editorStore"
 import { type ShadowStyle } from "../../../stores/settingsStore"
@@ -33,6 +37,8 @@ export interface ExportLook {
   postProcess: boolean
   /** No ground color: what's unpainted stays transparent. */
   transparent: boolean
+  /** Graphics quality to draw with (its scene settings; textures: see exportMap.ts). */
+  quality?: GraphicsPreset
 }
 
 /** Everything the scene draws from, gathered from the stores each frame it changes. */
@@ -189,6 +195,14 @@ export class MapScene {
   /** Set while an export renders: the look it asks for, over the live state. */
   private exporting: { pxPerTile: number; look: ExportLook } | null = null
   private unsubscribe: () => void
+  /** Stops following the texture cache in use (see useAssets). */
+  private unsubAssets: () => void
+  /** Redraw what was waiting for textures or fonts. */
+  private retry = () => {
+    if (!this.last) return
+    this.update(this.last, true)
+    this.dirty()
+  }
 
   constructor(
     private renderer: Renderer,
@@ -209,22 +223,48 @@ export class MapScene {
     this.compare.zIndex = -Number.MAX_VALUE / 2
     this.content.addChild(this.base, this.clip, this.compare)
     this.overlay.scale.x = -1
-    const retry = () => {
-      if (!this.last) return
-      this.update(this.last, true)
-      this.dirty()
-    }
-    const unsubAssets = assets.subscribe(retry)
+    this.unsubAssets = assets.subscribe(this.retry)
     // A font that finished loading: labels measured and drawn with the
     // fallback meanwhile are redone.
     const unsubFonts = subscribeFonts(() => {
       clearMeasures()
-      retry()
+      this.retry()
     })
     this.unsubscribe = () => {
-      unsubAssets()
+      this.unsubAssets()
       unsubFonts()
     }
+  }
+
+  /**
+   * Draw with another texture cache (an export at another texture quality,
+   * and back): every view is redone with its textures.
+   */
+  useAssets(assets: AssetCache): void {
+    if (assets === this.assets) return
+    this.unsubAssets()
+    this.assets = assets
+    this.unsubAssets = assets.subscribe(this.retry)
+    for (const e of this.entities.values()) destroyView(e)
+    this.entities.clear()
+    for (const c of this.composites.values()) c.comp.dispose()
+    this.composites.clear()
+    this.lighting?.comp.dispose()
+    this.lighting = null
+    for (const c of this.compareViews.values()) c.view.destroy({ children: true })
+    this.compareViews.clear()
+    if (this.last) this.update(this.last)
+  }
+
+  /** Whether everything drawn has its textures (nothing waits for one to load). */
+  isComplete(): boolean {
+    const views = [
+      ...this.entities.values(),
+      ...this.composites.values(),
+      ...this.compareViews.values(),
+      ...(this.lighting ? [this.lighting] : []),
+    ]
+    return views.every((v) => v.complete)
   }
 
   /** A render env that records texture misses into `track.complete`. */
@@ -300,6 +340,7 @@ export class MapScene {
       showOutside: false,
       compareLevel: null,
       showCaveBlast: false,
+      performance: look.quality ? PRESET_SETTINGS[look.quality] : state.performance,
     }
   }
 

@@ -571,7 +571,8 @@
     "transparentNoJpeg": "JPEG no admite transparencia",
     "estimating": "Calculando el tamaño del archivo…",
     "estimateFailed": "No se pudo estimar el tamaño del archivo",
-    "fileSize": "Archivo: ≈ {{size}}"
+    "fileSize": "Archivo: ≈ {{size}}",
+    "graphics": "Calidad de render"
   },
   "levels": {
     "title": "Niveles",
