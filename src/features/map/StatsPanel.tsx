@@ -6,6 +6,7 @@ import { useEditorStore } from "../../stores/editorStore"
 import { useViewStore } from "../../stores/viewStore"
 import { assetCache } from "./render/assets"
 import { renderStats, type RenderStats } from "./render/renderStats"
+import { roundTo } from "../../lib/numbers"
 
 /** How often the panel reads the stats (ms). */
 const REFRESH_MS = 500
@@ -36,10 +37,13 @@ export function StatsPanel() {
 
   const rows: [string, string][] = stats
     ? [
-        [t("debug.fps"), String(stats.fps)],
+        [t("debug.fps"), String(Math.round(stats.fps))],
         [t("debug.frameMs"), `${stats.avgMs.toFixed(1)} / ${stats.maxMs.toFixed(1)}`],
-        [t("debug.drawCalls"), String(stats.drawCalls)],
-        [t("debug.canvas"), `${stats.width}×${stats.height} @${stats.resolution}×`],
+        [t("debug.drawCalls"), String(Math.round(stats.drawCalls))],
+        [
+          t("debug.canvas"),
+          `${Math.round(stats.width)}×${Math.round(stats.height)} @${roundTo(stats.resolution)}×`,
+        ],
         [t("debug.nodes"), String(stats.nodes)],
         [t("debug.entities"), String(entities)],
         [t("debug.textures"), `${textures.textures} · ${textures.megabytes.toFixed(0)} MB`],
