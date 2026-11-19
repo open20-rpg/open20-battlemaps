@@ -6,6 +6,7 @@ import {
   PRESET_SETTINGS,
   presetOf,
   suggestPreset,
+  type RenderPerformance,
   withPerformanceDefaults,
 } from "./renderPerformance"
 
@@ -33,6 +34,13 @@ describe("render performance", () => {
       antialias: false,
     })
     expect(withPerformanceDefaults(undefined, high)).toEqual(high)
+  })
+
+  it("completes a saved preset with that preset's newer settings", () => {
+    const savedUltra: Partial<RenderPerformance> = { ...PRESET_SETTINGS.ultra }
+    delete savedUltra.textQuality
+    expect(withPerformanceDefaults(savedUltra, PRESET_SETTINGS.low)).toEqual(PRESET_SETTINGS.ultra)
+    expect(canvasKey({ ...high, textQuality: 160 })).not.toBe(canvasKey(high))
   })
 })
 
@@ -79,6 +87,10 @@ describe("preset balance", () => {
     }
   })
 
+  it("text gets sharper going up, Ultra the sharpest", () => {
+    expect(order.map((p) => PRESET_SETTINGS[p].textQuality)).toEqual([48, 64, 96, 160])
+  })
+
   it("Low: 1×, textures and painted layers at 50%, one blur pass", () => {
     expect(PRESET_SETTINGS.low).toMatchObject({
       maxResolution: 1,
@@ -98,6 +110,7 @@ describe("preset balance", () => {
       "maskDetail",
       "shadowBlurQuality",
       "lightBlurQuality",
+      "textQuality",
     ] as const
     for (let i = 1; i < order.length; i++) {
       for (const k of keys) {
