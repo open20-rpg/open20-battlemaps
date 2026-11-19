@@ -127,6 +127,8 @@ export function useAssetSearch({
         })
           .then((res) => {
             if (mine !== gen.current) return
+            // Done before React hears of it: the render it starts loads the pages.
+            searching.current = false
             items.current.clear()
             requestedPages.current.clear()
             setTotal(res.total)
