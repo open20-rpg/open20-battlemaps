@@ -18,10 +18,17 @@ import {
 } from "../fonts/metrics"
 import { mapToScreen, tileSizeForZoom } from "./render/viewport"
 
+/** The editor while nothing is being edited: a hidden 1 px input. */
+const HIDDEN = {
+  input: { left: "0", top: "0", w: "1px", h: "1px", opacity: 0, pointerEvents: "none" },
+  box: null,
+} as const
+
 /**
- * Where and how the editor shows: over the label (its corner at `corner`,
- * screen px), in its font, color and box at `k` screen px per font px —
- * or a hidden 1 px input while nothing is being edited.
+ * Where and how the editor shows over the label (its corner at `corner`,
+ * screen px) at `k` screen px per font px: the box drawn behind, and a
+ * transparent input over all that's drawn — the box and the text, which a
+ * negative padding lets stick out of it — with the text where the label has it.
  */
 function editorLook(
   edit: TextEditState | null,
@@ -29,44 +36,50 @@ function editorLook(
   corner: { x: number; y: number } | null,
   k: number,
 ) {
-  if (!edit || !corner) {
-    return { left: "0", top: "0", w: "1px", h: "1px", opacity: 0, pointerEvents: "none" } as const
-  }
+  if (!edit || !corner) return HIDDEN
   const frame = frameOf(style)
-  const bw = frame.border
   const m = measureText(style.font, style.size, edit.value)
   const box = layoutTextBox(m, frame)
-  const boxed = style.box
-  // CSS has no negative padding: the editor keeps the text inside its box.
-  const top = Math.max(0, frame.top)
-  const bottom = Math.max(0, frame.bottom)
+  const area = box.bounds
+  const textTop = box.baseline - m.ascent - area.y
+  const lineH = m.ascent + m.descent
+  // At least room for a few letters while it's empty.
+  const w = Math.max(area.w, box.textX - area.x + style.size * 3)
   return {
-    left: `${corner.x}px`,
-    top: `${corner.y}px`,
-    // At least room for a few letters while it's empty.
-    w: `${Math.max(box.w, style.size * 3) * k}px`,
-    h: `${box.h * k}px`,
-    // The text's inset from the box edge, less the border drawn before it.
-    pl: `${Math.max(0, box.textX - bw) * k}px`,
-    pt: `${top * k}px`,
-    pb: `${bottom * k}px`,
-    borderWidth: boxed ? `${bw * k}px` : "0",
-    borderRadius: `${boxRadius(style, box) * k}px`,
-    boxShadow: boxed ? undefined : "0 0 0 1px var(--chakra-colors-brand-fg)",
-    style: {
-      font: cssFont(style.font, style.size * k),
-      lineHeight: `${Math.max(1, box.h - 2 * bw - top - bottom) * k}px`,
-      color: style.color,
-      background: boxed ? style.background : "transparent",
-      borderColor: style.borderColor,
+    input: {
+      left: `${corner.x + area.x * k}px`,
+      top: `${corner.y + area.y * k}px`,
+      w: `${w * k}px`,
+      h: `${area.h * k}px`,
+      pl: `${(box.textX - area.x) * k}px`,
+      // A line as tall as the font's, where the label has it.
+      pt: `${textTop * k}px`,
+      pb: `${Math.max(0, area.h - textTop - lineH) * k}px`,
+      boxShadow: style.box ? undefined : "0 0 0 1px var(--chakra-colors-brand-fg)",
+      style: {
+        font: cssFont(style.font, style.size * k),
+        lineHeight: `${lineH * k}px`,
+        color: style.color,
+      },
     },
+    box: style.box
+      ? {
+          left: `${corner.x}px`,
+          top: `${corner.y}px`,
+          w: `${box.w * k}px`,
+          h: `${box.h * k}px`,
+          borderWidth: `${frame.border * k}px`,
+          borderRadius: `${boxRadius(style, box) * k}px`,
+          style: { background: style.background, borderColor: style.borderColor },
+        }
+      : null,
   }
 }
 
 /**
  * The inline editor the Text tool opens over the canvas: a one-line input
  * standing where the label is drawn (the label hides meanwhile), in its font,
- * color and size at the current zoom, inside its box. Enter or clicking away
+ * color and size at the current zoom, over its box. Enter or clicking away
  * commits (an empty label is deleted), Escape cancels.
  */
 export function TextEditOverlay({ containerRef }: { containerRef: RefObject<HTMLElement | null> }) {
@@ -111,31 +124,43 @@ export function TextEditOverlay({ containerRef }: { containerRef: RefObject<HTML
   )
 
   return (
-    <chakra.input
-      ref={ref}
-      aria-hidden={edit ? undefined : true}
-      tabIndex={edit ? 0 : -1}
-      position="absolute"
-      p="0"
-      m="0"
-      zIndex="overlay"
-      outline="none"
-      borderStyle="solid"
-      {...look}
-      placeholder={t("tools.textPlaceholder")}
-      value={edit?.value ?? ""}
-      onPointerDown={(e) => e.stopPropagation()}
-      onChange={(e) => {
-        if (edit) setTextEdit({ ...edit, value: e.currentTarget.value })
-      }}
-      onKeyDown={(e) => {
-        e.stopPropagation()
-        if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-          e.preventDefault()
-          commitTextEdit()
-        } else if (e.key === "Escape") cancelTextEdit()
-      }}
-      onBlur={commitTextEdit}
-    />
+    <>
+      {look.box && (
+        <chakra.div
+          position="absolute"
+          zIndex="overlay"
+          borderStyle="solid"
+          pointerEvents="none"
+          {...look.box}
+        />
+      )}
+      <chakra.input
+        ref={ref}
+        aria-hidden={edit ? undefined : true}
+        tabIndex={edit ? 0 : -1}
+        position="absolute"
+        p="0"
+        m="0"
+        zIndex="overlay"
+        outline="none"
+        border="0"
+        bg="transparent"
+        {...look.input}
+        placeholder={t("tools.textPlaceholder")}
+        value={edit?.value ?? ""}
+        onPointerDown={(e) => e.stopPropagation()}
+        onChange={(e) => {
+          if (edit) setTextEdit({ ...edit, value: e.currentTarget.value })
+        }}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+            e.preventDefault()
+            commitTextEdit()
+          } else if (e.key === "Escape") cancelTextEdit()
+        }}
+        onBlur={commitTextEdit}
+      />
+    </>
   )
 }
