@@ -5,6 +5,8 @@ import { Tooltip } from "../../../ui/chakra/tooltip"
 
 interface ButtonControlProps {
   labelKey: string
+  /** Its caption when compact, if the full name is too long for one line. */
+  shortLabelKey?: string
   /** Its keyboard shortcut, shown after the label. */
   binding?: string
   icon: IconType
@@ -45,6 +47,7 @@ export function ButtonControl(props: ButtonControlProps) {
 function CompactButton({
   label,
   labelKey,
+  shortLabelKey,
   icon,
   colorPalette,
   disabled = false,
@@ -61,7 +64,7 @@ function CompactButton({
         disabled={disabled}
         onClick={onClick}
         aria-label={label}
-        h="auto"
+        h="full"
         minW="0"
         px="1"
         py="1.5"
@@ -75,7 +78,7 @@ function CompactButton({
             textAlign="center"
             whiteSpace="normal"
           >
-            {t(labelKey)}
+            {t(shortLabelKey ?? labelKey)}
           </Text>
         </Flex>
       </Button>

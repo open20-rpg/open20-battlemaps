@@ -366,6 +366,8 @@
     "mirror": "Espejar",
     "flipHorizontal": "Espejar horizontal",
     "flipVertical": "Espejar vertical",
+    "flipHorizontalShort": "Espejar horiz.",
+    "flipVerticalShort": "Espejar vert.",
     "mirrorHorizontal": "Espejar horizontal",
     "mirrorVertical": "Espejar vertical",
     "selectHint": "Hacé clic en un elemento del mapa, o seleccioná todos los de un tipo:",
