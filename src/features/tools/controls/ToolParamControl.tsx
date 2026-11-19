@@ -193,6 +193,7 @@ function ActionButton({
     <ButtonControl
       binding={ACTION_BY_ID.has(spec.paramKey) ? binding : undefined}
       labelKey={spec.labelKey}
+      shortLabelKey={spec.shortLabelKey}
       icon={spec.icon}
       colorPalette={spec.colorPalette}
       disabled={disabled}

@@ -228,7 +228,16 @@ const button = (
   labelKey: string,
   icon: IconType,
   colorPalette?: string,
-): ToolParamSpec => ({ kind: "button", paramKey, labelKey, icon, colorPalette, default: null })
+  shortLabelKey?: string,
+): ToolParamSpec => ({
+  kind: "button",
+  paramKey,
+  labelKey,
+  shortLabelKey,
+  icon,
+  colorPalette,
+  default: null,
+})
 const font = (paramKey: string, labelKey: string): ToolParamSpec => ({
   kind: "font",
   paramKey,
@@ -737,8 +746,14 @@ export const TOOL_TREE: ToolNode[] = [
       button("paste", "tools.paste", LuClipboardPaste),
       button("selectAll", "tools.selectAll", LuSquareDashedMousePointer),
       button("deselect", "tools.deselect", LuX),
-      button("flipH", "tools.flipHorizontal", LuFlipHorizontal2),
-      button("flipV", "tools.flipVertical", LuFlipVertical2),
+      button(
+        "flipH",
+        "tools.flipHorizontal",
+        LuFlipHorizontal2,
+        undefined,
+        "tools.flipHorizontalShort",
+      ),
+      button("flipV", "tools.flipVertical", LuFlipVertical2, undefined, "tools.flipVerticalShort"),
       button("group", "tools.group", LuGroup),
       button("ungroup", "tools.ungroup", LuUngroup),
       button("lock", "tools.lock", LuLock),

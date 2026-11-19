@@ -107,7 +107,12 @@ export function ParamsPanel({
                   <Text mb="1.5" fontSize="xs" color="fg.muted">
                     {t("tools.actions")}
                   </Text>
-                  <Grid templateColumns="repeat(auto-fill, minmax(68px, 1fr))" gap="1">
+                  <Grid
+                    templateColumns="repeat(auto-fill, minmax(68px, 1fr))"
+                    // Every row as tall as the tallest: all the buttons alike.
+                    gridAutoRows="1fr"
+                    gap="1"
+                  >
                     {run.specs.map((spec) => (
                       <ToolParamControl
                         key={paramKeyOf(spec)}
