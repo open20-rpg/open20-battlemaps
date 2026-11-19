@@ -23,6 +23,25 @@ export function partnersOf(entity: MapEntity, entities: readonly MapEntity[]): M
 }
 
 /**
+ * The entities linked to the selection that aren't selected (a selected
+ * room's wall: its floor), grouped by tool in the order they appear: what
+ * the Select tool also shows the properties of.
+ */
+export function linkedGroups(
+  selected: readonly MapEntity[],
+  entities: readonly MapEntity[],
+): MapEntity[][] {
+  const ids = new Set(selected.map((e) => e.id))
+  const links = new Set(selected.flatMap((e) => (e.link ? [e.link] : [])))
+  const groups = new Map<string, MapEntity[]>()
+  for (const e of entities) {
+    if (!e.link || !links.has(e.link) || ids.has(e.id)) continue
+    groups.set(e.toolId, [...(groups.get(e.toolId) ?? []), e])
+  }
+  return [...groups.values()]
+}
+
+/**
  * Move vertex `index` of `entity` to `to` (or remove it, with null), and
  * the vertex at the same place in each linked entity along with it.
  */

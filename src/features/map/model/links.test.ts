@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { regroup } from "./groups"
-import { insertVertexPatches, linkRooms, vertexPatches, withLinked } from "./links"
+import { insertVertexPatches, linkedGroups, linkRooms, vertexPatches, withLinked } from "./links"
 import { type MapEntity } from "./types"
 
 const square = [
@@ -36,6 +36,12 @@ describe("linked floor and wall", () => {
     const removed = vertexPatches(floor, 1, null, all)
     expect(removed.get("w")?.points).toHaveLength(3)
     expect(removed.get("w")?.points?.some((p) => p.x === 4 && p.y === 0)).toBe(false)
+  })
+
+  it("finds what's linked to the selection but not selected, by tool", () => {
+    expect(linkedGroups([wall], all)).toEqual([[floor]])
+    expect(linkedGroups([floor, wall], all)).toEqual([])
+    expect(linkedGroups([all[2]], all)).toEqual([])
   })
 
   it("copies get a link of their own", () => {
