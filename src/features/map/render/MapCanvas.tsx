@@ -2,7 +2,7 @@ import { installSdfTextPipe } from "./sdfShader"
 import { type MapDocument } from "../model/types"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Box } from "@chakra-ui/react"
-import { Application, Container, Graphics } from "pixi.js"
+import { Application, Container, GlProgram, Graphics } from "pixi.js"
 import { useMapStore } from "../../../stores/mapStore"
 import { useViewStore } from "../../../stores/viewStore"
 import { getToolParams, selectActiveTool, useToolsStore } from "../../../stores/toolsStore"
@@ -127,6 +127,10 @@ export function MapCanvas() {
     let disposed = false
     // Map labels are distance-field text (sdfShader.ts): set up before the renderer exists.
     installSdfTextPipe()
+    // Pixi computes fragments at mediump, 16-bit floats on Apple and mobile
+    // GPUs: texture coordinates far from 0 (a fill or a wall far from the
+    // map's origin) lose their texels and the texture shows stretched.
+    GlProgram.defaultOptions.preferredFragmentPrecision = "highp"
     const app = new Application()
     // Follow the container's size (window resizes, panels opening), then repaint.
     const resizer = new ResizeObserver(() => {

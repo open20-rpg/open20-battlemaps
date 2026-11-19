@@ -36,15 +36,29 @@ function textV2(e: MapEntity): MapEntity {
   }
 }
 
+/**
+ * Up to version 2 floors' and patterns' textures were laid from the map's
+ * origin whatever their `position` (their first point); now they're laid
+ * from it (and move with the shape), so it becomes the map's origin.
+ */
+function texturedShapeV3(e: MapEntity): MapEntity {
+  return e.toolId === "build" || e.toolId === "pattern" ? { ...e, position: { x: 0, y: 0 } } : e
+}
+
 /** Bring a map and its tool params saved as `version` up to date. */
 export function migrateMap(
   version: number,
   map: MapDocument,
   tools: Record<string, Params>,
 ): { map: MapDocument; tools: Record<string, Params> } {
-  if (version >= 2) return { map, tools }
-  return {
-    map: { ...map, entities: map.entities.map((e) => (e.toolId === "text" ? textV2(e) : e)) },
-    tools: tools.text ? { ...tools, text: textParamsV2(tools.text) } : tools,
+  let entities = map.entities
+  let migratedTools = tools
+  if (version < 2) {
+    entities = entities.map((e) => (e.toolId === "text" ? textV2(e) : e))
+    if (tools.text) migratedTools = { ...tools, text: textParamsV2(tools.text) }
   }
+  if (version < 3) entities = entities.map(texturedShapeV3)
+  return entities === map.entities && migratedTools === tools
+    ? { map, tools }
+    : { map: { ...map, entities }, tools: migratedTools }
 }

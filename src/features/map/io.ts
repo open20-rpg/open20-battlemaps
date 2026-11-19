@@ -53,8 +53,12 @@ import type { MapDocument } from "./model/types"
  * ids the map depends on (re-enabled on open if the user has them off).
  */
 export const MAP_FORMAT = "open20-battle-maps"
-/** 2: labels are one line anchored at their top-left corner, fonts carry their style (migrate.ts). */
-export const MAP_FORMAT_VERSION = 2
+/**
+ * 2: labels are one line anchored at their top-left corner, fonts carry
+ * their style. 3: floors' and patterns' textures are laid from their
+ * position (migrate.ts).
+ */
+export const MAP_FORMAT_VERSION = 3
 export const MAP_EXTENSION = "otbm"
 
 const MAP_FILTERS = [{ name: "Open20 Battle Maps", extensions: [MAP_EXTENSION] }]

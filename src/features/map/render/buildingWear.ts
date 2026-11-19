@@ -13,6 +13,7 @@ import noiseUrl from "../../../assets/wear/noise.webp"
 import scratchedUrl from "../../../assets/wear/scratched.webp"
 import { type BuildingWear } from "../model/types"
 import { TEXTURE_PX_PER_TILE } from "./assets"
+import { latticeOrigin } from "./tiling"
 
 /**
  * Building wear: the grime multiplied over walls (and their
@@ -113,8 +114,12 @@ export function wearOverlay(
   wear.source.style.addressMode = "repeat"
   const t = new TilingSprite({ texture: wear, width: w, height: h })
   t.position.set(x, y)
-  t.tileScale.set(stretch / TEXTURE_PX_PER_TILE)
-  t.tilePosition.set((-x * TEXTURE_PX_PER_TILE) / stretch, (-y * TEXTURE_PX_PER_TILE) / stretch)
+  // Anchored at the world's origin, as the lattice point next to the
+  // sprite's corner (tilePosition is in tiles; small keeps it precise).
+  const tiles = stretch / TEXTURE_PX_PER_TILE
+  const at = latticeOrigin({ x: -x, y: -y }, 0, wear.width * tiles, wear.height * tiles)
+  t.tileScale.set(tiles)
+  t.tilePosition.set(at.x, at.y)
   t.blendMode = "multiply"
   return t
 }

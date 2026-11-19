@@ -33,6 +33,7 @@ import {
   textStyle,
 } from "../../fonts/metrics"
 import { sdfFont } from "./sdfFont"
+import { latticeOrigin } from "./tiling"
 
 /**
  * Per-entity renderers, keyed by the tool that created the entity. They draw
@@ -202,10 +203,14 @@ export function lineMesh(
     const uvs = new Float32Array(group.length * 6)
     let k = 0
     for (const t of group) {
+      // Whole repeats off each triangle's u (the texture repeats, so it
+      // looks the same): u keeps growing along a long wall, and large
+      // texture coordinates lose precision in the GPU (stretched texels).
+      const shift = Math.floor(Math.min(t.a.u, t.b.u, t.c.u) / repeat)
       for (const v of [t.a, t.b, t.c]) {
         positions[k] = -v.x
         positions[k + 1] = v.y
-        uvs[k] = v.u / repeat
+        uvs[k] = v.u / repeat - shift
         uvs[k + 1] = v.v
         k += 2
       }
@@ -337,18 +342,23 @@ const pathRenderer: EntityRenderer = (e, env) => {
   return lineMesh(tris, repeat, texture, 0x7a6a52)
 }
 
-/**
- * A polygon filled with a tiling texture (floors, patterns). The texture is
- * laid out on the map grid (not the shape) so adjacent fills line up.
- */
 /** Floor tiles take the building wear at half scale, as tilesets do. */
 const FLOOR_WEAR_STRETCH = 2
 
+/**
+ * A polygon filled with a tiling texture (floors, patterns), at its own
+ * size (one texture pixel per 1/256 tile, never stretched). The texture is
+ * laid from the entity's `position` turned by `rotation` (degrees, clockwise
+ * on screen), so it moves and turns with the shape: moving or rotating it
+ * (transformEntity) carries both along, while reshaping it leaves the
+ * texture in place. New shapes start at the map's origin, so adjacent
+ * fills line up on the grid.
+ */
 function tiledPolygon(
   points: Vec2[],
   texture: Texture | undefined,
   tint: string | undefined,
-  rotation: number,
+  frame: { origin: Vec2; rotation: number },
   fallbackColor: number,
   /** Building wear multiplied over the fill (floors). */
   wear?: Texture,
@@ -361,17 +371,26 @@ function tiledPolygon(
     return root
   }
   const b = boundsOf(points)
-  // Content-space bounds (x is flipped), padded to whole tiles to keep the
-  // tiling anchored to the grid.
+  // Content-space bounds (x is flipped), padded so the edges are covered.
   const x0 = Math.floor(-(b.x + b.w)) - 1
   const y0 = Math.floor(b.y) - 1
   const w = Math.ceil(b.w) + 2
   const h = Math.ceil(b.h) + 2
   const fill = new TilingSprite({ texture, width: w, height: h })
   fill.position.set(x0, y0)
+  // tilePosition is in the sprite's units (tiles): where the texture's
+  // origin sits, as a lattice point next to the sprite's corner.
+  const rotation = rad(frame.rotation)
+  const origin = { x: -frame.origin.x - x0, y: frame.origin.y - y0 }
+  const at = latticeOrigin(
+    origin,
+    rotation,
+    texture.width / TEXTURE_PX_PER_TILE,
+    texture.height / TEXTURE_PX_PER_TILE,
+  )
   fill.tileScale.set(1 / TEXTURE_PX_PER_TILE)
-  fill.tilePosition.set(-x0 * TEXTURE_PX_PER_TILE, -y0 * TEXTURE_PX_PER_TILE)
-  fill.tileRotation = rad(rotation)
+  fill.tilePosition.set(at.x, at.y)
+  fill.tileRotation = rotation
   if (tint) fill.tint = hexToPixiColor(tint).color
   const mask = new Graphics().poly(flat, true).fill({ color: 0xffffff })
   const body = new Container()
@@ -393,7 +412,7 @@ const floorRenderer: EntityRenderer = (e, env) => {
     e.points ?? [],
     env.tex(id, red ? { color, recolorMode: "tileset" } : undefined),
     red ? undefined : color,
-    0,
+    { origin: e.position, rotation: e.rotation },
     0x8a7a62,
     env.buildingWear(),
   )
@@ -411,7 +430,8 @@ const patternRenderer: EntityRenderer = (e, env) => {
     e.points ?? [],
     env.tex(id, red ? { color, recolorMode: "tileset" } : undefined),
     red ? undefined : color,
-    num(e.params.rotation, 0),
+    // The Rotation param turns the texture on top of the shape's own turn.
+    { origin: e.position, rotation: e.rotation + num(e.params.rotation, 0) },
     hexToPixiColor(color).color,
   )
   if (e.params.outline === true && e.points && e.points.length > 2) {

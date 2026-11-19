@@ -312,7 +312,6 @@ function floors(im: Importer, level: string, raw: Json): MapEntity[] {
       layer: -200,
       points: pts,
       closed: true,
-      position: pts[0],
       params: { floor: selection(best ? im.asset(best) : undefined, tint), bevelCorners: true },
     })
   })
@@ -337,7 +336,6 @@ function patterns(im: Importer, level: string, raw: Json): MapEntity[] {
           layer: num(pt.layer, 100),
           points: pts,
           closed: true,
-          position: pts[0],
           params: {
             pattern: selection(im.asset(pt.texture)),
             customColor: argbToHex(pt.color),

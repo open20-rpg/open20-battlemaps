@@ -36,6 +36,31 @@ describe("migrateMap", () => {
   })
 
   it("leaves current maps alone", () => {
-    expect(migrateMap(2, map, {}).map).toBe(map)
+    expect(migrateMap(3, map, {}).map).toBe(map)
+  })
+
+  it("lays version 2 floors' and patterns' textures from the map's origin, as they were", () => {
+    const shape = (toolId: string): MapEntity => ({
+      id: toolId,
+      toolId,
+      layer: 0,
+      position: { x: 3, y: 4 },
+      rotation: 0,
+      points: [
+        { x: 3, y: 4 },
+        { x: 5, y: 4 },
+        { x: 5, y: 6 },
+      ],
+      closed: true,
+      params: {},
+    })
+    const doc = {
+      entities: [shape("build"), shape("pattern"), shape("wall")],
+    } as unknown as MapDocument
+    const [floor, pattern, wall] = migrateMap(2, doc, {}).map.entities
+    expect(floor.position).toEqual({ x: 0, y: 0 })
+    expect(pattern.position).toEqual({ x: 0, y: 0 })
+    expect(pattern.points).toEqual(shape("pattern").points)
+    expect(wall.position).toEqual({ x: 3, y: 4 })
   })
 })
