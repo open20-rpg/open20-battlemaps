@@ -195,6 +195,9 @@ export class MapScene {
   /** Set while an export renders: the look it asks for, over the live state. */
   private exporting: { pxPerTile: number; look: ExportLook } | null = null
   private unsubscribe: () => void
+  /** What the map's look was last drawn from, and whether it changed since (takeContentChanged). */
+  private contentKey: unknown[] | null = null
+  private contentChanged = true
   /** Stops following the texture cache in use (see useAssets). */
   private unsubAssets: () => void
   /** Redraw what was waiting for textures or fonts. */
@@ -344,9 +347,47 @@ export class MapScene {
     }
   }
 
+  /**
+   * Whether the map itself (not the editor overlay: drafts, selection,
+   * cursor, guides) may look different since the last call. Lets the canvas
+   * keep a picture of the map and redraw only the overlay when that's all
+   * that changed (MapLayerCache).
+   */
+  takeContentChanged(): boolean {
+    const changed = this.contentChanged
+    this.contentChanged = false
+    return changed
+  }
+
   update(live: SceneState, assetsChanged = false): void {
     this.last = live
     const state = this.drawn(live)
+    // Everything the map's own look comes from (the overlay's inputs left out).
+    const contentKey = [
+      state.map,
+      state.level,
+      state.lighting,
+      state.shadows,
+      state.showOutside,
+      state.shadowStyle,
+      state.postProcess,
+      state.textVisible,
+      state.editingText,
+      state.terrainEnabled,
+      state.terrainSmooth,
+      state.showCaveBlast,
+      state.compareLevel,
+      state.zoom,
+      state.referenceUrl,
+      state.performance,
+      liveTerrainVersion(),
+      this.exporting,
+      this.assets,
+    ]
+    if (assetsChanged || !this.contentKey || !sameInputs(this.contentKey, contentKey)) {
+      this.contentChanged = true
+    }
+    this.contentKey = contentKey
     const onLevel = state.map.entities.filter((e) => !e.level || e.level === state.level)
     this.syncBounds(state)
     this.syncReference(state)
