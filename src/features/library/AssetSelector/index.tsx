@@ -128,6 +128,8 @@ export function AssetSelector({
   const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds])
   // Anchor for shift-range selection.
   const anchorIdx = useRef<number | null>(null)
+  /** Kind of pointer that started the last click (touch and pen have no modifier keys). */
+  const pointerKind = useRef<string>("mouse")
 
   // Shared name tooltip via event delegation (see LibraryPanel history).
   const [tip, setTip] = useState<{ name: string; x: number; y: number } | null>(null)
@@ -208,7 +210,8 @@ export function AssetSelector({
           if (it) ids.push(it.id)
         }
         onSelectionChange(ids)
-      } else if (e.ctrlKey || e.metaKey) {
+      } else if (e.ctrlKey || e.metaKey || pointerKind.current !== "mouse") {
+        // Touch and pen have no Ctrl: each tap adds or removes the asset.
         const next = new Set(selectedSet)
         if (next.has(item.id)) next.delete(item.id)
         else next.add(item.id)
@@ -292,6 +295,7 @@ export function AssetSelector({
         overflowY="auto"
         overflowX="hidden"
         onPointerOver={handlePointerOver}
+        onPointerDown={(e) => (pointerKind.current = e.pointerType)}
         onPointerLeave={clearAll}
         onScroll={clearAll}
         onClick={select ? (e) => void handleClick(e) : undefined}
