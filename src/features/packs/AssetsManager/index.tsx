@@ -14,7 +14,8 @@ import {
 import { FloatingWindow } from "../../../ui/FloatingWindow"
 import { withLoading } from "../../../stores/loadingStore"
 import { usePacksStore } from "../../../stores/packsStore"
-import { openPacksDir, setPacksEnabled, uninstallPack } from "../api"
+import { openPacksDir, setPacksEnabled } from "../api"
+import { uninstallPacks } from "../uninstall"
 import { isPackUsed, clearPackReferences } from "../../map/packUsage"
 import { PackList } from "./PackList"
 import { PackPreview } from "./PackPreview"
@@ -30,7 +31,6 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const refresh = usePacksStore((s) => s.refresh)
   const addOrUpdate = usePacksStore((s) => s.addOrUpdate)
   const applyEnabled = usePacksStore((s) => s.applyEnabled)
-  const removePacks = usePacksStore((s) => s.removePacks)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [mutating, setMutating] = useState(false)
@@ -100,35 +100,9 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   }
 
   const handleDelete = async () => {
-    const ids = [...selected]
-    if (ids.length === 0) return
-
-    // Deleting a pack the open map depends on deletes the configs that
-    // reference it too, and that reset isn't tracked by undo/redo — confirm first.
-    const usedIds = ids.filter((id) => isPackUsed(id))
-    if (usedIds.length > 0) {
-      const ok = await confirm(t("assets.deleteUsedConfirm", { count: usedIds.length }), {
-        title: t("assets.deleteUsedTitle"),
-        kind: "warning",
-      })
-      if (!ok) return
-    }
-
-    const ok = await confirm(t("assets.deleteConfirm", { count: ids.length }), {
-      title: t("assets.deleteTitle"),
-      kind: "warning",
-    })
-    if (!ok) return
     setMutating(true)
     try {
-      await withLoading(t("loading.deletingAssets"), async () => {
-        for (const id of usedIds) clearPackReferences(id)
-        // Each uninstall touches its own pack directory, so they are
-        // independent and safe to run in parallel.
-        await Promise.all(ids.map((id) => uninstallPack(id)))
-        removePacks(ids)
-        setSelected(new Set())
-      })
+      if (await uninstallPacks([...selected])) setSelected(new Set())
     } finally {
       setMutating(false)
     }

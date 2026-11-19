@@ -4,6 +4,7 @@ mod export;
 mod fonts;
 mod map;
 mod pack;
+mod storage;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -37,6 +38,8 @@ pub fn run() {
             pack::resolve_assets,
             pack::asset_thumbnails,
             fonts::list_system_fonts,
+            storage::storage_usage,
+            storage::clear_storage,
             fonts::cached_font,
             fonts::download_font,
             map::save_map,
