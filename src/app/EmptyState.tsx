@@ -4,6 +4,7 @@ import { LuGem } from "react-icons/lu"
 import { BrandMark } from "./BrandMark"
 import { EssentialsPrompt } from "../features/packs/EssentialsPrompt"
 import { useEssentialsMissing } from "../features/packs/useEssentials"
+import { UpdatesAvailable } from "../features/open20/UpdatesAvailable"
 
 /** Shown in place of the editor while no map is open. */
 export function EmptyState({ onOpenAssets }: { onOpenAssets: () => void }) {
@@ -42,6 +43,7 @@ export function EmptyState({ onOpenAssets }: { onOpenAssets: () => void }) {
           {t("canvas.openAssets")}
         </Button>
       )}
+      <UpdatesAvailable />
     </Flex>
   )
 }

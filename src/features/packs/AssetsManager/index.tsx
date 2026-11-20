@@ -22,6 +22,7 @@ import { uninstallPacks } from "../uninstall"
 import { isPackUsed, clearPackReferences } from "../../map/packUsage"
 import { CreatePackDialog } from "../CreatePackDialog"
 import { OptimizeDialog } from "../OptimizeDialog"
+import { UpdatesAvailable } from "../../open20/UpdatesAvailable"
 import { type InstalledPack } from "../api"
 import { PackList } from "./PackList"
 import { PackPreview } from "./PackPreview"
@@ -217,6 +218,7 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
             onToggleAll={toggleAll}
             onFocus={setFocusedId}
           />
+          <UpdatesAvailable bar />
         </Flex>
 
         {/* Right: preview panel */}

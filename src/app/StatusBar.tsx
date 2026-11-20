@@ -9,6 +9,7 @@ import { useIsLoading, useLoadingStore } from "../stores/loadingStore"
 import { useHasMap } from "../stores/mapStore"
 import { useMapDirty, useMapFilePath } from "../stores/mapFileStore"
 import { useActiveTool } from "../stores/toolsStore"
+import { UpdateNotice } from "../features/open20/UpdateNotice"
 
 /** A thin vertical divider between status-bar items. */
 function Sep() {
@@ -60,6 +61,7 @@ function StatusIdentity() {
           {t("about.version", { version: __APP_VERSION__ })}
         </Text>
       )}
+      {!phone && <UpdateNotice />}
 
       {/* Current file (only when a map is open) */}
       {hasMap && (

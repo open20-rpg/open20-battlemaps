@@ -905,7 +905,9 @@
     "percentLess": "{{percent}}% less than before"
   },
   "update": {
-    "available": "Version {{version}} available"
+    "available": "Version {{version}} available",
+    "app": "Battle Maps {{version}} available",
+    "essentials": "Open20 Essentials {{version}} available"
   },
   "essentials": {
     "tagline": "Over 2,000 free assets for your maps.",

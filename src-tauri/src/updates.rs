@@ -1,6 +1,6 @@
-//! New-version check and links to open20.app.
+//! New-version checks (Battle Maps, Open20 Essentials) and links to open20.app.
 //!
-//! At start the frontend asks for the latest release's version (GitHub's
+//! The frontend asks for each product's latest release version (GitHub's
 //! public API: the same releases the downloads on open20.app point to). Any
 //! failure (offline, rate limit) just means "nothing to say": the check must
 //! never bother the user.
@@ -11,8 +11,18 @@ use serde::Deserialize;
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
-const LATEST_RELEASE: &str =
-    "https://api.github.com/repos/open20-rpg/open20-battlemaps/releases/latest";
+/// The latest-release API of each product the app checks.
+fn latest_release_url(product: &str) -> Option<&'static str> {
+    match product {
+        "battle-maps" => {
+            Some("https://api.github.com/repos/open20-rpg/open20-battlemaps/releases/latest")
+        }
+        "essentials" => {
+            Some("https://api.github.com/repos/open20-rpg/open20-essentials/releases/latest")
+        }
+        _ => None,
+    }
+}
 
 /// Pages of open20.app the app links to (nothing else can be opened).
 fn page_url(page: &str) -> Option<&'static str> {
@@ -33,13 +43,13 @@ fn version_of(tag: &str) -> String {
     tag.trim().trim_start_matches(['v', 'V']).to_string()
 }
 
-fn fetch_latest() -> Option<String> {
+fn fetch_latest(url: &str) -> Option<String> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(8)))
         .build()
         .into();
     let mut res = agent
-        .get(LATEST_RELEASE)
+        .get(url)
         // GitHub's API refuses requests without a User-Agent.
         .header("User-Agent", "open20-battle-maps")
         .header("Accept", "application/vnd.github+json")
@@ -50,10 +60,12 @@ fn fetch_latest() -> Option<String> {
     Some(version_of(&release.tag_name))
 }
 
-/// The latest published version, or None when it can't be known now.
+/// The latest published version of `product` ("battle-maps", "essentials"),
+/// or None when it can't be known now.
 #[tauri::command]
-pub async fn latest_version() -> Option<String> {
-    tauri::async_runtime::spawn_blocking(fetch_latest)
+pub async fn latest_version(product: String) -> Option<String> {
+    let url = latest_release_url(&product)?;
+    tauri::async_runtime::spawn_blocking(move || fetch_latest(url))
         .await
         .ok()
         .flatten()
@@ -78,6 +90,13 @@ mod tests {
         assert_eq!(version_of(" 1.0.0 "), "1.0.0");
         let r: Release = serde_json::from_str(r#"{"tag_name":"v0.4.0","name":"x"}"#).unwrap();
         assert_eq!(version_of(&r.tag_name), "0.4.0");
+    }
+
+    #[test]
+    fn checks_only_known_products() {
+        assert!(latest_release_url("battle-maps").is_some_and(|u| u.contains("open20-battlemaps")));
+        assert!(latest_release_url("essentials").is_some_and(|u| u.contains("open20-essentials")));
+        assert_eq!(latest_release_url("other"), None);
     }
 
     #[test]

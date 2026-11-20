@@ -105,22 +105,29 @@ ni accionable.
   se guarda como imagen; la caja (borde, redondeo, espaciado por lado) sigue
   `fonts/metrics.ts`. Un texto es una línea y su `position` es la esquina
   superior izquierda.
-- **Pack integrado** ("Open20 Essentials"): vive en su propio repo,
-  [open20-rpg/open20-essentials](https://github.com/open20-rpg/open20-essentials),
-  incluido como submódulo en `src-tauri/resources/open20-essentials`
-  (después de clonar: `git submodule update --init`). Ahí se dibuja, versiona
-  y publica por separado; ver su `AGENTS.md`. `build.rs` empaqueta su `pack/`
-  en el `.dungeondraft_pack` al compilar y `pack/builtin.rs` lo embebe; sin el
-  submódulo la app compila igual pero sin pack integrado. Se instala al
-  arrancar solo si su `version` cambió: desactivarlo o desinstalarlo se respeta
-  hasta la próxima versión. Para traer una versión nueva:
-  `git submodule update --remote src-tauri/resources/open20-essentials` y
-  commitear el cambio del submódulo.
-- **Packs propios** (`features/packs/`, Rust en `pack/userpack.rs` +
+- **Open20 Essentials** ya no viene con la app (más liviana): se descarga
+  de [open20.app/essentials](https://open20.app/essentials) y se instala como
+  cualquier pack. Su repo es
+  [open20-rpg/open20-essentials](https://github.com/open20-rpg/open20-essentials).
+  Mientras no esté instalado (`useEssentialsMissing`), la pantalla inicial y
+  las grillas de recursos vacías muestran `EssentialsPrompt`, que lleva a
+  descargarlo. Los biomas usan sus texturas solo si está instalado
+  (`ESSENTIALS_PACK_ID`, `features/packs/essentials.ts`).
+- **Versión nueva y enlaces a open20.app** (`features/open20/`, Rust en
+  `updates.rs`): al iniciar se consulta la última release en GitHub de Battle
+  Maps y de Open20 Essentials, una sola vez por sesión. Si Battle Maps es más
+  nueva que la app, la barra de estado muestra un ícono (y el menú en
+  teléfono); si alguna es más nueva (Essentials, contra la versión
+  instalada), la pantalla inicial y Activos muestran una línea discreta
+  (`UpdatesAvailable`) que abre su página en open20.app. Las páginas que
+  la app puede abrir son una lista fija en `updates.rs`. Sin red no se avisa
+  nada.
+- **Packs creados en la app** (insignia «Editable»; `features/packs/`, Rust en `pack/userpack.rs` +
   `pack/optimize.rs`): el usuario crea packs en la app; viven desempaquetados
   como cualquier pack instalado (layout de Dungeondraft) con `user: true` en
   `registry.json` (`InstalledPack.editable`). Solo esos se editan y exportan
-  (`.dungeondraft_pack`); un pack instalado desde archivo nunca es editable.
+  (`.dungeondraft_pack`); un pack de terceros (instalado desde archivo) nunca
+  es editable, y la UI lo dice así.
   Importar ("Importar imágenes" en cada selector de recursos → `startImport`,
   `importFlow.ts`): primero se eligen las imágenes, después el pack destino.
   Rust procesa imagen por imagen (memoria acotada a una), en el pool

@@ -905,7 +905,9 @@
     "percentLess": "{{percent}} % menos que antes"
   },
   "update": {
-    "available": "Versión {{version}} disponible"
+    "available": "Versión {{version}} disponible",
+    "app": "Battle Maps {{version}} disponible",
+    "essentials": "Open20 Essentials {{version}} disponible"
   },
   "essentials": {
     "tagline": "Más de 2.000 recursos gratis para tus mapas.",

@@ -1,7 +1,8 @@
-import { Flex, Icon, IconButton, Menu, Portal, Text } from "@chakra-ui/react"
+import { Box, Flex, Icon, IconButton, Menu, Portal, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import type { IconType } from "react-icons"
 import {
+  LuCircleArrowUp,
   LuFolderOpen,
   LuGem,
   LuHistory,
@@ -19,6 +20,8 @@ import {
 } from "react-icons/lu"
 import { BrandMark } from "./BrandMark"
 import { type MenuBarProps } from "./MenuBar"
+import { openOpen20Page } from "../features/open20/api"
+import { useNewVersion } from "../features/open20/useUpdateCheck"
 
 /** One entry of the phone menu. */
 function Item({
@@ -50,6 +53,8 @@ function Item({
 export function MobileTopBar(props: MenuBarProps) {
   const { t } = useTranslation()
   const noMap = !props.mapOpen
+  // A phone has no status bar: a newer version shows as a dot on the menu.
+  const newVersion = useNewVersion()
   return (
     <Flex
       as="header"
@@ -66,8 +71,25 @@ export function MobileTopBar(props: MenuBarProps) {
     >
       <Menu.Root positioning={{ placement: "bottom-start" }}>
         <Menu.Trigger asChild>
-          <IconButton aria-label={t("menu.menu")} variant="ghost" color="menubar.fg" size="md">
+          <IconButton
+            aria-label={t("menu.menu")}
+            variant="ghost"
+            color="menubar.fg"
+            size="md"
+            position="relative"
+          >
             <LuMenu />
+            {newVersion && (
+              <Box
+                position="absolute"
+                top="2"
+                right="2"
+                boxSize="2"
+                borderRadius="full"
+                bg="brand.solid"
+                aria-hidden
+              />
+            )}
           </IconButton>
         </Menu.Trigger>
         <Portal>
@@ -126,6 +148,17 @@ export function MobileTopBar(props: MenuBarProps) {
                 label={t("menu.about")}
                 onClick={props.onOpenAbout}
               />
+              {newVersion && (
+                <Menu.Item
+                  value="update"
+                  py="2.5"
+                  color="brand.fg"
+                  onClick={() => void openOpen20Page("battle-maps")}
+                >
+                  <Icon as={LuCircleArrowUp} boxSize="4" />
+                  <Text ml="2">{t("update.available", { version: newVersion })}</Text>
+                </Menu.Item>
+              )}
               <Menu.Separator />
               <Menu.Item
                 value="exit"
