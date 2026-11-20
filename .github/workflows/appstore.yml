@@ -83,10 +83,13 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
+      # Keyed by Xcode too: build scripts cache absolute toolchain paths
+      # (clang_rt, swift libs) that don't exist in another Xcode.
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          key: xcode-27
 
       - name: install frontend dependencies
         run: npm ci --ignore-scripts
@@ -176,10 +179,13 @@ jobs:
         with:
           targets: aarch64-apple-ios
 
+      # Keyed by Xcode too: build scripts cache absolute toolchain paths
+      # (clang_rt, swift libs) that don't exist in another Xcode.
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          key: xcode-27
 
       - name: install frontend dependencies
         run: npm ci --ignore-scripts
