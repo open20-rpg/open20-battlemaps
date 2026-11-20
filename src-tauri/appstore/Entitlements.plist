@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Mac App Store build (tauri.appstore.conf.json): the sandbox the store
+  requires, plus what the app uses: the network (new-version checks, Google
+  Fonts downloads) and the files the user picks in the system dialog. The
+  identifiers must match the provisioning profile (Team W983BQA6DK).
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    <key>com.apple.application-identifier</key>
+    <string>W983BQA6DK.app.open20.battlemaps</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>W983BQA6DK</string>
+  </dict>
+</plist>

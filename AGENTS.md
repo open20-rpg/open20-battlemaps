@@ -134,6 +134,16 @@ ni accionable.
   MSIX y no EXE/MSI porque la Store firma los MSIX; los instaladores EXE/MSI
   necesitarían un certificado de firma de código propio. La identidad del
   manifiesto es la de Partner Center ("Product identity"), tal cual.
+- **Mac App Store** (`.github/workflows/appstore.yml`, config en
+  `src-tauri/tauri.appstore.conf.json` + `src-tauri/appstore/`): después de
+  cada release, una build de tienda universal, con sandbox
+  (`Entitlements.plist`) y el perfil de aprovisionamiento embebido, firmada
+  y empaquetada como `.pkg`, se sube sola a App Store Connect (app
+  6837341453); de ahí se envía a revisión a mano. Los certificados, el
+  perfil y la clave de la API de App Store Connect son secretos del repo
+  (`APPLE_*`). Si la app necesita un permiso nuevo del sistema (cámara,
+  carpetas fuera de las que elige el usuario…), va también en los
+  entitlements o el sandbox lo bloquea en la versión de la tienda.
 - **Packs creados en la app** (insignia «Editable»; `features/packs/`, Rust en `pack/userpack.rs` +
   `pack/optimize.rs`): el usuario crea packs en la app; viven desempaquetados
   como cualquier pack instalado (layout de Dungeondraft) con `user: true` en

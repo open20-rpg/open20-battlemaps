@@ -389,6 +389,17 @@ jobs:
       version: ${{ inputs.rebuild || needs.release.outputs.version }}
 
   # ---------------------------------------------------------------------------
+  # Mac App Store: signed .pkg uploaded to App Store Connect (see appstore.yml).
+  # ---------------------------------------------------------------------------
+  appstore:
+    needs: release
+    if: ${{ !cancelled() && (needs.release.outputs.version != '' || inputs.rebuild != '') }}
+    uses: ./.github/workflows/appstore.yml
+    with:
+      version: ${{ inputs.rebuild || needs.release.outputs.version }}
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
   # Once every build has finished, successfully or not, the announcement drops
   # its "being prepared" line. A platform without its emoji failed: rebuilding
   # it adds the emoji later.
