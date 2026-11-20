@@ -50,6 +50,10 @@ on:
         description: "Build from this ref instead of the version's tag (e.g. main)"
         required: false
         default: ""
+      build_number:
+        description: "iOS only: build number to append (e.g. 1 → 0.3.56.1), to upload a version again"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -60,7 +64,8 @@ env:
 
 jobs:
   macos:
-    runs-on: macos-latest
+    # Xcode 27 (iOS/macOS 27 SDK): required by App Store Connect from April 2027.
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
         with:
@@ -152,7 +157,8 @@ jobs:
           path: ${{ steps.pkg.outputs.file }}
 
   ios:
-    runs-on: macos-latest
+    # Xcode 27 (iOS/macOS 27 SDK): required by App Store Connect from April 2027.
+    runs-on: xcode-27
     steps:
       - uses: actions/checkout@v7
         with:
@@ -184,6 +190,12 @@ jobs:
       - name: generate the Xcode project
         run: npm run tauri ios init -- --ci --config src-tauri/tauri.appstore.conf.json
 
+      # ios init uses Tauri's placeholder icons; App Store icons can't be
+      # transparent, so they come from a full-bleed 1024 px copy of the icon
+      # (from open20-brand, kits/app-store).
+      - name: set the app icons
+        run: npm run tauri icon -- src-tauri/icons/app-store-icon.png --ios-color "#0b0b0c"
+
       - name: build the ipa (store build, signed)
         env:
           IOS_CERTIFICATE: ${{ secrets.APPLE_DIST_CERT_P12 }}
@@ -194,6 +206,7 @@ jobs:
           npm run tauri ios build --
           --export-method app-store-connect
           --config src-tauri/tauri.appstore.conf.json
+          ${{ inputs.build_number && format('--build-number {0}', inputs.build_number) || '' }}
 
       - name: find the ipa
         id: ipa
