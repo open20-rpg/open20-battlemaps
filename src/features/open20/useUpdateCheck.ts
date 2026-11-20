@@ -38,9 +38,10 @@ function useLatest(product: Open20Product): string | null {
   return latest
 }
 
-/** A newer Battle Maps than this one, or null. */
+/** A newer Battle Maps than this one, or null (always in store builds: the store updates it). */
 export function useNewVersion(): string | null {
   const latest = useLatest("battle-maps")
+  if (__STORE_BUILD__) return null
   return latest && isNewer(latest, __APP_VERSION__) ? latest : null
 }
 

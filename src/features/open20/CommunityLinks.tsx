@@ -4,13 +4,16 @@ import type { IconType } from "react-icons"
 import { SiDiscord, SiKofi, SiPatreon } from "react-icons/si"
 import { openOpen20Page, type Open20Page } from "./api"
 
-const LINKS: readonly { page: Open20Page; icon: IconType; labelKey: string }[] = [
+const ALL_LINKS: readonly { page: Open20Page; icon: IconType; labelKey: string }[] = [
   { page: "discord", icon: SiDiscord, labelKey: "community.discord" },
   { page: "patreon", icon: SiPatreon, labelKey: "community.patreon" },
   { page: "kofi", icon: SiKofi, labelKey: "community.kofi" },
 ]
 
-/** Open20's community and support, as three quiet links (the start screen's foot). */
+/** Store builds leave out the support links: stores don't allow outside payments. */
+const LINKS = __STORE_BUILD__ ? ALL_LINKS.filter((l) => l.page === "discord") : ALL_LINKS
+
+/** Open20's community and support, as quiet links (the start screen's foot). */
 export function CommunityLinks() {
   const { t } = useTranslation()
   return (
