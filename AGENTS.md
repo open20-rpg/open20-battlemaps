@@ -144,6 +144,9 @@ ni accionable.
   (`APPLE_*`). Si la app necesita un permiso nuevo del sistema (cámara,
   carpetas fuera de las que elige el usuario…), va también en los
   entitlements o el sandbox lo bloquea en la versión de la tienda.
+- **App Store de iOS** (mismo `appstore.yml`, job `ios`): el proyecto de
+  Xcode (`src-tauri/gen/apple`) no se commitea; CI lo genera con `tauri ios
+init` en cada build y sube el `.ipa` de la build de tienda a la misma app.
 - **Packs creados en la app** (insignia «Editable»; `features/packs/`, Rust en `pack/userpack.rs` +
   `pack/optimize.rs`): el usuario crea packs en la app; viven desempaquetados
   como cualquier pack instalado (layout de Dungeondraft) con `user: true` en
