@@ -50,6 +50,10 @@ on:
         description: "Build from this ref instead of the version's tag (e.g. main)"
         required: false
         default: ""
+      build_number:
+        description: "iOS only: build number to append (e.g. 1 → 0.3.56.1), to upload a version again"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -202,6 +206,7 @@ jobs:
           npm run tauri ios build --
           --export-method app-store-connect
           --config src-tauri/tauri.appstore.conf.json
+          ${{ inputs.build_number && format('--build-number {0}', inputs.build_number) || '' }}
 
       - name: find the ipa
         id: ipa
