@@ -35,6 +35,16 @@ name: "release"
 #   ANDROID_KEYSTORE_PASSWORD store password
 #   ANDROID_KEY_ALIAS         key alias
 #   ANDROID_KEY_PASSWORD      key password
+#
+# Google Play (optional). With these, every signed build is also uploaded to
+# Google Play (app.open20.battlemaps). Without the secret the step is skipped.
+#   PLAY_SERVICE_ACCOUNT_JSON (secret)   JSON key of a Google Cloud service
+#                                        account invited in Play Console with
+#                                        release permissions on the app
+#   PLAY_TRACK  (variable, optional)     track to release to; default "internal"
+#   PLAY_STATUS (variable, optional)     "completed" (default) or "draft". Must be
+#                                        "draft" until the app's first release
+#                                        is rolled out by hand in Play Console.
 
 on:
   workflow_dispatch:
@@ -230,6 +240,7 @@ jobs:
       TAG: v${{ inputs.rebuild || needs.release.outputs.version }}
       NDK_VERSION: "27.3.13750724" # NDK r27 LTS (Google's recommended)
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -324,6 +335,18 @@ jobs:
           tag_name: v${{ inputs.rebuild || needs.release.outputs.version }}
           prerelease: false
           files: android-artifacts/*
+
+      # Google Play takes the bundle (.aab) and re-signs it with the app signing
+      # key (Play App Signing); the keystore above is only the upload key.
+      - name: upload to Google Play
+        if: env.ANDROID_KEYSTORE_BASE64 != '' && env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.open20.battlemaps
+          releaseFiles: android-artifacts/*.aab
+          track: ${{ vars.PLAY_TRACK || 'internal' }}
+          status: ${{ vars.PLAY_STATUS || 'completed' }}
 
       # Only a signed build reaches the release, and so the download.
       - name: upload fixed-name copy
