@@ -379,6 +379,16 @@ jobs:
           bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
 
   # ---------------------------------------------------------------------------
+  # Microsoft Store: the .msix, as a workflow artifact (see msstore.yml).
+  # ---------------------------------------------------------------------------
+  msstore:
+    needs: release
+    if: ${{ !cancelled() && (needs.release.outputs.version != '' || inputs.rebuild != '') }}
+    uses: ./.github/workflows/msstore.yml
+    with:
+      version: ${{ inputs.rebuild || needs.release.outputs.version }}
+
+  # ---------------------------------------------------------------------------
   # Once every build has finished, successfully or not, the announcement drops
   # its "being prepared" line. A platform without its emoji failed: rebuilding
   # it adds the emoji later.
