@@ -39,7 +39,7 @@ use super::{PackError, Result};
 /// on the blocking pool, several at a time).
 static USER_PACK_LOCK: Mutex<()> = Mutex::new(());
 
-fn lock() -> std::sync::MutexGuard<'static, ()> {
+pub(crate) fn lock() -> std::sync::MutexGuard<'static, ()> {
     USER_PACK_LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
 

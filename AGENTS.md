@@ -129,6 +129,14 @@ ni accionable.
   `<app data>/import-previews/` que se borran al cerrar. Tras cambiar packs,
   `packsStore.libraryRev` hace que los selectores busquen de nuevo; tras
   editar un asset, `bustFiles` + `assetCache.forget` recargan sus texturas.
+- **Optimizar imágenes de un pack** (`pack/compress.rs`, diálogo
+  `features/packs/OptimizeDialog`): recomprime en el lugar las texturas de
+  cualquier pack (PNG → paleta de 256 colores con difuminado vía `quantizr`,
+  MIT; WebP/JPEG → con pérdida), sin cambiar nombre ni formato, así mapas,
+  etiquetas y definiciones siguen encontrándolas. Irreversible y sin copia: de
+  a pocos archivos por vez (memoria acotada), cada uno escrito a un temporal en
+  `<app data>/optimize-tmp/` y renombrado encima. Se saltean los coloreables y
+  lo que no ahorra lo suficiente. pngquant/libimagequant no sirve: es GPL.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para
@@ -136,7 +144,7 @@ ni accionable.
   `await invoke(...)` "pelado" en un flujo que el usuario dispara.
 - `localStorage` solo a través de `useSettingsStore` (clave versionada
   `open20-battle-maps.settings`).
-- Rust: la lógica vive en `src-tauri/src/pack/{format,registry,install,library,recolor,userpack,optimize}.rs`;
+- Rust: la lógica vive en `src-tauri/src/pack/{format,registry,install,library,recolor,userpack,optimize,compress}.rs`;
   los `#[tauri::command]` en `commands.rs` son finos y delegan. Los nombres de
   comandos y los shapes serde camelCase son API del frontend — no cambiarlos
   sin actualizar `features/*/api.ts`.

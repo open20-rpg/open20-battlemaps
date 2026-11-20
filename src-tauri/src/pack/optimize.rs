@@ -165,6 +165,11 @@ fn webp(img: &RgbaImage, lossless: bool) -> Result<Vec<u8>> {
     config.alpha_quality = 100;
     // Slower, smaller (4 is libwebp's default; 6 its slowest).
     config.method = 5;
+    encode_with(img, &config)
+}
+
+/// Encode with libwebp, as RGB when there's no transparency (smaller).
+fn encode_with(img: &RgbaImage, config: &webp::WebPConfig) -> Result<Vec<u8>> {
     let opaque = is_opaque(img);
     let rgb;
     let encoder = if opaque {
@@ -174,9 +179,19 @@ fn webp(img: &RgbaImage, lossless: bool) -> Result<Vec<u8>> {
         webp::Encoder::from_rgba(img.as_raw(), img.width(), img.height())
     };
     let mem = encoder
-        .encode_advanced(&config)
+        .encode_advanced(config)
         .map_err(|e| PackError::Other(format!("webp: {e:?}")))?;
     Ok(mem.to_vec())
+}
+
+/// Lossy WebP at `quality` (exact transparency), for recompressing a pack.
+pub(crate) fn webp_lossy(img: &RgbaImage, quality: f32) -> Result<Vec<u8>> {
+    let mut config =
+        webp::WebPConfig::new().map_err(|_| PackError::Other("webp: bad config".into()))?;
+    config.quality = quality;
+    config.alpha_quality = 100;
+    config.method = 5;
+    encode_with(img, &config)
 }
 
 /// Encode a texture as small as `quality` allows, always as WebP (which

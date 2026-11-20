@@ -21,6 +21,8 @@ pub fn run() {
             }
             // Previews left by an import window the app closed with.
             pack::clear_previews(app.handle());
+            // And temporaries of an optimization it closed during.
+            pack::clear_optimize_temp(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -49,6 +51,8 @@ pub fn run() {
             pack::delete_user_assets,
             pack::user_pack_info,
             pack::export_user_pack,
+            pack::optimize_pack,
+            pack::cancel_pack_optimize,
             fonts::list_system_fonts,
             storage::storage_usage,
             storage::clear_storage,

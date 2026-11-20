@@ -550,7 +550,9 @@
     "importingAsset": "Importing “{{name}}” ({{index}}/{{total}})",
     "importingAssets": "Importing images",
     "preparingImages": "Preparing images",
-    "savingAsset": "Saving the asset's changes"
+    "savingAsset": "Saving the asset's changes",
+    "optimizingPacks": "Optimizing images",
+    "optimizingPack": "Optimizing “{{pack}}”"
   },
   "mapFile": {
     "unsavedTitle": "Save your changes?",
@@ -869,5 +871,35 @@
     "packNameHint": "e.g. Damp dungeon",
     "authorHint": "Your name (optional)",
     "emptyTypeHint": "This pack has nothing of this type yet. Import images to add some."
+  },
+  "optimize": {
+    "toolbar": "Optimize",
+    "button": "Optimize images",
+    "buttonHint": "Makes the pack take up much less space.",
+    "alreadyDone": "Already optimized. Run it again if you added images.",
+    "title": "Optimize images",
+    "intro_one": "Compresses this pack's images so it takes up much less space. On the map the difference is barely noticeable.",
+    "intro_other": "Compresses the images of these {{count}} packs so they take up much less space. On the map the difference is barely noticeable.",
+    "irreversibleTitle": "This can't be undone",
+    "irreversible_one": "The original images are replaced by the compressed ones and no copy is kept. To keep them, save the pack's file first.",
+    "irreversible_other": "The original images are replaced by the compressed ones and no copy is kept. To keep them, save the packs' files first.",
+    "timeHint": "Big packs can take a few minutes. You can stop whenever you like: what's already optimized stays that way.",
+    "cancel": "Cancel",
+    "start": "Optimize",
+    "stop": "Stop",
+    "close": "Done",
+    "preparing": "Getting ready…",
+    "running": "Optimizing “{{pack}}”",
+    "count": "{{index}} of {{total}} images",
+    "savedSoFar": "{{size}} saved",
+    "runningHint": "Closing this window stops it; what's already optimized stays that way.",
+    "stopping": "Stopping after the images in progress…",
+    "done": "Done! The images are optimized.",
+    "stopped": "Stopped. What was already optimized is saved.",
+    "stoppedHint": "You can continue later: images already optimized are skipped.",
+    "nothing": "It was already optimized: there was no more space to save.",
+    "failed": "Couldn't finish optimizing.",
+    "saved": "Space saved",
+    "percentLess": "{{percent}}% less than before"
   }
 }

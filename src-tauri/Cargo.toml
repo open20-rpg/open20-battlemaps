@@ -35,6 +35,7 @@ png = "0.18"
 fontdb = "0.24"
 ureq = "3"
 webp = { version = "0.3", default-features = false }
+quantizr = "1.4.3"
 
 # Android needs JNI to resolve `content://` picker URIs to a file descriptor
 # (the Storage Access Framework gives no real filesystem path).

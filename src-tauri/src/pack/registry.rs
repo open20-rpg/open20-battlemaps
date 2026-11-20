@@ -32,6 +32,8 @@ pub struct InstalledPack {
     /// Created in the app (not installed from a file): only these can be
     /// edited and exported.
     pub editable: bool,
+    /// Its images were optimized (see `compress.rs`) since it was installed.
+    pub optimized: bool,
 }
 
 pub(crate) fn packs_root(app: &AppHandle) -> Result<PathBuf> {
@@ -65,6 +67,8 @@ pub(crate) struct PackReg {
     pub(crate) size_bytes: Option<u64>,
     /// A pack the user created in the app (see `userpack.rs`).
     pub(crate) user: bool,
+    /// Its images were optimized (see `compress.rs`).
+    pub(crate) optimized: bool,
 }
 
 impl Default for PackReg {
@@ -74,6 +78,7 @@ impl Default for PackReg {
             file_count: None,
             size_bytes: None,
             user: false,
+            optimized: false,
         }
     }
 }
@@ -142,6 +147,10 @@ fn read_registry_at(path: &Path) -> HashMap<String, PackReg> {
                     .map(|n| n as usize),
                 size_bytes: o.get("sizeBytes").and_then(|x| x.as_u64()),
                 user: o.get("user").and_then(|x| x.as_bool()).unwrap_or(false),
+                optimized: o
+                    .get("optimized")
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or(false),
             },
             _ => PackReg::default(),
         };
@@ -166,6 +175,9 @@ fn write_registry_at(path: &Path, reg: &HashMap<String, PackReg>) -> Result<()> 
         }
         if r.user {
             e.insert("user".into(), serde_json::json!(true));
+        }
+        if r.optimized {
+            e.insert("optimized".into(), serde_json::json!(true));
         }
         obj.insert(id.clone(), serde_json::Value::Object(e));
     }
@@ -232,6 +244,7 @@ pub(crate) fn build_installed(app: &AppHandle, id: &str, reg: &PackReg) -> Optio
         file_count,
         size_bytes,
         editable: reg.user,
+        optimized: reg.optimized,
     })
 }
 
@@ -261,6 +274,7 @@ mod tests {
                         file_count: Some(i),
                         size_bytes: Some(10),
                         user: i % 2 == 0,
+                        optimized: false,
                     },
                 )
             })

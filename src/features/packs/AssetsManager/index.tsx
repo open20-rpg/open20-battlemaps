@@ -4,6 +4,7 @@ import { confirm } from "@tauri-apps/plugin-dialog"
 import { useTranslation } from "react-i18next"
 import {
   LuCircleOff,
+  LuFeather,
   LuCirclePlay,
   LuFolderOpen,
   LuGem,
@@ -20,6 +21,8 @@ import { openPacksDir, setPacksEnabled } from "../api"
 import { uninstallPacks } from "../uninstall"
 import { isPackUsed, clearPackReferences } from "../../map/packUsage"
 import { CreatePackDialog } from "../CreatePackDialog"
+import { OptimizeDialog } from "../OptimizeDialog"
+import { type InstalledPack } from "../api"
 import { PackList } from "./PackList"
 import { PackPreview } from "./PackPreview"
 import { useInstallFlow } from "./useInstallFlow"
@@ -39,6 +42,8 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [mutating, setMutating] = useState(false)
   const [creating, setCreating] = useState(false)
+  // The packs being optimized (the dialog is open while set).
+  const [optimizing, setOptimizing] = useState<InstalledPack[] | null>(null)
 
   const { installing, progress, install } = useInstallFlow(addOrUpdate)
   const busy = installing || mutating
@@ -165,6 +170,16 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
         <LuTrash2 />
         {t("assets.delete")}
       </Button>
+      <Box w="1px" h="20px" bg="panel.border" />
+      <Button
+        size="xs"
+        variant="subtle"
+        disabled={!hasSelection || busy}
+        onClick={() => setOptimizing(packs.filter((p) => selected.has(p.id)))}
+      >
+        <LuFeather />
+        {t("optimize.toolbar")}
+      </Button>
       <Box flex="1" />
       <IconButton
         aria-label={t("assets.refresh")}
@@ -205,9 +220,10 @@ export function AssetsManager({ onClose }: { onClose: () => void }) {
         </Flex>
 
         {/* Right: preview panel */}
-        <PackPreview pack={focusedPack} stacked={phone} />
+        <PackPreview pack={focusedPack} stacked={phone} onOptimize={(p) => setOptimizing([p])} />
       </Flex>
       <CreatePackDialog open={creating} onClose={() => setCreating(false)} />
+      {optimizing && <OptimizeDialog packs={optimizing} onClose={() => setOptimizing(null)} />}
     </FloatingWindow>
   )
 }

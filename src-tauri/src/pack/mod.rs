@@ -14,11 +14,13 @@
 //! - [`tags`]: pack tag groups (Library "Tags" tab).
 //! - [`userpack`]: packs created in the app (import, edit, export).
 //! - [`optimize`]: image adjustments and encoding for imported assets.
+//! - [`compress`]: recompressing a pack's images in place to save space.
 //! - [`commands`]: the thin `#[tauri::command]` facade.
 
 mod assetdefs;
 mod builtin;
 mod commands;
+mod compress;
 mod format;
 mod install;
 mod library;
@@ -31,6 +33,7 @@ mod userpack;
 
 pub(crate) use builtin::ensure_installed as ensure_builtin_pack;
 pub use commands::*;
+pub(crate) use compress::clear_temp as clear_optimize_temp;
 pub use library::LibraryState;
 pub use recolor::recolor_protocol;
 pub(crate) use userpack::clear_previews;

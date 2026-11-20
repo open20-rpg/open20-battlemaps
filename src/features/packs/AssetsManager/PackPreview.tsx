@@ -14,7 +14,7 @@ import {
   Wrap,
 } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
-import { LuDownload, LuImageOff, LuLock, LuPencil } from "react-icons/lu"
+import { LuDownload, LuFeather, LuImageOff, LuLock, LuPencil } from "react-icons/lu"
 import { usePacksStore } from "../../../stores/packsStore"
 import { exportPack } from "../exportPack"
 import { loadPackThumbnail, toDataUrl, type InstalledPack } from "../api"
@@ -50,14 +50,33 @@ function PackBadges({ pack }: { pack: InstalledPack }) {
 }
 
 /** A pack made in the app is edited and exported from here; an installed one is read-only. */
-function PackActions({ pack }: { pack: InstalledPack }) {
+/** Shrinks the pack's images (any pack): says whether it already was. */
+function OptimizeAction({ pack, onOptimize }: { pack: InstalledPack; onOptimize: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <Box>
+      <Button size="sm" variant="subtle" w="full" onClick={onOptimize}>
+        <LuFeather />
+        {t("optimize.button")}
+      </Button>
+      <Text fontSize="2xs" color="fg.subtle" mt="1">
+        {pack.optimized ? t("optimize.alreadyDone") : t("optimize.buttonHint")}
+      </Text>
+    </Box>
+  )
+}
+
+function PackActions({ pack, onOptimize }: { pack: InstalledPack; onOptimize: () => void }) {
   const { t } = useTranslation()
   if (!pack.editable) {
     return (
-      <HStack gap="1.5" color="fg.subtle" fontSize="xs">
-        <LuLock />
-        <Text>{t("userPacks.readOnly")}</Text>
-      </HStack>
+      <VStack align="stretch" gap="2">
+        <HStack gap="1.5" color="fg.subtle" fontSize="xs">
+          <LuLock />
+          <Text>{t("userPacks.readOnly")}</Text>
+        </HStack>
+        <OptimizeAction pack={pack} onOptimize={onOptimize} />
+      </VStack>
     )
   }
   return (
@@ -74,6 +93,7 @@ function PackActions({ pack }: { pack: InstalledPack }) {
         <LuDownload />
         {t("userPacks.export")}
       </Button>
+      <OptimizeAction pack={pack} onOptimize={onOptimize} />
     </VStack>
   )
 }
@@ -94,7 +114,10 @@ const sideBox = (stacked: boolean) =>
 export function PackPreview({
   pack,
   stacked = false,
+  onOptimize,
 }: {
+  /** Optimize this pack's images (asks first). */
+  onOptimize: (pack: InstalledPack) => void
   pack: InstalledPack | null
   /** Below the list (phones) instead of beside it. */
   stacked?: boolean
@@ -188,7 +211,7 @@ export function PackPreview({
           </Text>
           <PackBadges pack={pack} />
         </Box>
-        <PackActions pack={pack} />
+        <PackActions pack={pack} onOptimize={() => onOptimize(pack)} />
         {pack.author && <DetailRow label={t("preview.author")} value={pack.author} />}
         {pack.version && <DetailRow label={t("preview.version")} value={pack.version} />}
         <DetailRow label={t("preview.id")} value={pack.id} />

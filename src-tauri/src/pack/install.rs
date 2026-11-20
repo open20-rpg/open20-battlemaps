@@ -163,6 +163,8 @@ pub(crate) fn install_from<R: Read + Seek>(
         size_bytes: Some(total_bytes),
         // Installed from a file: never editable, even if it was made here.
         user: false,
+        // New files: not optimized (again).
+        optimized: false,
     };
     update_registry(app, |reg| reg.insert(id.clone(), reg_entry.clone()))?;
     clear_library(app);

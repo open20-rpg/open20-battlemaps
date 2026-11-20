@@ -550,7 +550,9 @@
     "importingAsset": "Importando «{{name}}» ({{index}}/{{total}})",
     "importingAssets": "Importando imágenes",
     "preparingImages": "Preparando imágenes",
-    "savingAsset": "Guardando cambios del recurso"
+    "savingAsset": "Guardando cambios del recurso",
+    "optimizingPacks": "Optimizando imágenes",
+    "optimizingPack": "Optimizando «{{pack}}»"
   },
   "mapFile": {
     "unsavedTitle": "¿Guardar los cambios?",
@@ -869,5 +871,35 @@
     "packNameHint": "p. ej. Mazmorra húmeda",
     "authorHint": "Tu nombre (opcional)",
     "emptyTypeHint": "Este pack todavía no tiene elementos de este tipo. Importá imágenes para agregarlos."
+  },
+  "optimize": {
+    "toolbar": "Optimizar",
+    "button": "Optimizar imágenes",
+    "buttonHint": "Hace que el pack ocupe mucho menos espacio.",
+    "alreadyDone": "Ya optimizado. Podés repetirlo si le agregaste imágenes.",
+    "title": "Optimizar imágenes",
+    "intro_one": "Comprime las imágenes de este pack para que ocupe mucho menos espacio. En el mapa la diferencia casi no se nota.",
+    "intro_other": "Comprime las imágenes de estos {{count}} packs para que ocupen mucho menos espacio. En el mapa la diferencia casi no se nota.",
+    "irreversibleTitle": "No se puede deshacer",
+    "irreversible_one": "Las imágenes originales se reemplazan por las comprimidas y no se guarda copia. Si querés conservarlas, guardá antes el archivo del pack.",
+    "irreversible_other": "Las imágenes originales se reemplazan por las comprimidas y no se guarda copia. Si querés conservarlas, guardá antes los archivos de los packs.",
+    "timeHint": "En packs grandes puede tardar unos minutos. Podés detenerlo cuando quieras: lo que ya se optimizó queda así.",
+    "cancel": "Cancelar",
+    "start": "Optimizar",
+    "stop": "Detener",
+    "close": "Listo",
+    "preparing": "Preparando…",
+    "running": "Optimizando «{{pack}}»",
+    "count": "{{index}} de {{total}} imágenes",
+    "savedSoFar": "{{size}} ahorrados",
+    "runningHint": "Si cerrás esta ventana se detiene; lo que ya se optimizó queda así.",
+    "stopping": "Deteniendo al terminar las imágenes en curso…",
+    "done": "¡Listo! Las imágenes quedaron optimizadas.",
+    "stopped": "Detenido. Lo que ya se optimizó quedó guardado.",
+    "stoppedHint": "Podés continuar más tarde: las imágenes ya optimizadas se saltean.",
+    "nothing": "Ya estaba optimizado: no había más espacio para ahorrar.",
+    "failed": "No se pudo terminar de optimizar.",
+    "saved": "Espacio ahorrado",
+    "percentLess": "{{percent}} % menos que antes"
   }
 }

@@ -15,6 +15,8 @@ export interface InstalledPack {
   sizeBytes: number
   /** Created in the app: only these can be edited and exported. */
   editable: boolean
+  /** Its images were optimized (recompressed) since it was installed. */
+  optimized: boolean
 }
 
 export interface LoadedImage {
@@ -237,4 +239,36 @@ export function onExportProgress(
   cb: (p: { index: number; total: number }) => void,
 ): Promise<UnlistenFn> {
   return listen<{ index: number; total: number }>("user-pack-export-progress", (e) => cb(e.payload))
+}
+
+// -- optimizing a pack's images ------------------------------------------------
+
+export interface OptimizeProgress {
+  pack: string
+  index: number
+  total: number
+  savedBytes: number
+}
+
+export interface OptimizeReport {
+  before: number
+  after: number
+  files: number
+  optimized: number
+  cancelled: boolean
+  pack: InstalledPack
+}
+
+/** Recompress a pack's images in place (irreversible), in batches on a worker thread. */
+export function optimizePack(id: string): Promise<OptimizeReport> {
+  return invoke("optimize_pack", { id })
+}
+
+/** Stop the running optimization after its current batch; what's done stays. */
+export function cancelPackOptimize(): Promise<void> {
+  return invoke("cancel_pack_optimize")
+}
+
+export function onOptimizeProgress(cb: (p: OptimizeProgress) => void): Promise<UnlistenFn> {
+  return listen<OptimizeProgress>("pack-optimize-progress", (e) => cb(e.payload))
 }

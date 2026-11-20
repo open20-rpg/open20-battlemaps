@@ -9,6 +9,7 @@ use serde::Serialize;
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
+use super::compress::OptimizeReport;
 use super::install::install_one;
 use super::library::{self, clear_library, LibItem, LibrarySearch, ResolvedAsset, SearchFilter};
 use super::optimize::Quality;
@@ -402,4 +403,16 @@ pub async fn user_pack_info(app: AppHandle, id: String) -> Result<UserPackInfo> 
 #[tauri::command]
 pub async fn export_user_pack(app: AppHandle, id: String, dest: String) -> Result<()> {
     blocking(move || userpack::export(&app, &id, &dest)).await
+}
+
+/// Recompress a pack's images in place (irreversible); emits `pack-optimize-progress`.
+#[tauri::command]
+pub async fn optimize_pack(app: AppHandle, id: String) -> Result<OptimizeReport> {
+    blocking(move || super::compress::optimize_pack(&app, &id)).await
+}
+
+/// Stop the running optimization after its current batch (what's done stays).
+#[tauri::command]
+pub fn cancel_pack_optimize() {
+    super::compress::cancel();
 }

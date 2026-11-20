@@ -2515,6 +2515,7 @@ dependencies = [
  "json5",
  "md5",
  "png",
+ "quantizr",
  "serde",
  "serde_json",
  "tauri",
@@ -2875,6 +2876,12 @@ name = "pxfm"
 version = "0.1.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
+
+[[package]]
+name = "quantizr"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b28ab4659f6754222a9e96c7a48f68dba03a620f23803c67ccd4ca7c35d55f5f"
 
 [[package]]
 name = "quick-error"
