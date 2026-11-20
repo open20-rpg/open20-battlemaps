@@ -7,6 +7,9 @@
       "files": {
         "embedded.provisionprofile": "./appstore/embedded.provisionprofile"
       }
+    },
+    "iOS": {
+      "developmentTeam": "W983BQA6DK"
     }
   }
 }
