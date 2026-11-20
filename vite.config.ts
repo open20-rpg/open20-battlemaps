@@ -12,6 +12,9 @@ export default defineConfig(async () => ({
   // Expose the app version (single source of truth: package.json) to the client.
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    // Builds for app stores (Google Play…): the store updates the app and
+    // doesn't allow outside payment links, so those parts are left out.
+    __STORE_BUILD__: JSON.stringify(process.env.OPEN20_STORE_BUILD === "1"),
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

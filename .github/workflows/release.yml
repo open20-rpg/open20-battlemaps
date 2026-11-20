@@ -303,9 +303,13 @@ jobs:
           echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
           base64 -d <<< "$ANDROID_KEYSTORE_BASE64" > "$RUNNER_TEMP/keystore.jks"
 
+      # The apk (GitHub, open20.app) is the regular build; the bundle goes to
+      # Google Play, so it's a store build (OPEN20_STORE_BUILD, see vite.config.ts).
       - name: build Android (signed)
         if: env.ANDROID_KEYSTORE_BASE64 != ''
-        run: npm run tauri android build -- --apk --aab
+        run: |
+          npm run tauri android build -- --apk
+          OPEN20_STORE_BUILD=1 npm run tauri android build -- --aab
 
       - name: build Android (unsigned apk)
         if: env.ANDROID_KEYSTORE_BASE64 == ''

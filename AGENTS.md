@@ -121,7 +121,13 @@ ni accionable.
   instalada), la pantalla inicial y Activos muestran una línea discreta
   (`UpdatesAvailable`) que abre su página en open20.app. Las páginas que
   la app puede abrir son una lista fija en `updates.rs`. Sin red no se avisa
-  nada.
+  nada. «Acerca de» enlaza la política de privacidad (`PRIVACY.md`, que
+  open20.app muestra en vivo; Google Play exige el enlace dentro de la app).
+- **Builds para tiendas** (`OPEN20_STORE_BUILD=1` → `__STORE_BUILD__`, en
+  `vite.config.ts`): la tienda actualiza la app y no admite enlaces de pago
+  externos, así que no se avisa de versiones nuevas de Battle Maps y los
+  enlaces de comunidad son solo Discord. En CI, el `.aab` de Android (el que
+  va a Google Play) se compila así; el `.apk` de GitHub es la build normal.
 - **Packs creados en la app** (insignia «Editable»; `features/packs/`, Rust en `pack/userpack.rs` +
   `pack/optimize.rs`): el usuario crea packs en la app; viven desempaquetados
   como cualquier pack instalado (layout de Dungeondraft) con `user: true` en

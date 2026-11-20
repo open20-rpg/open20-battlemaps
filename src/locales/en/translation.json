@@ -167,7 +167,8 @@
     "version": "Open20 Battle Maps v{{version}}",
     "desc": "Open-source battle map editor for tabletop RPGs.",
     "compat": "Compatible with .dungeondraft_pack files.",
-    "suite": "An app of the Open20 suite"
+    "suite": "An app of the Open20 suite",
+    "privacy": "Privacy policy"
   },
   "newMap": {
     "title": "New Map",
