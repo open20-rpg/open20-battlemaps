@@ -24,11 +24,17 @@ fn latest_release_url(product: &str) -> Option<&'static str> {
     }
 }
 
-/// Pages of open20.app the app links to (nothing else can be opened).
+/// Pages the app links to: open20.app and Open20's community (nothing else
+/// can be opened).
 fn page_url(page: &str) -> Option<&'static str> {
     match page {
         "battle-maps" => Some("https://open20.app/battle-maps"),
         "essentials" => Some("https://open20.app/essentials"),
+        // Community and support, shown on the start screen.
+        // A permalink on open20.app: the invite can change without a new app.
+        "discord" => Some("https://open20.app/dc"),
+        "patreon" => Some("https://www.patreon.com/open20rpg"),
+        "kofi" => Some("https://ko-fi.com/androettop"),
         _ => None,
     }
 }
@@ -109,6 +115,7 @@ mod tests {
             page_url("essentials"),
             Some("https://open20.app/essentials")
         );
+        assert_eq!(page_url("kofi"), Some("https://ko-fi.com/androettop"));
         assert_eq!(page_url("https://evil.example"), None);
     }
 }

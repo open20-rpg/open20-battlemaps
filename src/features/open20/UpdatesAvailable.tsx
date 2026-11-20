@@ -1,7 +1,7 @@
 import { Button, Flex } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuCircleArrowUp } from "react-icons/lu"
-import { openOpen20Page, type Open20Page } from "./api"
+import { openOpen20Page, type Open20Product } from "./api"
 import { useNewEssentials, useNewVersion } from "./useUpdateCheck"
 
 /**
@@ -14,7 +14,7 @@ export function UpdatesAvailable({ bar = false }: { bar?: boolean }) {
   const app = useNewVersion()
   const essentials = useNewEssentials()
   if (!app && !essentials) return null
-  const link = (page: Open20Page, label: string) => (
+  const link = (page: Open20Product, label: string) => (
     <Button
       key={page}
       size="xs"

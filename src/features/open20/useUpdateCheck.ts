@@ -3,13 +3,13 @@ import i18n from "../../i18n"
 import { withLoading } from "../../stores/loadingStore"
 import { usePacksStore } from "../../stores/packsStore"
 import { ESSENTIALS_PACK_ID } from "../packs/essentials"
-import { latestVersion, type Open20Page } from "./api"
+import { latestVersion, type Open20Product } from "./api"
 import { isNewer } from "./version"
 
 /** One check per product and session, shared by whoever asks. */
-const checks = new Map<Open20Page, Promise<string | null>>()
+const checks = new Map<Open20Product, Promise<string | null>>()
 
-function latestOnce(product: Open20Page): Promise<string | null> {
+function latestOnce(product: Open20Product): Promise<string | null> {
   let check = checks.get(product)
   if (!check) {
     check = withLoading(i18n.t("loading.checkingUpdates"), () => latestVersion(product))
@@ -21,7 +21,7 @@ function latestOnce(product: Open20Page): Promise<string | null> {
 }
 
 /** The latest published version of a product (null until known, or if it can't be). */
-function useLatest(product: Open20Page): string | null {
+function useLatest(product: Open20Product): string | null {
   const [latest, setLatest] = useState<string | null>(null)
   useEffect(() => {
     let alive = true

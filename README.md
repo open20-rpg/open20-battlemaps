@@ -9,7 +9,7 @@
 Dibuja edificios, cuevas, terreno y agua, llénalos de objetos e ilumínalos.<br />
 Gratis para Windows, macOS, Linux y Android.
 
-[**Descargar**](#descarga) · [open20.app](https://open20.app/battle-maps) · [Discord](https://discord.gg/KRHJm8x6rp)
+[**Descargar**](#descarga) · [open20.app](https://open20.app/battle-maps) · [Discord](https://open20.app/dc)
 
 <br />
 
@@ -50,7 +50,7 @@ avisa antes de abrirla:
 
 ## Comunidad
 
-Novedades, ideas y reportes de errores en [Discord](https://discord.gg/KRHJm8x6rp).
+Novedades, ideas y reportes de errores en [Discord](https://open20.app/dc).
 Si Battle Maps te sirve, puedes apoyar el proyecto en [Patreon](https://www.patreon.com/open20rpg).
 
 Battle Maps es parte de [Open20](https://open20.app), una suite de herramientas

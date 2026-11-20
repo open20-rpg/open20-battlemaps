@@ -19,8 +19,9 @@
   },
   "canvas": {
     "title": "Open20 Battle Maps",
-    "subtitle": "Create or open a map to get started. Manage your packs from <b>Assets</b>.",
-    "openAssets": "Open Assets"
+    "subtitle": "Create a new map or open one you already have.",
+    "newMap": "New map",
+    "openMap": "Open map"
   },
   "toast": {
     "noRecent": "No recent files",
@@ -911,9 +912,13 @@
   },
   "essentials": {
     "tagline": "Over 2,000 free assets for your maps.",
-    "download": "Download",
-    "install": "Install",
     "get": "Get Open20 Essentials",
-    "name": "Open20 Essentials"
+    "name": "Open20 Essentials",
+    "cta": "Download for free"
+  },
+  "community": {
+    "discord": "Discord",
+    "patreon": "Patreon",
+    "kofi": "Ko-fi"
   }
 }

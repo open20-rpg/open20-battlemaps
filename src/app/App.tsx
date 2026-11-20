@@ -154,7 +154,11 @@ export default function App() {
 
       {/* Editor canvas with the sticky tools panel overlaid on the left */}
       <Box flex="1" position="relative" overflow="hidden">
-        {hasMap ? <MapEditor /> : <EmptyState onOpenAssets={() => setAssetsOpen(true)} />}
+        {hasMap ? (
+          <MapEditor />
+        ) : (
+          <EmptyState onNew={guarded(() => setNewMapOpen(true))} onOpen={handleOpen} />
+        )}
 
         {hasMap && (phone ? <MobileToolsPanel /> : <ToolsPanel />)}
         {/* On a phone the Library is a tab of the tools' sheet. */}
