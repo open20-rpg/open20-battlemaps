@@ -1,0 +1,83 @@
+name: "msstore"
+
+# Microsoft Store package (.msix) of a release: a store build of the app
+# (OPEN20_STORE_BUILD, see vite.config.ts) packed with makeappx from the
+# Windows SDK, using src-tauri/msix/AppxManifest.xml. Tauri only makes
+# EXE/MSI installers, and those would need a code signing certificate for the
+# Store; an MSIX is re-signed by the Store itself.
+#
+# Runs after every release (called from release.yml), or by hand for an
+# existing version. The .msix is left as a workflow artifact, to upload in
+# Partner Center (Open20 Battle Maps › Packages).
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to package (an existing release, e.g. 0.3.56)"
+        required: true
+      ref:
+        description: "Build from this ref instead of the version's tag (e.g. main)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  msix:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || format('v{0}', inputs.version) }}
+          submodules: true
+
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: install frontend dependencies
+        run: npm ci --ignore-scripts
+
+      - name: build the app (store build, no installers)
+        shell: bash
+        run: OPEN20_STORE_BUILD=1 npm run tauri build -- --no-bundle
+
+      # Store versions have four parts and the last must be 0.
+      - name: pack the msix
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}.0"
+          New-Item -ItemType Directory -Force msix/Assets | Out-Null
+          Copy-Item src-tauri/target/release/open20-battle-maps.exe msix/
+          foreach ($logo in "StoreLogo", "Square44x44Logo", "Square150x150Logo", "Square310x310Logo") {
+            Copy-Item "src-tauri/icons/$logo.png" msix/Assets/
+          }
+          (Get-Content src-tauri/msix/AppxManifest.xml -Raw).Replace("__VERSION__", $version) |
+            Set-Content msix/AppxManifest.xml -Encoding utf8
+          $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          & $makeappx.FullName pack /d msix /p "Open20-Battle-Maps-$version-x64.msix" /o
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: upload the msix
+        uses: actions/upload-artifact@v7
+        with:
+          name: msstore
+          path: "*.msix"

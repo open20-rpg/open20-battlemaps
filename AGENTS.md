@@ -128,6 +128,12 @@ ni accionable.
   externos, así que no se avisa de versiones nuevas de Battle Maps y los
   enlaces de comunidad son solo Discord. En CI, el `.aab` de Android (el que
   va a Google Play) se compila así; el `.apk` de GitHub es la build normal.
+- **Microsoft Store** (`.github/workflows/msstore.yml`, manifiesto en
+  `src-tauri/msix/`): después de cada release, un `.msix` de la build de
+  tienda queda como artifact del workflow, para subir en Partner Center. Es
+  MSIX y no EXE/MSI porque la Store firma los MSIX; los instaladores EXE/MSI
+  necesitarían un certificado de firma de código propio. La identidad del
+  manifiesto es la de Partner Center ("Product identity"), tal cual.
 - **Packs creados en la app** (insignia «Editable»; `features/packs/`, Rust en `pack/userpack.rs` +
   `pack/optimize.rs`): el usuario crea packs en la app; viven desempaquetados
   como cualquier pack instalado (layout de Dungeondraft) con `user: true` en
