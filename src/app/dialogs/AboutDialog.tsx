@@ -1,5 +1,7 @@
 import { Button, HStack, Stack, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
+import { LuShieldCheck } from "react-icons/lu"
+import { openOpen20Page } from "../../features/open20/api"
 import { Modal } from "../../ui/Modal"
 import { BrandMark } from "../BrandMark"
 
@@ -29,6 +31,16 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
           <Text>{t("about.suite")}</Text>
         </HStack>
         <Text>{t("about.compat")}</Text>
+        <Button
+          size="xs"
+          variant="ghost"
+          alignSelf="flex-start"
+          color="brand.fg"
+          onClick={() => void openOpen20Page("privacy")}
+        >
+          <LuShieldCheck />
+          {t("about.privacy")}
+        </Button>
       </Stack>
     </Modal>
   )

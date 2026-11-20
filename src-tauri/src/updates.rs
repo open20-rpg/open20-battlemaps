@@ -30,6 +30,8 @@ fn page_url(page: &str) -> Option<&'static str> {
     match page {
         "battle-maps" => Some("https://open20.app/battle-maps"),
         "essentials" => Some("https://open20.app/essentials"),
+        // open20.app redirects it to the policy in the visitor's language.
+        "privacy" => Some("https://open20.app/battle-maps/privacy"),
         // Community and support, shown on the start screen.
         // A permalink on open20.app: the invite can change without a new app.
         "discord" => Some("https://open20.app/dc"),
@@ -114,6 +116,10 @@ mod tests {
         assert_eq!(
             page_url("essentials"),
             Some("https://open20.app/essentials")
+        );
+        assert_eq!(
+            page_url("privacy"),
+            Some("https://open20.app/battle-maps/privacy")
         );
         assert_eq!(page_url("kofi"), Some("https://ko-fi.com/androettop"));
         assert_eq!(page_url("https://evil.example"), None);

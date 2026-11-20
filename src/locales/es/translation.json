@@ -167,7 +167,8 @@
     "version": "Open20 Battle Maps v{{version}}",
     "desc": "Editor de mapas de batalla para juegos de rol, de código abierto.",
     "compat": "Compatible con paquetes .dungeondraft_pack.",
-    "suite": "Una app de la suite Open20"
+    "suite": "Una app de la suite Open20",
+    "privacy": "Política de privacidad"
   },
   "newMap": {
     "title": "Nuevo Mapa",
