@@ -1,0 +1,145 @@
+name: "appstore"
+
+# Mac App Store: a store build of the app (OPEN20_STORE_BUILD, see
+# vite.config.ts), universal (Apple Silicon + Intel), sandboxed and signed
+# for the store (tauri.appstore.conf.json, src-tauri/appstore/), packed as a
+# signed .pkg and uploaded to App Store Connect (app 6837341453). It then
+# shows up in App Store Connect › TestFlight / the macOS version, where it's
+# submitted for review by hand.
+#
+# Runs after every release (called from release.yml), or by hand for an
+# existing version. Secrets: APPLE_DIST_CERT_P12 + APPLE_INSTALLER_CERT_P12
+# (+ APPLE_CERT_PASSWORD), APPLE_MACOS_PROVISION_PROFILE (base64), and the
+# App Store Connect API key (APPLE_API_KEY_P8, APPLE_API_KEY_ID,
+# APPLE_API_ISSUER_ID).
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+    secrets:
+      APPLE_DIST_CERT_P12:
+        required: true
+      APPLE_INSTALLER_CERT_P12:
+        required: true
+      APPLE_CERT_PASSWORD:
+        required: true
+      APPLE_MACOS_PROVISION_PROFILE:
+        required: true
+      APPLE_API_KEY_P8:
+        required: true
+      APPLE_API_KEY_ID:
+        required: true
+      APPLE_API_ISSUER_ID:
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to package (an existing release, e.g. 0.3.56)"
+        required: true
+      ref:
+        description: "Build from this ref instead of the version's tag (e.g. main)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  APP_IDENTITY: "Apple Distribution: Pablo Androetto (W983BQA6DK)"
+  INSTALLER_IDENTITY: "3rd Party Mac Developer Installer: Pablo Androetto (W983BQA6DK)"
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || format('v{0}', inputs.version) }}
+          submodules: true
+
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: install frontend dependencies
+        run: npm ci --ignore-scripts
+
+      # A throwaway keychain with both certificates, first in the search list
+      # so codesign and productbuild find them.
+      - name: import the signing certificates
+        env:
+          DIST_P12: ${{ secrets.APPLE_DIST_CERT_P12 }}
+          INSTALLER_P12: ${{ secrets.APPLE_INSTALLER_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/appstore.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 16)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          for p12 in "$DIST_P12" "$INSTALLER_P12"; do
+            echo "$p12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+            rm "$RUNNER_TEMP/cert.p12"
+          done
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v "$KEYCHAIN"
+
+      - name: write the provisioning profile
+        env:
+          PROFILE: ${{ secrets.APPLE_MACOS_PROVISION_PROFILE }}
+        run: echo "$PROFILE" | base64 --decode > src-tauri/appstore/embedded.provisionprofile
+
+      - name: build the app (store build, universal, signed)
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ env.APP_IDENTITY }}
+          OPEN20_STORE_BUILD: "1"
+        run: >
+          npm run tauri build --
+          --bundles app
+          --target universal-apple-darwin
+          --config src-tauri/tauri.appstore.conf.json
+
+      - name: pack the signed pkg
+        id: pkg
+        run: |
+          APP=$(ls -d src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app)
+          codesign --display --entitlements - "$APP"
+          PKG="Open20-Battle-Maps-${{ inputs.version }}-mac-app-store.pkg"
+          xcrun productbuild --sign "$INSTALLER_IDENTITY" --component "$APP" /Applications "$PKG"
+          pkgutil --check-signature "$PKG"
+          echo "file=$PKG" >> "$GITHUB_OUTPUT"
+
+      - name: upload to App Store Connect
+        env:
+          API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$API_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_$API_KEY_ID.p8
+          xcrun altool --upload-app --type macos --file "${{ steps.pkg.outputs.file }}" \
+            --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+
+      - name: upload the pkg
+        if: always() && steps.pkg.outputs.file != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: mac-app-store
+          path: ${{ steps.pkg.outputs.file }}
