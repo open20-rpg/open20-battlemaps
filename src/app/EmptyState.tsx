@@ -2,16 +2,21 @@ import { Button, Flex, Stack, Text } from "@chakra-ui/react"
 import { Trans, useTranslation } from "react-i18next"
 import { LuGem } from "react-icons/lu"
 import { BrandMark } from "./BrandMark"
+import { EssentialsPrompt } from "../features/packs/EssentialsPrompt"
+import { useEssentialsMissing } from "../features/packs/useEssentials"
 
 /** Shown in place of the editor while no map is open. */
 export function EmptyState({ onOpenAssets }: { onOpenAssets: () => void }) {
   const { t } = useTranslation()
+  const noEssentials = useEssentialsMissing()
   return (
     <Flex
       direction="column"
       align="center"
       justify="center"
       h="full"
+      px="4"
+      textAlign="center"
       color="fg.muted"
       gap="4"
       css={{
@@ -29,10 +34,14 @@ export function EmptyState({ onOpenAssets }: { onOpenAssets: () => void }) {
           <Trans i18nKey="canvas.subtitle" components={{ b: <b /> }} />
         </Text>
       </Stack>
-      <Button variant="subtle" colorPalette="brand" onClick={onOpenAssets}>
-        <LuGem />
-        {t("canvas.openAssets")}
-      </Button>
+      {noEssentials ? (
+        <EssentialsPrompt onOpenAssets={onOpenAssets} />
+      ) : (
+        <Button variant="subtle" colorPalette="brand" onClick={onOpenAssets}>
+          <LuGem />
+          {t("canvas.openAssets")}
+        </Button>
+      )}
     </Flex>
   )
 }

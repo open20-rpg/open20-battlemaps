@@ -1,6 +1,8 @@
 import { Button, Flex, Icon, Spinner, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuImagePlus, LuPackageOpen } from "react-icons/lu"
+import { EssentialsPrompt } from "../../packs/EssentialsPrompt"
+import { useEssentialsMissing } from "../../packs/useEssentials"
 
 /** What an asset grid shows while its first results are on their way. */
 export function GridLoading() {
@@ -40,6 +42,10 @@ export function GridEmpty({
   hint?: string
 }) {
   const { t } = useTranslation()
+  const noEssentials = useEssentialsMissing()
+  // Nothing installed to pick from: a glimpse of the free pack instead of
+  // icon and hint, one download away.
+  const essentials = noEssentials && !searched && !hint
   return (
     <Flex
       h="full"
@@ -51,17 +57,24 @@ export function GridEmpty({
       p="6"
       textAlign="center"
     >
-      <Icon as={LuPackageOpen} boxSize="7" color="fg.subtle" />
+      {!essentials && <Icon as={LuPackageOpen} boxSize="7" color="fg.subtle" />}
       <Text fontSize="sm" fontWeight="semibold" color="fg.muted">
         {searched ? t("library.noMatches") : t("library.empty")}
       </Text>
-      {!searched && (
+      {!searched && !essentials && (
         <Text fontSize="xs" color="fg.subtle" maxW="240px">
           {hint ?? t("library.emptyHint")}
         </Text>
       )}
+      {essentials && <EssentialsPrompt compact />}
       {onImport && (
-        <Button size="xs" mt="1" colorPalette="brand" variant="subtle" onClick={onImport}>
+        <Button
+          size="xs"
+          mt={essentials ? "0" : "1"}
+          colorPalette={essentials ? undefined : "brand"}
+          variant={essentials ? "ghost" : "subtle"}
+          onClick={onImport}
+        >
           <LuImagePlus />
           {t("userPacks.importImages")}
         </Button>

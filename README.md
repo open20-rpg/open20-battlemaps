@@ -22,7 +22,8 @@ Gratis para Windows, macOS, Linux y Android.
 - **Trae tus mapas de Dungeondraft** y usa los packs de assets que ya tienes.
 - **Edificios, cuevas, terreno, agua y caminos** en pocos clics.
 - **Luces, techos y varios niveles** en el mismo mapa.
-- **Open20 Essentials incluido**: más de 2.000 assets para empezar sin instalar nada.
+- **Open20 Essentials gratis**: más de 2.000 assets para empezar. Se descarga desde
+  [open20.app](https://open20.app/essentials) y se instala desde _Activos_.
 - **Exporta a PNG** para tu mesa virtual o para imprimir.
 
 ## Descarga

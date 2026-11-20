@@ -8,7 +8,6 @@
 //! - [`format`]: low-level GDPC / `.dungeondraft_pack` binary reading.
 //! - [`registry`]: persistent registry of installed packs & on-disk layout.
 //! - [`install`]: streaming extraction with progress events.
-//! - [`builtin`]: the pack bundled with the app, installed on first start.
 //! - [`library`]: asset-browser search over installed packs.
 //! - [`recolor`]: `recolor://` protocol and colorable-asset support.
 //! - [`tags`]: pack tag groups (Library "Tags" tab).
@@ -18,7 +17,6 @@
 //! - [`commands`]: the thin `#[tauri::command]` facade.
 
 mod assetdefs;
-mod builtin;
 mod commands;
 mod compress;
 mod format;
@@ -31,7 +29,6 @@ mod tags;
 mod thumbs;
 mod userpack;
 
-pub(crate) use builtin::ensure_installed as ensure_builtin_pack;
 pub use commands::*;
 pub(crate) use compress::clear_temp as clear_optimize_temp;
 pub use library::LibraryState;

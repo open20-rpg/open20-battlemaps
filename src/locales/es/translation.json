@@ -141,7 +141,7 @@
     "total": "Total: {{size}}",
     "refresh": "Actualizar",
     "packs": "Paquetes de assets",
-    "packsHint": "{{count}} paquete(s) instalado(s). Desinstalar uno lo quita de la biblioteca; el integrado vuelve con la próxima versión de la app.",
+    "packsHint": "{{count}} paquete(s) instalado(s). Desinstalar uno lo quita de la biblioteca.",
     "uninstall": "Desinstalar",
     "thumbnails": "Miniaturas de la biblioteca",
     "thumbnailsHint": "Vistas previas de los assets. Si las borrás, se vuelven a generar al navegar la biblioteca.",
@@ -524,7 +524,7 @@
     "noneUsed": "Todavía no hay recursos de esta categoría en el mapa.",
     "loading": "Cargando recursos…",
     "noMatches": "Nada coincide con la búsqueda",
-    "emptyHint": "Activá un pack que los tenga, o importá tus propias imágenes."
+    "emptyHint": "Activá un pack que los tenga, o importá tus imágenes."
   },
   "status": {
     "ready": "Listo",
@@ -552,7 +552,8 @@
     "preparingImages": "Preparando imágenes",
     "savingAsset": "Guardando cambios del recurso",
     "optimizingPacks": "Optimizando imágenes",
-    "optimizingPack": "Optimizando «{{pack}}»"
+    "optimizingPack": "Optimizando «{{pack}}»",
+    "checkingUpdates": "Buscando actualizaciones"
   },
   "mapFile": {
     "unsavedTitle": "¿Guardar los cambios?",
@@ -722,15 +723,15 @@
     "addImages": "Agregar imágenes",
     "addMore": "Agregar más imágenes",
     "createPack": "Crear pack",
-    "createTitle": "Nuevo pack propio",
-    "createIntro": "Un pack propio guarda tus imágenes como objetos, pisos, paredes y demás. Lo podés editar cuando quieras y exportarlo para Dungeondraft.",
+    "createTitle": "Nuevo pack",
+    "createIntro": "Un pack guarda tus imágenes como objetos, pisos, paredes y más. Lo podés editar cuando quieras y exportarlo para Dungeondraft. Los packs de terceros (los que instalás desde un archivo) no se pueden editar.",
     "create": "Crear y abrir",
     "createError": "No se pudo crear el pack",
     "defaultPackName": "Mis recursos",
     "destination": "Pack de destino",
     "newPack": "＋ Nuevo pack…",
     "packName": "Nombre del pack",
-    "firstPackHint": "Todavía no tenés packs propios: se va a crear uno con este nombre.",
+    "firstPackHint": "Todavía no creaste ningún pack: se va a crear uno con este nombre.",
     "author": "Autor",
     "version": "Versión",
     "keywords": "Palabras clave",
@@ -797,10 +798,10 @@
     "importedSomeFailed_other": "{{count}} no se pudieron importar.",
     "previewLabel": "Vista previa sobre la grilla",
     "finalSize": "{{w}} × {{h}} casillas · {{pw}} × {{ph}} px",
-    "mine": "Propio",
+    "mine": "Editable",
     "edit": "Editar pack",
     "export": "Exportar para Dungeondraft",
-    "readOnly": "Instalado desde un archivo: no se puede editar.",
+    "readOnly": "Pack de terceros: no se puede editar. Para sumar tus imágenes, creá un pack nuevo.",
     "exported": "«{{pack}}» exportado",
     "exportedHint": "Copialo a la carpeta de packs de Dungeondraft para usarlo ahí.",
     "exportError": "No se pudo exportar el pack",
@@ -867,10 +868,11 @@
       "terrain": "",
       "tilesets": ""
     },
-    "emptyCreateHint": "O <1>creá un pack</1> con tus propias imágenes.",
+    "emptyCreateHint": "O <1>creá un pack</1> con tus imágenes.",
     "packNameHint": "p. ej. Mazmorra húmeda",
     "authorHint": "Tu nombre (opcional)",
-    "emptyTypeHint": "Este pack todavía no tiene elementos de este tipo. Importá imágenes para agregarlos."
+    "emptyTypeHint": "Este pack todavía no tiene elementos de este tipo. Importá imágenes para agregarlos.",
+    "thirdParty": "Pack de terceros: no se puede editar"
   },
   "optimize": {
     "toolbar": "Optimizar",
@@ -901,5 +903,15 @@
     "failed": "No se pudo terminar de optimizar.",
     "saved": "Espacio ahorrado",
     "percentLess": "{{percent}} % menos que antes"
+  },
+  "update": {
+    "available": "Versión {{version}} disponible"
+  },
+  "essentials": {
+    "tagline": "Más de 2.000 recursos gratis para tus mapas.",
+    "download": "Descargar",
+    "install": "Instalar",
+    "get": "Conseguir Open20 Essentials",
+    "name": "Open20 Essentials"
   }
 }

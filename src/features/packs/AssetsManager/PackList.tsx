@@ -13,7 +13,8 @@ import {
   VStack,
 } from "@chakra-ui/react"
 import { Trans, useTranslation } from "react-i18next"
-import { LuGem, LuImageOff } from "react-icons/lu"
+import { LuGem, LuImageOff, LuLock } from "react-icons/lu"
+import { Tooltip } from "../../../ui/chakra/tooltip"
 import { loadPackThumbnail, toDataUrl, type InstalledPack, type InstallProgress } from "../api"
 import { formatBytes } from "../../../lib/format"
 
@@ -124,10 +125,20 @@ function PackRow({ pack, selected, focused, disabled, onToggle, onFocus }: PackR
         </Text>
       </Box>
 
-      {pack.editable && (
+      {pack.editable ? (
         <Badge flexShrink={0} colorPalette="brand" variant="subtle">
           {t("userPacks.mine")}
         </Badge>
+      ) : (
+        <Tooltip content={t("userPacks.thirdParty")} showArrow>
+          <Icon
+            as={LuLock}
+            boxSize="3.5"
+            color="fg.subtle"
+            flexShrink={0}
+            aria-label={t("userPacks.thirdParty")}
+          />
+        </Tooltip>
       )}
       <Badge flexShrink={0} colorPalette={pack.enabled ? "green" : "gray"} variant="subtle">
         {pack.enabled ? t("assets.active") : t("assets.inactive")}
@@ -227,7 +238,7 @@ export function PackList({
               </Trans>
               <br />
               <Trans i18nKey="userPacks.emptyCreateHint">
-                O <b>Creá un pack</b> con tus propias imágenes.
+                O <b>creá un pack</b> con tus imágenes.
               </Trans>
             </Text>
           </VStack>

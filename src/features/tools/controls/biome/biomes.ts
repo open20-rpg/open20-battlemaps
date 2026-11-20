@@ -1,4 +1,5 @@
 import { type BiomeSelection, type BiomeTexture } from "../../params"
+import { ESSENTIALS_PACK_ID } from "../../../packs/essentials"
 
 /** Fixed biome options (translated in the UI via `biomes.<id>`). */
 export const BIOMES = [
@@ -13,11 +14,8 @@ export const BIOMES = [
 
 export type Biome = (typeof BIOMES)[number]
 
-/** Id of the built-in pack, "Open20 Essentials" (`PACK_ID` in open20-essentials' scripts/build.py). */
-export const BUILTIN_PACK_ID = "open20-essentials"
-
 /**
- * Terrain textures of the built-in pack each biome starts with, one per
+ * Terrain textures of Open20 Essentials each biome starts with, one per
  * always-visible slot (slot 0 is the base). Names are the pack's
  * `textures/terrain/<name>.webp` files (tex_ground / tex_terrain2).
  */
@@ -31,10 +29,11 @@ export const BUILTIN_BIOME_TEXTURES: Record<Biome, readonly [string, string, str
   swamp: ["Marsh", "Swamp Muck", "Bog", "Thick Moss"],
 }
 
-/** Library id of a built-in terrain texture. */
-export const builtinTerrainId = (name: string) => `${BUILTIN_PACK_ID}|textures/terrain/${name}.webp`
+/** Library id of an Essentials terrain texture. */
+export const builtinTerrainId = (name: string) =>
+  `${ESSENTIALS_PACK_ID}|textures/terrain/${name}.webp`
 
-/** Every built-in texture id the biome defaults use (deduplicated). */
+/** Every Essentials texture id the biome defaults use (deduplicated). */
 export const builtinBiomeIds = (): string[] => [
   ...new Set(Object.values(BUILTIN_BIOME_TEXTURES).flatMap((names) => names.map(builtinTerrainId))),
 ]
@@ -44,7 +43,7 @@ export const hasUnseededBiomes = (selection: BiomeSelection): boolean =>
   BIOMES.some((biome) => !selection.slotsByBiome[biome])
 
 /**
- * Give every biome that has no slots yet its built-in textures. Biomes the
+ * Give every biome that has no slots yet its Essentials textures. Biomes the
  * user already touched (even emptied) are kept as they are. `thumbOf` maps a
  * texture id to its file, or null when it can't be found (that slot stays
  * empty; a biome where none is found is left unseeded). Returns `selection`

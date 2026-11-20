@@ -81,16 +81,11 @@ pub(crate) fn open_pack_source(src: &str) -> Result<File> {
 /// file through a fixed buffer so memory stays bounded regardless of pack size.
 pub(crate) fn install_one(app: &AppHandle, pack_src: &str) -> Result<InstalledPack> {
     let file = open_pack_source(pack_src)?;
-    install_from(app, &mut BufReader::new(file), None)
+    install_from(app, &mut BufReader::new(file))
 }
 
-/// Extract a pack read from `reader` (a file, or the built-in pack's bytes).
-/// `enabled` keeps a reinstalled pack's on/off state; `None` turns it on.
-pub(crate) fn install_from<R: Read + Seek>(
-    app: &AppHandle,
-    reader: &mut R,
-    enabled: Option<bool>,
-) -> Result<InstalledPack> {
+/// Extract a pack read from `reader` (turned on once installed).
+fn install_from<R: Read + Seek>(app: &AppHandle, reader: &mut R) -> Result<InstalledPack> {
     let entries = read_index(reader)?;
 
     let manifest = read_manifest(reader, &entries)?;
@@ -158,7 +153,7 @@ pub(crate) fn install_from<R: Read + Seek>(
     }
 
     let reg_entry = PackReg {
-        enabled: enabled.unwrap_or(true),
+        enabled: true,
         file_count: Some(written.len()),
         size_bytes: Some(total_bytes),
         // Installed from a file: never editable, even if it was made here.

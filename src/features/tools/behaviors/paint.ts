@@ -1,4 +1,5 @@
 import { useEditorStore } from "../../../stores/editorStore"
+import { ESSENTIALS_PACK_ID } from "../../packs/essentials"
 import {
   addEntities,
   addInitialEntities,
@@ -32,7 +33,6 @@ import { type TexelRect } from "../../map/render/splat"
 import { type MapEntity, type Vec2 } from "../../map/model/types"
 import { type AssetSelection, type BiomeSelection, type Shape } from "../params"
 import {
-  BUILTIN_PACK_ID,
   builtinBiomeIds,
   hasUnseededBiomes,
   slotIds,
@@ -132,8 +132,8 @@ export function createWaterBehavior(): ToolBehavior {
 }
 
 /**
- * While the built-in pack is enabled (it is out of the box), every biome the
- * user hasn't set up yet starts with its 4 built-in textures, so the brush
+ * While Open20 Essentials is installed and enabled, every biome the
+ * user hasn't set up yet starts with its 4 Essentials textures, so the brush
  * paints right away. Runs when the tool is picked: a pack enabled later seeds
  * then, and a biome the user changed or emptied is never touched. Every slot
  * shows its texture's library thumbnail (not the file: its alpha is blend
@@ -144,7 +144,7 @@ async function seedBuiltinBiomes(): Promise<void> {
   if (!pending) return
   const packs = usePacksStore.getState()
   if (!packs.loaded) await packs.refresh()
-  const builtin = usePacksStore.getState().packs.find((p) => p.id === BUILTIN_PACK_ID)
+  const builtin = usePacksStore.getState().packs.find((p) => p.id === ESSENTIALS_PACK_ID)
   const seed = !!builtin?.enabled && hasUnseededBiomes(pending)
   const ids = [...new Set([...(seed ? builtinBiomeIds() : []), ...slotIds(pending)])]
   if (ids.length === 0) return
@@ -158,7 +158,7 @@ async function seedBuiltinBiomes(): Promise<void> {
 }
 
 /**
- * A new map's ground: once the biomes have their built-in textures, the
+ * A new map's ground: once the biomes have their Essentials textures, the
  * first level starts covered by the current biome's base slot (as when slot 1
  * is picked in the panel), instead of bare.
  */

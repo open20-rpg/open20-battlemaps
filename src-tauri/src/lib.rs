@@ -5,6 +5,7 @@ mod fonts;
 mod map;
 mod pack;
 mod storage;
+mod updates;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,10 +16,6 @@ pub fn run() {
         .manage(export::ExportState::default())
         .register_asynchronous_uri_scheme_protocol("recolor", pack::recolor_protocol)
         .setup(|app| {
-            // Extracted once per version of the pack; read from the bundled resource only then.
-            if let Err(e) = pack::ensure_builtin_pack(app.handle()) {
-                eprintln!("built-in pack: {e}");
-            }
             // Previews left by an import window the app closed with.
             pack::clear_previews(app.handle());
             // And temporaries of an optimization it closed during.
@@ -65,6 +62,8 @@ pub fn run() {
             export::export_end,
             export::export_estimate,
             map::read_image_file,
+            updates::latest_version,
+            updates::open_open20_page,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

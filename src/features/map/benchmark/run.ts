@@ -1,10 +1,7 @@
 import { Application, Container, GlProgram } from "pixi.js"
+import { ESSENTIALS_PACK_ID } from "../../packs/essentials"
 import { getLibraryItems, releaseLibrarySearch, searchLibrary } from "../../library/api"
-import {
-  BUILTIN_BIOME_TEXTURES,
-  BUILTIN_PACK_ID,
-  builtinTerrainId,
-} from "../../tools/controls/biome/biomes"
+import { BUILTIN_BIOME_TEXTURES, builtinTerrainId } from "../../tools/controls/biome/biomes"
 import { useSettingsStore } from "../../../stores/settingsStore"
 import {
   canvasResolution,
@@ -42,11 +39,11 @@ export interface BenchmarkResult {
 /** How many of each kind of asset the test map takes. */
 const TAKE = { objects: 40, walls: 4, tilesets: 7, paths: 2 }
 
-/** The ids of `category`'s first `limit` assets: the built-in pack's, else any enabled pack's. */
+/** The ids of `category`'s first `limit` assets: Open20 Essentials', else any enabled pack's. */
 async function firstAssets(category: string, limit: number): Promise<string[]> {
   const key = `benchmark:${category}`
   try {
-    for (const packId of [BUILTIN_PACK_ID, undefined]) {
+    for (const packId of [ESSENTIALS_PACK_ID, undefined]) {
       const { total } = await searchLibrary(key, category, { query: "", exactness: 0, packId })
       if (total > 0) return (await getLibraryItems(key, 0, limit)).map((i) => i.id)
     }

@@ -141,7 +141,7 @@
     "total": "Total: {{size}}",
     "refresh": "Refresh",
     "packs": "Asset packs",
-    "packsHint": "{{count}} pack(s) installed. Uninstalling one removes it from the Library; the built-in one comes back with the app's next version.",
+    "packsHint": "{{count}} pack(s) installed. Uninstalling one removes it from the Library.",
     "uninstall": "Uninstall",
     "thumbnails": "Library thumbnails",
     "thumbnailsHint": "Asset previews. Cleared, they're made again while browsing the Library.",
@@ -524,7 +524,7 @@
     "noneUsed": "No assets of this category are on the map yet.",
     "loading": "Loading assets…",
     "noMatches": "Nothing matches the search",
-    "emptyHint": "Turn on a pack that has some, or import your own images."
+    "emptyHint": "Turn on a pack that has some, or import your images."
   },
   "status": {
     "ready": "Ready",
@@ -552,7 +552,8 @@
     "preparingImages": "Preparing images",
     "savingAsset": "Saving the asset's changes",
     "optimizingPacks": "Optimizing images",
-    "optimizingPack": "Optimizing “{{pack}}”"
+    "optimizingPack": "Optimizing “{{pack}}”",
+    "checkingUpdates": "Checking for updates"
   },
   "mapFile": {
     "unsavedTitle": "Save your changes?",
@@ -722,15 +723,15 @@
     "addImages": "Add images",
     "addMore": "Add more images",
     "createPack": "Create pack",
-    "createTitle": "New pack of your own",
-    "createIntro": "A pack of your own keeps your images as objects, floors, walls and more. Edit it whenever you like and export it for Dungeondraft.",
+    "createTitle": "New pack",
+    "createIntro": "A pack keeps your images as objects, floors, walls and more. Edit it whenever you like and export it for Dungeondraft. Third-party packs (the ones you install from a file) can't be edited.",
     "create": "Create and open",
     "createError": "Couldn't create the pack",
     "defaultPackName": "My assets",
     "destination": "Destination pack",
     "newPack": "＋ New pack…",
     "packName": "Pack name",
-    "firstPackHint": "You have no packs of your own yet: one will be created with this name.",
+    "firstPackHint": "You haven't created any pack yet: one will be created with this name.",
     "author": "Author",
     "version": "Version",
     "keywords": "Keywords",
@@ -797,10 +798,10 @@
     "importedSomeFailed_other": "{{count}} couldn't be imported.",
     "previewLabel": "Preview on the grid",
     "finalSize": "{{w}} × {{h}} cells · {{pw}} × {{ph}} px",
-    "mine": "Mine",
+    "mine": "Editable",
     "edit": "Edit pack",
     "export": "Export for Dungeondraft",
-    "readOnly": "Installed from a file: it can't be edited.",
+    "readOnly": "Third-party pack: it can't be edited. To add your images, create a new pack.",
     "exported": "“{{pack}}” exported",
     "exportedHint": "Copy it to Dungeondraft's packs folder to use it there.",
     "exportError": "Couldn't export the pack",
@@ -867,10 +868,11 @@
       "terrain": "",
       "tilesets": ""
     },
-    "emptyCreateHint": "Or <1>create a pack</1> with your own images.",
+    "emptyCreateHint": "Or <1>create a pack</1> with your images.",
     "packNameHint": "e.g. Damp dungeon",
     "authorHint": "Your name (optional)",
-    "emptyTypeHint": "This pack has nothing of this type yet. Import images to add some."
+    "emptyTypeHint": "This pack has nothing of this type yet. Import images to add some.",
+    "thirdParty": "Third-party pack: it can't be edited"
   },
   "optimize": {
     "toolbar": "Optimize",
@@ -901,5 +903,15 @@
     "failed": "Couldn't finish optimizing.",
     "saved": "Space saved",
     "percentLess": "{{percent}}% less than before"
+  },
+  "update": {
+    "available": "Version {{version}} available"
+  },
+  "essentials": {
+    "tagline": "Over 2,000 free assets for your maps.",
+    "download": "Download",
+    "install": "Install",
+    "get": "Get Open20 Essentials",
+    "name": "Open20 Essentials"
   }
 }
