@@ -9,23 +9,39 @@ export interface WindowRect {
 /** Space kept between a floating window and the viewport's edges. */
 export const WINDOW_MARGIN = 8
 
+/** Share of the screen a floating window opens at (on wide screens it uses the room). */
+export const OPEN_FILL = 0.85
+
 /**
- * Where a floating window opens: its preferred size, shrunk to fit the
- * viewport (never under `min`, unless the viewport itself is smaller), at
- * `at` when given or else centered — always wholly on screen.
+ * Where a floating window opens: {@link OPEN_FILL} of the viewport, but
+ * never smaller than its preferred `size` nor larger than `max` (when
+ * given); shrunk to fit the viewport (never under `min`, unless the
+ * viewport itself is smaller), at `at` when given or else centered —
+ * always wholly on screen.
  */
 export function openingRect(
   viewport: { w: number; h: number },
-  size: { w: number; h: number },
-  min: { w: number; h: number },
-  at?: { x: number; y: number },
+  opts: {
+    size: { w: number; h: number }
+    min: { w: number; h: number }
+    max?: { w: number; h: number }
+    at?: { x: number; y: number }
+  },
 ): WindowRect {
+  const { size, min, max, at } = opts
   const room = {
     w: Math.max(0, viewport.w - 2 * WINDOW_MARGIN),
     h: Math.max(0, viewport.h - 2 * WINDOW_MARGIN),
   }
-  const w = Math.min(room.w, Math.max(Math.min(min.w, room.w), size.w))
-  const h = Math.min(room.h, Math.max(Math.min(min.h, room.h), size.h))
+  const fit = (axis: "w" | "h") => {
+    const wanted = Math.min(
+      max?.[axis] ?? Infinity,
+      Math.max(size[axis], Math.round(room[axis] * OPEN_FILL)),
+    )
+    return Math.min(room[axis], Math.max(Math.min(min[axis], room[axis]), wanted))
+  }
+  const w = fit("w")
+  const h = fit("h")
   const x = at ? at.x : (viewport.w - w) / 2
   const y = at ? at.y : (viewport.h - h) / 2
   return keepOnScreen(viewport, { x, y, w, h })

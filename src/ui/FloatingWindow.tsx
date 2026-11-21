@@ -23,8 +23,13 @@ export interface FloatingWindowProps {
   onClose: () => void
   /** Initial top-left position in px (default: centered). */
   initialPosition?: { x: number; y: number }
-  /** Preferred size in px (shrunk to fit the screen). */
+  /**
+   * Smallest size it opens at, in px: it opens at most of the screen
+   * (`OPEN_FILL`), but never smaller than this (shrunk only to fit the screen).
+   */
   initialSize?: Size
+  /** Largest size it opens at, for content that gains nothing from more room. */
+  maxSize?: Size
   /** Smallest size the user can resize down to. */
   minSize?: Size
   /** Show a bottom-right resize handle. */
@@ -41,8 +46,8 @@ export interface FloatingWindowProps {
 /**
  * A draggable, optionally resizable/modal floating panel with a title bar.
  * Reused for every tool window in the app (assets, preferences, …). It
- * opens at a comfortable size and place (its preferred size, centered,
- * shrunk to fit a phone) and stays wholly on screen while dragged, resized
+ * opens centered and large, using most of the screen (never under its
+ * preferred size, nor over its `maxSize`) and stays wholly on screen while dragged, resized
  * or when the window changes size. On touch screens the title bar and the
  * resize corner are bigger to grab. On a phone it takes the whole screen
  * instead, fixed (no dragging or resizing): there's no room to float. Layering (and the backdrop for `modal`)
@@ -54,6 +59,7 @@ export function FloatingWindow({
   onClose,
   initialPosition,
   initialSize = { w: 520, h: 560 },
+  maxSize,
   minSize = { w: 320, h: 260 },
   resizable = false,
   toolbar,
@@ -64,7 +70,12 @@ export function FloatingWindow({
   const { t } = useTranslation()
   const phone = useIsPhone()
   const [rect, setRect] = useState<WindowRect>(() =>
-    openingRect(viewport(), initialSize, minSize, initialPosition),
+    openingRect(viewport(), {
+      size: initialSize,
+      min: minSize,
+      max: maxSize,
+      at: initialPosition,
+    }),
   )
 
   // The app window shrinking (or a phone turning) never leaves it off screen.

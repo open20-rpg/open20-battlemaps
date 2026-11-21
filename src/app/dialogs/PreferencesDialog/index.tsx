@@ -36,6 +36,8 @@ export function PreferencesDialog({
       icon={LuSettings}
       onClose={onClose}
       initialSize={{ w: 600, h: 680 }}
+      // Forms: wider than this only spreads them out.
+      maxSize={{ w: 760, h: 860 }}
       minSize={{ w: 340, h: 320 }}
       resizable
     >
