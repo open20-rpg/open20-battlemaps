@@ -24,7 +24,10 @@ use super::Result;
 struct CacheItem {
     rel_path: String,
     name: String,
-    name_lower: String,
+    /// The words of its name, lowercase ("Table_Round_Wood" → table, round, wood).
+    words: Vec<String>,
+    /// The words of the folders it sits in, below its category (weaker matches).
+    folder_words: Vec<String>,
 }
 
 /// A filtered search hit, before its thumbnail path is resolved.
@@ -72,6 +75,8 @@ pub struct LibraryState {
     pub(crate) color_cfg: Mutex<HashMap<String, Option<ColorCfg>>>,
     /// packId -> tag name -> texture rel-paths (see `tags.rs`).
     pub(crate) tags: Mutex<HashMap<String, Arc<super::tags::TagMap>>>,
+    /// "packId/category" -> that pack's tag names for the category, sorted.
+    pub(crate) tag_names: Mutex<HashMap<String, Arc<Vec<String>>>>,
     /// packId -> tileset/wall definitions (see `assetdefs.rs`).
     pub(crate) defs: Mutex<HashMap<String, Arc<super::assetdefs::AssetDefs>>>,
 }
@@ -94,9 +99,14 @@ pub(crate) fn clear_library(app: &AppHandle) {
     if let Ok(mut t) = state.tags.lock() {
         t.clear();
     };
+    if let Ok(mut t) = state.tag_names.lock() {
+        t.clear();
+    };
     if let Ok(mut d) = state.defs.lock() {
         d.clear();
     };
+    // Packs changed: read the new set's tags ahead of the Tags tab.
+    super::tags::prewarm(app);
 }
 
 /// How an asset takes a color (see `recolor.rs`): its default tint from the
@@ -187,11 +197,20 @@ fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<C
                 .unwrap_or(&path)
                 .to_string_lossy()
                 .replace('\\', "/");
-            let name_lower = name.to_lowercase();
+            let words = split_words(&name);
+            // Folders below textures/<category>/ (the file name itself excluded).
+            let folder_words = rel
+                .split('/')
+                .skip(2)
+                .collect::<Vec<_>>()
+                .split_last()
+                .map(|(_, dirs)| dirs.iter().flat_map(|d| split_words(d)).collect())
+                .unwrap_or_default();
             out.push(CacheItem {
                 rel_path: rel,
                 name,
-                name_lower,
+                words,
+                folder_words,
             });
         }
     }
@@ -230,31 +249,95 @@ pub(crate) fn packs_with_category(app: &AppHandle, category: &str) -> Vec<String
     out
 }
 
-/// Is `q` a subsequence of `s` (its chars appear in order, gaps allowed)?
-fn is_subsequence(q: &str, s: &str) -> bool {
-    let mut chars = s.chars();
-    q.chars().all(|c| chars.any(|x| x == c))
+/// The words of a name or a query: split on anything that isn't a letter or a
+/// digit (underscores, spaces, dashes) and at camelCase humps, lowercase.
+fn split_words(s: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut prev_lower = false;
+    for c in s.chars() {
+        if !c.is_alphanumeric() {
+            if !cur.is_empty() {
+                out.push(std::mem::take(&mut cur));
+            }
+            prev_lower = false;
+            continue;
+        }
+        if c.is_uppercase() && prev_lower && !cur.is_empty() {
+            out.push(std::mem::take(&mut cur));
+        }
+        prev_lower = c.is_lowercase();
+        cur.extend(c.to_lowercase());
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
 }
 
-/// The search text as matched: lowercase, without leading/trailing spaces
-/// (those are never part of a name the user means).
-fn normalize_query(query: &str) -> String {
-    query.trim().to_lowercase()
+/// A word without its plural ending ("tables" → "table", "boxes" → "box").
+fn singular(w: &str) -> &str {
+    w.strip_suffix("es")
+        .filter(|s| s.ends_with(['s', 'x', 'z']) || s.ends_with("ch") || s.ends_with("sh"))
+        .or_else(|| w.strip_suffix('s').filter(|s| s.len() >= 3))
+        .unwrap_or(w)
 }
 
-/// Match `name` against `query` with an exactness in [0,1]. Near the exact end
-/// only substring matches count; lower down, subsequence (fuzzy) matches too.
-fn matches(name_lower: &str, query_lower: &str, exactness: f32) -> bool {
-    if query_lower.is_empty() {
-        return true;
+/// How well one typed word matches one word of a name (lower is better):
+/// the same word, the same in singular/plural, its beginning, or (3+ letters)
+/// anywhere inside it.
+fn word_score(word: &str, typed: &str) -> Option<u32> {
+    if word == typed {
+        return Some(0);
     }
-    if name_lower.contains(query_lower) {
-        return true;
+    if singular(word) == singular(typed) {
+        return Some(1);
     }
-    if exactness >= 0.85 {
-        return false;
+    if word.starts_with(typed) {
+        return Some(2);
     }
-    is_subsequence(query_lower, name_lower)
+    if typed.chars().count() >= 3 && word.contains(typed) {
+        return Some(5);
+    }
+    None
+}
+
+/// Ranks an asset for a query (lower is better), or `None` when it doesn't
+/// match. Every typed word must match a word of the name, in any order, or,
+/// less strongly, a word of its folders ("round table", "table round" and
+/// "tables" all find Table_Round_…). Names whose words come in the typed
+/// order and shorter names rank first.
+fn rank(item: &CacheItem, typed: &[String]) -> Option<u32> {
+    if typed.is_empty() {
+        return Some(0);
+    }
+    let mut total = 0u32;
+    let mut last_pos: Option<usize> = None;
+    for t in typed {
+        let in_name = item
+            .words
+            .iter()
+            .enumerate()
+            .filter_map(|(i, w)| word_score(w, t).map(|s| (s * 10 + i.min(9) as u32, i)))
+            .min();
+        let score = match in_name {
+            Some((s, i)) => {
+                if last_pos.is_some_and(|p| i < p) {
+                    total += 3;
+                }
+                last_pos = Some(i);
+                s
+            }
+            None => item
+                .folder_words
+                .iter()
+                .filter_map(|w| word_score(w, t))
+                .min()
+                .map(|s| 40 + s * 10)?,
+        };
+        total += score;
+    }
+    Some(total * 100 + item.words.len().min(99) as u32)
 }
 
 /// What a library search matches. Deserialized straight from the frontend
@@ -264,9 +347,6 @@ fn matches(name_lower: &str, query_lower: &str, exactness: f32) -> bool {
 pub struct SearchFilter {
     #[serde(default)]
     pub query: String,
-    /// 0 = fuzzy (subsequence) … 1 = exact substring.
-    #[serde(default)]
-    pub exactness: f32,
     /// Scope to a single pack (e.g. the terrain picker).
     pub pack_id: Option<String>,
     /// Only textures in this pack tag (Library "Tags" tab).
@@ -296,9 +376,8 @@ pub(crate) fn search(
         .collect();
     enabled.sort();
 
-    let q = normalize_query(&filter.query);
-    let exactness = filter.exactness;
-    let mut results: Vec<LibItemLite> = Vec::new();
+    let typed = split_words(&filter.query);
+    let mut results: Vec<(u32, LibItemLite)> = Vec::new();
 
     for pack_id in &enabled {
         let key = format!("{pack_id}/{category}");
@@ -332,17 +411,22 @@ pub(crate) fn search(
                     continue;
                 }
             }
-            if matches(&item.name_lower, &q, exactness) {
-                results.push(LibItemLite {
-                    pack_id: pack_id.clone(),
-                    rel_path: item.rel_path.clone(),
-                    name: item.name.clone(),
-                });
+            if let Some(score) = rank(item, &typed) {
+                results.push((
+                    score,
+                    LibItemLite {
+                        pack_id: pack_id.clone(),
+                        rel_path: item.rel_path.clone(),
+                        name: item.name.clone(),
+                    },
+                ));
             }
         }
     }
 
-    results.sort_by_cached_key(|a| a.name.to_lowercase());
+    // Best matches first; ties (and an empty search) in name order.
+    results.sort_by_cached_key(|(score, a)| (*score, a.name.to_lowercase()));
+    let results: Vec<LibItemLite> = results.into_iter().map(|(_, a)| a).collect();
     let total = results.len();
     state.results.lock().unwrap().insert(key, results);
     Ok(LibrarySearch { total })
@@ -606,18 +690,51 @@ mod tests {
         assert!(!is_companion_texture("tilesets", "stone_border"));
     }
 
-    #[test]
-    fn search_query_is_trimmed_and_lowercased() {
-        assert_eq!(normalize_query("  Chair "), "chair");
-        assert!(matches("wooden chair", &normalize_query(" chair  "), 1.0));
-        assert_eq!(normalize_query("   "), "");
+    fn item(rel: &str) -> CacheItem {
+        let name = rel.rsplit('/').next().unwrap().trim_end_matches(".webp").to_string();
+        let folder_words = rel
+            .split('/')
+            .skip(2)
+            .collect::<Vec<_>>()
+            .split_last()
+            .map(|(_, dirs)| dirs.iter().flat_map(|d| split_words(d)).collect())
+            .unwrap_or_default();
+        CacheItem { rel_path: rel.into(), words: split_words(&name), name, folder_words }
     }
 
     #[test]
-    fn fuzzy_matching_respects_exactness() {
-        assert!(matches("wooden chair", "chair", 1.0));
-        assert!(!matches("wooden chair", "wdchr", 0.9));
-        assert!(matches("wooden chair", "wdchr", 0.5));
-        assert!(matches("anything", "", 1.0));
+    fn words_split_on_separators_and_camel_case() {
+        assert_eq!(split_words("Table_Round_Wood_A1_2x2"), ["table", "round", "wood", "a1", "2x2"]);
+        assert_eq!(split_words("  round   TABLE "), ["round", "table"]);
+        assert_eq!(split_words("Dirty Snow"), ["dirty", "snow"]);
+        assert_eq!(split_words("woodenChair"), ["wooden", "chair"]);
+        assert!(split_words("   ").is_empty());
+    }
+
+    #[test]
+    fn every_word_must_match_in_any_order() {
+        let t = item("textures/objects/Furniture/Tables/Table_Round_Wood_Walnut_A1_2x2.webp");
+        let q = |s: &str| rank(&t, &split_words(s));
+        assert!(q("round table").is_some());
+        assert!(q("table round").is_some());
+        assert!(q("tables").is_some());
+        assert!(q("walnut").is_some());
+        assert!(q("tab rou").is_some());
+        assert!(q("furniture").is_some());
+        assert!(q("round chair").is_none());
+        assert!(q("").is_some());
+    }
+
+    #[test]
+    fn better_matches_rank_first() {
+        let round = item("textures/objects/Furniture/Tables/Table_Round_Wood_A1_2x2.webp");
+        let coffee = item("textures/objects/Furniture/Tables/Coffee_Table_Fancy_Wood_Round_A1_1x1.webp");
+        let rounded = item("textures/objects/Misc/Roundel_Table_Cloth_A1_1x1.webp");
+        let folder = item("textures/objects/Furniture/Tables/Bench_Wood_A1_2x1.webp");
+        let typed = split_words("round table");
+        let r = |i: &CacheItem| rank(i, &typed).unwrap();
+        assert!(r(&round) < r(&coffee), "typed order and fewer words first");
+        assert!(r(&round) < r(&rounded), "a whole word before a word's beginning");
+        assert!(rank(&folder, &split_words("table")).unwrap() > rank(&round, &split_words("table")).unwrap());
     }
 }

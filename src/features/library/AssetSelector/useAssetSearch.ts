@@ -62,14 +62,6 @@ export function useAssetSearch({
   const [queryInput, setQueryInput] = useState(initialQuery)
   // What a fresh search looks for: the suggestion, until the category changes.
   const [freshQuery, setFreshQuery] = useState(initialQuery)
-  const [exactness, setExactnessState] = useState(0.5)
-  // Latest exactness for runSearch without making it a reactive dependency
-  // (moving the slider must not re-trigger the category-change search).
-  const exactnessRef = useRef(0.5)
-  const setExactness = useCallback((v: number) => {
-    exactnessRef.current = v
-    setExactnessState(v)
-  }, [])
 
   const [total, setTotal] = useState(0)
   const [searchGen, setSearchGen] = useState(0)
@@ -137,7 +129,6 @@ export function useAssetSearch({
       return withLoading(t("loading.searchingLibrary"), () =>
         searchLibrary(browserKey, category, {
           query: q.trim(),
-          exactness: exactnessRef.current,
           packId,
           tag,
           ids: idsKey === null ? undefined : idsKey ? idsKey.split("\n") : [],
@@ -261,8 +252,6 @@ export function useAssetSearch({
     nullOffset,
     queryInput,
     setQueryInput,
-    exactness,
-    setExactness,
     /** Run a search the user asked for (shows as loading). */
     runSearch: search,
     /** Results are on their way (a search is running). */

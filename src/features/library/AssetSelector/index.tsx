@@ -43,7 +43,7 @@ export interface AssetSelectorProps {
   onSelectionChange?: (ids: string[], picked?: LibItem) => void
   /** Drive the shared hover/press preview panel (used by the Library). */
   showPreview?: boolean
-  /** Show the search box + exactness slider (hidden for param pickers). */
+  /** Show the search box (hidden for param pickers). */
   showSearch?: boolean
   /** Without `showSearch`: the search floating over the grid (a picker's search button). */
   floatingSearch?: boolean
@@ -121,8 +121,6 @@ export function AssetSelector({
     nullOffset,
     queryInput,
     setQueryInput,
-    exactness,
-    setExactness,
     runSearch,
     loading,
     loadVisibleRows,
@@ -297,8 +295,6 @@ export function AssetSelector({
         <SearchBar
           queryInput={queryInput}
           setQueryInput={setQueryInput}
-          exactness={exactness}
-          setExactness={setExactness}
           runSearch={(q) => {
             onQueryChange?.(q.trim())
             return runSearch(q)

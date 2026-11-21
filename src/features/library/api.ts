@@ -18,9 +18,8 @@ export interface LibItem {
 
 /** What a library search matches (mirrors `SearchFilter` in src-tauri). */
 export interface SearchFilter {
+  /** The words to look for, in any order (each must match a word of the name or its folders). */
   query: string
-  /** 0 = fuzzy (subsequence) … 1 = exact substring. */
-  exactness: number
   /** Scope the search to a single pack (omit for all enabled packs). */
   packId?: string
   /** Only textures in this pack tag (Library "Tags" tab). */

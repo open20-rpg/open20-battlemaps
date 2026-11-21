@@ -19,7 +19,7 @@ const NAME_H = 18 // single-line (ellipsized) name under each tile
 const ROW_H = CELL + NAME_H + GAP
 
 /**
- * Virtualized terrain-texture grid for one pack (sticky search + exactness bar
+ * Virtualized terrain-texture grid for one pack (sticky search bar
  * on top). Reuses the library's windowed, `withLoading`-wrapped search engine
  * (same efficiency as the asset selector) — only visible tiles fetch and
  * render, with a single shared name tooltip driven by event delegation.
@@ -41,8 +41,6 @@ export function TerrainTextureGrid({
     loadVisibleRows,
     queryInput,
     setQueryInput,
-    exactness,
-    setExactness,
     runSearch,
     loading,
   } = useAssetSearch({
@@ -108,12 +106,10 @@ export function TerrainTextureGrid({
 
   return (
     <Flex direction="column" flex="1" minH="0">
-      {/* Sticky search + exactness bar, always visible above the grid. */}
+      {/* Sticky search bar, always visible above the grid. */}
       <SearchBar
         queryInput={queryInput}
         setQueryInput={setQueryInput}
-        exactness={exactness}
-        setExactness={setExactness}
         runSearch={runSearch}
         total={total}
       />

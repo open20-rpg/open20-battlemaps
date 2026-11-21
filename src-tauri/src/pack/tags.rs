@@ -22,11 +22,14 @@ struct RawTagsFile {
 }
 
 /// Normalize a tag entry to the pack-relative form the library index uses
-/// (`textures/...`): some packs write full `res://packs/<id>/...` paths.
-fn normalize_path(pack_id: &str, path: &str) -> String {
-    let p = path.replace('\\', "/");
-    let prefix = format!("res://packs/{pack_id}/");
-    p.strip_prefix(&prefix).unwrap_or(&p).to_string()
+/// (`textures/...`): some packs write full `res://packs/<id>/...` paths
+/// (`prefix` is that `res://packs/<id>/`).
+fn normalize_path(prefix: &str, path: &str) -> String {
+    let p = if path.contains('\\') { path.replace('\\', "/") } else { path.to_string() };
+    match p.strip_prefix(prefix) {
+        Some(rest) => rest.to_string(),
+        None => p,
+    }
 }
 
 /// Parse a tags file. Tags files use trailing commas, so they go through the
@@ -35,12 +38,13 @@ pub(crate) fn parse_tags(pack_id: &str, txt: &str) -> TagMap {
     let raw: RawTagsFile = serde_json::from_str(&strip_trailing_commas(txt))
         .or_else(|_| json5::from_str(txt))
         .unwrap_or_default();
+    let prefix = format!("res://packs/{pack_id}/");
     raw.tags
         .into_iter()
         // "Colorable" is a capability flag, not a browsable group.
         .filter(|(name, _)| name != "Colorable")
         .map(|(name, paths)| {
-            let set = paths.iter().map(|p| normalize_path(pack_id, p)).collect();
+            let set = paths.iter().map(|p| normalize_path(&prefix, p)).collect();
             (name, set)
         })
         .collect()
@@ -81,15 +85,44 @@ pub(crate) fn pack_tags(app: &AppHandle, pack_id: &str) -> Arc<TagMap> {
     arc
 }
 
+/// A pack's tag names for `category` (cached: the scan goes over every tagged path).
+fn pack_names(app: &AppHandle, pack_id: &str, category: &str) -> Arc<Vec<String>> {
+    let state = app.state::<LibraryState>();
+    let key = format!("{pack_id}/{category}");
+    if let Some(n) = state.tag_names.lock().ok().and_then(|m| m.get(&key).cloned()) {
+        return n;
+    }
+    let tags = pack_tags(app, pack_id);
+    let names = Arc::new(names_for_category([tags.as_ref()], category));
+    if let Ok(mut m) = state.tag_names.lock() {
+        m.insert(key, names.clone());
+    }
+    names
+}
+
 /// Tag names available for `category` across every enabled pack.
 pub(crate) fn tags_for_category(app: &AppHandle, category: &str) -> Vec<String> {
     let reg = read_registry(app);
-    let maps: Vec<Arc<TagMap>> = reg
-        .iter()
-        .filter(|(_, r)| r.enabled)
-        .map(|(id, _)| pack_tags(app, id))
-        .collect();
-    names_for_category(maps.iter().map(|m| m.as_ref()), category)
+    let mut out = BTreeSet::new();
+    for (id, _) in reg.iter().filter(|(_, r)| r.enabled) {
+        out.extend(pack_names(app, id, category).iter().cloned());
+    }
+    out.into_iter().collect()
+}
+
+/// Read every enabled pack's tags (and colorable set) in the background, so
+/// the Library's Tags tab opens at once instead of parsing megabytes of tag
+/// files on first use. Called at startup and whenever packs change.
+pub(crate) fn prewarm(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let reg = read_registry(&app);
+        for (id, _) in reg.iter().filter(|(_, r)| r.enabled) {
+            let _ = pack_tags(&app, id);
+            let _ = super::recolor::pack_colorable_set(&app, id);
+            let _ = pack_names(&app, id, "objects");
+        }
+    });
 }
 
 #[cfg(test)]

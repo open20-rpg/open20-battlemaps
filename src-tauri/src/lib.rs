@@ -21,6 +21,8 @@ pub fn run() {
             pack::clear_previews(app.handle());
             // And temporaries of an optimization it closed during.
             pack::clear_optimize_temp(app.handle());
+            // The Library's tags, read ahead so its Tags tab opens at once.
+            pack::prewarm_tags(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

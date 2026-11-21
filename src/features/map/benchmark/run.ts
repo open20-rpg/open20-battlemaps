@@ -44,7 +44,7 @@ async function firstAssets(category: string, limit: number): Promise<string[]> {
   const key = `benchmark:${category}`
   try {
     for (const packId of [ESSENTIALS_PACK_ID, undefined]) {
-      const { total } = await searchLibrary(key, category, { query: "", exactness: 0, packId })
+      const { total } = await searchLibrary(key, category, { query: "", packId })
       if (total > 0) return (await getLibraryItems(key, 0, limit)).map((i) => i.id)
     }
     return []

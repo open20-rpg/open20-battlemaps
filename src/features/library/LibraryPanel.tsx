@@ -14,7 +14,7 @@ import { type AssetCategory } from "../../lib/categories"
 import { usedAssetIds } from "../map/packUsage"
 import { useViewportCover } from "../map/render/focus"
 import { LIBRARY_PARAM, libraryAssetsOf } from "../tools/params"
-import { Select } from "../../ui/Select"
+import { TagPicker } from "./TagPicker"
 import { useSettingsStore } from "../../stores/settingsStore"
 import { libraryColumnsFor, libraryWidth } from "./panelWidth"
 
@@ -278,11 +278,7 @@ function TagBrowser({
   return (
     <Flex direction="column" flex="1" minH="0">
       <Flex px="3" pt="2.5" flexShrink={0}>
-        <Select
-          value={current ?? ""}
-          items={names.map((name) => ({ value: name, label: name }))}
-          onChange={setTag}
-        />
+        <TagPicker value={current ?? ""} tags={names} onChange={setTag} />
       </Flex>
       {current && (
         <AssetSelector browserKey={`library-tag:${category}`} tag={current} {...shared} />
