@@ -29,6 +29,7 @@ import { renderExportSample, renderMapRows, type ExportOptions } from "./render/
 import { createMap, loadMap } from "./commands"
 import { seedNewMapTerrain } from "../tools/behaviors/paint"
 import { migrateMap } from "./migrate"
+import { leadingJsonValue } from "../../lib/jsonPrefix"
 import { loadCatalog } from "../fonts/catalog"
 import { resolveFontNames } from "../fonts/resolve"
 import {
@@ -108,6 +109,11 @@ export interface OpenMapResult {
   missingPacks: string[]
   /** Set when a Dungeondraft map was imported: what couldn't be carried over. */
   imported?: ImportResult["warnings"]
+  /**
+   * The file had leftover bytes after the map (see `parseSaveFile`): "saved"
+   * once the file was rewritten, "pending" if that failed (the next save fixes it).
+   */
+  repaired?: "saved" | "pending"
 }
 
 export class MapParseError extends Error {}
@@ -152,14 +158,30 @@ function buildSaveFile(): MapFile {
   }
 }
 
-/** Parse and shallow-validate a save file's raw JSON text. */
-function parseSaveFile(raw: string): MapFile {
-  let data: unknown
+/**
+ * Parse and shallow-validate a save file's raw JSON text. A file with
+ * leftover bytes after the map (an overwrite that didn't truncate the
+ * previous, longer save — Android before the fix) still opens: the map comes
+ * first and is complete. `repaired` is then the text the file should hold.
+ */
+function parseSaveFile(raw: string): { file: MapFile; repaired?: string } {
+  const whole = tryParseJson(raw)
+  if (whole.ok) return { file: validateSaveFile(whole.value) }
+  const prefix = leadingJsonValue(raw)
+  const recovered = prefix === null ? whole : tryParseJson(prefix)
+  if (!recovered.ok) throw new MapParseError("Invalid JSON")
+  return { file: validateSaveFile(recovered.value), repaired: `${prefix}\n` }
+}
+
+function tryParseJson(text: string): { ok: true; value: unknown } | { ok: false } {
   try {
-    data = JSON.parse(raw)
+    return { ok: true, value: JSON.parse(text) }
   } catch {
-    throw new MapParseError("Invalid JSON")
+    return { ok: false }
   }
+}
+
+function validateSaveFile(data: unknown): MapFile {
   const file = data as Partial<MapFile> | null
   if (!file || typeof file !== "object" || file.format !== MAP_FORMAT) {
     throw new MapParseError("Not an Open20 Battle Maps map file")
@@ -326,11 +348,20 @@ export async function openMapFlow(path?: string): Promise<OpenMapResult> {
     useSettingsStore.getState().pushRecentMap(selected)
     return { opened: true, missingPacks, imported: result.warnings }
   }
-  const file = parseSaveFile(raw)
+  const { file, repaired } = parseSaveFile(raw)
   const missingPacks = await applySaveFile(file)
   useMapFileStore.getState().setLoaded(selected, file.meta.createdAt, file.meta.appVersion)
   useSettingsStore.getState().pushRecentMap(selected)
-  return { opened: true, missingPacks }
+  if (repaired === undefined) return { opened: true, missingPacks }
+  // Rewrite exactly the recovered text (what the last save wrote). If that
+  // fails the map is still open; left unsaved, the next save fixes it.
+  try {
+    await withLoading(i18n.t("loading.repairingMap"), () => saveMapFile(selected, repaired))
+    return { opened: true, missingPacks, repaired: "saved" }
+  } catch {
+    useMapFileStore.getState().markDirty()
+    return { opened: true, missingPacks, repaired: "pending" }
+  }
 }
 
 /** Prompt for a destination and export the map as an image. False if cancelled. */

@@ -72,7 +72,17 @@ export function useMapFile() {
 
   const openMap = async (path?: string): Promise<void> => {
     try {
-      const { opened, missingPacks, imported } = await openMapFlow(path)
+      const { opened, missingPacks, imported, repaired } = await openMapFlow(path)
+      if (opened && repaired) {
+        toaster.create({
+          title: t("toast.mapRepaired"),
+          description: t(
+            repaired === "saved" ? "toast.mapRepairedBody" : "toast.mapRepairedPending",
+          ),
+          type: "warning",
+          duration: 12000,
+        })
+      }
       if (opened && imported) {
         const notes = Object.entries(imported).map(([key, count]) => t(`import.${key}`, { count }))
         toaster.create({
