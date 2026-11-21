@@ -28,7 +28,7 @@ pub extern "system" fn JNI_OnLoad(vm: *mut jni::sys::JavaVM, _reserved: *mut c_v
 
 /// Resolve a `content://` URI to an owned `File` via a `ContentResolver`
 /// `ParcelFileDescriptor`, opened in `mode` (`ParcelFileDescriptor.parseMode`:
-/// `"r"` read-only, `"w"` write-only/create/truncate). `detachFd` transfers fd
+/// `"r"` read-only, `"wt"` write/create/truncate). `detachFd` transfers fd
 /// ownership to us, so the returned `File` stays valid after the JNI thread
 /// detaches.
 pub fn open_content_uri(uri: &str, mode: &str) -> Result<File, String> {
@@ -86,7 +86,12 @@ pub fn open_content_uri(uri: &str, mode: &str) -> Result<File, String> {
             &[JValue::Object(&uri_obj), JValue::Object(&jmode)],
         )
         .and_then(|v| v.l())
-        .map_err(|e| jni_err("openFileDescriptor", e))?;
+        .map_err(|e| {
+            // A thrown Java exception stays pending on this thread; clear it
+            // so the caller can retry (see `create_content_uri`).
+            let _ = env.exception_clear();
+            jni_err("openFileDescriptor", e)
+        })?;
     if pfd.is_null() {
         return Err("openFileDescriptor returned null".into());
     }
@@ -97,4 +102,21 @@ pub fn open_content_uri(uri: &str, mode: &str) -> Result<File, String> {
         .map_err(|e| jni_err("detachFd", e))?;
 
     Ok(unsafe { File::from_raw_fd(fd) })
+}
+
+/// Open a `content://` URI to overwrite it from scratch. Plain `"w"` does not
+/// truncate on many document providers (Android 10+): a shorter new file
+/// leaves the old tail behind and the result no longer parses. `"wt"` is the
+/// documented overwrite mode; the fallback covers providers that reject it,
+/// truncating by hand where the fd allows it (stream-backed ones, e.g. cloud
+/// providers, replace the whole file anyway).
+pub fn create_content_uri(uri: &str) -> Result<File, String> {
+    match open_content_uri(uri, "wt") {
+        Ok(file) => Ok(file),
+        Err(_) => {
+            let file = open_content_uri(uri, "w")?;
+            let _ = file.set_len(0);
+            Ok(file)
+        }
+    }
 }

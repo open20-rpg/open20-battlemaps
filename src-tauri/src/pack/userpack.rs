@@ -1231,7 +1231,7 @@ fn open_dest(dest: &str) -> Result<fs::File> {
     #[cfg(target_os = "android")]
     {
         if dest.starts_with("content://") {
-            return crate::android_fs::open_content_uri(dest, "w").map_err(PackError::Other);
+            return crate::android_fs::create_content_uri(dest).map_err(PackError::Other);
         }
     }
     Ok(fs::File::create(dest)?)

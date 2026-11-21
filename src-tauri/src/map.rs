@@ -24,7 +24,7 @@ pub async fn save_map(path: String, contents: String) -> Result<(), String> {
 fn write_text(path: &str, contents: &str) -> Result<(), String> {
     #[cfg(target_os = "android")]
     if path.starts_with("content://") {
-        let mut file = crate::android_fs::open_content_uri(path, "w")?;
+        let mut file = crate::android_fs::create_content_uri(path)?;
         return file
             .write_all(contents.as_bytes())
             .map_err(|e| e.to_string());

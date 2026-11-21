@@ -177,7 +177,7 @@ fn encoded_size(format: Format, rgba: &[u8], width: u32, height: u32) -> Result<
 fn open_sink(path: &str) -> Result<Sink, String> {
     #[cfg(target_os = "android")]
     if path.starts_with("content://") {
-        let file = crate::android_fs::open_content_uri(path, "w")?;
+        let file = crate::android_fs::create_content_uri(path)?;
         return Ok(Box::new(std::io::BufWriter::new(file)));
     }
     let file = std::fs::File::create(path).map_err(|e| e.to_string())?;
