@@ -610,6 +610,18 @@ describe("effects, text, select, prefabs", () => {
     expect(entities()[1]).toMatchObject({ toolId: "light", position: { x: 12, y: 11 } })
   })
 
+  it("keeps only the coordinates of where it was placed, not the pointer", () => {
+    useViewStore.setState({ snap: false })
+    setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
+    down("object", 2.3, 2.7)
+    up("object", 2.3, 2.7)
+    useToolsStore.getState().selectToolById("light")
+    down("light", 5.2, 5.4)
+    up("light", 5.2, 5.4)
+    expect(entities()).toHaveLength(2)
+    for (const e of entities()) expect(Object.keys(e.position).sort()).toEqual(["x", "y"])
+  })
+
   it("Light places lights and drags them by their center", () => {
     useToolsStore.getState().selectToolById("light")
     down("light", 5, 5)

@@ -55,7 +55,7 @@ export function makeEntity(
   ctx: ToolCtx,
   fields: Partial<MapEntity> & Pick<MapEntity, "layer">,
 ): MapEntity {
-  return {
+  const entity: MapEntity = {
     id: newId(),
     toolId: ctx.toolId,
     level: ctx.level,
@@ -64,6 +64,10 @@ export function makeEntity(
     params: {},
     ...fields,
   }
+  // Only the coordinates: tools often pass the pointer itself (its buttons
+  // and modifier keys would otherwise be saved with the map).
+  entity.position = { x: entity.position.x, y: entity.position.y }
+  return entity
 }
 
 const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v : fallback)
