@@ -1,5 +1,6 @@
 #[cfg(target_os = "android")]
 mod android_fs;
+mod backups;
 mod export;
 mod fonts;
 mod map;
@@ -62,9 +63,20 @@ pub fn run() {
             export::export_end,
             export::export_estimate,
             map::read_image_file,
+            backups::backup_write,
+            backups::backup_list,
+            backups::backup_read,
+            backups::backup_delete,
+            backups::backup_session_start,
             updates::latest_version,
             updates::open_open20_page,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            // A normal exit: the next start isn't offered to recover anything.
+            if let tauri::RunEvent::Exit = event {
+                backups::end_session(app);
+            }
+        });
 }

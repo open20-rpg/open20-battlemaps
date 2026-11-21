@@ -4,6 +4,7 @@ import type { IconType } from "react-icons"
 import {
   LuCircleArrowUp,
   LuFolderOpen,
+  LuDatabaseBackup,
   LuGem,
   LuHistory,
   LuInfo,
@@ -107,6 +108,12 @@ export function MobileTopBar(props: MenuBarProps) {
                 icon={LuHistory}
                 label={t("menu.recent")}
                 onClick={props.onOpenRecent}
+              />
+              <Item
+                value="backups"
+                icon={LuDatabaseBackup}
+                label={t("menu.backups")}
+                onClick={props.onOpenBackups}
               />
               <Item
                 value="saveAs"

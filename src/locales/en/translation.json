@@ -15,7 +15,8 @@
     "extensions": "Extensions",
     "about": "About",
     "saveAs": "Save As",
-    "shortcuts": "Keyboard shortcuts"
+    "shortcuts": "Keyboard shortcuts",
+    "backups": "Backups"
   },
   "canvas": {
     "title": "Open20 Battle Maps",
@@ -39,7 +40,10 @@
     "importedDungeondraft": "Dungeondraft map imported. Saving creates a new .otbm file (the original is left untouched).",
     "fontDownloadError": "Couldn't download {{font}}: {{error}}",
     "fontsNotDownloaded_one": "Couldn't download {{count}} font: those labels use the default one",
-    "fontsNotDownloaded_other": "Couldn't download {{count}} fonts: those labels use the default one"
+    "fontsNotDownloaded_other": "Couldn't download {{count}} fonts: those labels use the default one",
+    "backupRestored": "Backup restored",
+    "backupRestoredBody": "Save the map to keep it: until then, the file stays as it was.",
+    "backupRestoreError": "Couldn't restore the backup: {{error}}"
   },
   "prefs": {
     "title": "Preferences",
@@ -559,7 +563,11 @@
     "savingAsset": "Saving the asset's changes",
     "optimizingPacks": "Optimizing images",
     "optimizingPack": "Optimizing “{{pack}}”",
-    "checkingUpdates": "Checking for updates"
+    "checkingUpdates": "Checking for updates",
+    "backingUp": "Saving a backup",
+    "loadingBackups": "Loading backups",
+    "deletingBackups": "Deleting backups",
+    "restoringBackup": "Restoring backup"
   },
   "mapFile": {
     "unsavedTitle": "Save your changes?",
@@ -604,7 +612,8 @@
   },
   "recent": {
     "title": "Recent maps",
-    "forget": "Remove from the list"
+    "forget": "Remove from the list",
+    "all": "See all"
   },
   "import": {
     "builtinAssets_one": "{{count}} Dungeondraft built-in asset is unavailable",
@@ -925,5 +934,29 @@
     "discord": "Discord",
     "patreon": "Patreon",
     "kofi": "Ko-fi"
+  },
+  "backups": {
+    "title": "Backups",
+    "recoveryTitle": "Recover your work",
+    "recoveryBody": "Battle Maps closed unexpectedly with unsaved changes. The most recent backup is already picked: restore it to pick up where you left off.",
+    "empty": "No backups yet. While you edit a map, a backup is kept every few minutes, and another each time you save it.",
+    "untitled": "Untitled",
+    "count_one": "{{count}} backup",
+    "count_other": "{{count}} backups",
+    "maps": "Maps",
+    "restore": "Restore",
+    "delete": "Delete",
+    "deleteMap": "Delete this map's backups",
+    "deleteTitle": "Delete backups",
+    "deleteBody": "Delete every backup of “{{name}}”? The map file itself is left alone.",
+    "unsaved": "Unsaved",
+    "saved": "Saved",
+    "group": {
+      "lastHour": "Last hour",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This week",
+      "older": "Earlier"
+    }
   }
 }

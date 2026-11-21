@@ -4,6 +4,7 @@ import type { IconType } from "react-icons"
 import {
   LuBlocks,
   LuFolderOpen,
+  LuDatabaseBackup,
   LuGem,
   LuInfo,
   LuKeyboard,
@@ -59,6 +60,7 @@ export interface MenuBarProps {
   onOpenShortcuts: () => void
   onOpenAbout: () => void
   onOpenRecent: () => void
+  onOpenBackups: () => void
   onExit: () => void
   onNew: () => void
   onOpen: () => void
@@ -124,6 +126,10 @@ export function MenuBar(props: MenuBarProps) {
               <Menu.Item value="recent" onClick={props.onOpenRecent}>
                 <LuFolderOpen />
                 <Text ml="2">{t("menu.recent")}</Text>
+              </Menu.Item>
+              <Menu.Item value="backups" onClick={props.onOpenBackups}>
+                <LuDatabaseBackup />
+                <Text ml="2">{t("menu.backups")}</Text>
               </Menu.Item>
               <Menu.Item value="closeMap" disabled={!props.mapOpen} onClick={props.onCloseMap}>
                 <LuSquareX />

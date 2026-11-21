@@ -65,6 +65,30 @@ export const DEFAULT_SHADOW_STYLE: ShadowStyle = {
 /** How many recently opened/saved map paths to remember. */
 export const MAX_RECENT_MAPS = 10
 
+/** A recently opened/saved map file. */
+export interface RecentMap {
+  path: string
+  /** Its picture as last saved or opened (JPEG `data:` URL, a few KB). */
+  thumbnail?: string
+  /** When it was last opened or saved (ms since the epoch). */
+  usedAt?: number
+}
+
+/**
+ * Recent maps as saved: plain paths before they had thumbnails. Anything
+ * else is dropped.
+ */
+export function normalizeRecentMaps(saved: unknown): RecentMap[] {
+  if (!Array.isArray(saved)) return []
+  return saved.flatMap((r: unknown): RecentMap[] => {
+    if (typeof r === "string") return [{ path: r }]
+    if (r && typeof r === "object" && typeof (r as RecentMap).path === "string") {
+      return [r as RecentMap]
+    }
+    return []
+  })
+}
+
 /**
  * User preferences and user-created data, persisted under a single versioned
  * localStorage key. All localStorage access goes through this store — never
@@ -80,7 +104,7 @@ interface SettingsState {
   /** Saved prefabs, reusable across maps. */
   prefabs: Prefab[]
   /** Recently opened/saved map files (most recent first). */
-  recentMaps: string[]
+  recentMaps: RecentMap[]
   shadowStyle: ShadowStyle
   setShadowStyle: (patch: Partial<ShadowStyle>) => void
   resetShadowStyle: () => void
@@ -125,8 +149,8 @@ interface SettingsState {
   addPrefab: (prefab: Prefab) => void
   renamePrefab: (id: string, name: string) => void
   removePrefab: (id: string) => void
-  /** Move `path` to the top of the recent list. */
-  pushRecentMap: (path: string) => void
+  /** Move `path` to the top of the recent list (with its new thumbnail, if any). */
+  pushRecentMap: (path: string, thumbnail?: string | null) => void
   removeRecentMap: (path: string) => void
 }
 
@@ -197,12 +221,19 @@ export const useSettingsStore = create<SettingsState>()(
       renamePrefab: (id, name) =>
         set((s) => ({ prefabs: s.prefabs.map((p) => (p.id === id ? { ...p, name } : p)) })),
       removePrefab: (id) => set((s) => ({ prefabs: s.prefabs.filter((p) => p.id !== id) })),
-      pushRecentMap: (path) =>
-        set((s) => ({
-          recentMaps: [path, ...s.recentMaps.filter((p) => p !== path)].slice(0, MAX_RECENT_MAPS),
-        })),
+      pushRecentMap: (path, thumbnail) =>
+        set((s) => {
+          const previous = s.recentMaps.find((r) => r.path === path)
+          const entry: RecentMap = {
+            path,
+            thumbnail: thumbnail ?? previous?.thumbnail,
+            usedAt: Date.now(),
+          }
+          const rest = s.recentMaps.filter((r) => r.path !== path)
+          return { recentMaps: [entry, ...rest].slice(0, MAX_RECENT_MAPS) }
+        }),
       removeRecentMap: (path) =>
-        set((s) => ({ recentMaps: s.recentMaps.filter((p) => p !== path) })),
+        set((s) => ({ recentMaps: s.recentMaps.filter((r) => r.path !== path) })),
     }),
     {
       name: "open20-battle-maps.settings",
@@ -215,6 +246,8 @@ export const useSettingsStore = create<SettingsState>()(
           ...current,
           ...saved,
           shadowStyle: { ...DEFAULT_SHADOW_STYLE, ...saved.shadowStyle },
+          // Saved as plain paths before recent maps had thumbnails.
+          recentMaps: normalizeRecentMaps(saved.recentMaps),
           performance: withPerformanceDefaults(saved.performance, DEVICE_PERFORMANCE),
           // A preset that was renamed (or removed) falls back to the default.
           shortcutPreset: knownPreset(saved.shortcutPreset),

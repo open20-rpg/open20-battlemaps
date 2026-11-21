@@ -25,11 +25,18 @@ import {
   saveMapFile,
 } from "./api"
 import { estimateBytes, FORMAT_EXTENSION } from "./exportFormat"
-import { renderExportSample, renderMapRows, type ExportOptions } from "./render/exportMap"
+import {
+  renderExportSample,
+  renderMapRows,
+  renderThumbnail,
+  type ExportOptions,
+} from "./render/exportMap"
 import { createMap, loadMap } from "./commands"
 import { seedNewMapTerrain } from "../tools/behaviors/paint"
 import { migrateMap } from "./migrate"
 import { leadingJsonValue } from "../../lib/jsonPrefix"
+import { mapFileName } from "../../lib/mapName"
+import { readBackup, writeBackup, type BackupEntry } from "../backups/api"
 import { loadCatalog } from "../fonts/catalog"
 import { resolveFontNames } from "../fonts/resolve"
 import {
@@ -81,6 +88,10 @@ export interface MapFileMeta {
   savedWith: string
   createdAt: string
   modifiedAt: string
+  /** The map's own id, kept across saves: its backups are grouped by it. */
+  id?: string
+  /** A small picture of the map (JPEG `data:` URL), for lists of maps. */
+  thumbnail?: string
 }
 
 export interface MapFileView {
@@ -135,10 +146,10 @@ function diffToolParams(
 }
 
 /** Snapshot the current session (map + view + tool deltas + used packs) into a save envelope. */
-function buildSaveFile(): MapFile {
+function buildSaveFile(thumbnail: string | null): MapFile {
   const map = useMapStore.getState().map
   if (!map) throw new Error("No map is open")
-  const { createdAt, appVersion } = useMapFileStore.getState()
+  const { createdAt, appVersion, mapId } = useMapFileStore.getState()
   const { grid, snap, lighting, shadows, zoom } = useViewStore.getState()
   const { paramsByTool } = useToolsStore.getState()
   const now = new Date().toISOString()
@@ -150,6 +161,8 @@ function buildSaveFile(): MapFile {
       savedWith: __APP_VERSION__,
       createdAt: createdAt ?? now,
       modifiedAt: now,
+      ...(mapId ? { id: mapId } : {}),
+      ...(thumbnail ? { thumbnail } : {}),
     },
     map,
     view: { grid, snap, lighting, shadows, zoom },
@@ -238,11 +251,55 @@ async function applySaveFile(file: MapFile): Promise<string[]> {
   return enableMapPacks(file.packs ?? [])
 }
 
+/** The open map's thumbnail; null when it can't be drawn (it's only a nicety). */
+async function currentThumbnail(): Promise<string | null> {
+  const { lighting, shadows } = useViewStore.getState()
+  return renderThumbnail({ lighting, shadows }).catch(() => null)
+}
+
+/** The open map's name in lists: its file's, or "Untitled" before its first save. */
+export function currentMapName(): string {
+  const path = useMapFileStore.getState().path
+  return path ? mapFileName(path) : i18n.t("backups.untitled")
+}
+
+/** The open map, ready to write, and its thumbnail. */
+async function serializeCurrentMap(): Promise<{ contents: string; thumbnail: string | null }> {
+  const thumbnail = await currentThumbnail()
+  return { contents: JSON.stringify(buildSaveFile(thumbnail), null, 2), thumbnail }
+}
+
+/**
+ * Store a backup of the open map (see `features/backups`). `unsaved`: it
+ * has changes its file doesn't. False without a map to back up.
+ */
+export async function backupCurrentMap(unsaved: boolean): Promise<boolean> {
+  const { mapId, path } = useMapFileStore.getState()
+  if (!mapId || !useMapStore.getState().map) return false
+  const { contents, thumbnail } = await serializeCurrentMap()
+  return backupSerialized(mapId, path, contents, thumbnail, unsaved)
+}
+
+async function backupSerialized(
+  mapId: string,
+  path: string | null,
+  contents: string,
+  thumbnail: string | null,
+  unsaved: boolean,
+): Promise<boolean> {
+  const name = path ? mapFileName(path) : i18n.t("backups.untitled")
+  await writeBackup(mapId, contents, { name, sourcePath: path, unsaved, thumbnail })
+  return true
+}
+
 async function writeMapTo(path: string): Promise<void> {
-  const file = buildSaveFile()
-  await saveMapFile(path, JSON.stringify(file, null, 2))
+  const { contents, thumbnail } = await serializeCurrentMap()
+  await saveMapFile(path, contents)
   useMapFileStore.getState().setSaved(path)
-  useSettingsStore.getState().pushRecentMap(path)
+  useSettingsStore.getState().pushRecentMap(path, thumbnail)
+  // What was just saved is a backup too (the newest, with nothing unsaved).
+  const mapId = useMapFileStore.getState().mapId
+  if (mapId) void backupSerialized(mapId, path, contents, thumbnail, false).catch(() => undefined)
 }
 
 /** Prompt for a destination and write the current map there. False if cancelled. */
@@ -350,8 +407,10 @@ export async function openMapFlow(path?: string): Promise<OpenMapResult> {
   }
   const { file, repaired } = parseSaveFile(raw)
   const missingPacks = await applySaveFile(file)
-  useMapFileStore.getState().setLoaded(selected, file.meta.createdAt, file.meta.appVersion)
-  useSettingsStore.getState().pushRecentMap(selected)
+  useMapFileStore
+    .getState()
+    .setLoaded(selected, file.meta.createdAt, file.meta.appVersion, file.meta.id)
+  useSettingsStore.getState().pushRecentMap(selected, file.meta.thumbnail)
   if (repaired === undefined) return { opened: true, missingPacks }
   // Rewrite exactly the recovered text (what the last save wrote). If that
   // fails the map is still open; left unsaved, the next save fixes it.
@@ -400,4 +459,22 @@ export function estimateExportSize(opts: ExportOptions): Promise<number> {
 export function newMapFlow(...args: Parameters<typeof createMap>): void {
   createMap(...args)
   void seedNewMapTerrain().catch(() => undefined)
+}
+
+/**
+ * Open a backup in place of the current map. It keeps its map's identity
+ * and file (Save writes over that file), but counts as unsaved: until it's
+ * saved, the file still holds what it had.
+ */
+export async function restoreBackupFlow(mapId: string, backup: BackupEntry): Promise<string[]> {
+  const raw = await withLoading(i18n.t("loading.restoringBackup"), () =>
+    readBackup(mapId, backup.id),
+  )
+  const { file } = parseSaveFile(raw)
+  const missingPacks = await applySaveFile(file)
+  useMapFileStore
+    .getState()
+    .setLoaded(backup.sourcePath, file.meta.createdAt, file.meta.appVersion, mapId)
+  useMapFileStore.getState().markDirty()
+  return missingPacks
 }

@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next"
 import { toaster } from "../../ui/chakra/toaster-instance"
 import { useMapDirty } from "../../stores/mapFileStore"
 import { useMapStore } from "../../stores/mapStore"
-import { openMapFlow, saveMap, saveMapAs } from "./io"
+import { openMapFlow, restoreBackupFlow, saveMap, saveMapAs } from "./io"
+import type { BackupEntry } from "../backups/api"
 import { asFont } from "../fonts/metrics"
 import { ensureFont, missingFonts } from "../fonts/registry"
 import { styleName } from "../fonts/catalog"
@@ -132,9 +133,43 @@ export function useMapFile() {
     }
   }
 
+  /** Open a backup in place of the current map (Backups), behind the same guard. */
+  const handleRestore = (mapId: string, backup: BackupEntry) =>
+    guarded(async () => {
+      try {
+        const missingPacks = await restoreBackupFlow(mapId, backup)
+        toaster.create({
+          title: t("toast.backupRestored"),
+          description: t("toast.backupRestoredBody"),
+          type: "success",
+          duration: 8000,
+        })
+        if (missingPacks.length > 0) {
+          toaster.create({
+            title: t("toast.missingPacks", { count: missingPacks.length }),
+            type: "warning",
+          })
+        }
+        await offerMissingFonts()
+      } catch (err) {
+        toaster.create({
+          title: t("toast.backupRestoreError", { error: String(err) }),
+          type: "error",
+        })
+      }
+    })()
+
   const handleOpen = guarded(() => openMap())
   /** Open a specific file (Recent maps), behind the same unsaved-changes guard. */
   const handleOpenPath = (path: string) => guarded(() => openMap(path))()
 
-  return { handleSave, handleSaveAs, handleOpen, handleOpenPath, guarded, settleUnsaved }
+  return {
+    handleSave,
+    handleSaveAs,
+    handleOpen,
+    handleOpenPath,
+    handleRestore,
+    guarded,
+    settleUnsaved,
+  }
 }

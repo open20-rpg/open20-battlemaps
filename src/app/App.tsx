@@ -13,6 +13,9 @@ import { GraphicsIntro } from "./GraphicsIntro"
 import { AboutDialog } from "./dialogs/AboutDialog"
 import { ShortcutsDialog } from "../features/shortcuts/ShortcutsDialog"
 import { RecentMapsDialog } from "./dialogs/RecentMapsDialog"
+import { BackupsDialog } from "../features/backups/BackupsDialog"
+import { recoverableMap, startAutosave } from "../features/backups/autosave"
+import type { BackupMap } from "../features/backups/api"
 import { ExportDialog } from "../features/map/ExportDialog"
 import { AssetsManager } from "../features/packs/AssetsManager"
 import { ImportAssetsHost } from "../features/packs/ImportAssets"
@@ -64,11 +67,36 @@ export default function App() {
   const [newMapOpen, setNewMapOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  // The Backups dialog, opened by hand (no recovery) or after an unexpected exit.
+  const [backups, setBackups] = useState<{ recovery: BackupMap | null } | null>(null)
   const canUndo = useCanUndo()
   const canRedo = useCanRedo()
 
-  const { handleSave, handleSaveAs, handleOpen, handleOpenPath, guarded, settleUnsaved } =
-    useMapFile()
+  const {
+    handleSave,
+    handleSaveAs,
+    handleOpen,
+    handleOpenPath,
+    handleRestore,
+    guarded,
+    settleUnsaved,
+  } = useMapFile()
+
+  // Back up the open map while it has unsaved changes.
+  useEffect(() => startAutosave(), [])
+
+  // Closed unexpectedly last time with unsaved changes: offer the backups.
+  useEffect(() => {
+    let alive = true
+    const check = async () => {
+      const map = await recoverableMap()
+      if (alive && map) setBackups({ recovery: map })
+    }
+    void check()
+    return () => {
+      alive = false
+    }
+  }, [])
 
   // Closing the app with unsaved changes asks to save them first.
   const confirmClose = useEffectEvent(() => settleUnsaved())
@@ -139,6 +167,7 @@ export default function App() {
         onOpenShortcuts={() => setShortcutsOpen(true)}
         onOpenAbout={() => setAboutOpen(true)}
         onOpenRecent={() => setRecentOpen(true)}
+        onOpenBackups={() => setBackups({ recovery: null })}
         onExit={() => getCurrentWindow().close()}
         onNew={guarded(() => setNewMapOpen(true))}
         onOpen={handleOpen}
@@ -157,7 +186,13 @@ export default function App() {
         {hasMap ? (
           <MapEditor />
         ) : (
-          <EmptyState onNew={guarded(() => setNewMapOpen(true))} onOpen={handleOpen} />
+          <EmptyState
+            onNew={guarded(() => setNewMapOpen(true))}
+            onOpen={handleOpen}
+            onOpenPath={handleOpenPath}
+            onOpenRecent={() => setRecentOpen(true)}
+            onOpenBackups={() => setBackups({ recovery: null })}
+          />
         )}
 
         {hasMap && (phone ? <MobileToolsPanel /> : <ToolsPanel />)}
@@ -194,6 +229,13 @@ export default function App() {
         onOpen={handleOpenPath}
       />
       {exportOpen && <ExportDialog open onClose={() => setExportOpen(false)} />}
+      {backups && (
+        <BackupsDialog
+          recovery={backups.recovery}
+          onClose={() => setBackups(null)}
+          onRestore={handleRestore}
+        />
+      )}
 
       <Toaster />
     </Flex>

@@ -169,6 +169,16 @@ init` en cada build y sube el `.ipa` de la build de tienda a la misma app.
   a pocos archivos por vez (memoria acotada), cada uno escrito a un temporal en
   `<app data>/optimize-tmp/` y renombrado encima. Se saltean los coloreables y
   lo que no ahorra lo suficiente. pngquant/libimagequant no sirve: es GPL.
+- **Copias de seguridad automáticas** (`features/backups/`, Rust en
+  `backups.rs`): mientras el mapa tiene cambios sin guardar se guarda una
+  copia cada 2 min (y al pasar a segundo plano, y en cada guardado) en
+  `<app data>/backups/<id del mapa>/`, agrupadas por `meta.id` del `.otbm`.
+  Rust las raleará por antigüedad (muchas de los últimos minutos, menos por
+  hora, una por día, una por semana; máx. 20 por mapa y 10 mapas). Un
+  marcador de sesión detecta un cierre inesperado: si había cambios sin
+  guardar, al iniciar se abre el diálogo de copias para recuperarlos. Cada
+  `.otbm` lleva `meta.thumbnail` (JPEG chico, `renderThumbnail`), que también
+  usan las copias y los mapas recientes.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para

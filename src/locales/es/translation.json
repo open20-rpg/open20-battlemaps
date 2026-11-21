@@ -15,7 +15,8 @@
     "extensions": "Extensiones",
     "about": "Acerca de",
     "saveAs": "Guardar como",
-    "shortcuts": "Atajos de teclado"
+    "shortcuts": "Atajos de teclado",
+    "backups": "Copias de seguridad"
   },
   "canvas": {
     "title": "Open20 Battle Maps",
@@ -39,7 +40,10 @@
     "importedDungeondraft": "Mapa de Dungeondraft importado. Al guardar se crea un archivo .otbm nuevo (el original no se modifica).",
     "fontDownloadError": "No se pudo descargar {{font}}: {{error}}",
     "fontsNotDownloaded_one": "No se pudo descargar {{count}} fuente: esos textos usan la predeterminada",
-    "fontsNotDownloaded_other": "No se pudieron descargar {{count}} fuentes: esos textos usan la predeterminada"
+    "fontsNotDownloaded_other": "No se pudieron descargar {{count}} fuentes: esos textos usan la predeterminada",
+    "backupRestored": "Copia restaurada",
+    "backupRestoredBody": "Guardá el mapa para conservarla: hasta entonces, el archivo sigue como estaba.",
+    "backupRestoreError": "No se pudo restaurar la copia: {{error}}"
   },
   "prefs": {
     "title": "Preferencias",
@@ -559,7 +563,11 @@
     "savingAsset": "Guardando cambios del recurso",
     "optimizingPacks": "Optimizando imágenes",
     "optimizingPack": "Optimizando «{{pack}}»",
-    "checkingUpdates": "Buscando actualizaciones"
+    "checkingUpdates": "Buscando actualizaciones",
+    "backingUp": "Guardando copia de seguridad",
+    "loadingBackups": "Cargando copias de seguridad",
+    "deletingBackups": "Eliminando copias de seguridad",
+    "restoringBackup": "Restaurando copia"
   },
   "mapFile": {
     "unsavedTitle": "¿Guardar los cambios?",
@@ -604,7 +612,8 @@
   },
   "recent": {
     "title": "Mapas recientes",
-    "forget": "Quitar de la lista"
+    "forget": "Quitar de la lista",
+    "all": "Ver todos"
   },
   "import": {
     "builtinAssets_one": "{{count}} asset propio de Dungeondraft no está disponible",
@@ -925,5 +934,29 @@
     "discord": "Discord",
     "patreon": "Patreon",
     "kofi": "Ko-fi"
+  },
+  "backups": {
+    "title": "Copias de seguridad",
+    "recoveryTitle": "Recuperá tu trabajo",
+    "recoveryBody": "Battle Maps se cerró de forma inesperada y había cambios sin guardar. La copia más reciente ya está elegida: restaurala para seguir donde lo dejaste.",
+    "empty": "Todavía no hay copias. Mientras editás un mapa se guarda una copia cada pocos minutos, y otra cada vez que lo guardás.",
+    "untitled": "Sin título",
+    "count_one": "{{count}} copia",
+    "count_other": "{{count}} copias",
+    "maps": "Mapas",
+    "restore": "Restaurar",
+    "delete": "Eliminar",
+    "deleteMap": "Eliminar las copias de este mapa",
+    "deleteTitle": "Eliminar copias",
+    "deleteBody": "¿Eliminar todas las copias de seguridad de «{{name}}»? El archivo del mapa no se toca.",
+    "unsaved": "Sin guardar",
+    "saved": "Guardado",
+    "group": {
+      "lastHour": "Última hora",
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "thisWeek": "Esta semana",
+      "older": "Antes"
+    }
   }
 }

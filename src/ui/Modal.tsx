@@ -82,6 +82,7 @@ const SIZE_WIDTH: Record<string, string> = {
   sm: "400px",
   md: "480px",
   lg: "560px",
+  xl: "880px",
 }
 
 interface ModalProps {

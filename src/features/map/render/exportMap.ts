@@ -63,9 +63,9 @@ export function releaseExportTextures(): void {
 /** Longest wait for the export's textures before drawing without the missing ones. */
 const SETTLE_MS = 20000
 
-/** Wait until the scene has every texture it draws (or SETTLE_MS passed). */
-async function settled(scene: MapScene): Promise<void> {
-  const until = performance.now() + SETTLE_MS
+/** Wait until the scene has every texture it draws (or `ms` passed). */
+async function settled(scene: MapScene, ms: number): Promise<void> {
+  const until = performance.now() + ms
   while (!scene.isComplete() && performance.now() < until) await nextFrame()
 }
 
@@ -86,6 +86,16 @@ const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() 
 type RenderRect = (x: number, y: number, w: number, h: number) => Uint8Array
 
 /**
+ * What the stage needs. Without a `quality` it draws with the screen's own
+ * textures and scene settings (a thumbnail: nothing to load), waiting at
+ * most `settleMs` for textures still on their way.
+ */
+type StageOptions = Omit<ExportOptions, "quality"> & {
+  quality?: GraphicsPreset
+  settleMs?: number
+}
+
+/**
  * Run `fn` with the open map set up for export at the size `opts` asks:
  * the scene in the export's look, and a stage (ground, content, grid)
  * that renders any pixel rectangle of the image. The live scene content
@@ -93,7 +103,7 @@ type RenderRect = (x: number, y: number, w: number, h: number) => Uint8Array
  * the editor never shows it missing.
  */
 function withExportStage<T>(
-  opts: ExportOptions,
+  opts: StageOptions,
   fn: (size: { width: number; height: number }, render: RenderRect) => Promise<T>,
 ): Promise<T> {
   // One at a time: a size estimate must not switch the scene's look back
@@ -110,7 +120,7 @@ function withExportStage<T>(
 let queue: Promise<unknown> = Promise.resolve()
 
 async function exportStage<T>(
-  opts: ExportOptions,
+  opts: StageOptions,
   fn: (size: { width: number; height: number }, render: RenderRect) => Promise<T>,
 ): Promise<T> {
   const map = useMapStore.getState().map
@@ -139,9 +149,9 @@ async function exportStage<T>(
   // Mimic the world container: mirrored x with the origin at the map's
   // top-right corner (see viewport.ts), scaled to `ppt`.
   stage.scale.set(-ppt, ppt)
-  const preset = PRESET_SETTINGS[opts.quality]
+  const antialias = opts.quality ? PRESET_SETTINGS[opts.quality].antialias : false
   const render: RenderRect = (x, y, w, h) => {
-    const rt = RenderTexture.create({ width: w, height: h, antialias: preset.antialias })
+    const rt = RenderTexture.create({ width: w, height: h, antialias })
     stage.position.set(width - x, -y)
     const content = scene.content
     const parent = content.parent
@@ -160,11 +170,11 @@ async function exportStage<T>(
   }
   // The quality's textures (its own cache when it isn't the screen's) and
   // scene settings, every view drawn with them before the first pixel.
-  const textures = texturesFor(opts.quality)
+  const textures = opts.quality ? texturesFor(opts.quality) : assetCache
   scene.useAssets(textures)
   scene.beginExport(ppt, { ...opts, transparent })
   try {
-    await settled(scene)
+    await settled(scene, opts.settleMs ?? SETTLE_MS)
     return await fn({ width, height }, render)
   } finally {
     scene.useAssets(assetCache)
@@ -234,5 +244,49 @@ export async function renderExportSample(opts: ExportOptions): Promise<ExportSam
       }
     }
     return { rgba, width: cw * 2, height: ch * 2, imagePixels }
+  })
+}
+
+/** Longest side of a map's thumbnail (saved in the file and its backups). */
+export const THUMBNAIL_PX = 256
+
+/**
+ * A small picture of the open map (a JPEG `data:` URL, a few KB), or null
+ * while no map is on screen. Drawn as on screen (lighting and shadows as the
+ * view has them) with the textures already loaded, slightly larger than
+ * needed and scaled down, so it stays smooth.
+ */
+export async function renderThumbnail(look: {
+  lighting: boolean
+  shadows: boolean
+}): Promise<string | null> {
+  const map = useMapStore.getState().map
+  if (!map || !active) return null
+  const longest = Math.max(map.width, map.height)
+  const opts: StageOptions = {
+    ...look,
+    postProcess: true,
+    transparent: false,
+    grid: false,
+    format: { kind: "png" },
+    pxPerTile: Math.max(1, Math.ceil(THUMBNAIL_PX / longest)),
+    settleMs: 2000,
+  }
+  return withExportStage(opts, async ({ width, height }, render) => {
+    const source = document.createElement("canvas")
+    source.width = width
+    source.height = height
+    const pixels = new Uint8ClampedArray(render(0, 0, width, height))
+    source.getContext("2d")?.putImageData(new ImageData(pixels, width, height), 0, 0)
+    const scale = Math.min(1, THUMBNAIL_PX / Math.max(width, height))
+    const out = document.createElement("canvas")
+    out.width = Math.max(1, Math.round(width * scale))
+    out.height = Math.max(1, Math.round(height * scale))
+    const ctx = out.getContext("2d")
+    if (!ctx) return null
+    ctx.imageSmoothingQuality = "high"
+    ctx.drawImage(source, 0, 0, out.width, out.height)
+    // JPEG: every WebView encodes it (Safari has no WebP encoder) and it's small.
+    return out.toDataURL("image/jpeg", 0.72)
   })
 }

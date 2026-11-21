@@ -1,23 +1,48 @@
 import { Box, Button, Flex, Stack, Text, VStack } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
-import { LuFolderOpen, LuSquarePen } from "react-icons/lu"
+import { LuDatabaseBackup, LuFolderOpen, LuSquarePen } from "react-icons/lu"
 import { BrandMark } from "./BrandMark"
 import { useIsPhone } from "../ui/useIsPhone"
 import { EssentialsPrompt } from "../features/packs/EssentialsPrompt"
 import { useEssentialsMissing } from "../features/packs/useEssentials"
 import { UpdatesAvailable } from "../features/open20/UpdatesAvailable"
 import { CommunityLinks } from "../features/open20/CommunityLinks"
+import { useSettingsStore } from "../stores/settingsStore"
+import { RecentMapsGrid } from "./RecentMapsGrid"
+
+/** Recent maps the start screen shows as pictures (the rest: Open Recent). */
+const RECENT_ON_START = 4
 
 /**
  * Shown in place of the editor while no map is open: making a map is the
- * thing to do (opening one, the alternative). Below, only when it applies,
- * the free asset pack and what's new; community links at the foot. On a
- * phone the buttons span the width, easy to reach with a thumb.
+ * thing to do (opening one, the alternative), then picking up a recent one
+ * (as pictures) or a backup. Below, only when it applies, the free asset
+ * pack and what's new; community links at the foot. On a phone the
+ * buttons span the width, easy to reach with a thumb.
  */
-export function EmptyState({ onNew, onOpen }: { onNew: () => void; onOpen: () => void }) {
+export function EmptyState({
+  onNew,
+  onOpen,
+  onOpenPath,
+  onOpenRecent,
+  onOpenBackups,
+}: {
+  onNew: () => void
+  onOpen: () => void
+  onOpenPath: (path: string) => void
+  onOpenRecent: () => void
+  onOpenBackups: () => void
+}) {
   const { t } = useTranslation()
   const phone = useIsPhone()
   const noEssentials = useEssentialsMissing()
+  const recent = useSettingsStore((s) => s.recentMaps)
+  const backupsButton = (
+    <Button size="xs" variant="ghost" color="fg.muted" onClick={onOpenBackups}>
+      <LuDatabaseBackup />
+      {t("menu.backups")}
+    </Button>
+  )
   return (
     <Flex
       direction="column"
@@ -50,6 +75,28 @@ export function EmptyState({ onNew, onOpen }: { onNew: () => void; onOpen: () =>
             {t("canvas.openMap")}
           </Button>
         </Stack>
+        {recent.length > 0 ? (
+          <Box w="full" maxW={phone ? "sm" : "2xl"} textAlign="left">
+            <Flex align="center" gap="2" mb="2">
+              <Text fontSize="sm" fontWeight="semibold" color="fg" flex="1">
+                {t("recent.title")}
+              </Text>
+              {backupsButton}
+              {recent.length > RECENT_ON_START && (
+                <Button size="xs" variant="ghost" color="fg.muted" onClick={onOpenRecent}>
+                  {t("recent.all")}
+                </Button>
+              )}
+            </Flex>
+            <RecentMapsGrid
+              maps={recent.slice(0, RECENT_ON_START)}
+              columns={phone ? 2 : 4}
+              onOpen={onOpenPath}
+            />
+          </Box>
+        ) : (
+          backupsButton
+        )}
         {noEssentials && <EssentialsPrompt />}
         <UpdatesAvailable />
       </Flex>

@@ -1,13 +1,10 @@
 import { Button, Flex, IconButton, Stack, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
-import { LuFileText, LuX } from "react-icons/lu"
+import { LuX } from "react-icons/lu"
 import { useSettingsStore } from "../../stores/settingsStore"
 import { Modal } from "../../ui/Modal"
-
-/** File name part of a path (either separator). */
-function fileName(path: string): string {
-  return path.split(/[\\/]/).pop() || path
-}
+import { Thumbnail } from "../../ui/Thumbnail"
+import { mapFileName } from "../../lib/mapName"
 
 /** Recently opened/saved maps: click one to open it, × to forget it. */
 export function RecentMapsDialog({
@@ -39,7 +36,7 @@ export function RecentMapsDialog({
         </Text>
       ) : (
         <Stack gap="1">
-          {recent.map((path) => (
+          {recent.map(({ path, thumbnail }) => (
             <Flex
               key={path}
               align="center"
@@ -54,10 +51,10 @@ export function RecentMapsDialog({
                 onOpen(path)
               }}
             >
-              <LuFileText />
+              <Thumbnail src={thumbnail} w="56px" h="40px" />
               <Stack gap="0" flex="1" minW="0">
                 <Text fontSize="sm" truncate>
-                  {fileName(path)}
+                  {mapFileName(path)}
                 </Text>
                 <Text fontSize="2xs" color="fg.muted" truncate>
                   {path}
