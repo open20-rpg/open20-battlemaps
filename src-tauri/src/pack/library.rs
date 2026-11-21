@@ -153,15 +153,28 @@ fn material_name(stem: &str) -> String {
     }
 }
 
-/// Walk `textures/<category>` of a pack and collect its files.
+/// Folders under `textures/` that also hold a category's assets. Tilesets
+/// include Dungeondraft's `patterns` (Forgotten Adventures ships its pattern
+/// textures there): the Pattern tool and floors pick from both.
+fn extra_folders(category: &str) -> &'static [&'static str] {
+    match category {
+        "tilesets" => &["patterns"],
+        _ => &[],
+    }
+}
+
+/// Walk `textures/<category>` of a pack (and its [`extra_folders`]) and
+/// collect its files.
 fn build_category_index(app: &AppHandle, pack_id: &str, category: &str) -> Vec<CacheItem> {
     let Ok(dir) = pack_dir(app, pack_id) else {
         return Vec::new();
     };
     let main = main_part(category);
-    let base = dir.join("textures").join(category);
     let mut out = Vec::new();
-    let mut stack = vec![base];
+    let mut stack: Vec<PathBuf> = std::iter::once(category)
+        .chain(extra_folders(category).iter().copied())
+        .map(|f| dir.join("textures").join(f))
+        .collect();
     while let Some(d) = stack.pop() {
         let Ok(rd) = fs::read_dir(&d) else { continue };
         for entry in rd.flatten() {
@@ -222,7 +235,10 @@ fn pack_has_category(app: &AppHandle, pack_id: &str, category: &str) -> bool {
     let Ok(dir) = pack_dir(app, pack_id) else {
         return false;
     };
-    let mut stack = vec![dir.join("textures").join(category)];
+    let mut stack: Vec<PathBuf> = std::iter::once(category)
+        .chain(extra_folders(category).iter().copied())
+        .map(|f| dir.join("textures").join(f))
+        .collect();
     while let Some(d) = stack.pop() {
         let Ok(rd) = fs::read_dir(&d) else { continue };
         for entry in rd.flatten() {
