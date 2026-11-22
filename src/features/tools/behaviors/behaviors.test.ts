@@ -938,6 +938,42 @@ describe("effects, text, select, prefabs", () => {
     expect(entitiesInRect(off, { x: 3.1, y: 3.5 }, { x: 3.6, y: 4.5 })).toHaveLength(1)
   })
 
+  it("Click through transparency: bands skip a path's transparent part, at any length", () => {
+    setParams("select", { alphaPick: true })
+    const base = buildToolCtx("select")
+    if (!base) throw new Error("no ctx")
+    // A long path, 1 tile wide, whose texture is opaque only in its middle
+    // band across (v 0.4–0.6: 0.1 tile each side of its line).
+    const path: MapEntity = {
+      id: "p",
+      toolId: "path",
+      layer: 0,
+      position: { x: 0, y: 0 },
+      rotation: 0,
+      points: [
+        { x: 0, y: 0 },
+        { x: 40, y: 0 },
+      ],
+      params: { asset: "p|road", width: 1 },
+    }
+    const ctx = {
+      ...base,
+      entities: [path],
+      sizeOf: () => ({ w: 1, h: 1 }),
+      alphaAt: (_id: string, _u: number, v: number) => (v >= 0.4 && v <= 0.6 ? 255 : 0),
+    }
+    const picked = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      entitiesInRect(ctx, a, b).map((e) => e.id)
+    // Its box, its transparent edge: nothing.
+    expect(picked({ x: 10, y: 0.25 }, { x: 12, y: 0.45 })).toEqual([])
+    // Reaching its opaque middle picks it; also a big band over part of it.
+    expect(picked({ x: 10, y: 0.05 }, { x: 12, y: 0.45 })).toEqual(["p"])
+    expect(picked({ x: 5, y: -20 }, { x: 35, y: 20 })).toEqual(["p"])
+    // Off, the band goes by its box.
+    const off = { ...ctx, params: { ...ctx.params, alphaPick: false } }
+    expect(entitiesInRect(off, { x: 10, y: 0.25 }, { x: 12, y: 0.45 })).toHaveLength(1)
+  })
+
   it("Locked entities are selected only by themselves, and only unlocking changes them", () => {
     setParams("object", { [LIBRARY_PARAM]: ["p|a"] })
     tap("object", 2, 2)

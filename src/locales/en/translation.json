@@ -439,7 +439,7 @@
     "kind_materials": "Materials",
     "selectAll_materials": "All materials",
     "alphaPick": "Click through transparency",
-    "alphaPickHint": "Clicking a transparent part of an object or portal selects what's under it, and a selection rectangle only picks them if it covers some of their visible part. When off, they're picked by their whole box.",
+    "alphaPickHint": "Clicking a transparent part of an object, portal, path, wall, pattern or floor selects what's under it, and a selection rectangle only picks them if it covers some of their visible part. When off, they're picked by their whole shape or box.",
     "elementFilter": "Element filter",
     "resetToggles": "Reset filter",
     "lock": "Lock",

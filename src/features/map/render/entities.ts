@@ -1,6 +1,6 @@
 import { Container, Graphics, Mesh, MeshGeometry, Point, Sprite, Texture } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
-import { boundsOf, sub, wallRuns, type WallOpening } from "../model/geometry"
+import { boundsOf, sub, wallRuns } from "../model/geometry"
 import {
   pathTriangles,
   pathWidths,
@@ -24,6 +24,7 @@ import {
   textStyle,
 } from "../../fonts/metrics"
 import { tiledMesh } from "./tiling"
+import { portalOpenings } from "./texturePick"
 import { type RenderPerformance } from "../../../lib/renderPerformance"
 
 /**
@@ -230,15 +231,6 @@ const repeatOf = (texture: Texture | undefined, width: number) =>
 /** Default wall thickness in tiles when no wall texture is set. */
 export const WALL_WIDTH = 0.25
 
-/** The openings the level's portals cut into walls. */
-function portalOpenings(env: RenderEnv): WallOpening[] {
-  return env.portals.map((p) => {
-    const asset = typeof p.params.asset === "string" ? p.params.asset : undefined
-    const w = (env.size(asset)?.w ?? 1) * (p.scale ?? 1)
-    return { center: p.position, width: w }
-  })
-}
-
 /**
  * A wall end's cap: its `<name>_end` texture centered on `at`, as wide as
  * the wall, turned along the wall's direction `dir` there (map space) and,
@@ -285,7 +277,7 @@ const wallRenderer: EntityRenderer = (e, env) => {
   const cap = env.tex(id, { suffix: "_end" })
   const tint = color && texture ? hexToPixiColor(color).color : undefined
   const width = texture ? texture.height / TEXTURE_PX_PER_TILE : WALL_WIDTH
-  const runs = wallRuns(e.points ?? [], !!e.closed, portalOpenings(env))
+  const runs = wallRuns(e.points ?? [], !!e.closed, portalOpenings(env.portals, env.size))
   const opts = { bevel: e.params.bevelCorners !== false, normalizeUv: true }
   const meshes = runs.map((run) => wallTriangles(run.points, run.closed, width, opts))
   const repeat = repeatOf(texture, width)

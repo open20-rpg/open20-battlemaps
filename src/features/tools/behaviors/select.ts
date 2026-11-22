@@ -12,9 +12,7 @@ import {
   boundsOf,
   dist,
   editablePointsOf,
-  entityAssetId,
   nearestVertex,
-  spriteUV,
   entityBounds,
   hitTest,
   rectFromCorners,
@@ -30,6 +28,7 @@ import {
   type Rect,
   type ScaleHandle,
 } from "../../map/model/geometry"
+import { texturePicker, type TextureHit, type TexturePicker } from "../../map/render/texturePick"
 import { expandGroups, hasGroups } from "../../map/model/groups"
 import { vertexPatches, withLinked } from "../../map/model/links"
 import { elementFilter, isLockedSelection, lockedAlone, selectableBy } from "../selectKinds"
@@ -210,27 +209,44 @@ export function ungroupSelection(ctx: ToolCtx): void {
   updateEntities(new Map(grouped.map((e) => [e.id, { group: undefined }])))
 }
 
-/** Below this alpha a sprite's pixel counts as empty (soft, anti-aliased edges). */
+/** Below this alpha a texture's pixel counts as empty (soft, anti-aliased edges). */
 const ALPHA_PICK_MIN = 8
 
 /**
- * With the Select tool's "Click through transparency" on (the default), a click on a sprite (object,
- * portal) only picks it where its texture isn't transparent: elsewhere it
- * goes through to what's under it. Until the texture is loaded, its shape decides.
+ * With the Select tool's "Click through transparency" on (the default), a
+ * point picks a textured entity (objects, portals, paths, walls, patterns,
+ * floors) only where its texture isn't transparent: elsewhere it goes
+ * through to what's under it. Untextured ones (lights, texts, painted
+ * strokes, roofs), and any whose texture isn't loaded yet, go by their shape.
+ * Each entity's geometry is built once per check (a band samples it many times).
  */
-/** Entities drawn from a texture (objects, portals…), whose transparent parts clicks go through. */
-const isSprite = (e: MapEntity) =>
-  !e.points && !e.strokes && e.toolId !== "text" && e.toolId !== "light"
-
-const solidAt = (ctx: ToolCtx) => (e: MapEntity, p: Vec2) => {
-  if (!isSprite(e)) return true
-  const id = entityAssetId(e)
-  const size = id ? ctx.sizeOf(id) : undefined
-  if (!id || !size) return true
-  const uv = spriteUV(e, p, size)
-  const alpha = ctx.alphaAt(id, uv.x, uv.y)
-  return alpha === undefined || alpha >= ALPHA_PICK_MIN
+function solidAt(ctx: ToolCtx) {
+  const portals = ctx.entities.filter((e) => e.toolId === "portal")
+  const pickers = new Map<MapEntity, TexturePicker | undefined>()
+  const pickerOf = (e: MapEntity) => {
+    if (!pickers.has(e)) pickers.set(e, texturePicker(e, ctx.sizeOf, portals))
+    return pickers.get(e)
+  }
+  const opaque = (hit: TextureHit) => {
+    const alpha = ctx.alphaAt(hit.asset, hit.u, hit.v)
+    return alpha === undefined || alpha * hit.opacity >= ALPHA_PICK_MIN
+  }
+  /** Whether `e` is solid at `p` (a click). */
+  const at = (e: MapEntity, p: Vec2) => {
+    const hit = pickerOf(e)?.at(p)
+    return hit === undefined || (hit !== null && opaque(hit))
+  }
+  /** Whether a band covers some of `e`'s opaque pixels. */
+  const inBand = (e: MapEntity, band: Rect, bounds: Rect) => {
+    const spread = pickerOf(e)?.spread?.()
+    if (!spread) return bandTouchesSolid(band, bounds, (p) => at(e, p))
+    return spread.some(({ p, hit }) => pointInRect(p, band) && opaque(hit))
+  }
+  return { at, inBand }
 }
+
+const pointInRect = (p: Vec2, r: Rect) =>
+  p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h
 
 /** What clicks and rubber bands may pick: the Select tool's element filter, locked or not. */
 const pickable = (ctx: ToolCtx) => selectableBy(elementFilter(ctx.params), "any", ctx.entities)
@@ -277,15 +293,14 @@ export function rotateSelection(ctx: ToolCtx, delta: number): void {
 export function entitiesInRect(ctx: ToolCtx, a: Vec2, b: Vec2): MapEntity[] {
   const band = rectFromCorners(a, b)
   const pick = pickable(ctx)
-  // Click through transparency: a band picks a sprite only where it covers
-  // some of its opaque pixels (a click on its transparent part, a band of
-  // no size, picks nothing), as a click does.
+  // Click through transparency: a band picks a textured entity only where
+  // it covers some of its opaque pixels (a click on its transparent part, a
+  // band of no size, picks nothing), as a click does.
   const solid = ctx.params.alphaPick === true ? solidAt(ctx) : undefined
   const caught = ctx.entities.filter((e) => {
     if (!pick(e)) return false
     const bounds = entityBounds(e, ctx.sizeOf)
-    if (!solid || !isSprite(e)) return rectsIntersect(bounds, band)
-    return bandTouchesSolid(band, bounds, (p) => solid(e, p))
+    return solid ? solid.inBand(e, band, bounds) : rectsIntersect(bounds, band)
   })
   const unlocked = caught.filter((e) => !e.locked)
   return unlocked.length > 0 ? unlocked : caught
@@ -365,7 +380,7 @@ export function createSelectBehavior(): ToolBehavior {
       // edges, whatever the zoom.
       const reach = Math.max(0.2, screenTiles(HIT_REACH_PX))
       const solid = ctx.params.alphaPick === true ? solidAt(ctx) : undefined
-      const hit = hitTest(ctx.entities, e, ctx.sizeOf, pickable(ctx), reach, solid)
+      const hit = hitTest(ctx.entities, e, ctx.sizeOf, pickable(ctx), reach, solid?.at)
       const { selection } = editor()
       const from = { x: e.x, y: e.y }
       if (hit) {
