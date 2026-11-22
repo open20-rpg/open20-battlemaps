@@ -124,6 +124,8 @@ export interface ToolLeaf {
    * that problem — or while it's in use — and stands out with a count.
    */
   alert?: ToolAlertId
+  /** i18n key of a short help shown under the params (extensions' tools). */
+  helpKey?: string
 }
 
 /** A folder that opens a panel listing its children. */

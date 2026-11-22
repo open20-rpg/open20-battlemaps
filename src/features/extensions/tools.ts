@@ -378,6 +378,7 @@ export function extensionToolLeaf(extId: string, c: ToolContribution): ToolLeaf 
     icon: extensionIcon(c.icon),
     ...(c.library ? { library: c.library, librarySelect: c.librarySelect ?? "single" } : {}),
     params: (c.params ?? []).flatMap((p) => toParamSpec(extId, p) ?? []),
+    ...(c.help ? { helpKey: textKey(extId, c.help) } : {}),
   }
 }
 

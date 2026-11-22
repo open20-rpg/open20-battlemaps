@@ -168,6 +168,11 @@ export function ParamsPanel({
               </Flex>
             )
           })}
+          {tool.helpKey && !expandedKey && (
+            <Text px="3" py="2" fontSize="xs" color="fg.muted" whiteSpace="pre-wrap">
+              {t(tool.helpKey)}
+            </Text>
+          )}
         </VStack>
       ) : (
         <Flex flex="1" align="center" justify="center" p="6">

@@ -211,7 +211,7 @@ function Details({ ext }: { ext: InstalledExtension }) {
           <Switch.Label>{t("extensions.enabled")}</Switch.Label>
         </Switch.Root>
         {ext.dev && (
-          <Button size="xs" variant="outline" onClick={() => void extensionManager.start(id)}>
+          <Button size="xs" variant="outline" onClick={() => void extensionManager.reloadDev(id)}>
             <LuRefreshCw />
             {t("extensions.reload")}
           </Button>

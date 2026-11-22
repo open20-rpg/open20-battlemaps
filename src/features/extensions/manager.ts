@@ -240,6 +240,13 @@ export class ExtensionManager {
     return []
   }
 
+  /** Read a development extension's folder again and restart it with what's there now. */
+  async reloadDev(id: string): Promise<string[]> {
+    const entry = (await this.services.listRegistry()).find((e) => e.id === id)
+    if (!entry?.devPath) return [`${id} isn't loaded from a folder`]
+    return this.loadDev(entry.devPath)
+  }
+
   private readFile(id: string, path: string): Promise<Uint8Array> {
     const dev = devFiles.get(id)?.get(path)
     return dev ? Promise.resolve(dev) : this.services.readFile(id, path)
