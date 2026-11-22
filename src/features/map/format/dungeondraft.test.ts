@@ -189,6 +189,30 @@ describe("Dungeondraft import", () => {
     expect(new Set(r.packs).size).toBe(r.packs.length)
   })
 
+  it("turns a pattern's texture with its shape (shape_rotation)", () => {
+    const map = structuredClone(MAP)
+    const pattern = (shape: number, own: number) => ({
+      position: "Vector2( 256, 256 )",
+      shape_rotation: shape,
+      scale: "Vector2( 1, 1 )",
+      points: "PoolVector2Array( 0, 0, 512, 0, 512, 512, 0, 512 )",
+      layer: 100,
+      color: "ffffffff",
+      outline: false,
+      texture: "res://packs/abcd1234/textures/patterns/normal/a.webp",
+      rotation: own,
+    })
+    ;(map.world.levels["0"] as Record<string, unknown>).patterns = [
+      pattern(Math.PI / 2, 0),
+      pattern(-1.934082, 0),
+      pattern(0, -Math.PI / 2),
+      pattern(Math.PI / 2, Math.PI),
+    ]
+    const r = importDungeondraftMap(JSON.stringify(map))
+    const rot = r.doc.entities.filter((e) => e.toolId === "pattern").map((e) => Math.round(Number(e.params.rotation) * 10) / 10)
+    expect(rot).toEqual([90, -110.8, -90, -90])
+  })
+
   it("mirrors x (cells from the right edge) and maps pack textures to asset ids", () => {
     const [wall] = byTool("wall")
     expect(wall.points).toEqual([

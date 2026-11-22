@@ -73,6 +73,11 @@ const num = (v: unknown, fallback: number): number => (typeof v === "number" ? v
 const bool = (v: unknown, fallback: boolean): boolean => (typeof v === "boolean" ? v : fallback)
 const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined)
 const deg = (rad: number) => (rad * 180) / Math.PI
+/** An angle in degrees within (-180, 180] (what the Pattern tool's rotation takes). */
+const wrapDeg = (d: number) => {
+  const w = ((((d + 180) % 360) + 360) % 360) - 180
+  return w === -180 ? 180 : w
+}
 
 /** Parse a Godot literal, or undefined when it's absent/malformed. */
 function tryParse<T>(fn: (v: unknown) => T, value: unknown): T | undefined {
@@ -339,7 +344,8 @@ function patterns(im: Importer, level: string, raw: Json): MapEntity[] {
           params: {
             pattern: selection(im.asset(pt.texture)),
             customColor: argbToHex(pt.color),
-            rotation: deg(num(pt.rotation, 0)),
+            // The texture turns with its shape: the node's rotation plus the texture's own.
+            rotation: wrapDeg(deg(num(pt.rotation, 0) + num(pt.shape_rotation, 0))),
             outline: bool(pt.outline, false),
           },
         }),
