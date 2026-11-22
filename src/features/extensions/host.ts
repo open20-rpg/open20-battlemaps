@@ -38,6 +38,7 @@ import { applyOps, diffEntities, kindOwner, OpError, toSdkEntity, toSdkLevels } 
 import { findPath, findRooms, visibility, walkability } from "./analysis"
 import { type HostServices, type SocketHandle } from "./services"
 import { validateContribution } from "./validate"
+import { matches } from "./match"
 import { BASE_TILE_PX, clampZoom } from "../map/render/viewport"
 
 /** How the extension's code runs: a sandboxed worker in the app, in-process in tests. */
@@ -57,6 +58,8 @@ export interface HostHooks {
     level?: string
     pxPerTile?: number
     format?: "png" | "jpeg"
+    /** Entities left out, already resolved for the asking extension. */
+    hide?: (entity: MapEntity) => boolean
   }) => Promise<Uint8Array>
   notify?: (extId: string, message: string, tone: string, action?: string) => Promise<boolean>
   theme?: () => { mode: "light" | "dark"; tokens: Record<string, string> }
@@ -624,7 +627,11 @@ export class ExtensionHost {
         if (!this.hooks.renderToImage)
           throw new ExtensionError("rendering isn't available right now", "notFound")
         const format = opts.format ?? "png"
-        const bytes = await this.hooks.renderToImage({ ...opts, format })
+        const rules = Array.isArray(opts.hide) ? opts.hide.slice(0, 20) : []
+        const hide = rules.length
+          ? (e: MapEntity) => rules.some((m) => matches(e, m, extId))
+          : undefined
+        const bytes = await this.hooks.renderToImage({ ...opts, format, hide })
         return { name: `map.${format}`, bytes, mime: `image/${format}` }
       },
       "editor.get": () => {

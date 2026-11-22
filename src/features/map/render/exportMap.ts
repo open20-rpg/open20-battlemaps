@@ -1,3 +1,4 @@
+import { type MapEntity } from "../model/types"
 import { Container, Graphics, RenderTexture, type Renderer } from "pixi.js"
 import { useMapStore } from "../../../stores/mapStore"
 import { getToolParams } from "../../../stores/toolsStore"
@@ -304,6 +305,8 @@ export async function renderMapImage(req: {
   area?: { x: number; y: number; w: number; h: number }
   pxPerTile?: number
   format?: "png" | "jpeg"
+  /** Entities left out (see ExportLook.hide). */
+  hide?: (entity: MapEntity) => boolean
 }): Promise<Uint8Array | null> {
   const map = useMapStore.getState().map
   if (!map || !active) return null
@@ -321,6 +324,7 @@ export async function renderMapImage(req: {
     format: { kind: "png" },
     pxPerTile: ppt,
     settleMs: 2000,
+    hide: req.hide,
   }
   return withExportStage(opts, async ({ width, height }, render) => {
     const a = req.area

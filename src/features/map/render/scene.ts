@@ -47,6 +47,8 @@ export interface ExportLook {
   transparent: boolean
   /** Graphics quality to draw with (its scene settings; textures: see exportMap.ts). */
   quality?: GraphicsPreset
+  /** Entities left out of the image (a background without its objects, for a VTT). */
+  hide?: (entity: MapEntity) => boolean
 }
 
 /** Everything the scene draws from, gathered from the stores each frame it changes. */
@@ -352,11 +354,27 @@ export class MapScene {
   }
 
   /** The state actually drawn: the live one, or with an export's look applied. */
+  /** The map without an export's hidden entities (computed once per map). */
+  private shown: { map: MapDocument; hide: (e: MapEntity) => boolean; result: MapDocument } | null =
+    null
+
   private drawn(state: SceneState): SceneState {
     if (!this.exporting) return state
     const { look } = this.exporting
+    let map = state.map
+    if (look.hide) {
+      const hide = look.hide
+      if (this.shown?.map !== map || this.shown.hide !== hide)
+        this.shown = {
+          map,
+          hide,
+          result: { ...map, entities: map.entities.filter((e) => !hide(e)) },
+        }
+      map = this.shown.result
+    }
     return {
       ...state,
+      map,
       lighting: look.lighting,
       shadows: look.shadows,
       postProcess: look.postProcess ? state.postProcess : DEFAULT_POST_PROCESS,

@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.nivel21",
+  "name": { "es": "Exportar a Nivel20", "en": "Export to Nivel20" },
+  "version": "1.0.0",
+  "description": {
+    "es": "Exporta el mapa para Nivel20 (con Nivel21): el fondo sin objetos, los objetos como tokens bloqueados y los muros de la niebla de guerra, con puertas y ventanas aparte.",
+    "en": "Exports the map for Nivel20 (with Nivel21): the background without objects, objects as locked tokens and fog-of-war walls, with doors and windows apart."
+  },
+  "author": { "name": "Open20", "url": "https://open20.app" },
+  "license": "MIT",
+  "homepage": "https://github.com/open20-rpg/nivel21",
+  "issues": "https://github.com/open20-rpg/open20-battlemaps/issues",
+  "engines": { "battlemaps": "^1.0.0" },
+  "main": "main.js",
+  "permissions": ["map:read", "library:read", "files", "ui"]
+}

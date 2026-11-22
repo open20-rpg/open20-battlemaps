@@ -18,6 +18,7 @@ import {
   type CameraTarget,
   type EditorState,
   type Entity,
+  type EntityMatch,
   type EntityQuery,
   type FileData,
   type MapChange,
@@ -111,7 +112,14 @@ export interface HostApi {
   "analysis.path": [{ from: Vec2; to: Vec2; level?: string }, Vec2[] | null]
   "analysis.visibility": [{ from: Vec2; radius: number; level?: string }, Vec2[]]
   "render.toImage": [
-    { area?: Rect; level?: string; pxPerTile?: number; format?: "png" | "jpeg" },
+    {
+      area?: Rect
+      level?: string
+      pxPerTile?: number
+      format?: "png" | "jpeg"
+      /** Entities left out of the image (a background without objects). */
+      hide?: EntityMatch[]
+    },
     FileData,
   ]
   // map:write

@@ -210,4 +210,18 @@ describe("extension host", () => {
     await expect(ctx.folder.read("../secreto")).rejects.toMatchObject({ code: "invalid" })
     await expect(ctx.folder.read("/etc/passwd")).rejects.toMatchObject({ code: "invalid" })
   })
+
+  it("renders the map to an image leaving out what the extension asks", async () => {
+    h = createHarness()
+    let hide: ((e: never) => boolean) | undefined
+    h.host.hooks.renderToImage = async (opts) => {
+      hide = opts.hide as never
+      return new Uint8Array([1])
+    }
+    const ctx = await withContext(["map:read"])
+    const img = await ctx.render.toImage({ hide: [{ kinds: ["object"] }] })
+    expect(img.mime).toBe("image/png")
+    expect(hide?.({ toolId: "object", params: {} } as never)).toBe(true)
+    expect(hide?.({ toolId: "wall", params: {} } as never)).toBe(false)
+  })
 })
