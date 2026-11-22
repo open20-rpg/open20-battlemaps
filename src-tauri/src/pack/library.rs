@@ -707,7 +707,12 @@ mod tests {
     }
 
     fn item(rel: &str) -> CacheItem {
-        let name = rel.rsplit('/').next().unwrap().trim_end_matches(".webp").to_string();
+        let name = rel
+            .rsplit('/')
+            .next()
+            .unwrap()
+            .trim_end_matches(".webp")
+            .to_string();
         let folder_words = rel
             .split('/')
             .skip(2)
@@ -715,12 +720,20 @@ mod tests {
             .split_last()
             .map(|(_, dirs)| dirs.iter().flat_map(|d| split_words(d)).collect())
             .unwrap_or_default();
-        CacheItem { rel_path: rel.into(), words: split_words(&name), name, folder_words }
+        CacheItem {
+            rel_path: rel.into(),
+            words: split_words(&name),
+            name,
+            folder_words,
+        }
     }
 
     #[test]
     fn words_split_on_separators_and_camel_case() {
-        assert_eq!(split_words("Table_Round_Wood_A1_2x2"), ["table", "round", "wood", "a1", "2x2"]);
+        assert_eq!(
+            split_words("Table_Round_Wood_A1_2x2"),
+            ["table", "round", "wood", "a1", "2x2"]
+        );
         assert_eq!(split_words("  round   TABLE "), ["round", "table"]);
         assert_eq!(split_words("Dirty Snow"), ["dirty", "snow"]);
         assert_eq!(split_words("woodenChair"), ["wooden", "chair"]);
@@ -744,13 +757,20 @@ mod tests {
     #[test]
     fn better_matches_rank_first() {
         let round = item("textures/objects/Furniture/Tables/Table_Round_Wood_A1_2x2.webp");
-        let coffee = item("textures/objects/Furniture/Tables/Coffee_Table_Fancy_Wood_Round_A1_1x1.webp");
+        let coffee =
+            item("textures/objects/Furniture/Tables/Coffee_Table_Fancy_Wood_Round_A1_1x1.webp");
         let rounded = item("textures/objects/Misc/Roundel_Table_Cloth_A1_1x1.webp");
         let folder = item("textures/objects/Furniture/Tables/Bench_Wood_A1_2x1.webp");
         let typed = split_words("round table");
         let r = |i: &CacheItem| rank(i, &typed).unwrap();
         assert!(r(&round) < r(&coffee), "typed order and fewer words first");
-        assert!(r(&round) < r(&rounded), "a whole word before a word's beginning");
-        assert!(rank(&folder, &split_words("table")).unwrap() > rank(&round, &split_words("table")).unwrap());
+        assert!(
+            r(&round) < r(&rounded),
+            "a whole word before a word's beginning"
+        );
+        assert!(
+            rank(&folder, &split_words("table")).unwrap()
+                > rank(&round, &split_words("table")).unwrap()
+        );
     }
 }

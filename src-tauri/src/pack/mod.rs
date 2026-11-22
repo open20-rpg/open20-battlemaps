@@ -33,8 +33,8 @@ pub use commands::*;
 pub(crate) use compress::clear_temp as clear_optimize_temp;
 pub use library::LibraryState;
 pub use recolor::recolor_protocol;
-pub(crate) use userpack::clear_previews;
 pub(crate) use tags::prewarm as prewarm_tags;
+pub(crate) use userpack::clear_previews;
 
 use std::io;
 use std::path::Path;

@@ -2,6 +2,7 @@
 mod android_fs;
 mod backups;
 mod export;
+mod extensions;
 mod fonts;
 mod map;
 mod pack;
@@ -23,6 +24,8 @@ pub fn run() {
             pack::clear_optimize_temp(app.handle());
             // The Library's tags, read ahead so its Tags tab opens at once.
             pack::prewarm_tags(app.handle());
+            // Images extensions handed over for an import that didn't finish.
+            extensions::clear_temp(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -72,6 +75,22 @@ pub fn run() {
             backups::backup_session_start,
             updates::latest_version,
             updates::open_open20_page,
+            extensions::extensions_registry,
+            extensions::extensions_save_registry,
+            extensions::extension_install,
+            extensions::extension_uninstall,
+            extensions::extension_read_file,
+            extensions::extension_read_dir,
+            extensions::extension_storage_get,
+            extensions::extension_storage_set,
+            extensions::extension_storage_delete,
+            extensions::extension_storage_keys,
+            extensions::extension_fetch,
+            extensions::extension_folder_list,
+            extensions::extension_folder_read,
+            extensions::extension_folder_write,
+            extensions::extension_open_url,
+            extensions::extension_temp_write,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

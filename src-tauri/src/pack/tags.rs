@@ -25,7 +25,11 @@ struct RawTagsFile {
 /// (`textures/...`): some packs write full `res://packs/<id>/...` paths
 /// (`prefix` is that `res://packs/<id>/`).
 fn normalize_path(prefix: &str, path: &str) -> String {
-    let p = if path.contains('\\') { path.replace('\\', "/") } else { path.to_string() };
+    let p = if path.contains('\\') {
+        path.replace('\\', "/")
+    } else {
+        path.to_string()
+    };
     match p.strip_prefix(prefix) {
         Some(rest) => rest.to_string(),
         None => p,
@@ -89,7 +93,12 @@ pub(crate) fn pack_tags(app: &AppHandle, pack_id: &str) -> Arc<TagMap> {
 fn pack_names(app: &AppHandle, pack_id: &str, category: &str) -> Arc<Vec<String>> {
     let state = app.state::<LibraryState>();
     let key = format!("{pack_id}/{category}");
-    if let Some(n) = state.tag_names.lock().ok().and_then(|m| m.get(&key).cloned()) {
+    if let Some(n) = state
+        .tag_names
+        .lock()
+        .ok()
+        .and_then(|m| m.get(&key).cloned())
+    {
         return n;
     }
     let tags = pack_tags(app, pack_id);

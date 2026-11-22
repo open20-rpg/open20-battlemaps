@@ -319,12 +319,10 @@ export class ExtensionHost {
         .filter((e) => touched.has(e.id))
         .map((e) => toSdkEntity(e, r.id, level))
       for (const v of r.validators.values()) {
-        let verdict: { veto?: unknown } | null = null
-        try {
-          verdict = (await v(change, entities)) as { veto?: unknown } | null
-        } catch {
-          continue
-        }
+        // A validator that throws doesn't veto (a bug in it shouldn't block the user).
+        const verdict = (await v(change, entities).catch(() => null)) as {
+          veto?: unknown
+        } | null
         if (verdict && typeof verdict.veto === "string") {
           if (useMapStore.getState().map === map) {
             undo()
