@@ -1,0 +1,17 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.vtt-export",
+  "name": { "es": "Exportar a VTT", "en": "VTT export" },
+  "version": "1.0.0",
+  "description": {
+    "es": "Exporta e importa Universal VTT (.dd2vtt) con muros, puertas y luces, versión jugadores y DM.",
+    "en": "Exports and imports Universal VTT (.dd2vtt) with walls, doors and lights, players' and DM's versions."
+  },
+  "author": { "name": "Open20" },
+  "license": "MIT",
+  "engines": { "battlemaps": "^1.0.0" },
+  "main": "main.js",
+  "permissions": ["map:read", "map:write", "files", "ui"],
+  "optionalPermissions": ["folder", "clipboard"],
+  "activation": ["onFile:dd2vtt", "onFile:tokens", "onStartup"]
+}

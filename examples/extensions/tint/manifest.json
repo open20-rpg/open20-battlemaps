@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.tint",
+  "name": { "es": "Tintes", "en": "Tints" },
+  "version": "1.0.0",
+  "description": {
+    "es": "Teñí cualquier objeto: una propiedad de color en Seleccionar y reglas que lo pintan.",
+    "en": "Tint any object: a color property in Select and rules that paint it."
+  },
+  "author": { "name": "Open20" },
+  "license": "MIT",
+  "engines": { "battlemaps": "^1.0.0" },
+  "main": "main.js",
+  "permissions": ["map:read", "map:write", "editor", "tools", "render", "ui"]
+}

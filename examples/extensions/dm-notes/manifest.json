@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.dm-notes",
+  "name": { "es": "Notas del DM", "en": "DM notes" },
+  "version": "1.0.0",
+  "description": {
+    "es": "Notas por habitación, vista de jugadores con niebla de guerra, tour guiado y estadísticas.",
+    "en": "Notes per room, a players' view with fog of war, a guided tour and stats."
+  },
+  "author": { "name": "Open20" },
+  "license": "MIT",
+  "homepage": "https://open20.app",
+  "issues": "https://github.com/open20-rpg/open20-battlemaps/issues",
+  "engines": { "battlemaps": "^1.0.0" },
+  "main": "main.js",
+  "permissions": ["map:read", "map:write", "editor", "ui", "ui:iframe", "views", "files"],
+  "contributes": {
+    "settings": {
+      "secretColor": { "type": "color", "label": { "es": "Color de lo secreto", "en": "Secret color" }, "default": "#a70909" },
+      "warnEmpty": { "type": "boolean", "label": { "es": "Avisar notas vacías", "en": "Warn on empty notes" }, "default": true }
+    }
+  }
+}

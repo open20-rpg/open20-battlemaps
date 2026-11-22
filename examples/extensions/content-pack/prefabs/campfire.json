@@ -1,0 +1,28 @@
+[
+  {
+    "id": "fire",
+    "toolId": "light",
+    "layer": 700,
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "rotation": 0,
+    "params": {
+      "color": "#ff8a3d"
+    }
+  },
+  {
+    "id": "logs",
+    "toolId": "object",
+    "layer": 100,
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "rotation": 0,
+    "params": {
+      "asset": "open20.essentials|textures/objects/campfire.png"
+    }
+  }
+]

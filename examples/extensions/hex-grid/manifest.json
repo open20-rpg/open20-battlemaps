@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.hex-grid",
+  "name": { "es": "Grilla hexagonal", "en": "Hex grid" },
+  "version": "1.0.0",
+  "description": {
+    "es": "Grilla de hexágonos con snap, coordenadas y un servicio de cálculo hex para otras extensiones.",
+    "en": "Hex grid with snapping, coordinates and a hex math service for other extensions."
+  },
+  "author": { "name": "Open20" },
+  "license": "MIT",
+  "engines": { "battlemaps": "^1.0.0" },
+  "main": "main.js",
+  "permissions": ["map:read", "map:write", "editor", "render", "ui", "services"]
+}

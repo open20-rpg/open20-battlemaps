@@ -1,0 +1,12 @@
+{
+  "menu": {
+    "menu": "Menu",
+    "new": "Novo",
+    "open": "Abrir",
+    "save": "Salvar",
+    "export": "Exportar",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "extensions": "Extensões"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "undo": [
+    "Ctrl+Z"
+  ],
+  "redo": [
+    "Ctrl+Y"
+  ],
+  "save": [
+    "Ctrl+S"
+  ]
+}

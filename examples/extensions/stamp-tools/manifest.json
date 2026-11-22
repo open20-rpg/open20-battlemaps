@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.stamp-tools",
+  "name": { "es": "Herramientas de sello", "en": "Stamp tools" },
+  "version": "1.0.0",
+  "description": {
+    "es": "Sellos, empalizadas, senderos y habitaciones: herramientas nuevas con los gestos de la app.",
+    "en": "Stamps, palisades, trails and rooms: new tools with the app's gestures."
+  },
+  "author": { "name": "Open20" },
+  "license": "MIT",
+  "engines": { "battlemaps": "^1.0.0" },
+  "main": "main.js",
+  "permissions": ["map:read", "map:write", "editor", "tools", "ui"],
+  "activation": ["onTool:stamp"]
+}

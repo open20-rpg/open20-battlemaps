@@ -189,11 +189,15 @@ function pointer(ctx: ToolCtx, e: PointerInfo): SdkPointerEvent {
 
 /** Run a handler of the extension, logging (not throwing) what goes wrong. */
 function run(extId: string, label: string, call: () => unknown): void {
-  Promise.resolve()
-    .then(call)
-    .catch((e: unknown) =>
-      useExtensionsStore.getState().log({ extId, kind: "fault", text: `${label}: ${String(e)}` }),
-    )
+  const fault = (e: unknown) =>
+    useExtensionsStore.getState().log({ extId, kind: "fault", text: `${label}: ${String(e)}` })
+  // Called right away (not on a later tick): events must reach the
+  // extension in the order they happened (a press before its moves).
+  try {
+    Promise.resolve(call()).catch(fault)
+  } catch (e) {
+    fault(e)
+  }
 }
 
 /** The behavior of an extension's tool: its gesture (host-side) plus forwarded handlers. */

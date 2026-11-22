@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.dungeon-generator",
+  "name": { "es": "Generador de mazmorras", "en": "Dungeon generator" },
+  "version": "1.0.0",
+  "description": {
+    "es": "Mazmorras con semilla, escaleras paramétricas, antorchas que iluminan y análisis de habitaciones.",
+    "en": "Seeded dungeons, parametric stairs, torches that light up and room analysis."
+  },
+  "author": { "name": "Open20" },
+  "license": "MIT",
+  "engines": { "battlemaps": "^1.0.0" },
+  "main": "main.js",
+  "permissions": ["map:read", "map:write", "generators", "render", "tools", "ui"],
+  "activation": ["onMapOpen", "onCommand:analyze"]
+}

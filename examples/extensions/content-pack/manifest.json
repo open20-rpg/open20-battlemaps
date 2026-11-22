@@ -1,0 +1,142 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.content-pack",
+  "name": {
+    "es": "Pack de contenido",
+    "en": "Content pack"
+  },
+  "version": "1.0.0",
+  "description": {
+    "es": "Una extensión solo de datos: idioma, atajos, presets, prefabs y plantillas. No ejecuta código.",
+    "en": "A data-only extension: language, shortcuts, presets, prefabs and templates. It runs no code."
+  },
+  "author": {
+    "name": "Open20"
+  },
+  "license": "CC-BY-4.0",
+  "engines": {
+    "battlemaps": "^1.0.0"
+  },
+  "contributes": {
+    "languagePacks": [
+      {
+        "lang": "pt",
+        "name": "Português",
+        "path": "lang/pt.json"
+      }
+    ],
+    "keymaps": [
+      {
+        "id": "dungeondraft",
+        "name": {
+          "es": "Estilo Dungeondraft",
+          "en": "Dungeondraft style"
+        },
+        "path": "keymaps/dungeondraft.json"
+      }
+    ],
+    "toolPresets": [
+      {
+        "id": "big-scatter",
+        "tool": "scatter",
+        "name": {
+          "es": "Dispersión densa",
+          "en": "Dense scatter"
+        },
+        "params": {
+          "spread": 3
+        }
+      }
+    ],
+    "palettes": [
+      {
+        "id": "autumn",
+        "name": {
+          "es": "Otoño",
+          "en": "Autumn"
+        },
+        "colors": [
+          "#8c3b0c",
+          "#c96d1a",
+          "#e8b04a",
+          "#5e6b2b"
+        ]
+      }
+    ],
+    "postProcessPresets": [
+      {
+        "id": "night",
+        "name": {
+          "es": "Noche",
+          "en": "Night"
+        },
+        "values": {
+          "brightness": -0.3,
+          "saturation": -0.4
+        }
+      }
+    ],
+    "lightPresets": [
+      {
+        "id": "candle",
+        "name": {
+          "es": "Vela",
+          "en": "Candle"
+        },
+        "params": {
+          "color": "#ffb347"
+        }
+      }
+    ],
+    "prefabs": [
+      {
+        "id": "campfire",
+        "name": {
+          "es": "Fogata",
+          "en": "Campfire"
+        },
+        "path": "prefabs/campfire.json"
+      }
+    ],
+    "templates": [
+      {
+        "id": "capacidades",
+        "name": {
+          "es": "Mapa de prueba",
+          "en": "Test map"
+        },
+        "path": "templates/capacidades.otbm"
+      }
+    ],
+    "mapSizes": [
+      {
+        "id": "a4",
+        "name": {
+          "es": "Hoja A4 (1 pulgada)",
+          "en": "A4 sheet (1 inch)"
+        },
+        "width": 8,
+        "height": 11
+      }
+    ],
+    "shaders": [
+      {
+        "id": "sepia-warm",
+        "name": {
+          "es": "Sepia cálido",
+          "en": "Warm sepia"
+        },
+        "target": "post",
+        "path": "shaders/sepia-warm.glsl"
+      }
+    ],
+    "assets": "assets",
+    "fonts": [
+      {
+        "family": "Open20 Runas",
+        "path": "fonts/open20-runas.ttf",
+        "license": "CC0-1.0"
+      }
+    ]
+  }
+}

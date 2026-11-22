@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "id": "open20.effects",
+  "name": { "es": "Efectos", "en": "Effects" },
+  "version": "1.0.0",
+  "description": {
+    "es": "Shaders de ejemplo (calor, viejo pergamino, agua), lluvia y brasas, y luces que titilan.",
+    "en": "Example shaders (heat, old parchment, water), rain and embers, and flickering lights."
+  },
+  "author": { "name": "Open20" },
+  "license": "MIT",
+  "engines": { "battlemaps": "^1.0.0" },
+  "main": "main.js",
+  "permissions": ["map:read", "render", "render:shaders", "tools", "ui"]
+}
