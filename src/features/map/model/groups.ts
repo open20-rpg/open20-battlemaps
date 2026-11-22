@@ -29,3 +29,19 @@ export function regroup(entities: readonly MapEntity[]): MapEntity[] {
 /** Whether any of `entities` belongs to a group. */
 export const hasGroups = (entities: readonly MapEntity[]): boolean =>
   entities.some((e) => !!e.group)
+
+/** `ids` plus everything attached to them, however deep. */
+export function withAttached(ids: readonly string[], entities: readonly MapEntity[]): Set<string> {
+  const out = new Set(ids)
+  if (!entities.some((e) => e.parent)) return out
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const e of entities)
+      if (e.parent && out.has(e.parent) && !out.has(e.id)) {
+        out.add(e.id)
+        grew = true
+      }
+  }
+  return out
+}

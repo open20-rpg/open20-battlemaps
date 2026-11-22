@@ -5,6 +5,7 @@ import { useToolsStore } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
 import { useEditorStore } from "../../../stores/editorStore"
 import { translateEntity } from "../model/geometry"
+import { withAttached } from "../model/groups"
 import { replaceAssetIn } from "../missingAssets"
 import { type PostProcess } from "../../../lib/postProcess"
 import {
@@ -169,11 +170,14 @@ export function replaceAsset(from: string, to: string, entityIds?: readonly stri
   })
 }
 
-/** Move entities by a delta (in tiles); locked ones stay put. */
+/**
+ * Move entities by a delta (in tiles); locked ones stay put. What's attached
+ * to them (`parent`) moves along.
+ */
 export function moveEntities(ids: readonly string[], delta: Vec2): void {
   if (ids.length === 0 || (delta.x === 0 && delta.y === 0)) return
-  const move = new Set(ids)
   edit((map) => {
+    const move = withAttached(ids, map.entities)
     let changed = false
     const entities = map.entities.map((e) => {
       if (!move.has(e.id) || e.locked) return e
@@ -182,6 +186,32 @@ export function moveEntities(ids: readonly string[], delta: Vec2): void {
     })
     return changed ? { ...map, entities } : map
   })
+}
+
+/**
+ * A whole-document change computed elsewhere by a pure function (an
+ * extension's batch of ops, see features/extensions/ops.ts): one undo step,
+ * like any command. `fn` returning the same document is a no-op.
+ */
+export function transformDocument(fn: (map: MapDocument) => MapDocument): void {
+  edit(fn)
+}
+
+/**
+ * Change the document as part of the last undo step instead of a new one
+ * (an extension reacting to the user's change: undoing it undoes both).
+ */
+export function amendLastStep(fn: (map: MapDocument) => MapDocument): void {
+  const map = useMapStore.getState().map
+  if (!map) return
+  const next = fn(map)
+  if (next === map) return
+  const temporal = useMapStore.temporal.getState()
+  const tracking = temporal.isTracking
+  temporal.pause()
+  useMapStore.setState({ map: next })
+  if (tracking) temporal.resume()
+  useMapFileStore.getState().markDirty()
 }
 
 // -- map-wide settings -------------------------------------------------------

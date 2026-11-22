@@ -76,3 +76,19 @@ export function applyPostProcess(
   }
   return [clamp01(r), clamp01(g), clamp01(b)]
 }
+
+/** The valid fields of an untrusted post-process patch (others dropped, numbers clamped). */
+export function normalizePostProcessPatch(patch: Record<string, unknown>): Partial<PostProcess> {
+  const out: Partial<PostProcess> = {}
+  const unit = (v: unknown, min: number) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(min, Math.min(1, v)) : undefined
+  for (const key of ["brightness", "contrast", "saturation"] as const) {
+    const v = unit(patch[key], -1)
+    if (v !== undefined) out[key] = v
+  }
+  const threshold = unit(patch.threshold, 0)
+  if (threshold !== undefined) out.threshold = threshold
+  const filter = POST_FILTERS.find((f) => f === patch.filter)
+  if (filter) out.filter = filter
+  return out
+}

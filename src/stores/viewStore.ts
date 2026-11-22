@@ -1,8 +1,9 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { isMobilePlatform } from "../lib/platform"
 
 /** The boolean view toggles surfaced by the view-controls bar. */
-export type ViewToggleKey = "grid" | "snap" | "lighting" | "shadows" | "outside"
+export type ViewToggleKey = "grid" | "snap" | "lighting" | "shadows" | "outside" | "animations"
 
 /**
  * Viewport display state: the on/off overlays (grid, snap, lighting) and the
@@ -17,6 +18,11 @@ interface ViewState {
   shadows: boolean
   /** Show what lies past the map's edges (otherwise the map clips it). */
   outside: boolean
+  /**
+   * Draw extensions' animated effects (shaders using time, particles):
+   * the map then redraws continuously, which costs battery.
+   */
+  animations: boolean
   /** Zoom as a whole percentage (one of ZOOM_LEVELS). */
   zoom: number
   /** Pan offset in screen px, relative to the map centered in the viewport. */
@@ -35,6 +41,7 @@ const DEFAULT_VIEW_STATE = {
   lighting: true,
   shadows: true,
   outside: false,
+  animations: !isMobilePlatform(),
   zoom: 100,
   panX: 0,
   panY: 0,

@@ -88,6 +88,16 @@ export interface MapEntity {
   locked?: boolean
   /** Text content (Text tool). */
   text?: string
+  /**
+   * Entity this one is attached to (an extension's door on a wall, a torch
+   * on a column): moving the parent moves it too.
+   */
+  parent?: string
+  /**
+   * Extensions' own data, by extension id. Kept as is when the extension
+   * isn't installed (the map still opens; its data waits for it).
+   */
+  ext?: Record<string, Record<string, unknown>>
   params: Record<string, unknown>
 }
 
@@ -96,6 +106,26 @@ export interface MapLevel {
   id: string
   /** User-given name; empty means "unnamed" (the UI shows a numbered label). */
   name: string
+  /** Extensions' data on the level (see MapEntity.ext). */
+  ext?: Record<string, Record<string, unknown>>
+}
+
+/**
+ * The map's grid: square (the app's own) or one an extension draws (hex,
+ * isometric…), and what distance a cell stands for (Measure).
+ */
+export interface MapGrid {
+  kind: string
+  cellDistance: number
+  unit: string
+}
+
+export const DEFAULT_GRID: MapGrid = { kind: "square", cellDistance: 5, unit: "ft" }
+
+/** An extension a map was made with (so opening it can offer to install it). */
+export interface MapExtensionUse {
+  id: string
+  version: string
 }
 
 /** Map-wide lighting settings (Environment tool). */
@@ -139,6 +169,12 @@ export interface MapDocument {
   /** Color adjustments over the whole map (Settings › Post-processing), saved with it. */
   postProcess: PostProcess
   referenceImage?: ReferenceImage | null
+  /** Grid kind and scale (maps saved before it existed: the default). */
+  grid?: MapGrid
+  /** Extensions' map-wide data (see MapEntity.ext). */
+  ext?: Record<string, Record<string, unknown>>
+  /** Extensions whose data or entities the map holds. */
+  extensions?: MapExtensionUse[]
 }
 
 export const DEFAULT_LEVEL_ID = "level-1"
