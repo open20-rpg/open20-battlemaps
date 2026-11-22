@@ -209,7 +209,9 @@ describe("Dungeondraft import", () => {
       pattern(Math.PI / 2, Math.PI),
     ]
     const r = importDungeondraftMap(JSON.stringify(map))
-    const rot = r.doc.entities.filter((e) => e.toolId === "pattern").map((e) => Math.round(Number(e.params.rotation) * 10) / 10)
+    const rot = r.doc.entities
+      .filter((e) => e.toolId === "pattern")
+      .map((e) => Math.round(Number(e.params.rotation) * 10) / 10)
     expect(rot).toEqual([90, -110.8, -90, -90])
   })
 
