@@ -28,6 +28,7 @@ export function ExtensionLibraryTab({
   const { t } = useTranslation()
   const [query, setQuery] = useState("")
   const [items, setItems] = useState<AssetInfo[]>([])
+  const selected = new Set(selectedIds)
   useEffect(() => {
     let alive = true
     const timer = setTimeout(() => {
@@ -58,7 +59,7 @@ export function ExtensionLibraryTab({
         <Grid templateColumns="repeat(auto-fill, minmax(72px, 1fr))" gap="1.5" overflowY="auto">
           {items.map((a) => {
             const thumb = safeThumb(a.thumbnail)
-            const on = selectedIds.includes(a.id)
+            const on = selected.has(a.id)
             return (
               <Box
                 key={a.id}

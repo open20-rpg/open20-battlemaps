@@ -1,44 +1,15 @@
 import { useEffect, useState } from "react"
 import { Button, HStack, Icon, Input, Menu, Portal, Stack, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
-import {
-  LuBlocks,
-  LuChartBar,
-  LuCommand,
-  LuDices,
-  LuDownload,
-  LuEye,
-  LuMap,
-  LuPanelRight,
-  LuSettings2,
-  LuUpload,
-  LuWand,
-  LuGraduationCap,
-  LuMousePointerClick,
-} from "react-icons/lu"
-import { localize, type Contribution, type ParamSpec } from "@open20/battlemaps-sdk"
+import { LuBlocks, LuDices } from "react-icons/lu"
+import { localize, type ParamSpec } from "@open20/battlemaps-sdk"
 import { Modal } from "../../../ui/Modal"
-import {
-  scopedKey,
-  useExtensionsStore,
-  type LiveContribution,
-} from "../../../stores/extensionsStore"
+import { useExtensionsStore } from "../../../stores/extensionsStore"
 import { useHasMap } from "../../../stores/mapStore"
-import { createMap } from "../../map/commands"
-import {
-  computeStats,
-  runCommand,
-  runContextItem,
-  runExport,
-  runGenerator,
-  runImport,
-  runSelectionMode,
-} from "../actions"
-import { extensionIcon } from "../icons"
+import { computeStats, runExport, runGenerator } from "../actions"
 import { ParamField } from "./ParamField"
 import { defaultsOf } from "../forms"
-
-type Of<T extends Contribution["type"]> = LiveContribution<Extract<Contribution, { type: T }>>
+import { menuSections, type MenuDialog, type MenuEntry } from "../menuEntries"
 
 /** A form for an extension's params (generators, export options), run with them. */
 function FormDialog({
@@ -147,15 +118,10 @@ function StatsDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-type Dialog =
-  | { kind: "generator"; c: Of<"generator">; newMap?: { width: number; height: number } }
-  | { kind: "export"; c: Of<"exportFormat"> }
-  | { kind: "stats" }
-
 /**
  * The Extensions menu: managing them, and everything they add that isn't a
  * tool — commands, panels, generators, import/export formats, selection
- * actions, stats, tours and extra views.
+ * actions, stats, tours and extra views (see menuEntries.ts).
  */
 export function ExtensionsMenu({
   onManage,
@@ -166,28 +132,18 @@ export function ExtensionsMenu({
 }) {
   const { t, i18n } = useTranslation()
   const hasMap = useHasMap()
-  const all = useExtensionsStore((s) => s.contributions)
-  const [dialog, setDialog] = useState<Dialog | null>(null)
-  const of = <T extends Contribution["type"]>(type: T) =>
-    all.filter((c) => c.contribution.type === type) as Of<T>[]
+  const contributions = useExtensionsStore((s) => s.contributions)
+  const [dialog, setDialog] = useState<MenuDialog | null>(null)
   const text = (v: Parameters<typeof localize>[0]) => localize(v, i18n.language)
-  const open = (extId: string, id: string) =>
-    useExtensionsStore.getState().setPanel(scopedKey(extId, id), { open: true })
-
-  const commands = of("command").filter(
-    (c) => (c.contribution.menu ?? "extensions") === "extensions",
-  )
-  const panels = [...of("panel"), ...of("iframePanel")]
-  const generators = of("generator")
-  const presets = of("newMapPreset")
-  const imports = of("importFormat")
-  const exports = of("exportFormat")
-  const contextItems = of("contextMenu")
-  const modes = of("selectionMode")
-  const tours = of("tour")
-  const views = of("view")
-  const hasStats = of("stats").length > 0
-
+  const sections = menuSections({
+    contributions,
+    lang: i18n.language,
+    hasMap,
+    t: (key, vars) => t(key, vars ?? {}),
+    onManage,
+    onPalette,
+    openDialog: setDialog,
+  })
   return (
     <>
       <Menu.Root positioning={{ placement: "bottom-start" }}>
@@ -218,154 +174,8 @@ export function ExtensionsMenu({
               maxH="70vh"
               overflowY="auto"
             >
-              <Menu.Item value="manage" onClick={onManage}>
-                <LuSettings2 />
-                <Text ml="2">{t("extensions.manage")}</Text>
-              </Menu.Item>
-              <Menu.Item value="palette" onClick={onPalette}>
-                <LuCommand />
-                <Text ml="2">{t("extensions.palette")}</Text>
-                <Menu.ItemCommand>Ctrl+Shift+P</Menu.ItemCommand>
-              </Menu.Item>
-              {commands.length > 0 && <Menu.Separator />}
-              {commands.map((c) => {
-                return (
-                  <Menu.Item key={c.key} value={c.key} onClick={() => void runCommand(c)}>
-                    <Icon as={c.contribution.icon ? extensionIcon(c.contribution.icon) : LuWand} />
-                    <Text ml="2">{text(c.contribution.title)}</Text>
-                    {c.contribution.shortcut && (
-                      <Menu.ItemCommand>{c.contribution.shortcut}</Menu.ItemCommand>
-                    )}
-                  </Menu.Item>
-                )
-              })}
-              {panels.length > 0 && <Menu.Separator />}
-              {panels.map((c) => (
-                <Menu.Item
-                  key={c.key}
-                  value={c.key}
-                  onClick={() => open(c.extId, c.contribution.id)}
-                >
-                  <LuPanelRight />
-                  <Text ml="2">{text(c.contribution.title)}</Text>
-                </Menu.Item>
-              ))}
-              {(generators.length > 0 || presets.length > 0) && <Menu.Separator />}
-              {generators
-                .filter((g) => g.contribution.scope.some((s) => s !== "newMap"))
-                .map((g) => (
-                  <Menu.Item
-                    key={g.key}
-                    value={g.key}
-                    disabled={!hasMap}
-                    onClick={() => setDialog({ kind: "generator", c: g })}
-                  >
-                    <LuDices />
-                    <Text ml="2">
-                      {t("extensions.generate", { name: text(g.contribution.name) })}
-                    </Text>
-                  </Menu.Item>
-                ))}
-              {presets.map((p) => {
-                const gen = generators.find(
-                  (g) => g.extId === p.extId && g.contribution.id === p.contribution.generator,
-                )
-                const size = { width: p.contribution.width, height: p.contribution.height }
-                return (
-                  <Menu.Item
-                    key={p.key}
-                    value={p.key}
-                    onClick={() =>
-                      gen
-                        ? setDialog({ kind: "generator", c: gen, newMap: size })
-                        : createMap(size.width, size.height)
-                    }
-                  >
-                    <LuMap />
-                    <Text ml="2">
-                      {t("extensions.newMapWith", { name: text(p.contribution.name) })}
-                    </Text>
-                  </Menu.Item>
-                )
-              })}
-              {(imports.length > 0 || exports.length > 0) && <Menu.Separator />}
-              {imports.map((f) => (
-                <Menu.Item key={f.key} value={f.key} onClick={() => void runImport(f)}>
-                  <LuDownload />
-                  <Text ml="2">
-                    {t("extensions.importWith", { name: text(f.contribution.name) })}
-                  </Text>
-                </Menu.Item>
-              ))}
-              {exports.map((f) => (
-                <Menu.Item
-                  key={f.key}
-                  value={f.key}
-                  disabled={!hasMap}
-                  onClick={() => setDialog({ kind: "export", c: f })}
-                >
-                  <LuUpload />
-                  <Text ml="2">
-                    {t("extensions.exportAs", { name: text(f.contribution.name) })}
-                  </Text>
-                </Menu.Item>
-              ))}
-              {(contextItems.length > 0 || modes.length > 0) && <Menu.Separator />}
-              {contextItems.map((c) => (
-                <Menu.Item
-                  key={c.key}
-                  value={c.key}
-                  disabled={!hasMap}
-                  onClick={() => void runContextItem(c)}
-                >
-                  <LuMousePointerClick />
-                  <Text ml="2">{text(c.contribution.title)}</Text>
-                </Menu.Item>
-              ))}
-              {modes.map((c) => (
-                <Menu.Item
-                  key={c.key}
-                  value={c.key}
-                  disabled={!hasMap}
-                  onClick={() => void runSelectionMode(c)}
-                >
-                  <LuMousePointerClick />
-                  <Text ml="2">
-                    {t("extensions.selectWith", { name: text(c.contribution.name) })}
-                  </Text>
-                </Menu.Item>
-              ))}
-              {(hasStats || tours.length > 0 || views.length > 0) && <Menu.Separator />}
-              {hasStats && (
-                <Menu.Item
-                  value="stats"
-                  disabled={!hasMap}
-                  onClick={() => setDialog({ kind: "stats" })}
-                >
-                  <LuChartBar />
-                  <Text ml="2">{t("extensions.statsTitle")}</Text>
-                </Menu.Item>
-              )}
-              {tours.map((c) => (
-                <Menu.Item
-                  key={c.key}
-                  value={c.key}
-                  onClick={() => useExtensionsStore.getState().setTour({ key: c.key, step: 0 })}
-                >
-                  <LuGraduationCap />
-                  <Text ml="2">{text(c.contribution.title)}</Text>
-                </Menu.Item>
-              ))}
-              {views.map((c) => (
-                <Menu.Item
-                  key={c.key}
-                  value={c.key}
-                  disabled={!hasMap}
-                  onClick={() => open(c.extId, `view:${c.contribution.id}`)}
-                >
-                  <LuEye />
-                  <Text ml="2">{text(c.contribution.title)}</Text>
-                </Menu.Item>
+              {sections.map((section, i) => (
+                <MenuSection key={section[0].key} entries={section} separated={i > 0} />
               ))}
             </Menu.Content>
           </Menu.Positioner>
@@ -391,6 +201,21 @@ export function ExtensionsMenu({
         />
       )}
       {dialog?.kind === "stats" && <StatsDialog onClose={() => setDialog(null)} />}
+    </>
+  )
+}
+
+function MenuSection({ entries, separated }: { entries: MenuEntry[]; separated: boolean }) {
+  return (
+    <>
+      {separated && <Menu.Separator />}
+      {entries.map((e) => (
+        <Menu.Item key={e.key} value={e.key} disabled={e.disabled} onClick={e.run}>
+          <Icon as={e.icon} />
+          <Text ml="2">{e.label}</Text>
+          {e.shortcut && <Menu.ItemCommand>{e.shortcut}</Menu.ItemCommand>}
+        </Menu.Item>
+      ))}
     </>
   )
 }

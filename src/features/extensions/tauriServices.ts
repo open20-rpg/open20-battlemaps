@@ -147,8 +147,9 @@ export const tauriServices: HostServices = {
         ...(q.tags?.length ? { tag: q.tags[0] } : {}),
       })
       const items = await getLibraryItems(key, 0, limit)
+      const packs = q.packs && new Set(q.packs)
       return items
-        .filter((i) => !q.packs || q.packs.includes(i.id.split("|")[0]))
+        .filter((i) => !packs || packs.has(i.id.split("|")[0]))
         .map((i): AssetInfo => ({
           id: i.id,
           name: i.name,
@@ -183,13 +184,11 @@ export const tauriServices: HostServices = {
   createPack: async (name, author) =>
     (await createUserPack({ name, author, version: "1.0.0", keywords: [] })).id,
   importImages: async (pack, files, category) => {
-    const items: ImportItem[] = []
-    for (const f of files) {
-      // Temporary files are grouped per pack under a valid-looking id.
-      const folder = `import.${pack.toLowerCase().replace(/[^a-z0-9-]/g, "") || "pack"}`
-      const source = await writeTempFile(folder, baseName(f.name), f.bytes)
-      items.push({
-        source,
+    // Temporary files are grouped per pack under a valid-looking id.
+    const folder = `import.${pack.toLowerCase().replace(/[^a-z0-9-]/g, "") || "pack"}`
+    const items: ImportItem[] = await Promise.all(
+      files.map(async (f) => ({
+        source: await writeTempFile(folder, baseName(f.name), f.bytes),
         category,
         name: baseName(f.name).replace(/\.[^.]+$/, ""),
         folder: "",
@@ -198,8 +197,8 @@ export const tauriServices: HostServices = {
         colorable: false,
         tags: [],
         color: null,
-      })
-    }
+      })),
+    )
     const report = await withLoading(i18n.t("extensions.loading.importing"), () =>
       importUserAssets(pack, items, "balanced"),
     )

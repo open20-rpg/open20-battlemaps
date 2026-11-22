@@ -1,4 +1,5 @@
 import {
+  localize,
   type Contribution,
   type FileData,
   type MapDocumentData,
@@ -160,22 +161,21 @@ export async function runExport(
 export async function computeStats(): Promise<
   { title: string; rows: { label: string; value: string }[] }[]
 > {
-  const out: { title: string; rows: { label: string; value: string }[] }[] = []
-  for (const s of contributionsOf("stats")) {
-    try {
-      const rows = await s.contribution.compute()
-      out.push({
-        title:
-          typeof s.contribution.title === "string"
-            ? s.contribution.title
-            : (s.contribution.title[i18n.language] ?? s.contribution.title.es),
-        rows: Array.isArray(rows) ? rows.slice(0, 50) : [],
-      })
-    } catch {
-      // A failing stats provider is left out.
-    }
-  }
-  return out
+  // Every provider at once; a failing one is left out.
+  const answers = await Promise.all(
+    contributionsOf("stats").map(async (s) => {
+      try {
+        const rows = await s.contribution.compute()
+        return {
+          title: localize(s.contribution.title, i18n.language),
+          rows: Array.isArray(rows) ? rows.slice(0, 50) : [],
+        }
+      } catch {
+        return null
+      }
+    }),
+  )
+  return answers.filter((a) => a !== null)
 }
 
 /** A file dropped on the map: the extension that handles its type places what it holds. */

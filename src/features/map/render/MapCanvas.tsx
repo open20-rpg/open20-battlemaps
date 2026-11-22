@@ -1,7 +1,7 @@
 import { type MapDocument } from "../model/types"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { useExtensionsStore } from "../../../stores/extensionsStore"
-import { drawPrimitives, extensionBridge, type PrimitiveEnv } from "./extensionRender"
+import { drawExtensionGrid, useExtensionAnimation } from "./extensionCanvas"
 import { Box } from "@chakra-ui/react"
 import { Application, Container, GlProgram, Graphics } from "pixi.js"
 import { useMapStore } from "../../../stores/mapStore"
@@ -82,14 +82,6 @@ function levelBelow(map: MapDocument, level: string | null): string | null {
  *    look), which requires recomputing world-unit sizes from the current zoom
  *    — so it also rebuilds on every zoom tick while in that range.
  */
-/** What drawing an extension's grid needs: textures from the cache, nothing else. */
-function gridEnv(): PrimitiveEnv {
-  return {
-    tex: (id) => (id ? assetCache.texture(id) : undefined),
-    image: (url) => assetCache.textureFromUrl(url),
-  }
-}
-
 export function MapCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<Application | null>(null)
@@ -131,6 +123,7 @@ export function MapCanvas() {
   const gridKind = useMapStore((s) => s.map?.grid?.kind ?? "square")
 
   useViewportGestures(containerRef)
+  useExtensionAnimation(ready, sceneRef, requestRenderRef)
 
   // Set up the Pixi application once.
   useEffect(() => {
@@ -288,29 +281,7 @@ export function MapCanvas() {
       })
     }
     schedule()
-    // Extensions' animations: redraw every frame while something animated shows.
-    let anim = 0
-    let last = 0
-    const animate = (now: number) => {
-      anim = 0
-      if (!extensionBridge()?.animating() || viewGestureActive()) return
-      scene.tick(last ? (now - last) / 1000 : 0, now / 1000)
-      last = now
-      requestRenderRef.current(true)
-      anim = requestAnimationFrame(animate)
-    }
-    const maybeAnimate = () => {
-      if (!anim && extensionBridge()?.animating()) {
-        last = 0
-        anim = requestAnimationFrame(animate)
-      }
-    }
-    maybeAnimate()
-    const unsubExtensions = useExtensionsStore.subscribe(() => {
-      schedule()
-      maybeAnimate()
-    })
-    const unsubAnimations = useViewStore.subscribe(maybeAnimate)
+    const unsubExtensions = useExtensionsStore.subscribe(schedule)
     const unsubGesture = subscribeViewGesture((active) => {
       const snapshot = snapshotRef.current
       if (active) snapshot?.take()
@@ -334,9 +305,7 @@ export function MapCanvas() {
     })
     return () => {
       cancelAnimationFrame(frame)
-      cancelAnimationFrame(anim)
       unsubExtensions()
-      unsubAnimations()
       unsubMap()
       unsubEditor()
       unsubView()
@@ -394,22 +363,10 @@ export function MapCanvas() {
     // Not while pinching (the snapshot shows the grid): once, when it ends.
     if (!grid || mapWidth == null || mapHeight == null || gesturing) return
     // A grid kind an extension draws (hex, isometric…) replaces the square one.
-    if (gridKind.startsWith("ext:")) {
-      const draw = () => {
-        const prims = extensionBridge()?.gridPrimitives(gridKind, mapWidth, mapHeight)
-        grid.clear()
-        for (const child of grid.removeChildren()) child.destroy({ children: true })
-        if (prims) {
-          const layer = drawPrimitives(prims, gridEnv())
-          // The world mirrors x; primitives are drawn mirrored back (content space).
-          layer.scale.x = -1
-          grid.addChild(layer)
-        }
-        requestRenderRef.current(true)
-      }
-      draw()
-      return extensionBridge()?.subscribe(draw)
-    }
+    if (gridKind.startsWith("ext:"))
+      return drawExtensionGrid(grid, gridKind, mapWidth, mapHeight, () =>
+        requestRenderRef.current(true),
+      )
     for (const child of grid.removeChildren()) child.destroy({ children: true })
     drawGrid(grid, mapWidth, mapHeight, { style: gridStyle, color: gridLineColor }, zoom)
     requestRenderRef.current(true)

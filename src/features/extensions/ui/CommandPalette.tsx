@@ -33,7 +33,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && matches[0]) run(matches[0])
+            if (e.key === "Enter" && !e.nativeEvent.isComposing && matches[0]) run(matches[0])
           }}
         />
         {matches.length === 0 && (

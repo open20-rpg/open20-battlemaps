@@ -168,7 +168,8 @@ function Details({ ext }: { ext: InstalledExtension }) {
     .slice(-40)
     .reverse()
   const settings = m.contributes?.settings ?? {}
-  const optional = (m.optionalPermissions ?? []).filter((p) => !ext.granted.includes(p))
+  const granted = new Set(ext.granted)
+  const optional = (m.optionalPermissions ?? []).filter((p) => !granted.has(p))
   const setSetting = (key: string, value: unknown) => {
     useExtensionsStore
       .getState()
@@ -287,9 +288,9 @@ function Details({ ext }: { ext: InstalledExtension }) {
             {t("extensions.noActivity")}
           </Text>
         )}
-        {mine.map((a, i) => (
+        {mine.map((a) => (
           <Text
-            key={i}
+            key={`${a.time}-${a.kind}-${a.text}`}
             fontSize="xs"
             fontFamily="mono"
             color={a.kind === "denied" || a.kind === "fault" ? "danger.fg" : "fg.muted"}

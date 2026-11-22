@@ -57,9 +57,10 @@ export class ExtensionManager {
   async load(): Promise<void> {
     const entries = await this.services.listRegistry()
     const installed: Record<string, InstalledExtension> = {}
-    for (const entry of entries) {
-      const manifest = await this.readManifest(entry)
-      if (!manifest) continue
+    const manifests = await Promise.all(entries.map((e) => this.readManifest(e)))
+    entries.forEach((entry, i) => {
+      const manifest = manifests[i]
+      if (!manifest) return
       installed[manifest.id] = {
         manifest,
         enabled: entry.enabled,
@@ -67,7 +68,7 @@ export class ExtensionManager {
         settings: entry.settings ?? {},
         dev: !!entry.devPath,
       }
-    }
+    })
     useExtensionsStore.getState().setInstalled(installed)
   }
 
@@ -200,7 +201,8 @@ export class ExtensionManager {
   async start(id: string): Promise<void> {
     const ext = useExtensionsStore.getState().installed[id]
     if (!ext || !ext.enabled) return
-    const missing = (ext.manifest.permissions ?? []).filter((p) => !ext.granted.includes(p))
+    const granted = new Set(ext.granted)
+    const missing = (ext.manifest.permissions ?? []).filter((p) => !granted.has(p))
     if (missing.length) {
       useExtensionsStore
         .getState()
@@ -276,34 +278,50 @@ export class ExtensionManager {
         width: s.width,
         height: s.height,
       })
-    for (const s of c.shaders ?? []) {
-      try {
-        add("shader", s.id, {
-          type: "shader",
-          id: s.id,
-          name: s.name,
-          target: s.target,
-          fragment: await text(s.path),
-          uniforms: s.uniforms,
-        })
-      } catch {
-        store.log({ extId: id, kind: "fault", text: `shader ${s.id}: can't read ${s.path}` })
+    // Shader sources and fonts are read together (each file on its own).
+    const shaders = await Promise.all(
+      (c.shaders ?? []).map((sh) =>
+        text(sh.path).then(
+          (fragment) => ({ sh, fragment }),
+          () => ({ sh, fragment: null }),
+        ),
+      ),
+    )
+    for (const { sh, fragment } of shaders) {
+      if (fragment === null) {
+        store.log({ extId: id, kind: "fault", text: `shader ${sh.id}: can't read ${sh.path}` })
+        continue
       }
+      add("shader", sh.id, {
+        type: "shader",
+        id: sh.id,
+        name: sh.name,
+        target: sh.target,
+        fragment,
+        uniforms: sh.uniforms,
+      })
     }
-    for (const f of c.fonts ?? []) {
-      const bytes = await this.readFile(id, f.path).catch(() => null)
-      if (bytes) await registerBundledFont(f.family, bytes, f.style)
-    }
+    await Promise.all(
+      (c.fonts ?? []).map(async (f) => {
+        const bytes = await this.readFile(id, f.path).catch(() => null)
+        if (bytes) await registerBundledFont(f.family, bytes, f.style)
+      }),
+    )
+    const [prefabs, languagePacks, keymaps] = await Promise.all([
+      loadJsonList(c.prefabs ?? [], text),
+      loadJsonList(c.languagePacks ?? [], text),
+      loadJsonList(c.keymaps ?? [], text),
+    ])
     dataContributions.set(id, {
       toolPresets: c.toolPresets ?? [],
       palettes: c.palettes ?? [],
       postProcessPresets: c.postProcessPresets ?? [],
       lightPresets: c.lightPresets ?? [],
-      prefabs: await loadJsonList(c.prefabs ?? [], text),
+      prefabs,
       templates: c.templates ?? [],
       fonts: c.fonts ?? [],
-      languagePacks: await loadJsonList(c.languagePacks ?? [], text),
-      keymaps: await loadJsonList(c.keymaps ?? [], text),
+      languagePacks,
+      keymaps,
     })
     useExtensionsStore.setState((s) => ({ rev: s.rev + 1 }))
   }
@@ -344,20 +362,22 @@ async function loadJsonList<T extends { path: string; name?: unknown; id?: strin
   list: T[],
   read: (path: string) => Promise<string>,
 ): Promise<{ id: string; name: Manifest["name"]; data: unknown; lang?: string }[]> {
-  const out: { id: string; name: Manifest["name"]; data: unknown; lang?: string }[] = []
-  for (const item of list) {
-    try {
-      out.push({
-        id: item.id ?? item.lang ?? item.path,
-        name: (item.name as Manifest["name"]) ?? item.path,
-        lang: item.lang,
-        data: JSON.parse(await read(item.path)),
-      })
-    } catch {
-      // A broken file of a data contribution is skipped; the rest still loads.
-    }
-  }
-  return out
+  // A broken file of a data contribution is skipped; the rest still loads.
+  const loaded = await Promise.all(
+    list.map(async (item) => {
+      try {
+        return {
+          id: item.id ?? item.lang ?? item.path,
+          name: (item.name as Manifest["name"]) ?? item.path,
+          lang: item.lang,
+          data: JSON.parse(await read(item.path)) as unknown,
+        }
+      } catch {
+        return null
+      }
+    }),
+  )
+  return loaded.filter((x) => x !== null)
 }
 
 /** Whether `event` starts an extension (no activation list: at start). */

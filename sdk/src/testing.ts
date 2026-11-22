@@ -386,25 +386,28 @@ export function createTestHost(options: TestHostOptions = {}): TestHost {
     return change
   }
 
+  // As in the app: validators asked together (a veto undoes the change),
+  // then reactions asked together and applied in order, in the same step.
   async function runReactions(change: MapChange): Promise<void> {
-    for (const v of validators.values()) {
-      const ents = (map?.entities ?? []).filter((e) =>
-        [...change.added, ...change.updated].includes(e.id),
-      )
-      const res = (await v(change, clone(ents))) as { veto?: string } | null | undefined
-      if (res?.veto) {
-        map = history.pop() ?? map
-        host.notifications.push(res.veto)
-        return
-      }
+    const touched = new Set([...change.added, ...change.updated])
+    const ents = clone((map?.entities ?? []).filter((e) => touched.has(e.id)))
+    const verdicts = (await Promise.all(
+      [...validators.values()].map((v) => v(change, ents).catch(() => null)),
+    )) as ({ veto?: string } | null | undefined)[]
+    const veto = verdicts.find((r) => r?.veto)
+    if (veto?.veto) {
+      map = history.pop() ?? map
+      host.notifications.push(veto.veto)
+      return
     }
-    for (const r of reactions.values()) {
-      const ops = (await r(change)) as MapOp[] | undefined
-      if (ops?.length) {
-        apply(ops, manifest.id)
-        // Same step: drop the history entry the reaction made.
-        history.pop()
-      }
+    const answers = (await Promise.all(
+      [...reactions.values()].map((r) => r(change).catch(() => null)),
+    )) as (MapOp[] | null | undefined)[]
+    for (const ops of answers) {
+      if (!ops?.length) continue
+      apply(ops, manifest.id)
+      // Same step: drop the history entry the reaction made.
+      history.pop()
     }
   }
 
@@ -414,9 +417,12 @@ export function createTestHost(options: TestHostOptions = {}): TestHost {
     const level =
       q.level === "all" ? null : q.level === "active" || !q.level ? activeLevel : q.level
     let out = m.entities.filter((e) => !level || e.level === level)
-    if (q.ids) out = out.filter((e) => q.ids!.includes(e.id))
-    if (q.kinds) out = out.filter((e) => q.kinds!.includes(e.kind))
-    if (q.assets) out = out.filter((e) => e.asset && q.assets!.includes(e.asset))
+    const ids = q.ids && new Set(q.ids)
+    const kinds = q.kinds && new Set<string>(q.kinds)
+    const assets = q.assets && new Set(q.assets)
+    if (ids) out = out.filter((e) => ids.has(e.id))
+    if (kinds) out = out.filter((e) => kinds.has(e.kind))
+    if (assets) out = out.filter((e) => !!e.asset && assets.has(e.asset))
     if (q.hasData) out = out.filter((e) => q.hasData! in e.data)
     if (q.group) out = out.filter((e) => e.group === q.group)
     if (q.point) {
@@ -505,8 +511,10 @@ export function createTestHost(options: TestHostOptions = {}): TestHost {
     }),
     "editor.select": ({ ids, mode }) => {
       if (mode === "add") selection = [...new Set([...selection, ...ids])]
-      else if (mode === "remove") selection = selection.filter((id) => !ids.includes(id))
-      else selection = [...ids]
+      else if (mode === "remove") {
+        const drop = new Set(ids)
+        selection = selection.filter((id) => !drop.has(id))
+      } else selection = [...ids]
       conn.emit("editor.selection", [...selection])
     },
     "editor.setLevel": ({ id }) => {

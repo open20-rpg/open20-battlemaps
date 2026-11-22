@@ -76,6 +76,9 @@ interface Running {
   trackPointer: boolean
 }
 
+/** What a placement rule may adjust on an entity being placed. */
+const PLACEMENT_FIELDS = ["position", "rotation", "scale", "layer", "flipX", "flipY"] as const
+
 /** Limits on what one extension can hold, so a buggy one can't swamp the app. */
 export const LIMITS = {
   contributions: 400,
@@ -203,24 +206,18 @@ export class ExtensionHost {
   async documentHooks(kind: "beforeSave" | "afterOpen"): Promise<string[]> {
     const hooks = useExtensionsStore
       .getState()
-      .contributions.filter((c) => c.contribution.type === "documentHook")
-    const out: string[] = []
-    for (const h of hooks) {
-      const fn = (h.contribution as Extract<Contribution, { type: "documentHook" }>)[kind]
-      if (!fn) continue
-      try {
-        const warnings = await fn()
-        if (Array.isArray(warnings))
-          out.push(
-            ...warnings
-              .filter((w): w is string => typeof w === "string")
-              .map((w) => w.slice(0, 300)),
-          )
-      } catch {
-        // A broken hook never blocks saving or opening.
-      }
-    }
-    return out
+      .contributions.flatMap((c) =>
+        c.contribution.type === "documentHook" && c.contribution[kind]
+          ? [c.contribution[kind]]
+          : [],
+      )
+    // A broken hook never blocks saving or opening.
+    const answers = await Promise.all(hooks.map((fn) => Promise.resolve(fn()).catch(() => [])))
+    return answers.flatMap((warnings) =>
+      Array.isArray(warnings)
+        ? warnings.filter((w): w is string => typeof w === "string").map((w) => w.slice(0, 300))
+        : [],
+    )
   }
 
   /** Call an extension's callback by its connection (used by integrations). */
@@ -336,111 +333,104 @@ export class ExtensionHost {
 
   private async react(change: MapChange, map: MapDocument): Promise<void> {
     const touched = new Set([...change.added, ...change.updated])
-    for (const r of this.running.values()) {
-      if (!r.validators.size) continue
-      const level = map.levels[0].id
-      const entities = map.entities
-        .filter((e) => touched.has(e.id))
-        .map((e) => toSdkEntity(e, r.id, level))
-      for (const v of r.validators.values()) {
+    const added = new Set(change.added)
+    const level = map.levels[0].id
+    const running = [...this.running.values()]
+    // Validators first, all asked at once: any veto undoes the change.
+    const verdicts = await Promise.all(
+      running.flatMap((r) => {
+        const entities = map.entities
+          .filter((e) => touched.has(e.id))
+          .map((e) => toSdkEntity(e, r.id, level))
         // A validator that throws doesn't veto (a bug in it shouldn't block the user).
-        const verdict = (await v(change, entities).catch(() => null)) as {
-          veto?: unknown
-        } | null
-        if (verdict && typeof verdict.veto === "string") {
-          if (useMapStore.getState().map === map) {
-            undo()
-            const t = useMapStore.temporal
-            const f = t.getState().futureStates
-            t.setState({ futureStates: f.slice(0, -1) })
-            this.lastHistory.future = f.length - 1
-          }
-          await this.hooks.notify?.(r.id, verdict.veto.slice(0, 300), "warning")
-          return
-        }
+        return [...r.validators.values()].map((v) =>
+          v(change, entities).then(
+            (res) => ({ extId: r.id, res: res as { veto?: unknown } | null }),
+            () => null,
+          ),
+        )
+      }),
+    )
+    const veto = verdicts.find((v) => v && typeof v.res?.veto === "string")
+    if (veto) {
+      if (useMapStore.getState().map === map) {
+        undo()
+        const t = useMapStore.temporal
+        const f = t.getState().futureStates
+        t.setState({ futureStates: f.slice(0, -1) })
+        this.lastHistory.future = f.length - 1
       }
+      await this.hooks.notify?.(veto.extId, String(veto.res?.veto).slice(0, 300), "warning")
+      return
     }
-    // Placement rules and asset behaviors: what the user just placed.
-    for (const r of this.running.values()) {
-      const added = map.entities.filter((e) => change.added.includes(e.id))
-      if (!added.length) break
-      const mine = useExtensionsStore.getState().contributions.filter((c) => c.extId === r.id)
-      for (const c of mine) {
-        const k = c.contribution
-        if (k.type !== "placementRule" && k.type !== "assetBehavior") continue
-        for (const e of added) {
-          const sdk = toSdkEntity(e, r.id, map.levels[0].id)
-          let ops: MapOp[] = []
-          try {
-            if (k.type === "placementRule" && k.kinds.includes(sdk.kind)) {
-              const adjusted = (await k.adjust({ ...sdk })) as Partial<Entity> | null
-              if (adjusted) {
-                const patch: Record<string, unknown> = {}
-                for (const f of [
-                  "position",
-                  "rotation",
-                  "scale",
-                  "layer",
-                  "flipX",
-                  "flipY",
-                ] as const)
-                  if (
-                    adjusted[f] !== undefined &&
-                    JSON.stringify(adjusted[f]) !== JSON.stringify(sdk[f])
-                  )
-                    patch[f] = adjusted[f]
-                if (Object.keys(patch).length) ops = [{ op: "update", id: e.id, patch }]
-              }
-            } else if (
-              k.type === "assetBehavior" &&
-              sdk.asset &&
-              (k.match.assets ?? []).includes(sdk.asset)
-            ) {
-              const res = await k.onPlaced(sdk)
-              if (Array.isArray(res)) ops = res
-            }
-          } catch {
-            continue
-          }
-          if (!ops.length || useMapStore.getState().map !== map) continue
-          this.amending = true
-          this.committing = r.id
-          try {
-            amendLastStep((m) => this.withUse(this.opsOn(m, ops, r.id).map, r.id))
-          } catch {
-            // Invalid ops from a rule are dropped.
-          } finally {
-            this.amending = false
-            this.committing = null
-          }
-          map = useMapStore.getState().map ?? map
-        }
+    // Then what joins the user's step: placement rules and asset behaviors
+    // for what was placed, and reactions. Asked together, applied in order.
+    const placed = map.entities.filter((e) => added.has(e.id))
+    const asks: Promise<{ extId: string; ops: MapOp[] } | null>[] = []
+    for (const r of running) {
+      if (placed.length) {
+        const rules = useExtensionsStore
+          .getState()
+          .contributions.filter((c) => c.extId === r.id)
+          .map((c) => c.contribution)
+        for (const k of rules)
+          for (const e of placed) asks.push(this.ruleOps(k, toSdkEntity(e, r.id, level), r.id))
       }
+      for (const reaction of r.reactions.values())
+        asks.push(
+          reaction(change).then(
+            (ops) => (Array.isArray(ops) ? { extId: r.id, ops: ops as MapOp[] } : null),
+            () => null,
+          ),
+        )
     }
-    for (const r of this.running.values()) {
-      for (const reaction of r.reactions.values()) {
-        let ops: unknown
-        try {
-          ops = await reaction(change)
-        } catch {
-          continue
-        }
-        if (!Array.isArray(ops) || ops.length === 0) continue
-        // Only amend if the user hasn't moved on (else it'd join an unrelated step).
-        if (useMapStore.getState().map !== map) continue
-        this.amending = true
-        this.committing = r.id
-        try {
-          amendLastStep((m) => this.withUse(this.opsOn(m, ops as MapOp[], r.id).map, r.id))
-        } catch {
-          // An invalid op from a reaction is dropped (logged by opsOn's caller).
-        } finally {
-          this.amending = false
-          this.committing = null
-        }
-        map = useMapStore.getState().map ?? map
+    let expected = map
+    for (const answer of await Promise.all(asks)) {
+      if (!answer?.ops.length) continue
+      // Only amend if the user hasn't moved on (else it'd join an unrelated step).
+      if (useMapStore.getState().map !== expected) return
+      this.amending = true
+      this.committing = answer.extId
+      try {
+        amendLastStep((m) =>
+          this.withUse(this.opsOn(m, answer.ops, answer.extId).map, answer.extId),
+        )
+      } catch {
+        // Invalid ops from a rule or reaction are dropped.
+      } finally {
+        this.amending = false
+        this.committing = null
       }
+      expected = useMapStore.getState().map ?? expected
     }
+  }
+
+  /** The ops a placement rule or asset behavior answers for an entity just placed. */
+  private async ruleOps(
+    k: Contribution,
+    sdk: Entity,
+    extId: string,
+  ): Promise<{ extId: string; ops: MapOp[] } | null> {
+    try {
+      if (k.type === "placementRule" && k.kinds.includes(sdk.kind)) {
+        const adjusted = (await k.adjust({ ...sdk })) as Partial<Entity> | null
+        if (!adjusted) return null
+        const patch: Record<string, unknown> = {}
+        for (const f of PLACEMENT_FIELDS)
+          if (adjusted[f] !== undefined && JSON.stringify(adjusted[f]) !== JSON.stringify(sdk[f]))
+            patch[f] = adjusted[f]
+        return Object.keys(patch).length
+          ? { extId, ops: [{ op: "update", id: sdk.id, patch }] }
+          : null
+      }
+      if (k.type === "assetBehavior" && sdk.asset && (k.match.assets ?? []).includes(sdk.asset)) {
+        const res = await k.onPlaced(sdk)
+        return Array.isArray(res) ? { extId, ops: res } : null
+      }
+    } catch {
+      // A failing rule changes nothing.
+    }
+    return null
   }
 
   // -- helpers ------------------------------------------------------------------

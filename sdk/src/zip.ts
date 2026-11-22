@@ -76,7 +76,7 @@ export async function readZip(data: Uint8Array): Promise<ZipEntry[]> {
   const cdOffset = view.getUint32(eocd + 16, true)
   if (count > ZIP_LIMITS.maxEntries) throw new Error("too many files")
   const decoder = new TextDecoder()
-  const out: ZipEntry[] = []
+  const pending: Promise<ZipEntry>[] = []
   let total = 0
   let p = cdOffset
   for (let n = 0; n < count; n++) {
@@ -97,14 +97,16 @@ export async function readZip(data: Uint8Array): Promise<ZipEntry[]> {
     if (view.getUint32(local, true) !== 0x04034b50) throw new Error("bad local header")
     const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true)
     const raw = data.subarray(start, start + compSize)
-    let bytes: Uint8Array
-    if (method === 0) bytes = raw.slice()
-    else if (method === 8) bytes = await inflate(raw)
-    else throw new Error(`unsupported compression in ${path}`)
-    if (bytes.length !== size || crc32(bytes) !== crc) throw new Error(`corrupt file ${path}`)
-    out.push({ path, bytes })
+    if (method !== 0 && method !== 8) throw new Error(`unsupported compression in ${path}`)
+    // Entries are independent: they inflate together.
+    pending.push(
+      (method === 0 ? Promise.resolve(raw.slice()) : inflate(raw)).then((bytes) => {
+        if (bytes.length !== size || crc32(bytes) !== crc) throw new Error(`corrupt file ${path}`)
+        return { path, bytes }
+      }),
+    )
   }
-  return out
+  return Promise.all(pending)
 }
 
 /** Write a zip (deflated when it helps). */
@@ -114,18 +116,18 @@ export async function writeZip(entries: readonly ZipEntry[]): Promise<Uint8Array
   const locals: Uint8Array[] = []
   const centrals: Uint8Array[] = []
   let offset = 0
-  for (const e of entries) {
+  // Each entry deflated (in parallel) only when that makes it smaller.
+  const packed = await Promise.all(
+    entries.map(async (e) => {
+      if (!canDeflate || e.bytes.length <= 64) return { data: e.bytes, method: 0 }
+      const d = await deflate(e.bytes)
+      return d.length < e.bytes.length ? { data: d, method: 8 } : { data: e.bytes, method: 0 }
+    }),
+  )
+  entries.forEach((e, i) => {
     const name = encoder.encode(e.path)
     const crc = crc32(e.bytes)
-    let data = e.bytes
-    let method = 0
-    if (canDeflate && e.bytes.length > 64) {
-      const d = await deflate(e.bytes)
-      if (d.length < e.bytes.length) {
-        data = d
-        method = 8
-      }
-    }
+    const { data, method } = packed[i]
     const local = new Uint8Array(30 + name.length)
     const lv = new DataView(local.buffer)
     lv.setUint32(0, 0x04034b50, true)
@@ -153,7 +155,7 @@ export async function writeZip(entries: readonly ZipEntry[]): Promise<Uint8Array
     locals.push(local, data)
     centrals.push(central)
     offset += local.length + data.length
-  }
+  })
   const cdSize = centrals.reduce((n, c) => n + c.length, 0)
   const end = new Uint8Array(22)
   const ev = new DataView(end.buffer)

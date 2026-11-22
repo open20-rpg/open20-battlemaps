@@ -342,7 +342,8 @@ export type AssetCategory =
  * Events go back to the extension through callbacks.
  */
 export type UiNode =
-  | { type: "column" | "row"; children: UiNode[]; gap?: number }
+  | { type: "column"; children: UiNode[]; gap?: number }
+  | { type: "row"; children: UiNode[]; gap?: number }
   | { type: "text"; text: string; tone?: "normal" | "muted" | "danger"; size?: "sm" | "md" | "lg" }
   | { type: "heading"; text: string }
   | {

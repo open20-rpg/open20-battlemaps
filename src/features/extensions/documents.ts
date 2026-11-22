@@ -66,19 +66,25 @@ export function installDocumentHooks(): () => void {
       const json = parseJson(raw)
       const data = currentData()
       if (!json || !data) return []
-      const warnings: string[] = []
-      for (const t of translators) {
-        const picked = Object.fromEntries(
-          t.contribution.handles.filter((k) => k in json).map((k) => [k, json[k]]),
-        )
-        if (!Object.keys(picked).length) continue
-        try {
-          const res = await t.contribution.translate(picked, data)
-          if (res?.entities?.length) applyFor(t.extId, [{ op: "add", entities: res.entities }])
-          warnings.push(...(res?.warnings ?? []).slice(0, 10))
-        } catch {
+      // Translators are asked together; what they return is added in order.
+      const answers = await Promise.all(
+        translators.map(async (t) => {
+          const picked = Object.fromEntries(
+            t.contribution.handles.filter((k) => k in json).map((k) => [k, json[k]]),
+          )
+          if (!Object.keys(picked).length) return null
           // A failing translator leaves the import as it was.
-        }
+          const res = await Promise.resolve(t.contribution.translate(picked, data)).catch(
+            () => null,
+          )
+          return res ? { extId: t.extId, res } : null
+        }),
+      )
+      const warnings: string[] = []
+      for (const a of answers) {
+        if (!a) continue
+        if (a.res.entities?.length) applyFor(a.extId, [{ op: "add", entities: a.res.entities }])
+        warnings.push(...(a.res.warnings ?? []).slice(0, 10))
       }
       return warnings
     },
