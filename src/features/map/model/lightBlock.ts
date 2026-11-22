@@ -1,10 +1,18 @@
-import { spriteCorners, wallPieces, type AssetSizeOf, type WallOpening } from "./geometry"
+import {
+  entityAssetId,
+  spriteCorners,
+  spriteFromUV,
+  wallPieces,
+  type AssetSizeOf,
+  type WallOpening,
+} from "./geometry"
 import { type MapEntity, type Vec2 } from "./types"
 
 /**
  * What stops light, for lights that cast shadows (their Shadow switch):
  * walls (their line, with gaps where an open portal sits), portals that
- * block light (closed doors) and objects that do (their footprint). A
+ * block light (closed doors) and objects that do (their silhouette: the
+ * opaque part of their image, its rectangle until that is known). A
  * light then reaches only what it can see: its visibility polygon.
  */
 
@@ -28,8 +36,15 @@ export function lightBlockers(entities: readonly MapEntity[]): MapEntity[] {
 const outline = (pts: readonly Vec2[]): Segment[] =>
   pts.map((a, i) => ({ a, b: pts[(i + 1) % pts.length] }))
 
+/** An asset's silhouette outlines in fractions of its image (alphaOutline), once loaded. */
+export type AssetOutlineOf = (assetId: string) => readonly (readonly Vec2[])[] | undefined
+
 /** The segments that stop light among `entities`, in map tiles. */
-export function blockingSegments(entities: readonly MapEntity[], sizeOf: AssetSizeOf): Segment[] {
+export function blockingSegments(
+  entities: readonly MapEntity[],
+  sizeOf: AssetSizeOf,
+  outlineOf?: AssetOutlineOf,
+): Segment[] {
   // Open portals leave a gap in their wall that light goes through.
   const openings: WallOpening[] = entities
     .filter((e) => e.toolId === "portal" && !blocksLight(e))
@@ -42,7 +57,12 @@ export function blockingSegments(entities: readonly MapEntity[], sizeOf: AssetSi
     if (e.toolId === "wall" && e.points && e.points.length > 1) {
       for (const p of wallPieces(e.points, !!e.closed, openings)) out.push({ a: p.a, b: p.b })
     } else if (e.toolId !== "wall" && blocksLight(e)) {
-      out.push(...outline(spriteCorners(e, sizeOf)))
+      const id = entityAssetId(e)
+      const size = id ? sizeOf(id) : undefined
+      const loops = id && size ? outlineOf?.(id) : undefined
+      if (loops && size) {
+        for (const loop of loops) out.push(...outline(loop.map((uv) => spriteFromUV(e, uv, size))))
+      } else out.push(...outline(spriteCorners(e, sizeOf)))
     }
   }
   return out

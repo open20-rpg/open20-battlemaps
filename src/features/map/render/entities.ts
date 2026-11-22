@@ -54,6 +54,8 @@ export interface RenderEnv {
   lightBlockers: readonly MapEntity[]
   /** Asset size in tiles (remembers misses like `tex`). */
   size: (id: string | undefined) => { w: number; h: number } | undefined
+  /** An asset's silhouette outlines (fractions of its image), once loaded: what blocks light. */
+  outline: (id: string) => readonly (readonly Vec2[])[] | undefined
   /**
    * Whether an asset is recolored by its red regions (Colorable objects,
    * "custom_color" tilesets) rather than tinted by its color.
@@ -668,8 +670,23 @@ function blockersSegments(env: RenderEnv): Segment[] {
     memo.blockers.every((b, i) => b === blockers[i])
   )
     return memo.segments
-  const segments = blockingSegments(blockers, (id) => env.size(id))
-  segmentsMemo = { blockers, segments }
+  // Kept only once every blocker's silhouette is known (until then it stops light with its rectangle).
+  let complete = true
+  const segments = blockingSegments(
+    blockers,
+    (id) => {
+      // A size not known yet means its silhouette isn't either: try again later.
+      const s = env.size(id)
+      if (!s) complete = false
+      return s
+    },
+    (id) => {
+      const o = env.outline(id)
+      if (!o) complete = false
+      return o
+    },
+  )
+  segmentsMemo = complete ? { blockers, segments } : null
   return segments
 }
 

@@ -292,6 +292,11 @@ export class MapScene {
         if (!s && !this.assets.isMissing(id)) track.complete = false
         return s
       },
+      outline: (id) => {
+        const o = this.assets.outline(id)
+        if (!o && !this.assets.isUnavailable(id)) track.complete = false
+        return o
+      },
       colorable: (id) => !!id && this.assets.isColorable(id),
       image: (url) => {
         const t = this.assets.textureFromUrl(url)

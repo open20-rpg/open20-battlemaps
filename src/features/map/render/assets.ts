@@ -3,6 +3,8 @@ import i18n from "../../../i18n"
 import { withLoading } from "../../../stores/loadingStore"
 import { recolorUrl, thumbUrl, type RecolorMode } from "../../library/api"
 import { resolveAssets, type ResolvedAsset } from "../api"
+import { alphaOutline } from "../model/alphaOutline"
+import { type Vec2 } from "../model/types"
 
 /**
  * Pack textures (.dungeondraft_pack) are authored at 256 px per grid tile;
@@ -55,6 +57,7 @@ export class AssetCache {
   private notifyScheduled = false
   /** Alpha channels read back from loaded textures (null: can't be read). */
   private alphas = new Map<string, AlphaMask | null>()
+  private outlines = new Map<string, Vec2[][] | null>()
   /** Bumped on every notification (see missingIds). */
   private changes = 0
   /** How textures load (Settings › Performance): fraction of their pixels, mipmaps. */
@@ -72,6 +75,7 @@ export class AssetCache {
     for (const t of this.textures.values()) if (t instanceof Texture) t.destroy(true)
     this.textures.clear()
     this.alphas.clear()
+    this.outlines.clear()
   }
 
   /** How its textures load (see configure). */
@@ -101,6 +105,7 @@ export class AssetCache {
     for (const t of this.textures.values()) if (t instanceof Texture) t.destroy(true)
     this.textures.clear()
     this.alphas.clear()
+    this.outlines.clear()
     this.listeners.clear()
   }
 
@@ -176,6 +181,22 @@ export class AssetCache {
     const iy = Math.floor(v * mask.h)
     if (ix < 0 || iy < 0 || ix >= mask.w || iy >= mask.h) return 0
     return mask.data[iy * mask.w + ix]
+  }
+
+  /**
+   * The outer outlines of an asset's opaque part, in fractions of its image
+   * (model/alphaOutline.ts), or undefined while it isn't loaded (or can't be read back).
+   */
+  outline(id: string): readonly (readonly Vec2[])[] | undefined {
+    const url = this.urlFor(id, {})
+    if (!url) return undefined
+    const cached = this.outlines.get(url)
+    if (cached !== undefined) return cached ?? undefined
+    if (this.alphaAt(id, 0.5, 0.5) === undefined) return undefined
+    const mask = this.alphas.get(url)
+    const loops = mask ? alphaOutline(mask) : null
+    this.outlines.set(url, loops)
+    return loops ?? undefined
   }
 
   /**

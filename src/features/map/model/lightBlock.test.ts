@@ -54,6 +54,36 @@ describe("light blocking", () => {
     expect(pointInPolygon(out, visibilityPolygon({ x: 5, y: 5 }, 20, shut))).toBe(false)
   })
 
+  it("stops light along an object's silhouette, not its whole rectangle", () => {
+    // A 2×2-tile image whose opaque part is only its left half.
+    const pillar = entity("p", "object", {
+      position: { x: 5, y: 0 },
+      params: { blockLight: true, asset: "pack|pillar.png" },
+    })
+    const sizeOf = () => ({ w: 2, h: 2 })
+    // Left half of the image (u < 0.5): map x is mirrored, so it lies at x 5..6.
+    const half = [
+      [
+        { x: 0, y: 0 },
+        { x: 0.5, y: 0 },
+        { x: 0.5, y: 1 },
+        { x: 0, y: 1 },
+      ],
+    ]
+    const light = { x: 5.5, y: -6 }
+    const box = visibilityPolygon(light, 12, blockingSegments([pillar], sizeOf))
+    const alpha = visibilityPolygon(
+      light,
+      12,
+      blockingSegments([pillar], sizeOf, () => half),
+    )
+    // Straight behind the transparent half (x 4..5): lit by its silhouette, dark by its box.
+    expect(pointInPolygon({ x: 4.3, y: 3 }, box)).toBe(false)
+    expect(pointInPolygon({ x: 4.3, y: 3 }, alpha)).toBe(true)
+    // Behind the opaque half, dark either way.
+    expect(pointInPolygon({ x: 5.6, y: 3 }, alpha)).toBe(false)
+  })
+
   it("only counts objects that block light", () => {
     const table = entity("t", "object", { params: { blockLight: false } })
     const crate = entity("c", "object", { params: { blockLight: true } })

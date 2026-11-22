@@ -237,6 +237,17 @@ export function spriteCorners(entity: MapEntity, sizeOf: AssetSizeOf): Vec2[] {
   )
 }
 
+/** The map point at `uv` (fractions of its texture) of a sprite: {@link spriteUV} undone. */
+export function spriteFromUV(entity: MapEntity, uv: Vec2, size: { w: number; h: number }): Vec2 {
+  const s = entity.scale ?? 1
+  const lx = (entity.flipX ? -1 : 1) * (uv.x - 0.5) * size.w * s
+  const ly = (entity.flipY ? -1 : 1) * (uv.y - 0.5) * size.h * s
+  const t = (entity.rotation * Math.PI) / 180
+  const dx = lx * Math.cos(t) - ly * Math.sin(t)
+  const dy = lx * Math.sin(t) + ly * Math.cos(t)
+  return { x: entity.position.x - dx, y: entity.position.y + dy }
+}
+
 /**
  * Where in a sprite's texture (object, portal) map point `p` falls, as
  * fractions of its width and height (0..1 inside it) — the renderer's
