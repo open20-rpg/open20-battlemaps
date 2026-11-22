@@ -341,6 +341,8 @@ function patterns(im: Importer, level: string, raw: Json): MapEntity[] {
           layer: num(pt.layer, 100),
           points: pts,
           closed: true,
+          // Dungeondraft lays the texture from the node's origin, not the map's.
+          position: im.p(vec(pt.position)),
           params: {
             pattern: selection(im.asset(pt.texture)),
             customColor: argbToHex(pt.color),

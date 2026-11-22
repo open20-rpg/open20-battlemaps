@@ -215,6 +215,27 @@ describe("Dungeondraft import", () => {
     expect(rot).toEqual([90, -110.8, -90, -90])
   })
 
+  it("lays a pattern's texture from its node's origin", () => {
+    const map = structuredClone(MAP)
+    ;(map.world.levels["0"] as Record<string, unknown>).patterns = [
+      {
+        position: "Vector2( 7620.96, 2731.61 )",
+        shape_rotation: Math.PI / 2,
+        scale: "Vector2( 1, 1 )",
+        points: "PoolVector2Array( 512, 2048, 512, 3072, 2560, 3072, 2560, 2048 )",
+        layer: 900,
+        color: "ffffffff",
+        outline: false,
+        texture: "res://packs/abcd1234/textures/patterns/normal/a.webp",
+        rotation: 0,
+      },
+    ]
+    const r = importDungeondraftMap(JSON.stringify(map))
+    const [pt] = r.doc.entities.filter((e) => e.toolId === "pattern")
+    expect(pt.position.x).toBeCloseTo(r.doc.width - 7620.96 / 256, 4)
+    expect(pt.position.y).toBeCloseTo(2731.61 / 256, 4)
+  })
+
   it("mirrors x (cells from the right edge) and maps pack textures to asset ids", () => {
     const [wall] = byTool("wall")
     expect(wall.points).toEqual([
