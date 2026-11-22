@@ -1,0 +1,27 @@
+{
+  "name": "@open20/battlemaps-sdk",
+  "version": "1.0.0",
+  "description": "SDK para crear extensiones seguras de Open20 Battle Maps",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./geometry": "./src/geometry.ts",
+    "./random": "./src/random.ts",
+    "./color": "./src/color.ts",
+    "./testing": "./src/testing.ts",
+    "./package": "./src/package.ts",
+    "./protocol": "./src/protocol.ts",
+    "./hostkit": "./src/hostkit.ts"
+  },
+  "bin": {
+    "otbx": "./cli/otbx.mjs"
+  },
+  "files": [
+    "src",
+    "cli",
+    "README.md"
+  ]
+}

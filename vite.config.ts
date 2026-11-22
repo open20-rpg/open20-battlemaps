@@ -1,5 +1,6 @@
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
+import { fileURLToPath } from "node:url"
 import pkg from "./package.json" with { type: "json" }
 
 // @ts-expect-error process is a nodejs global
@@ -8,6 +9,20 @@ const host = process.env.TAURI_DEV_HOST
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+
+  // The extension SDK lives in this repo (sdk/) and is imported by its package name.
+  resolve: {
+    alias: [
+      {
+        find: /^@open20\/battlemaps-sdk\/(.*)$/,
+        replacement: fileURLToPath(new URL("./sdk/src/$1.ts", import.meta.url)),
+      },
+      {
+        find: /^@open20\/battlemaps-sdk$/,
+        replacement: fileURLToPath(new URL("./sdk/src/index.ts", import.meta.url)),
+      },
+    ],
+  },
 
   // Expose the app version (single source of truth: package.json) to the client.
   define: {

@@ -7,7 +7,7 @@ import prettier from "eslint-config-prettier"
 export default tseslint.config(
   { ignores: ["dist", "src-tauri/target", "docs"] },
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "sdk/**/*.ts", "examples/extensions/**/*.ts"],
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,

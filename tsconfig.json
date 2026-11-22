@@ -13,6 +13,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "paths": {
+      "@open20/battlemaps-sdk": ["./sdk/src/index.ts"],
+      "@open20/battlemaps-sdk/*": ["./sdk/src/*"]
+    },
 
     /* Linting */
     "strict": true,
@@ -20,6 +24,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "sdk/src", "examples/extensions"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
