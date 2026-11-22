@@ -18,6 +18,10 @@ barra izquierda.
 - `npm run dev` — frontend solo (Vite). `npm run tauri dev` — app completa.
 - `npm run check` — tsc + eslint + prettier check. `npm run test` — Vitest.
 - `npm run doctor` — react-doctor (mal uso de React: efectos, renders, etc.).
+- `npm run extensions:build` — empaqueta los ejemplos de `examples/extensions/`
+  en `dist-extensions/*.otbx` (CLI `sdk/cli/otbx.mjs`). `npm run
+sandbox:check` — corre el sandbox de extensiones en Chromium (Playwright)
+  con el ejemplo `tint` y una extensión hostil; falla si algo se escapa.
 - Backend: `cargo check --manifest-path src-tauri/Cargo.toml` y `cargo test`
   tras tocar Rust; `cargo fmt` antes de terminar.
 
@@ -36,7 +40,7 @@ ni accionable.
 - **Estados globales separados por dominio** en `src/stores/` (Zustand): map,
   mapFile, editor (selección, nivel activo, borradores de la herramienta —
   sesión, fuera de undo/redo), view, tools, packs, settings, preview, loading,
-  modalStack. Nunca fusionarlos ni
+  modalStack, extensions. Nunca fusionarlos ni
   crear un store "app". La comunicación de _estado_ entre features pasa por
   stores; una feature puede componer componentes públicos de otra (ej. el
   asset picker de tools usa `library/AssetSelector`) importando el archivo
@@ -179,6 +183,21 @@ init` en cada build y sube el `.ipa` de la build de tienda a la misma app.
   guardar, al iniciar se abre el diálogo de copias para recuperarlos. Cada
   `.otbm` lleva `meta.thumbnail` (JPEG chico, `renderThumbnail`), que también
   usan las copias y los mapas recientes.
+- **Extensiones** (`sdk/` = `@open20/battlemaps-sdk`; host en
+  `features/extensions/`; Rust en `extensions.rs`; diseño y estado de cada
+  capacidad en `docs/extensions-sdk.md`): cada extensión corre en un Worker
+  dentro de un iframe sandbox (origen opaco, CSP sin red ni eval, preludio que
+  borra red y almacenamiento). Su única salida es el protocolo de
+  `sdk/src/protocol.ts`. `hostkit.ts` chequea cada pedido contra los permisos
+  concedidos (`METHOD_PERMISSIONS`, `CONTRIBUTION_PERMISSIONS`): un método
+  nuevo del host = entrada en `HostApi` + su permiso + handler en `host.ts`
+  - uso en algún ejemplo. Si falta el uso, `examples/extensions/coverage.test.ts`
+    falla. Lo que aportan (herramientas, estilos, shaders, paneles…) son datos
+    que la app dibuja con sus propios componentes. Sus cambios al mapa van por
+    `ops.ts` (puro) + `transformDocument`/`amendLastStep` (un paso de undo).
+    Sus datos viven en `entity.ext[<id>]` (también por nivel y por mapa) y se
+    conservan aunque la extensión no esté instalada. Nunca les des acceso
+    directo a stores, Pixi, DOM o `invoke`.
 - Solo `features/*/api.ts` llama `invoke()` de Tauri.
 - **Toda operación async no instantánea** (comandos Tauri, IO, carga de assets)
   se ejecuta dentro de `withLoading(mensaje, fn)` (`stores/loadingStore`) para
@@ -194,7 +213,9 @@ init` en cada build y sube el `.ipa` de la build de tienda a la misma app.
 ## Estructura
 
 - `src/app/` — shell: App, MenuBar, StatusBar, EmptyState, dialogs/.
-- `src/features/{map,tools,library,packs,viewport,fonts}/` — una carpeta por dominio.
+- `src/features/{map,tools,library,packs,viewport,fonts,extensions}/` — una carpeta por dominio.
+- `sdk/` — el SDK de extensiones (paquete propio, con su CLI); `examples/extensions/`
+  — extensiones de ejemplo con sus tests contra el host real.
 - `src/stores/` — estado global. `src/ui/` — genéricos sin dominio (Modal,
   FloatingWindow, ColorPickerPopover; `ui/chakra/` son snippets de Chakra,
   tratarlos como código vendored). `src/lib/` — utilidades puras sin React.
