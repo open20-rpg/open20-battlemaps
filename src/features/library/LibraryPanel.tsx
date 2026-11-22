@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import { Box, Flex, Icon, IconButton, Tabs, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
+import { localize } from "@open20/battlemaps-sdk"
+import { useContributions } from "../../stores/extensionsStore"
+import { ExtensionLibraryTab } from "../extensions/ui/ExtensionLibraryTab"
 import { LuImagePlus, LuLibrary } from "react-icons/lu"
 import { Tooltip } from "../../ui/chakra/tooltip"
 import { startImport } from "../packs/importFlow"
@@ -84,8 +87,12 @@ export function LibraryPanel({
   /** Inside another container (the phone layout's sheet) instead of docked on the right. */
   embedded?: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
+  // Tabs extensions add (theirs, or for this category).
+  const extTabs = useContributions("libraryTab").filter(
+    (x) => !x.contribution.category || x.contribution.category === category,
+  )
   // Docked over the canvas's right edge (not inside the phone's sheet).
   useViewportCover(ref, "right", !embedded)
   const [tab, setTab] = useState("all")
@@ -201,6 +208,11 @@ export function LibraryPanel({
           <Tabs.Trigger value="all">{t("library.tabAll")}</Tabs.Trigger>
           <Tabs.Trigger value="used">{t("library.tabUsed")}</Tabs.Trigger>
           <Tabs.Trigger value="tags">{t("library.tabTags")}</Tabs.Trigger>
+          {extTabs.map((x) => (
+            <Tabs.Trigger key={x.key} value={x.key}>
+              {localize(x.contribution.title, i18n.language)}
+            </Tabs.Trigger>
+          ))}
           {/* Embedded (phone sheet) there's no header: the import button sits here. */}
           {embedded && (
             <IconButton
@@ -231,6 +243,24 @@ export function LibraryPanel({
         <Tabs.Content value="tags" flex="1" minH="0" p="0" display="flex" flexDirection="column">
           <TagBrowser category={category} shared={shared} />
         </Tabs.Content>
+        {extTabs.map((x) => (
+          <Tabs.Content
+            key={x.key}
+            value={x.key}
+            flex="1"
+            minH="0"
+            p="0"
+            display="flex"
+            flexDirection="column"
+          >
+            <ExtensionLibraryTab
+              tab={x}
+              category={category}
+              selectedIds={selection}
+              onSelect={onSelectionChange}
+            />
+          </Tabs.Content>
+        ))}
       </Tabs.Root>
     </Flex>
   )

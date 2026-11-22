@@ -9,7 +9,7 @@ import {
   type AssetSizeOf,
 } from "../model/geometry"
 import { type MapEntity, type Vec2 } from "../model/types"
-import { ENTITY_RENDERERS, type RenderEnv } from "./entities"
+import { rendererFor, type RenderEnv } from "./entities"
 import { tileSizeForZoom } from "./viewport"
 
 /** Selection/draft accent: Open20 crimson, lightened to read over any map. */
@@ -170,7 +170,7 @@ export function drawOverlay(
         break
       }
       case "ghost": {
-        const render = ENTITY_RENDERERS[shape.entity.toolId]
+        const render = rendererFor(shape.entity.toolId)
         if (render) {
           const view = render(shape.entity, env)
           view.alpha = 0.55

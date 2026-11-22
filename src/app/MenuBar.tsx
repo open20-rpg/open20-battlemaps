@@ -2,7 +2,6 @@ import { Button, Flex, Icon, Menu, Portal, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import type { IconType } from "react-icons"
 import {
-  LuBlocks,
   LuFolderOpen,
   LuDatabaseBackup,
   LuGem,
@@ -18,6 +17,7 @@ import {
   LuUndo2,
   LuUpload,
 } from "react-icons/lu"
+import { ExtensionsMenu } from "../features/extensions/ui/ExtensionsMenu"
 
 interface BarButtonProps {
   icon: IconType
@@ -72,6 +72,8 @@ export interface MenuBarProps {
   onRedo: () => void
   canUndo: boolean
   canRedo: boolean
+  onOpenExtensions: () => void
+  onOpenPalette: () => void
 }
 
 export function MenuBar(props: MenuBarProps) {
@@ -195,7 +197,7 @@ export function MenuBar(props: MenuBarProps) {
         active={props.assetsOpen}
         onClick={props.onToggleAssets}
       />
-      <BarButton icon={LuBlocks} label={t("menu.extensions")} disabled />
+      <ExtensionsMenu onManage={props.onOpenExtensions} onPalette={props.onOpenPalette} />
       <BarButton icon={LuInfo} label={t("menu.about")} onClick={props.onOpenAbout} />
     </Flex>
   )

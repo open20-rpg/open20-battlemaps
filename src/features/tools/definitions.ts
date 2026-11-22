@@ -2,6 +2,7 @@ import { DEFAULT_FONT } from "../fonts/catalog"
 import { BUILDING_WEARS, DEFAULT_BUILDING_WEAR } from "../map/model/types"
 import { type IconType } from "react-icons"
 import {
+  LuBlocks,
   LuBox,
   LuBoxes,
   LuBrickWall,
@@ -783,6 +784,46 @@ export const TOOL_TREE: ToolNode[] = [
     params: [{ kind: "missingAssets", paramKey: "focus", default: NO_FOCUS }],
   }),
 ]
+
+/** A tool an extension adds, and the core group it goes in (or its own group). */
+export interface ExtraTool {
+  /** A top-level group's id, or anything else for the Extensions group. */
+  group: string
+  leaf: ToolLeaf
+}
+
+/** The group holding extensions' tools that don't go in a core group. */
+export const EXTENSIONS_GROUP_ID = "extensions"
+
+/**
+ * The palette with extensions' tools: each in the core group it names (after
+ * the core tools), the rest in an Extensions group at the end. The core tree
+ * is never mutated.
+ */
+export function mergeToolTree(core: ToolNode[], extras: readonly ExtraTool[]): ToolNode[] {
+  if (extras.length === 0) return core
+  const byGroup = new Map<string, ToolLeaf[]>()
+  const rest: ToolLeaf[] = []
+  const coreGroups = new Set(core.filter((n) => n.type === "group").map((n) => n.id))
+  for (const { group, leaf } of extras) {
+    if (coreGroups.has(group)) byGroup.set(group, [...(byGroup.get(group) ?? []), leaf])
+    else rest.push(leaf)
+  }
+  const merged = core.map((n) =>
+    n.type === "group" && byGroup.has(n.id)
+      ? { ...n, children: [...n.children, ...byGroup.get(n.id)!] }
+      : n,
+  )
+  if (rest.length)
+    merged.push({
+      type: "group",
+      id: EXTENSIONS_GROUP_ID,
+      nameKey: "tools.extensionsGroup",
+      icon: LuBlocks,
+      children: rest,
+    })
+  return merged
+}
 
 /** Find the chain of nodes leading to (and including) the node with `id`. */
 export function findToolPath(

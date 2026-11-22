@@ -6,7 +6,8 @@ import { useMapStore } from "../../../stores/mapStore"
 import { beginGesture, endGesture, updateEntities } from "../../map/commands"
 import { type MapEntity } from "../../map/model/types"
 import { linkedGroups } from "../../map/model/links"
-import { TOOL_TREE, findToolPath } from "../definitions"
+import { findToolPath } from "../definitions"
+import { useToolsStore } from "../../../stores/toolsStore"
 import { type ToolParamSpec } from "../params"
 import { propertyPatches, sharedProperties } from "../properties"
 import { SELECT_KINDS, idsOfKind, isLockedSelection } from "../selectKinds"
@@ -76,7 +77,7 @@ export function SelectionPropertiesControl({
   }
   const first = selected[0]
   const sameTool = selected.every((e) => e.toolId === first.toolId)
-  const tool = findToolPath(TOOL_TREE, first.toolId)?.at(-1)
+  const tool = findToolPath(useToolsStore.getState().tree, first.toolId)?.at(-1)
   const title =
     selected.length === 1 && tool
       ? t(tool.nameKey)
@@ -108,7 +109,7 @@ export function SelectionPropertiesControl({
           renderControl={renderControl}
         />
         {linked.map((group) => {
-          const name = findToolPath(TOOL_TREE, group[0].toolId)?.at(-1)?.nameKey
+          const name = findToolPath(useToolsStore.getState().tree, group[0].toolId)?.at(-1)?.nameKey
           return (
             <Box key={group[0].id} borderTopWidth="1px" borderColor="panel.border" mt="1">
               <PropertyList

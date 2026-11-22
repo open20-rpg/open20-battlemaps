@@ -1,4 +1,5 @@
 import { Box, Flex, HStack, Icon, Portal, Spinner, Text, VStack } from "@chakra-ui/react"
+import { ExtensionStatus } from "../features/extensions/ui/ExtensionStatus"
 import { useTranslation } from "react-i18next"
 import { LuCircleCheck } from "react-icons/lu"
 import { Tooltip } from "../ui/chakra/tooltip"
@@ -162,8 +163,10 @@ export function StatusBar() {
       >
         <StatusIdentity />
 
-        {/* Middle reserved for future status data (coords, zoom, etc.) */}
-        <Box flex="1" />
+        {/* Middle: what extensions show (their items and running tasks). */}
+        <Box flex="1" minW="0" px="2">
+          <ExtensionStatus />
+        </Box>
 
         {/* Loading indicator — always right-aligned. Details show on hover only. */}
         <Sep />

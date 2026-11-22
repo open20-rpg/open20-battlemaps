@@ -105,6 +105,10 @@ export interface ParamValueByKind {
   missingAssets: MissingFocus
   /** The library items picked for the tool (its `LIBRARY_PARAM`). */
   librarySelection: string[]
+  /** Free text (extensions' tools and properties). */
+  text: string
+  /** A number typed in (extensions' tools and properties). */
+  number: number
 }
 
 export type ParamKind = keyof ParamValueByKind
@@ -185,6 +189,10 @@ export type ToolParamSpec =
   | BaseSpec<"missingAssets">
   /** What's picked in the Library (Scatter's objects): shown in the panel, a tap removes one. */
   | (BaseSpec<"librarySelection"> & { labelKey: string; category: AssetCategory })
+  /** A line of text, up to `maxLength` characters. */
+  | (BaseSpec<"text"> & { labelKey: string; maxLength?: number })
+  /** A number field, optionally bounded. */
+  | (BaseSpec<"number"> & { labelKey: string; min?: number; max?: number })
   /** Square on/off icon buttons in rows, under a title (Select's element filter). */
   | (BaseSpec<"iconToggles"> & {
       labelKey: string

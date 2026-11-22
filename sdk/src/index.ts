@@ -18,8 +18,17 @@
 export { defineExtension, runExtension } from "./runtime"
 export type { Disposable, ExtensionContext, ExtensionDefinition } from "./runtime"
 export { API_VERSION, localize, validateManifest } from "./manifest"
-export type { Manifest, LocalizedText, ActivationEvent, Contributes, SettingSpec } from "./manifest"
-export { PERMISSIONS, isPermission } from "./permissions"
+export type {
+  Manifest,
+  LocalizedText,
+  ActivationEvent,
+  Contributes,
+  SettingSpec,
+  ShaderTarget,
+  UniformSpec,
+  UniformType,
+} from "./manifest"
+export { PERMISSIONS, isPermission, permissionRisk } from "./permissions"
 export type { Permission } from "./permissions"
 export { ExtensionError } from "./protocol"
 export type * from "./types"

@@ -5,6 +5,7 @@ import { useActionBinding, withBinding } from "../shortcuts/bindings"
 import { Tooltip } from "../../ui/chakra/tooltip"
 import { useViewStore } from "../../stores/viewStore"
 import { VIEW_CONTROLS, ZOOM_LEVELS, type ToggleControl, type ZoomControl } from "./controls"
+import { ExtensionToggles } from "../extensions/ui/ExtensionToggles"
 
 /** Shared square hit-target size for the bottom controls (matches ToolIcon). */
 const BOX = "38px"
@@ -147,6 +148,8 @@ export function ViewControlsBar() {
       {VIEW_CONTROLS.map((control) =>
         control.kind === "toggle" ? (
           <ToggleButton key={control.id} control={control} />
+        ) : control.kind === "extensions" ? (
+          <ExtensionToggles key={control.id} />
         ) : (
           <ZoomSelector key={control.id} control={control} />
         ),

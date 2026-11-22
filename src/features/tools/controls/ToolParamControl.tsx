@@ -25,6 +25,8 @@ import { SelectionPropertiesControl } from "./SelectionPropertiesControl"
 import { IconTogglesControl } from "./IconTogglesControl"
 import { MissingAssetsControl } from "./MissingAssetsControl"
 import { LibrarySelectionControl } from "./LibrarySelectionControl"
+import { TextParamControl } from "./TextParamControl"
+import { NumberParamControl } from "./NumberParamControl"
 
 interface RenderArgs<K extends ParamKind> {
   toolId: string
@@ -159,6 +161,23 @@ const RENDERERS: { [K in ParamKind]: (args: RenderArgs<K>) => ReactNode } = {
       labelKey={spec.labelKey}
       options={spec.options}
       defaultValue={spec.default}
+      onChange={onChange}
+    />
+  ),
+  text: ({ spec, value, onChange }) => (
+    <TextParamControl
+      value={value}
+      labelKey={spec.labelKey}
+      maxLength={spec.maxLength}
+      onChange={onChange}
+    />
+  ),
+  number: ({ spec, value, onChange }) => (
+    <NumberParamControl
+      value={value}
+      labelKey={spec.labelKey}
+      min={spec.min}
+      max={spec.max}
       onChange={onChange}
     />
   ),

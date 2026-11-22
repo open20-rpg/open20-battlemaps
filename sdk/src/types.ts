@@ -323,13 +323,13 @@ export type ParamSpec =
   | { kind: "font"; key: string; label: LocalizedText; default: { family: string; style: string } }
   | { kind: "button"; key: string; label: LocalizedText; icon?: string }
 
+/** The Library's categories (the pack folders assets come from). */
 export type AssetCategory =
   | "objects"
   | "portals"
   | "walls"
   | "tilesets"
   | "paths"
-  | "patterns"
   | "terrain"
   | "materials"
   | "lights"

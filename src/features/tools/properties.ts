@@ -255,7 +255,7 @@ export const ENTITY_PROPERTIES: Record<string, EntityProperty[]> = {
  */
 export function sharedProperties(entities: readonly MapEntity[]): EntityProperty[] {
   if (entities.length === 0) return []
-  const lists = entities.map((e) => ENTITY_PROPERTIES[e.toolId] ?? [])
+  const lists = entities.map((e) => propertiesOf(e.toolId))
   // An asset browser shows one tool's category: only for a single kind of element.
   const oneTool = entities.every((e) => e.toolId === entities[0].toolId)
   return lists[0].filter(
@@ -277,7 +277,7 @@ export function propertyPatches(
   all: readonly MapEntity[] = entities,
 ): Map<string, Partial<MapEntity>> {
   const patches = new Map<string, Partial<MapEntity>>()
-  const propOf = (e: MapEntity) => ENTITY_PROPERTIES[e.toolId]?.find((p) => p.spec.paramKey === key)
+  const propOf = (e: MapEntity) => propertiesOf(e.toolId).find((p) => p.spec.paramKey === key)
   for (const e of entities) {
     const prop = propOf(e)
     if (!prop) continue
@@ -286,4 +286,21 @@ export function propertyPatches(
     for (const t of targets) if (!patches.has(t.id)) patches.set(t.id, prop.write(t, value))
   }
   return patches
+}
+
+/** Properties extensions add, per entity kind (features/extensions/tools.ts keeps them in sync). */
+const extraProperties = new Map<string, EntityProperty[]>()
+
+export function setExtraProperties(props: ReadonlyMap<string, EntityProperty[]>): void {
+  extraProperties.clear()
+  for (const [k, v] of props) extraProperties.set(k, v)
+}
+
+/** A kind's properties: its tool's, then the extensions' (asset browsers stay last). */
+export function propertiesOf(toolId: string): EntityProperty[] {
+  const core = ENTITY_PROPERTIES[toolId] ?? []
+  const extra = extraProperties.get(toolId)
+  if (!extra?.length) return core
+  const browsers = core.filter((p) => p.spec.kind === "assetPicker")
+  return [...core.filter((p) => p.spec.kind !== "assetPicker"), ...extra, ...browsers]
 }

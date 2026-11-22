@@ -85,6 +85,9 @@ interface ExtensionsState {
   activity: ActivityEntry[]
   /** The tour being shown, if any. */
   tour: { key: string; step: number } | null
+  /** On/off state of extensions' view toggles (and particle toggles), by key. */
+  viewToggles: Record<string, boolean>
+  setViewToggle: (key: string, on: boolean) => void
   /** CSS cursor an extension asked for over the map (null: the tool's own). */
   cursor: string | null
   setCursor: (cursor: string | null) => void
@@ -127,6 +130,8 @@ export const useExtensionsStore = create<ExtensionsState>()((set) => ({
   prompts: [],
   activity: [],
   tour: null,
+  viewToggles: {},
+  setViewToggle: (key, on) => set((s) => ({ viewToggles: { ...s.viewToggles, [key]: on } })),
   cursor: null,
   setCursor: (cursor) => set({ cursor }),
   setInstalled: (installed) => set({ installed }),

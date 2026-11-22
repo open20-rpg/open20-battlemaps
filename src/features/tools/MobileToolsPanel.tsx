@@ -2,10 +2,10 @@ import { useRef, useState } from "react"
 import { Box, Flex, HStack, Icon, IconButton, Text } from "@chakra-ui/react"
 import { useTranslation } from "react-i18next"
 import { LuChevronDown, LuChevronLeft, LuChevronUp, LuLayers } from "react-icons/lu"
-import { useActiveTool, useToolsStore } from "../../stores/toolsStore"
+import { useActiveTool, useToolTree, useToolsStore } from "../../stores/toolsStore"
 import { LibraryPanel } from "../library/LibraryPanel"
 import { ViewControlsBar } from "../viewport/ViewControlsBar"
-import { TOOL_TREE, type ToolGroup, type ToolLeaf, type ToolNode } from "./definitions"
+import { type ToolGroup, type ToolLeaf, type ToolNode } from "./definitions"
 import { ToolIcon } from "./panels/IconBar"
 import { ParamsPanel } from "./panels/ParamsPanel"
 
@@ -97,7 +97,8 @@ function ToolRow({
   onBack: () => void
 }) {
   const { t } = useTranslation()
-  const nodes = group ? group.children : TOOL_TREE
+  const tree = useToolTree()
+  const nodes = group ? group.children : tree
   return (
     <HStack
       gap="1"

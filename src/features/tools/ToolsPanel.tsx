@@ -1,9 +1,9 @@
 import { useRef } from "react"
 import { Flex } from "@chakra-ui/react"
 import { useViewportCover } from "../map/render/focus"
-import { useActiveTool, useToolsStore } from "../../stores/toolsStore"
+import { useActiveTool, useToolTree, useToolsStore } from "../../stores/toolsStore"
 import { ObjectPreview } from "../library/ObjectPreview"
-import { TOOL_TREE, type ToolNode } from "./definitions"
+import { type ToolNode } from "./definitions"
 import { IconBar } from "./panels/IconBar"
 import { GroupPanel } from "./panels/GroupPanel"
 import { ParamsPanel } from "./panels/ParamsPanel"
@@ -27,6 +27,7 @@ export function ToolsPanel() {
   const toggleParams = useToolsStore((s) => s.toggleParams)
   const paramsCollapsed = useToolsStore((s) => s.paramsCollapsed)
   const activeTool = useActiveTool()
+  const tree = useToolTree()
 
   const selectTopOrToggle = (node: ToolNode) => {
     if (node.type === "tool" && node.id === activeTool?.id) toggleParams()
@@ -40,7 +41,7 @@ export function ToolsPanel() {
   return (
     <Flex ref={ref} position="absolute" left="0" top="0" bottom="0" zIndex="docked" maxW="80%">
       <IconBar
-        nodes={TOOL_TREE}
+        nodes={tree}
         selectedId={path[0]?.id}
         onSelect={selectTopOrToggle}
         footer={<ViewControlsBar />}

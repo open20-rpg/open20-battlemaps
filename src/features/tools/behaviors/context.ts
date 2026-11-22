@@ -3,9 +3,20 @@ import { useMapStore } from "../../../stores/mapStore"
 import { getToolParams } from "../../../stores/toolsStore"
 import { useViewStore } from "../../../stores/viewStore"
 import { snapPoint } from "../../map/model/geometry"
+import { type Vec2 } from "../../map/model/types"
 import { assetCache } from "../../map/render/assets"
 import { libraryAssetsOf } from "../params"
 import { type ToolCtx } from "./types"
+
+/**
+ * Snapping that extensions provide (their grid kinds, their snap points):
+ * a point near where they last snapped, or null to snap to the square grid.
+ */
+let snapOverride: ((p: Vec2) => Vec2 | null) | null = null
+
+export function setSnapOverride(fn: ((p: Vec2) => Vec2 | null) | null): void {
+  snapOverride = fn
+}
 
 /** Snapshot the stores into a behavior context for `toolId` (null without a map). */
 export function buildToolCtx(toolId: string): ToolCtx | null {
@@ -21,7 +32,7 @@ export function buildToolCtx(toolId: string): ToolCtx | null {
     map,
     level,
     snapEnabled,
-    snap: (p, step = 1) => (snapEnabled ? snapPoint(p, step) : p),
+    snap: (p, step = 1) => (snapEnabled ? (snapOverride?.(p) ?? snapPoint(p, step)) : p),
     sizeOf: (id) => assetCache.size(id),
     alphaAt: (id, u, v) => assetCache.alphaAt(id, u, v),
     libraryAssets: libraryAssetsOf(params),

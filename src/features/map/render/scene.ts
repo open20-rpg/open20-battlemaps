@@ -3,13 +3,21 @@ import {
   type GraphicsPreset,
   type RenderPerformance,
 } from "../../../lib/renderPerformance"
-import { BlurFilter, Container, Graphics, Sprite, type Renderer } from "pixi.js"
+import { BlurFilter, Container, Graphics, Sprite, type Filter, type Renderer } from "pixi.js"
+import {
+  applyStyle,
+  drawPrimitives,
+  extensionBridge,
+  shaderFilter,
+  tickShaders,
+} from "./extensionRender"
+import { ParticleLayer } from "./particles"
 import { type DraftShape } from "../../../stores/editorStore"
 import { type ShadowStyle } from "../../../stores/settingsStore"
 import { type BuildingWear, type MapDocument, type MapEntity, type Vec2 } from "../model/types"
 import { type AssetCache } from "./assets"
 import {
-  ENTITY_RENDERERS,
+  rendererFor,
   SHADOW_KINDS,
   glowStrength,
   type RenderEnv,
@@ -87,6 +95,8 @@ interface EntityView {
   wear: BuildingWear
   /** The text quality it was drawn with (labels' images). */
   textQuality: number
+  /** Extensions' render state it was drawn with (styles, shaders, primitives). */
+  extRev: number
   view: Container
   /** Drop-shadow silhouettes it cast (they live in the shared shadow layer). */
   shadows: Container[]
@@ -226,6 +236,9 @@ export class MapScene {
     // Above the bare ground and the reference image, under everything else.
     this.compare.zIndex = -Number.MAX_VALUE / 2
     this.content.addChild(this.base, this.clip, this.compare)
+    // Extensions' particles: over everything but the lighting.
+    this.particles.view.zIndex = Number.MAX_SAFE_INTEGER - 1
+    this.content.addChild(this.particles.view)
     this.overlay.scale.x = -1
     this.unsubAssets = assets.subscribe(this.retry)
     // A font that finished loading: labels measured and drawn with the
@@ -234,9 +247,12 @@ export class MapScene {
       clearMeasures()
       this.retry()
     })
+    // An extension's drawing that was being computed arrived.
+    const unsubExt = extensionBridge()?.subscribe(this.retry) ?? (() => {})
     this.unsubscribe = () => {
       this.unsubAssets()
       unsubFonts()
+      unsubExt()
     }
   }
 
@@ -318,6 +334,9 @@ export class MapScene {
         return ready
       },
       perf: state.performance,
+      pending: () => {
+        track.complete = false
+      },
       textVisible: state.textVisible,
       lighting: state.lighting,
       terrainSmooth: state.terrainSmooth,
@@ -397,6 +416,7 @@ export class MapScene {
       state.referenceUrl,
       state.performance,
       liveTerrainVersion(),
+      extensionBridge()?.rev() ?? 0,
       this.exporting,
       this.assets,
     ]
@@ -410,6 +430,7 @@ export class MapScene {
     }
     this.contentKey = contentKey
     const onLevel = state.map.entities.filter((e) => !e.level || e.level === state.level)
+    this.particles.setEmitters(extensionBridge()?.particles(state.level) ?? [], state.map)
     this.syncBounds(state)
     this.syncReference(state)
     this.applyShadowStyle(state)
@@ -442,6 +463,10 @@ export class MapScene {
       this.env(state, track),
       state.transformHandles,
     )
+    // Extensions' overlays and their tool's draft, over the editor's own.
+    const extOverlays = extensionBridge()?.overlays(state.level) ?? []
+    if (extOverlays.length && !this.exporting)
+      this.overlay.addChild(drawPrimitives(extOverlays, this.env(state, track)))
   }
 
   private applyShadowStyle(state: SceneState): void {
@@ -469,7 +494,7 @@ export class MapScene {
       : []
     const seen = new Set<string>()
     below.forEach((entity, index) => {
-      const render = ENTITY_RENDERERS[entity.toolId]
+      const render = rendererFor(entity.toolId)
       if (!render) return
       seen.add(entity.id)
       const current = this.compareViews.get(entity.id)
@@ -495,13 +520,38 @@ export class MapScene {
   /** One filter pass over the map content, only while something is adjusted. */
   private applyPostProcess(state: SceneState): void {
     const pp = state.postProcess
-    if (isNeutral(pp)) {
+    const ext = extensionBridge()
+    const shaders = ext?.postShaders() ?? []
+    const key = `${ext?.rev() ?? 0}:${shaders.map((s) => s.id).join(",")}`
+    if (key !== this.extPostKey) {
+      this.extPostKey = key
+      this.extPost = shaders.flatMap((s) => shaderFilter(s.id, s.uniforms) ?? [])
+    }
+    const filters = isNeutral(pp) ? this.extPost : [this.post, ...this.extPost]
+    if (!isNeutral(pp)) this.post.set(pp)
+    const current = this.content.filters ?? []
+    if (filters.length === 0) {
       if (this.content.filters) this.content.filters = null
       return
     }
-    this.post.set(pp)
-    if (!this.content.filters) this.content.filters = [this.post]
+    if (current.length !== filters.length || current.some((f, i) => f !== filters[i]))
+      this.content.filters = filters
   }
+
+  /** Extensions' particle effects. */
+  private particles = new ParticleLayer((id) => this.assets.texture(id))
+
+  /** Advance animated effects (particles, shaders using time) by `dt` seconds. */
+  tick(dt: number, seconds: number): void {
+    if (this.exporting) return
+    this.particles.step(dt)
+    tickShaders(seconds)
+    this.contentChanged = true
+  }
+
+  /** Extensions' post-process shaders (rebuilt when they change). */
+  private extPost: Filter[] = []
+  private extPostKey = ""
 
   /** Black ground under the map, and clipping of whatever spills past it. */
   private syncBounds(state: SceneState): void {
@@ -560,8 +610,10 @@ export class MapScene {
     const blockers = lightBlockers(onLevel)
     // A view-level alpha, so changing the ambient doesn't rebuild every light.
     const glow = glowStrength(state.map.environment.ambientLight)
+    const ext = extensionBridge()
+    const extRev = ext?.rev() ?? 0
     onLevel.forEach((entity, index) => {
-      const render = ENTITY_RENDERERS[entity.toolId]
+      const render = rendererFor(entity.toolId)
       if (!render) return
       seen.add(entity.id)
       const deps = entity.toolId === "wall" ? portals : entity.toolId === "light" ? blockers : []
@@ -573,6 +625,7 @@ export class MapScene {
         current.lighting === state.lighting &&
         current.wear === state.map.buildingWear &&
         current.textQuality === state.performance.textQuality &&
+        current.extRev === extRev &&
         !this.redraws(current, assetsChanged)
       // Only moved (dragging an object, a label, a light): shift what's drawn.
       if (
@@ -596,8 +649,11 @@ export class MapScene {
         const track = { complete: true }
         const shadows: Container[] = []
         const view = render(entity, this.env(state, track, portals, shadows, blockers))
+        const style = ext?.styleFor(entity)
+        if (style) applyStyle(view, style)
         this.content.addChild(view)
         this.entities.set(entity.id, {
+          extRev,
           entity,
           deps,
           textVisible: state.textVisible,

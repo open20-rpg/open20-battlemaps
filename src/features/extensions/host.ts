@@ -199,6 +199,30 @@ export class ExtensionHost {
     for (const id of [...this.running.keys()]) this.stop(id)
   }
 
+  /** Run the extensions' document hooks; returns their warnings. */
+  async documentHooks(kind: "beforeSave" | "afterOpen"): Promise<string[]> {
+    const hooks = useExtensionsStore
+      .getState()
+      .contributions.filter((c) => c.contribution.type === "documentHook")
+    const out: string[] = []
+    for (const h of hooks) {
+      const fn = (h.contribution as Extract<Contribution, { type: "documentHook" }>)[kind]
+      if (!fn) continue
+      try {
+        const warnings = await fn()
+        if (Array.isArray(warnings))
+          out.push(
+            ...warnings
+              .filter((w): w is string => typeof w === "string")
+              .map((w) => w.slice(0, 300)),
+          )
+      } catch {
+        // A broken hook never blocks saving or opening.
+      }
+    }
+    return out
+  }
+
   /** Call an extension's callback by its connection (used by integrations). */
   connection(id: string): HostConnection | undefined {
     return this.running.get(id)?.conn
@@ -336,6 +360,63 @@ export class ExtensionHost {
         }
       }
     }
+    // Placement rules and asset behaviors: what the user just placed.
+    for (const r of this.running.values()) {
+      const added = map.entities.filter((e) => change.added.includes(e.id))
+      if (!added.length) break
+      const mine = useExtensionsStore.getState().contributions.filter((c) => c.extId === r.id)
+      for (const c of mine) {
+        const k = c.contribution
+        if (k.type !== "placementRule" && k.type !== "assetBehavior") continue
+        for (const e of added) {
+          const sdk = toSdkEntity(e, r.id, map.levels[0].id)
+          let ops: MapOp[] = []
+          try {
+            if (k.type === "placementRule" && k.kinds.includes(sdk.kind)) {
+              const adjusted = (await k.adjust({ ...sdk })) as Partial<Entity> | null
+              if (adjusted) {
+                const patch: Record<string, unknown> = {}
+                for (const f of [
+                  "position",
+                  "rotation",
+                  "scale",
+                  "layer",
+                  "flipX",
+                  "flipY",
+                ] as const)
+                  if (
+                    adjusted[f] !== undefined &&
+                    JSON.stringify(adjusted[f]) !== JSON.stringify(sdk[f])
+                  )
+                    patch[f] = adjusted[f]
+                if (Object.keys(patch).length) ops = [{ op: "update", id: e.id, patch }]
+              }
+            } else if (
+              k.type === "assetBehavior" &&
+              sdk.asset &&
+              (k.match.assets ?? []).includes(sdk.asset)
+            ) {
+              const res = await k.onPlaced(sdk)
+              if (Array.isArray(res)) ops = res
+            }
+          } catch {
+            continue
+          }
+          if (!ops.length || useMapStore.getState().map !== map) continue
+          this.amending = true
+          this.committing = r.id
+          try {
+            amendLastStep((m) => this.withUse(this.opsOn(m, ops, r.id).map, r.id))
+          } catch {
+            // Invalid ops from a rule are dropped.
+          } finally {
+            this.amending = false
+            this.committing = null
+          }
+          map = useMapStore.getState().map ?? map
+        }
+      }
+    }
     for (const r of this.running.values()) {
       for (const reaction of r.reactions.values()) {
         let ops: unknown
@@ -350,7 +431,7 @@ export class ExtensionHost {
         this.amending = true
         this.committing = r.id
         try {
-          amendLastStep((m) => this.opsOn(m, ops as MapOp[], r.id).map)
+          amendLastStep((m) => this.withUse(this.opsOn(m, ops as MapOp[], r.id).map, r.id))
         } catch {
           // An invalid op from a reaction is dropped (logged by opsOn's caller).
         } finally {

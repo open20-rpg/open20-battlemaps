@@ -39,6 +39,13 @@ import { actionForKey, currentBindings } from "../features/shortcuts/bindings"
 import { pressKey, releaseAll, releaseKey } from "../features/shortcuts/held"
 import { runAction } from "../features/map/shortcuts"
 import { typingIn } from "../lib/dom"
+import { startExtensions } from "../features/extensions/extensionsApp"
+import { ExtensionsDialog } from "../features/extensions/ui/ExtensionsDialog"
+import { ExtensionPrompts } from "../features/extensions/ui/ExtensionPrompts"
+import { ExtensionPanels } from "../features/extensions/ui/ExtensionPanels"
+import { CommandPalette } from "../features/extensions/ui/CommandPalette"
+import { useExtensionShortcuts } from "../features/extensions/commands"
+import { TourOverlay } from "../features/extensions/ui/ExtensionStatus"
 
 export default function App() {
   const hasMap = useHasMap()
@@ -67,6 +74,8 @@ export default function App() {
   const [newMapOpen, setNewMapOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [extensionsOpen, setExtensionsOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   // The Backups dialog, opened by hand (no recovery) or after an unexpected exit.
   const [backups, setBackups] = useState<{ recovery: BackupMap | null } | null>(null)
   const canUndo = useCanUndo()
@@ -84,6 +93,10 @@ export default function App() {
 
   // Back up the open map while it has unsaved changes.
   useEffect(() => startAutosave(), [])
+
+  // Installed extensions start (each in its sandbox) by their activation events.
+  useEffect(() => startExtensions(), [])
+  useExtensionShortcuts(() => setPaletteOpen(true))
 
   // Closed unexpectedly last time with unsaved changes: offer the backups.
   useEffect(() => {
@@ -179,6 +192,8 @@ export default function App() {
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
+        onOpenExtensions={() => setExtensionsOpen(true)}
+        onOpenPalette={() => setPaletteOpen(true)}
       />
 
       {/* Editor canvas with the sticky tools panel overlaid on the left */}
@@ -236,6 +251,12 @@ export default function App() {
           onRestore={handleRestore}
         />
       )}
+
+      {extensionsOpen && <ExtensionsDialog onClose={() => setExtensionsOpen(false)} />}
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <ExtensionPanels />
+      <ExtensionPrompts />
+      <TourOverlay />
 
       <Toaster />
     </Flex>

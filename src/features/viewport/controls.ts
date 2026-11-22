@@ -1,5 +1,14 @@
 import { type IconType } from "react-icons"
-import { LuEclipse, LuFrame, LuGrid3X3, LuLightbulb, LuMagnet, LuSearch } from "react-icons/lu"
+import {
+  LuBlocks,
+  LuEclipse,
+  LuFrame,
+  LuGrid3X3,
+  LuLightbulb,
+  LuMagnet,
+  LuSearch,
+  LuSparkles,
+} from "react-icons/lu"
 import { type ViewToggleKey } from "../../stores/viewStore"
 
 /**
@@ -29,7 +38,15 @@ export interface ZoomControl {
   icon: IconType
 }
 
-export type ViewControl = ToggleControl | ZoomControl
+/** The view toggles extensions add (their overlays, particles), one button each. */
+export interface ExtensionTogglesControl {
+  kind: "extensions"
+  id: string
+  nameKey: string
+  icon: IconType
+}
+
+export type ViewControl = ToggleControl | ZoomControl | ExtensionTogglesControl
 
 /** Selectable zoom percentages, ascending. Always displayed with a "%". */
 export const ZOOM_LEVELS = [10, 12, 15, 25, 33, 50, 75, 100, 125, 150, 200, 250, 300, 400, 600, 800]
@@ -70,5 +87,13 @@ export const VIEW_CONTROLS: ViewControl[] = [
     icon: LuFrame,
     key: "outside",
   },
+  {
+    kind: "toggle",
+    id: "animations",
+    nameKey: "view.animations",
+    icon: LuSparkles,
+    key: "animations",
+  },
+  { kind: "extensions", id: "extensions", nameKey: "view.extensions", icon: LuBlocks },
   { kind: "zoom", id: "zoom", nameKey: "view.zoom", icon: LuSearch },
 ]

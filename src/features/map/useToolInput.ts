@@ -67,6 +67,15 @@ export function useToolInput(ref: RefObject<HTMLElement | null>): void {
         shiftKey: e.shiftKey,
         altKey: e.altKey,
         ctrlKey: e.ctrlKey || e.metaKey,
+        // Pens and touch give pressure and tilt (extensions' brushes use them).
+        ...("pointerType" in e
+          ? {
+              pressure: (e as PointerEvent).pressure,
+              tiltX: (e as PointerEvent).tiltX,
+              tiltY: (e as PointerEvent).tiltY,
+              pointerType: (e as PointerEvent).pointerType,
+            }
+          : {}),
       }
     }
 

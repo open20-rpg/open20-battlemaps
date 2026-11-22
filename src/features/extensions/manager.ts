@@ -19,6 +19,7 @@ import {
 import { type ExtensionHost, type ExtensionRuntime } from "./host"
 import { type RegistryEntry } from "./services"
 import { createInProcessRuntime, createSandboxRuntime } from "./runtime"
+import { registerBundledFont } from "./content"
 
 /**
  * Installing, enabling and starting extensions. The registry on disk
@@ -288,6 +289,10 @@ export class ExtensionManager {
       } catch {
         store.log({ extId: id, kind: "fault", text: `shader ${s.id}: can't read ${s.path}` })
       }
+    }
+    for (const f of c.fonts ?? []) {
+      const bytes = await this.readFile(id, f.path).catch(() => null)
+      if (bytes) await registerBundledFont(f.family, bytes, f.style)
     }
     dataContributions.set(id, {
       toolPresets: c.toolPresets ?? [],

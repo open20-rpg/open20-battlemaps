@@ -14,6 +14,11 @@ export interface PointerInfo {
   shiftKey: boolean
   altKey: boolean
   ctrlKey: boolean
+  /** Pen/touch input: pressure 0–1, tilt in degrees, and the kind of pointer. */
+  pressure?: number
+  tiltX?: number
+  tiltY?: number
+  pointerType?: string
 }
 
 /** A wheel notch over the map: `dir` +1 up (away from the user), −1 down. */

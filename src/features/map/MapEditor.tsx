@@ -8,6 +8,8 @@ import { MapCanvas } from "./render/MapCanvas"
 import { TextEditOverlay } from "./TextEditOverlay"
 import { StatsPanel } from "./StatsPanel"
 import { useToolInput } from "./useToolInput"
+import { useExtensionDrop } from "../extensions/ui/useExtensionDrop"
+import { useExtensionsStore } from "../../stores/extensionsStore"
 
 /**
  * The map editor viewport: the map canvas (layers + grid overlay) with the
@@ -18,8 +20,12 @@ export function MapEditor() {
   const ref = useRef<HTMLDivElement>(null)
   const activeTool = useActiveTool()
   const params = useToolsStore((s) => (activeTool ? s.paramsByTool[activeTool.id] : undefined))
-  const cursor = activeTool ? getToolBehavior(activeTool.id)?.cursor?.(params ?? {}) : undefined
+  // An extension's tool may change its cursor while in use.
+  const extensionCursor = useExtensionsStore((s) => s.cursor)
+  const toolCursor = activeTool ? getToolBehavior(activeTool.id)?.cursor?.(params ?? {}) : undefined
+  const cursor = activeTool?.id.startsWith("ext:") ? (extensionCursor ?? toolCursor) : toolCursor
   useToolInput(ref)
+  useExtensionDrop(ref)
   // Performance settings that only a new WebGL context (or freshly loaded
   // textures) can apply recreate the canvas.
   const canvas = useSettingsStore((s) => canvasKey(s.performance))

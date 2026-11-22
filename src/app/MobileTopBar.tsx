@@ -6,6 +6,7 @@ import {
   LuFolderOpen,
   LuDatabaseBackup,
   LuGem,
+  LuBlocks,
   LuHistory,
   LuInfo,
   LuLogOut,
@@ -142,6 +143,12 @@ export function MobileTopBar(props: MenuBarProps) {
                 icon={LuGem}
                 label={t("menu.assets")}
                 onClick={props.onToggleAssets}
+              />
+              <Item
+                value="extensions"
+                icon={LuBlocks}
+                label={t("menu.extensions")}
+                onClick={props.onOpenExtensions}
               />
               <Item
                 value="prefs"

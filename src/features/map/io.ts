@@ -15,6 +15,7 @@ import {
 } from "../tools/params"
 import i18n from "../../i18n"
 import { withLoading } from "../../stores/loadingStore"
+import { toaster } from "../../ui/chakra/toaster-instance"
 import {
   exportBegin,
   exportEnd,
@@ -292,7 +293,29 @@ async function backupSerialized(
   return true
 }
 
+/**
+ * What extensions do around saving and opening (features/extensions sets
+ * it): warnings to show, and Dungeondraft mod data they translate.
+ */
+export interface DocumentHooks {
+  beforeSave(): Promise<string[]>
+  afterOpen(): Promise<string[]>
+  /** An imported Dungeondraft map's raw text: extensions turn mod data into entities. */
+  dungeondraft(raw: string): Promise<string[]>
+}
+
+let documentHooks: DocumentHooks | null = null
+
+export function setDocumentHooks(hooks: DocumentHooks | null): void {
+  documentHooks = hooks
+}
+
+function showWarnings(warnings: string[]): void {
+  for (const w of warnings.slice(0, 5)) toaster.create({ type: "warning", description: w })
+}
+
 async function writeMapTo(path: string): Promise<void> {
+  if (documentHooks) showWarnings(await documentHooks.beforeSave())
   const { contents, thumbnail } = await serializeCurrentMap()
   await saveMapFile(path, contents)
   useMapFileStore.getState().setSaved(path)
@@ -403,10 +426,12 @@ export async function openMapFlow(path?: string): Promise<OpenMapResult> {
     const result = importDungeondraftMap(raw)
     const missingPacks = await applyImport(result)
     useSettingsStore.getState().pushRecentMap(selected)
+    if (documentHooks) showWarnings(await documentHooks.dungeondraft(raw))
     return { opened: true, missingPacks, imported: result.warnings }
   }
   const { file, repaired } = parseSaveFile(raw)
   const missingPacks = await applySaveFile(file)
+  if (documentHooks) showWarnings(await documentHooks.afterOpen())
   useMapFileStore
     .getState()
     .setLoaded(selected, file.meta.createdAt, file.meta.appVersion, file.meta.id)
@@ -477,4 +502,16 @@ export async function restoreBackupFlow(mapId: string, backup: BackupEntry): Pro
     .setLoaded(backup.sourcePath, file.meta.createdAt, file.meta.appVersion, mapId)
   useMapFileStore.getState().markDirty()
   return missingPacks
+}
+
+/**
+ * Open `.otbm` text as a new, unsaved map (an extension's template): same
+ * loading as a file, but with no path, so Save asks where to write it.
+ * Returns the packs it needs that aren't installed.
+ */
+export async function openMapTemplate(raw: string): Promise<string[]> {
+  const { file } = parseSaveFile(raw)
+  const missing = await applySaveFile(file)
+  useMapFileStore.getState().startNew()
+  return missing
 }

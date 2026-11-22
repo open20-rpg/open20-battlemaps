@@ -1,3 +1,4 @@
+import { drawPrimitives, extensionBridge, extensionEntityRenderer } from "./extensionRender"
 import { Container, Graphics, Mesh, MeshGeometry, Point, Sprite, Texture } from "pixi.js"
 import { hexToPixiColor } from "../../../lib/colors"
 import { boundsOf, sub, wallRuns, type WallOpening } from "../model/geometry"
@@ -72,6 +73,8 @@ export interface RenderEnv {
   buildingWear: () => Texture | undefined
   /** How the map is rendered, traded against speed (Settings › Performance). */
   perf: RenderPerformance
+  /** Something drawn is still being computed (an extension's): redraw once it's there. */
+  pending?: () => void
 }
 
 /** What casts a shadow (each kind can be turned off in the shadow settings). */
@@ -736,4 +739,20 @@ export const ENTITY_RENDERERS: Record<string, EntityRenderer> = {
   pattern: patternRenderer,
   roof: roofRenderer,
   text: textRenderer,
+}
+
+/**
+ * The renderer for an entity kind: the core ones, an extension's own kinds
+ * (`ext:<id>/<type>`), and walls/paths an extension restyled.
+ */
+export function rendererFor(toolId: string): EntityRenderer | undefined {
+  if (toolId.startsWith("ext:")) return extensionEntityRenderer
+  const core = ENTITY_RENDERERS[toolId]
+  if (!core || (toolId !== "wall" && toolId !== "path")) return core
+  return (e, env) => {
+    if (typeof e.params.extStyle !== "string") return core(e, env)
+    const prims = extensionBridge()?.overrideFor(e)
+    if (prims === undefined) env.pending?.()
+    return prims ? drawPrimitives(prims, env) : core(e, env)
+  }
 }

@@ -290,3 +290,51 @@ export async function renderThumbnail(look: {
     return out.toDataURL("image/jpeg", 0.72)
   })
 }
+
+/** Most pixels on the long side of an image made for an extension. */
+export const EXTENSION_IMAGE_MAX_PX = 4096
+
+/**
+ * The open map (or a rectangle of it, in tiles) as PNG/JPEG bytes, for
+ * extensions (`render.toImage`: VTT exports, previews, players' views).
+ * Drawn like a thumbnail: the screen's textures, no grid, at most
+ * {@link EXTENSION_IMAGE_MAX_PX} on its long side.
+ */
+export async function renderMapImage(req: {
+  area?: { x: number; y: number; w: number; h: number }
+  pxPerTile?: number
+  format?: "png" | "jpeg"
+}): Promise<Uint8Array | null> {
+  const map = useMapStore.getState().map
+  if (!map || !active) return null
+  const longest = Math.max(map.width, map.height)
+  const ppt = Math.max(
+    1,
+    Math.min(req.pxPerTile ?? 64, Math.floor(EXTENSION_IMAGE_MAX_PX / longest)),
+  )
+  const opts: StageOptions = {
+    lighting: true,
+    shadows: true,
+    postProcess: true,
+    transparent: false,
+    grid: false,
+    format: { kind: "png" },
+    pxPerTile: ppt,
+    settleMs: 2000,
+  }
+  return withExportStage(opts, async ({ width, height }, render) => {
+    const a = req.area
+    const x = a ? Math.max(0, Math.floor(a.x * ppt)) : 0
+    const y = a ? Math.max(0, Math.floor(a.y * ppt)) : 0
+    const w = a ? Math.max(1, Math.min(width - x, Math.ceil(a.w * ppt))) : width
+    const h = a ? Math.max(1, Math.min(height - y, Math.ceil(a.h * ppt))) : height
+    const canvas = document.createElement("canvas")
+    canvas.width = w
+    canvas.height = h
+    const pixels = new Uint8ClampedArray(render(x, y, w, h))
+    canvas.getContext("2d")?.putImageData(new ImageData(pixels, w, h), 0, 0)
+    const type = req.format === "jpeg" ? "image/jpeg" : "image/png"
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, type, 0.9))
+    return blob ? new Uint8Array(await blob.arrayBuffer()) : null
+  })
+}

@@ -67,8 +67,16 @@ export const TOOL_BEHAVIORS: Record<string, ToolBehavior> = {
   replaceAssets: createReplaceAssetsBehavior(),
 }
 
+/** Behaviors of extensions' tools (features/extensions/tools.ts keeps them in sync). */
+const extraBehaviors = new Map<string, ToolBehavior>()
+
+export function setExtraBehaviors(behaviors: ReadonlyMap<string, ToolBehavior>): void {
+  extraBehaviors.clear()
+  for (const [id, b] of behaviors) extraBehaviors.set(id, b)
+}
+
 export function getToolBehavior(toolId: string): ToolBehavior | undefined {
-  return TOOL_BEHAVIORS[toolId]
+  return TOOL_BEHAVIORS[toolId] ?? extraBehaviors.get(toolId)
 }
 
 /** What the tool draws over the map right now (its `overlay`), or nothing. */
