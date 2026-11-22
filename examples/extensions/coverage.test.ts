@@ -22,10 +22,10 @@ const sources = import.meta.glob("./*/src/**/*.ts", {
   query: "?raw",
   import: "default",
 }) as Record<string, string>
-const manifests = import.meta.glob("./*/manifest.json", { eager: true, import: "default" }) as Record<
-  string,
-  { contributes?: Contributes; optionalPermissions?: string[] }
->
+const manifests = import.meta.glob("./*/manifest.json", {
+  eager: true,
+  import: "default",
+}) as Record<string, { contributes?: Contributes; optionalPermissions?: string[] }>
 
 /** What each context function sends: `ctx.map.add` → map.apply, `ctx.ui.panel` → contribution "panel". */
 async function contextMap(): Promise<Map<string, string[]>> {
@@ -40,7 +40,14 @@ async function contextMap(): Promise<Map<string, string[]>> {
     h({
       t: "activate",
       info: {
-        manifest: { manifestVersion: 1, id: "a.b", name: "x", version: "1.0.0", author: { name: "x" }, engines: { battlemaps: "*" } },
+        manifest: {
+          manifestVersion: 1,
+          id: "a.b",
+          name: "x",
+          version: "1.0.0",
+          author: { name: "x" },
+          engines: { battlemaps: "*" },
+        },
         granted: [],
         lang: "es",
         apiVersion: "1.0.0",
@@ -50,20 +57,26 @@ async function contextMap(): Promise<Map<string, string[]>> {
         storeBuild: false,
       },
     })
-  const ctx = (await run.context) as unknown as Record<string, Record<string, (...a: unknown[]) => unknown>>
+  const ctx = (await run.context) as unknown as Record<
+    string,
+    Record<string, (...a: unknown[]) => unknown>
+  >
   const out = new Map<string, string[]>()
   const record = (path: string, call: () => unknown) => {
     const before = sent.length
     try {
       const r = call()
-      if (r && typeof (r as Promise<unknown>).catch === "function") (r as Promise<unknown>).catch(() => {})
+      if (r && typeof (r as Promise<unknown>).catch === "function")
+        (r as Promise<unknown>).catch(() => {})
     } catch {
       // Some calls need real arguments to get as far as sending: the ones that matter don't.
     }
     const what = sent.slice(before).flatMap((m) => {
       if (m.t !== "req") return []
       if (m.method === "self.contribute")
-        return [`contribution:${(m.params as { contribution: { type: string } }).contribution.type}`]
+        return [
+          `contribution:${(m.params as { contribution: { type: string } }).contribution.type}`,
+        ]
       return [m.method]
     })
     out.set(path, what)
@@ -75,7 +88,12 @@ async function contextMap(): Promise<Map<string, string[]>> {
       if (typeof fn === "function") record(`${area}.${name}`, () => fn(...dummy))
   }
   for (const name of ["requestPermission", "contribute", "file", "on"])
-    record(name, () => (ctx as unknown as Record<string, (...a: unknown[]) => unknown>)[name]("map.changed", () => {}))
+    record(name, () =>
+      (ctx as unknown as Record<string, (...a: unknown[]) => unknown>)[name](
+        "map.changed",
+        () => {},
+      ),
+    )
   run.stop()
   return out
 }
@@ -93,7 +111,9 @@ describe("examples cover every capability", () => {
       if (re.test(code)) for (const w of what) used.add(w)
     }
     // Methods any extension uses implicitly: subscribing to events and settings.
-    if (/ctx\.(on|map\.onChange|editor\.onPointer|settings\.onChange|services\.onEvent)\(/.test(code)) {
+    if (
+      /ctx\.(on|map\.onChange|editor\.onPointer|settings\.onChange|services\.onEvent)\(/.test(code)
+    ) {
       used.add("self.subscribe")
       used.add("self.unsubscribe")
     }
@@ -109,7 +129,12 @@ describe("examples cover every capability", () => {
 
     const methods = Object.keys(METHOD_PERMISSIONS) as HostMethod[]
     // Translated messages come with activation; settings too: no extension needs to ask.
-    const implicit = new Set<HostMethod>(["self.t", "self.settings", "self.withdraw", "self.unsubscribe"])
+    const implicit = new Set<HostMethod>([
+      "self.t",
+      "self.settings",
+      "self.withdraw",
+      "self.unsubscribe",
+    ])
     const missingMethods = methods.filter((m) => !used.has(m) && !implicit.has(m))
     expect(missingMethods).toEqual([])
 
@@ -156,4 +181,3 @@ describe("examples cover every capability", () => {
     expect([...declared].some((p) => p.startsWith("network:"))).toBe(true)
   })
 })
-

@@ -38,7 +38,14 @@ export function hexLines(w: number, h: number, color = "#000000"): Primitive[] {
     const qStart = -Math.ceil(r / 2) - 1
     for (let q = qStart; fromAxial(q, r).x <= w + 1; q++) {
       const c = fromAxial(q, r)
-      out.push({ type: "path", points: regularPolygon(c, SIZE, 6, 30), closed: true, stroke: color, strokeWidth: 0.02, strokeAlpha: 0.5 })
+      out.push({
+        type: "path",
+        points: regularPolygon(c, SIZE, 6, 30),
+        closed: true,
+        stroke: color,
+        strokeWidth: 0.02,
+        strokeAlpha: 0.5,
+      })
     }
   }
   return out
@@ -65,11 +72,18 @@ export default defineExtension({
       id: "wall-corners",
       name: { es: "Esquinas de muros", en: "Wall corners" },
       points: async (p, reach) => {
-        const walls = await ctx.map.query({ kinds: ["wall"], rect: { x: p.x - reach, y: p.y - reach, w: reach * 2, h: reach * 2 } })
+        const walls = await ctx.map.query({
+          kinds: ["wall"],
+          rect: { x: p.x - reach, y: p.y - reach, w: reach * 2, h: reach * 2 },
+        })
         return walls.flatMap((w) => w.points ?? [])
       },
     })
-    await ctx.render.layer({ id: "hex-marks", name: { es: "Marcas hex", en: "Hex marks" }, value: 650 })
+    await ctx.render.layer({
+      id: "hex-marks",
+      name: { es: "Marcas hex", en: "Hex marks" },
+      value: 650,
+    })
     await ctx.services.provide({
       id: "hex",
       version: "1.0.0",
@@ -84,7 +98,15 @@ export default defineExtension({
       title: { es: "Usar grilla hexagonal", en: "Use hex grid" },
       icon: "LuHexagon",
       run: async () => {
-        await ctx.map.apply([{ op: "setGrid", grid: { kind: "ext:open20.hex-grid/hex", unit: "km", cellDistance: 10 } }], { label: "Grilla hex" })
+        await ctx.map.apply(
+          [
+            {
+              op: "setGrid",
+              grid: { kind: "ext:open20.hex-grid/hex", unit: "km", cellDistance: 10 },
+            },
+          ],
+          { label: "Grilla hex" },
+        )
         await ctx.editor.setView("grid", true)
       },
     })
@@ -96,11 +118,24 @@ export default defineExtension({
       for (let r = 0; r * SIZE * 1.5 <= map.height; r += 2)
         for (let q = -Math.ceil(r / 2); fromAxial(q, r).x <= map.width; q += 2) {
           const c = fromAxial(q, r)
-          labels.push({ type: "text", text: `${q},${r}`, position: c, size: 0.2, align: "center", color: "#ffffff" })
+          labels.push({
+            type: "text",
+            text: `${q},${r}`,
+            position: c,
+            size: 0.2,
+            align: "center",
+            color: "#ffffff",
+          })
         }
       await ctx.render.setOverlay("coords", labels)
     }
-    await ctx.ui.viewToggle({ id: "coords", name: { es: "Coordenadas hex", en: "Hex coordinates" }, icon: "LuHexagon", default: false, onChange: showCoords })
+    await ctx.ui.viewToggle({
+      id: "coords",
+      name: { es: "Coordenadas hex", en: "Hex coordinates" },
+      icon: "LuHexagon",
+      default: false,
+      onChange: showCoords,
+    })
     // The hex under the pointer, in the status bar.
     ctx.editor.onPointer((p) => {
       if (!p) return

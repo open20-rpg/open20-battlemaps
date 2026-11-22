@@ -1,16 +1,25 @@
-import { defineExtension, type Primitive, type ToolContext, type Vec2 } from "@open20/battlemaps-sdk"
+import {
+  defineExtension,
+  type Primitive,
+  type ToolContext,
+  type Vec2,
+} from "@open20/battlemaps-sdk"
 import { poissonDisk } from "@open20/battlemaps-sdk/random"
 import { resample, smooth } from "@open20/battlemaps-sdk/geometry"
 import { simplex2 } from "@open20/battlemaps-sdk/random"
 
-const STAMP_ICON = '<svg viewBox="0 0 24 24"><path d="M5 22h14M12 2v10M7 12h10l2 6H5z" stroke="currentColor" fill="none" stroke-width="2"/></svg>'
+const STAMP_ICON =
+  '<svg viewBox="0 0 24 24"><path d="M5 22h14M12 2v10M7 12h10l2 6H5z" stroke="currentColor" fill="none" stroke-width="2"/></svg>'
 
 /** Posts every tile along a fence line. */
 export const posts = (points: Vec2[]) => resample(points, 1)
 
 export default defineExtension({
   async activate(ctx) {
-    const asset = (t: ToolContext) => (typeof t.params.asset === "string" ? t.params.asset : "open20.essentials|textures/objects/barrel.png")
+    const asset = (t: ToolContext) =>
+      typeof t.params.asset === "string"
+        ? t.params.asset
+        : "open20.essentials|textures/objects/barrel.png"
 
     // Click: stamp the picked object where clicked.
     await ctx.tools.register({
@@ -19,14 +28,38 @@ export default defineExtension({
       icon: STAMP_ICON,
       group: "objects",
       gesture: "click",
-      help: { es: "Hacé clic para estampar el objeto elegido.", en: "Click to stamp the picked object." },
+      help: {
+        es: "Hacé clic para estampar el objeto elegido.",
+        en: "Click to stamp the picked object.",
+      },
       params: [
-        { kind: "asset", key: "asset", label: { es: "Objeto", en: "Object" }, default: null, category: "objects" },
-        { kind: "range", key: "scale", label: { es: "Escala", en: "Scale" }, default: [0.8, 1.2], min: 0.2, max: 3, step: 0.1 },
+        {
+          kind: "asset",
+          key: "asset",
+          label: { es: "Objeto", en: "Object" },
+          default: null,
+          category: "objects",
+        },
+        {
+          kind: "range",
+          key: "scale",
+          label: { es: "Escala", en: "Scale" },
+          default: [0.8, 1.2],
+          min: 0.2,
+          max: 3,
+          step: 0.1,
+        },
       ],
       onShape: async (t, s) => {
         const [lo, hi] = (t.params.scale as [number, number]) ?? [1, 1]
-        await ctx.map.add([{ kind: "object", position: s.points[0], asset: asset(t), scale: lo + Math.random() * (hi - lo) }])
+        await ctx.map.add([
+          {
+            kind: "object",
+            position: s.points[0],
+            asset: asset(t),
+            scale: lo + Math.random() * (hi - lo),
+          },
+        ])
       },
     })
     // Polyline: a palisade (a wall drawn with this extension's style) plus posts.
@@ -39,12 +72,24 @@ export default defineExtension({
       onShape: async (_t, s) => {
         const ids = await ctx.map.add(
           [
-            { kind: "wall", position: s.points[0], points: s.points, params: { extStyle: "open20.stamp-tools/palisade" } },
-            ...posts(s.points).map((p) => ({ kind: "object" as const, position: p, asset: "open20.essentials|textures/objects/post.png" })),
+            {
+              kind: "wall",
+              position: s.points[0],
+              points: s.points,
+              params: { extStyle: "open20.stamp-tools/palisade" },
+            },
+            ...posts(s.points).map((p) => ({
+              kind: "object" as const,
+              position: p,
+              asset: "open20.essentials|textures/objects/post.png",
+            })),
           ],
           { label: "Empalizada" },
         )
-        await ctx.map.apply([{ op: "group", ids }, { op: "attach", ids: ids.slice(1), parent: ids[0] }])
+        await ctx.map.apply([
+          { op: "group", ids },
+          { op: "attach", ids: ids.slice(1), parent: ids[0] },
+        ])
       },
     })
     // Brush: a trail of footprints spread along the stroke.
@@ -54,7 +99,17 @@ export default defineExtension({
       icon: "LuBrush",
       group: "terrain",
       gesture: "brush",
-      params: [{ kind: "slider", key: "size", label: { es: "Ancho", en: "Width" }, default: 0.6, min: 0.2, max: 3, step: 0.1 }],
+      params: [
+        {
+          kind: "slider",
+          key: "size",
+          label: { es: "Ancho", en: "Width" },
+          default: 0.6,
+          min: 0.2,
+          max: 3,
+          step: 0.1,
+        },
+      ],
       onShape: async (_t, s) => {
         await ctx.map.add([{ kind: "path", position: s.points[0], points: smooth(s.points, 2) }])
       },
@@ -85,7 +140,16 @@ export default defineExtension({
       keys: ["Escape"],
       cursor: "crosshair",
       params: [
-        { kind: "segmented", key: "unit", label: { es: "Unidad", en: "Unit" }, default: "tiles", options: [{ value: "tiles", label: { es: "Casillas", en: "Tiles" } }, { value: "feet", label: { es: "Pies", en: "Feet" } }] },
+        {
+          kind: "segmented",
+          key: "unit",
+          label: { es: "Unidad", en: "Unit" },
+          default: "tiles",
+          options: [
+            { value: "tiles", label: { es: "Casillas", en: "Tiles" } },
+            { value: "feet", label: { es: "Pies", en: "Feet" } },
+          ],
+        },
         { kind: "button", key: "clear", label: { es: "Borrar", en: "Clear" } },
       ],
       onActivate: () => ctx.editor.setCursor("crosshair"),
@@ -99,7 +163,13 @@ export default defineExtension({
         if (!start) return
         const d = Math.hypot(e.x - start.x, e.y - start.y) * (t.params.unit === "feet" ? 5 : 1)
         const line: Primitive[] = [
-          { type: "path", points: [start, { x: e.x, y: e.y }], stroke: "#e0534e", strokeWidth: 0.05, dash: [0.2, 0.1] },
+          {
+            type: "path",
+            points: [start, { x: e.x, y: e.y }],
+            stroke: "#e0534e",
+            strokeWidth: 0.05,
+            dash: [0.2, 0.1],
+          },
           { type: "text", text: d.toFixed(1), position: { x: e.x, y: e.y - 0.4 }, size: 0.35 },
         ]
         await ctx.tools.setDraft(line)
@@ -117,22 +187,44 @@ export default defineExtension({
       },
     })
 
-    await ctx.tools.brushTip({ id: "chalk", name: { es: "Tiza", en: "Chalk" }, asset: "ext:open20.stamp-tools/chalk.png", dynamics: { size: [0.5, 1], opacity: [0.4, 1] }, smoothing: 0.4 })
+    await ctx.tools.brushTip({
+      id: "chalk",
+      name: { es: "Tiza", en: "Chalk" },
+      asset: "ext:open20.stamp-tools/chalk.png",
+      dynamics: { size: [0.5, 1], opacity: [0.4, 1] },
+      smoothing: 0.4,
+    })
     await ctx.tools.scatterDistribution({
       id: "even",
       name: { es: "Pareja (Poisson)", en: "Even (Poisson)" },
-      points: (area, density, seed) => poissonDisk(area, Math.max(0.3, 1.5 / Math.max(density, 0.1)), seed),
+      points: (area, density, seed) =>
+        poissonDisk(area, Math.max(0.3, 1.5 / Math.max(density, 0.1)), seed),
     })
     await ctx.tools.wallStyle({
       id: "palisade",
       name: { es: "Empalizada", en: "Palisade" },
       render: (wall) =>
-        resample(wall.points ?? [], 0.35).map((p) => ({ type: "circle", center: p, radius: 0.16, fill: "#6b4a2b", stroke: "#3a2814", strokeWidth: 0.03 })),
+        resample(wall.points ?? [], 0.35).map((p) => ({
+          type: "circle",
+          center: p,
+          radius: 0.16,
+          fill: "#6b4a2b",
+          stroke: "#3a2814",
+          strokeWidth: 0.03,
+        })),
     })
     await ctx.tools.pathStyle({
       id: "river",
       name: { es: "Río", en: "River" },
-      render: (path) => [{ type: "path", points: smooth(path.points ?? [], 3), stroke: "#3c78b4", strokeWidth: 0.6, strokeAlpha: 0.8 }],
+      render: (path) => [
+        {
+          type: "path",
+          points: smooth(path.points ?? [], 3),
+          stroke: "#3c78b4",
+          strokeWidth: 0.6,
+          strokeAlpha: 0.8,
+        },
+      ],
       route: (from, to) => smooth([from, { x: (from.x + to.x) / 2, y: from.y }, to], 2),
     })
     const noise = simplex2(3)
@@ -141,7 +233,9 @@ export default defineExtension({
       name: { es: "Tierras altas", en: "Highlands" },
       weights: (p, slots) => {
         const h = (noise(p.x / 12, p.y / 12) + 1) / 2
-        return Array.from({ length: slots }, (_, i) => Math.max(0, 1 - Math.abs(h * (slots - 1) - i)))
+        return Array.from({ length: slots }, (_, i) =>
+          Math.max(0, 1 - Math.abs(h * (slots - 1) - i)),
+        )
       },
     })
 

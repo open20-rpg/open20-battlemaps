@@ -12,7 +12,21 @@ import notes from "./src/main"
 let stop: (() => void) | undefined
 afterEach(() => stop?.())
 const store = () => useExtensionsStore.getState()
-const room = { id: "r", toolId: "build", layer: -200, level: "level-1", position: { x: 1, y: 1 }, rotation: 0, closed: true, points: [{ x: 1, y: 1 }, { x: 4, y: 1 }, { x: 4, y: 4 }], params: {} }
+const room = {
+  id: "r",
+  toolId: "build",
+  layer: -200,
+  level: "level-1",
+  position: { x: 1, y: 1 },
+  rotation: 0,
+  closed: true,
+  points: [
+    { x: 1, y: 1 },
+    { x: 4, y: 1 },
+    { x: 4, y: 4 },
+  ],
+  params: {},
+}
 
 describe("DM notes", () => {
   it("writes notes from its declarative panel", async () => {
@@ -28,7 +42,10 @@ describe("DM notes", () => {
     await field.onChange("Trampa de pinchos")
     await button.onClick()
     await h.flush()
-    expect(useMapStore.getState().map!.entities[0].ext?.["open20.dm-notes"]).toEqual({ note: "Trampa de pinchos", dmOnly: true })
+    expect(useMapStore.getState().map!.entities[0].ext?.["open20.dm-notes"]).toEqual({
+      note: "Trampa de pinchos",
+      dmOnly: true,
+    })
     expect(store().panels["open20.dm-notes::notes"].ui).not.toBeNull()
     expect(store().statusItems["open20.dm-notes::count"].text).toBe("Notas: 1")
     await contribution("statusItem", "count").onClick!()
@@ -67,7 +84,10 @@ describe("DM notes", () => {
     expect(useMapStore.getState().map!.entities[0].ext).toBeUndefined()
     updateEntity("r", { ext: { "open20.dm-notes": { note: "Secreto", dmOnly: true } } })
     await h.flush()
-    expect((await computeStats())[0].rows).toEqual([{ label: "Notas", value: "1" }, { label: "Secretas", value: "1" }])
+    expect((await computeStats())[0].rows).toEqual([
+      { label: "Notas", value: "1" },
+      { label: "Secretas", value: "1" },
+    ])
     const clearing = contribution("command", "clear-notes").run()
     await h.answer("secret")
     await h.answer("limpieza")

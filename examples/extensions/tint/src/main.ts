@@ -12,11 +12,24 @@ export default defineExtension({
       kinds: [...kinds],
       properties: [
         {
-          spec: { kind: "color", key: "tint", label: { es: "Tinte", en: "Tint" }, default: "#ffffff" },
+          spec: {
+            kind: "color",
+            key: "tint",
+            label: { es: "Tinte", en: "Tint" },
+            default: "#ffffff",
+          },
           target: { data: "tint" },
         },
         {
-          spec: { kind: "slider", key: "alpha", label: { es: "Opacidad", en: "Opacity" }, default: 1, min: 0.1, max: 1, step: 0.05 },
+          spec: {
+            kind: "slider",
+            key: "alpha",
+            label: { es: "Opacidad", en: "Opacity" },
+            default: 1,
+            min: 0.1,
+            max: 1,
+            step: 0.05,
+          },
           target: { data: "alpha" },
         },
       ],
@@ -34,10 +47,15 @@ export default defineExtension({
     })
     const tintSelection = async (color: string) => {
       const { selection } = await ctx.editor.get()
-      if (!selection.length) return ctx.ui.notify({ message: "Seleccioná algo primero", tone: "warning" })
+      if (!selection.length)
+        return ctx.ui.notify({ message: "Seleccioná algo primero", tone: "warning" })
       const entities = await ctx.map.query({ ids: selection, level: "all" })
       await ctx.map.apply(
-        entities.map((e) => ({ op: "setData" as const, id: e.id, data: { ...e.data, tint: color } })),
+        entities.map((e) => ({
+          op: "setData" as const,
+          id: e.id,
+          data: { ...e.data, tint: color },
+        })),
         { label: "Teñir" },
       )
       return null

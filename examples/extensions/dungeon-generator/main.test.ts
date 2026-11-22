@@ -22,20 +22,46 @@ describe("dungeon generator", () => {
     const { h } = await startExample(dungeon, manifest)
     stop = () => h.stop()
     const g = contribution("generator", "dungeon")
-    const ops = await g.generate({ params: { rooms: 4, torches: false }, seed: 7, area: null, selection: [], level: "level-1", size: { width: 20, height: 20 } })
+    const ops = await g.generate({
+      params: { rooms: 4, torches: false },
+      seed: 7,
+      area: null,
+      selection: [],
+      level: "level-1",
+      size: { width: 20, height: 20 },
+    })
     const { applyFor } = await import("../../../src/features/extensions/actions")
     applyFor("open20.dungeon-generator", ops)
     expect(entities().filter((e) => e.toolId === "build").length).toBeGreaterThan(1)
-    expect((await g.preview!({ params: { rooms: 4 }, seed: 7, area: null, selection: [], level: "level-1" })).length).toBeGreaterThan(1)
+    expect(
+      (
+        await g.preview!({
+          params: { rooms: 4 },
+          seed: 7,
+          area: null,
+          selection: [],
+          level: "level-1",
+        })
+      ).length,
+    ).toBeGreaterThan(1)
     undo()
     expect(entities()).toHaveLength(0)
-    expect(contribution("newMapPreset", "small-dungeon")).toMatchObject({ width: 30, generator: "dungeon" })
+    expect(contribution("newMapPreset", "small-dungeon")).toMatchObject({
+      width: 30,
+      generator: "dungeon",
+    })
   })
 
   it("draws stairs from their data and resizes them by the handle", async () => {
     const { h, ctx } = await startExample(dungeon, manifest)
     stop = () => h.stop()
-    const [id] = await ctx.map.add([{ kind: "ext:open20.dungeon-generator/stairs", position: { x: 2, y: 2 }, data: { steps: 3, width: 2 } }])
+    const [id] = await ctx.map.add([
+      {
+        kind: "ext:open20.dungeon-generator/stairs",
+        position: { x: 2, y: 2 },
+        data: { steps: 3, width: 2 },
+      },
+    ])
     const stairs = (await ctx.map.entity(id))!
     const t = contribution("entityType", "stairs")
     expect(await t.render(stairs)).toHaveLength(3)
@@ -49,7 +75,15 @@ describe("dungeon generator", () => {
   it("lights torches, straightens objects and counts floors in the user's step", async () => {
     const { h } = await startExample(dungeon, manifest)
     stop = () => h.stop()
-    addEntity({ id: "t", toolId: "object", layer: 100, level: "level-1", position: { x: 3, y: 3 }, rotation: 80, params: { asset: "open20.essentials|textures/objects/torch.png" } })
+    addEntity({
+      id: "t",
+      toolId: "object",
+      layer: 100,
+      level: "level-1",
+      position: { x: 3, y: 3 },
+      rotation: 80,
+      params: { asset: "open20.essentials|textures/objects/torch.png" },
+    })
     await h.flush()
     const light = entities().find((e) => e.toolId === "light")
     expect(light).toMatchObject({ parent: "t", position: { x: 3, y: 3 } })
@@ -65,7 +99,10 @@ describe("dungeon generator", () => {
     await ctx.map.apply(dungeonOps({ x: 1, y: 1, w: 18, h: 18 }, 3, 11, false))
     await contribution("command", "analyze").run()
     await h.flush()
-    const log = useExtensionsStore.getState().activity.map((a) => a.text).join("\n")
+    const log = useExtensionsStore
+      .getState()
+      .activity.map((a) => a.text)
+      .join("\n")
     expect(log).toMatch(/notify: \d+ habitaciones/)
     expect(log).toMatch(/analysis.path|analysis.visibility/)
   })

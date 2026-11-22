@@ -9,7 +9,10 @@ import tint from "./src/main"
  */
 describe("tint with the SDK's test host", () => {
   it("tints the selection", async () => {
-    const host = createTestHost({ permissions: manifest.permissions as never, manifest: manifest as never })
+    const host = createTestHost({
+      permissions: manifest.permissions as never,
+      manifest: manifest as never,
+    })
     const ctx = await host.load(tint)
     const [id] = await ctx.map.add([{ kind: "object", position: { x: 1, y: 1 } }])
     await ctx.editor.select([id])
@@ -19,7 +22,10 @@ describe("tint with the SDK's test host", () => {
   })
 
   it("tells the user to select something first", async () => {
-    const host = createTestHost({ permissions: manifest.permissions as never, manifest: manifest as never })
+    const host = createTestHost({
+      permissions: manifest.permissions as never,
+      manifest: manifest as never,
+    })
     await host.load(tint)
     await host.contribution("command", "tint-red").run()
     expect(host.notifications).toEqual(["Seleccioná algo primero"])

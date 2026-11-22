@@ -16,8 +16,16 @@
   "permissions": ["map:read", "map:write", "editor", "ui", "ui:iframe", "views", "files"],
   "contributes": {
     "settings": {
-      "secretColor": { "type": "color", "label": { "es": "Color de lo secreto", "en": "Secret color" }, "default": "#a70909" },
-      "warnEmpty": { "type": "boolean", "label": { "es": "Avisar notas vacías", "en": "Warn on empty notes" }, "default": true }
+      "secretColor": {
+        "type": "color",
+        "label": { "es": "Color de lo secreto", "en": "Secret color" },
+        "default": "#a70909"
+      },
+      "warnEmpty": {
+        "type": "boolean",
+        "label": { "es": "Avisar notas vacías", "en": "Warn on empty notes" },
+        "default": true
+      }
     }
   }
 }

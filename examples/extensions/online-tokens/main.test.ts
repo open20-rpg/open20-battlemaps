@@ -19,12 +19,22 @@ async function setup() {
   h.services.fetch = async (req) => {
     h.services.fetched.push(req.url)
     const body = req.url.includes("?q=")
-      ? enc.encode(JSON.stringify({ tokens: [{ id: "t1", name: "goblin", image: "" }, { id: "t2", name: "orc", image: "" }] }))
+      ? enc.encode(
+          JSON.stringify({
+            tokens: [
+              { id: "t1", name: "goblin", image: "" },
+              { id: "t2", name: "orc", image: "" },
+            ],
+          }),
+        )
       : new Uint8Array([137, 80, 78, 71])
     return { status: 200, headers: {}, body }
   }
   await startExample(hex, hexManifest, { harness: h })
-  const r = await startExample(tokens, manifest, { harness: h, files: { "locales/es.json": JSON.stringify(tokensEs) } })
+  const r = await startExample(tokens, manifest, {
+    harness: h,
+    files: { "locales/es.json": JSON.stringify(tokensEs) },
+  })
   return r
 }
 
@@ -41,9 +51,15 @@ describe("online tokens", () => {
     const { h } = await setup()
     await contribution("command", "save-tokens").run()
     await h.flush()
-    const log = useExtensionsStore.getState().activity.map((a) => a.text).join("\n")
+    const log = useExtensionsStore
+      .getState()
+      .activity.map((a) => a.text)
+      .join("\n")
     expect(log).toContain("notify: 2 tokens encontrados · Guardados en pack1")
-    expect(h.services.storage.get("open20.online-tokens")?.get("lastSearch")).toEqual({ query: "goblin", count: 2 })
+    expect(h.services.storage.get("open20.online-tokens")?.get("lastSearch")).toEqual({
+      query: "goblin",
+      count: 2,
+    })
   })
 
   it("syncs the table over a socket it asked for, using the hex grid's service", async () => {
@@ -52,7 +68,10 @@ describe("online tokens", () => {
     await h.answer(true)
     await live
     await h.flush()
-    const log = useExtensionsStore.getState().activity.map((a) => a.text).join("\n")
+    const log = useExtensionsStore
+      .getState()
+      .activity.map((a) => a.text)
+      .join("\n")
     expect(log).toContain(`table: echo:${JSON.stringify({ cell: toAxial({ x: 1, y: 1 }) })}`)
   })
 
@@ -66,8 +85,12 @@ describe("online tokens", () => {
 
   it("can't reach hosts it wasn't granted", async () => {
     const { h, ctx } = await setup()
-    await expect(ctx.net.fetch("https://evil.example.com/")).rejects.toMatchObject({ code: "permission" })
-    await expect(ctx.services.call("open20.other/x", "y")).rejects.toMatchObject({ code: "permission" })
+    await expect(ctx.net.fetch("https://evil.example.com/")).rejects.toMatchObject({
+      code: "permission",
+    })
+    await expect(ctx.services.call("open20.other/x", "y")).rejects.toMatchObject({
+      code: "permission",
+    })
     void h
   })
 })

@@ -18,7 +18,9 @@ describe("effects", () => {
     stop = () => h.stop()
     expect(contribution("shader", "heat")).toMatchObject({ target: "entity", animated: true })
     expect(contribution("shader", "parchment").fragment).toContain("uPaper")
-    expect(uniformDeclarations(contribution("shader", "parchment").uniforms)).toContain("uniform vec3 uPaper;")
+    expect(uniformDeclarations(contribution("shader", "parchment").uniforms)).toContain(
+      "uniform vec3 uPaper;",
+    )
     const bridge = createRenderBridge(h.services)
     expect(bridge.postShaders()).toEqual([{ id: "open20.effects/parchment", uniforms: undefined }])
     expect(bridge.shader("open20.effects/heat")?.fragment).toContain("uStrength")
@@ -32,12 +34,30 @@ describe("effects", () => {
     const { h } = await startExample(effects, manifest, { files: { "shaders/heat.glsl": heat } })
     stop = () => h.stop()
     const bridge = createRenderBridge(h.services)
-    const e = { id: "x", toolId: "object", layer: 100, position: { x: 1, y: 1 }, rotation: 0, params: {}, ext: { "open20.effects": { lava: true } } }
-    expect(bridge.styleFor(e)?.shader).toEqual({ id: "open20.effects/heat", uniforms: { uStrength: 2 } })
+    const e = {
+      id: "x",
+      toolId: "object",
+      layer: 100,
+      position: { x: 1, y: 1 },
+      rotation: 0,
+      params: {},
+      ext: { "open20.effects": { lava: true } },
+    }
+    expect(bridge.styleFor(e)?.shader).toEqual({
+      id: "open20.effects/heat",
+      uniforms: { uStrength: 2 },
+    })
     useViewStore.setState({ animations: true })
     expect(bridge.animating()).toBe(true)
     expect(bridge.particles("level-1")[0]).toMatchObject({ rate: 200 })
-    useExtensionsStore.getState().setViewToggle(useExtensionsStore.getState().contributions.find((c) => c.contribution.type === "particles")!.key, false)
+    useExtensionsStore
+      .getState()
+      .setViewToggle(
+        useExtensionsStore
+          .getState()
+          .contributions.find((c) => c.contribution.type === "particles")!.key,
+        false,
+      )
     expect(bridge.particles("level-1")).toHaveLength(0)
     expect(bridge.imageUrl("ext:open20.effects/dot.png") ?? "registered").toBeTruthy()
     expect(DOT_PNG[1]).toBe(0x50) // "P" of PNG
@@ -47,7 +67,21 @@ describe("effects", () => {
     const { h } = await startExample(effects, manifest, { files: { "shaders/heat.glsl": heat } })
     stop = () => h.stop()
     useMapStore.setState({
-      map: { ...useMapStore.getState().map!, entities: [{ id: "f", toolId: "object", layer: 100, level: "level-1", position: { x: 4, y: 4 }, rotation: 0, params: {}, ext: { "open20.effects": { lava: true } } }] },
+      map: {
+        ...useMapStore.getState().map!,
+        entities: [
+          {
+            id: "f",
+            toolId: "object",
+            layer: 100,
+            level: "level-1",
+            position: { x: 4, y: 4 },
+            rotation: 0,
+            params: {},
+            ext: { "open20.effects": { lava: true } },
+          },
+        ],
+      },
     })
     await contribution("command", "embers").run()
     expect(useExtensionsStore.getState().particles["open20.effects::embers"]).toHaveLength(1)

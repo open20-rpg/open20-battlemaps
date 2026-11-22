@@ -1,6 +1,9 @@
 import {
   type Contribution,
-  type ExtensionContext, type ExtensionDefinition, type Manifest } from "@open20/battlemaps-sdk"
+  type ExtensionContext,
+  type ExtensionDefinition,
+  type Manifest,
+} from "@open20/battlemaps-sdk"
 import { useExtensionsStore } from "../../src/stores/extensionsStore"
 import { createHarness, type Harness } from "../../src/features/extensions/testHarness"
 
@@ -19,10 +22,9 @@ export async function startExample(
   h.services.files.set(
     m.id,
     new Map(
-      Object.entries({ "manifest.json": JSON.stringify(m), ...(opts.files ?? {}) }).map(([k, v]) => [
-        k,
-        typeof v === "string" ? enc.encode(v) : v,
-      ]),
+      Object.entries({ "manifest.json": JSON.stringify(m), ...(opts.files ?? {}) }).map(
+        ([k, v]) => [k, typeof v === "string" ? enc.encode(v) : v],
+      ),
     ),
   )
   let ctx!: ExtensionContext
@@ -47,7 +49,9 @@ export function contribution<T extends Contribution["type"]>(
   const c = useExtensionsStore
     .getState()
     .contributions.find(
-      (x) => x.contribution.type === type && (id === undefined || (x.contribution as { id?: string }).id === id),
+      (x) =>
+        x.contribution.type === type &&
+        (id === undefined || (x.contribution as { id?: string }).id === id),
     )
   if (!c) throw new Error(`no ${type} ${id ?? ""}`)
   return c.contribution as Extract<Contribution, { type: T }>

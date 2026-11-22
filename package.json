@@ -17,7 +17,9 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "vitest run",
-    "doctor": "react-doctor . --no-supply-chain"
+    "doctor": "react-doctor . --no-supply-chain",
+    "extensions:build": "node sdk/cli/otbx.mjs build examples/extensions/* --out dist-extensions",
+    "sandbox:check": "node scripts/sandbox-check/run.mjs dist-extensions/open20.tint-1.0.0.otbx"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.38.0",

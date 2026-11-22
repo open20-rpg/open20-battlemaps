@@ -23,7 +23,10 @@ function packFiles(): Map<string, Uint8Array> {
   const files = new Map<string, Uint8Array>()
   for (const [p, text] of Object.entries(texts)) files.set(p.slice(2), enc.encode(text))
   for (const [p, url] of Object.entries(images))
-    files.set(p.slice(2), Uint8Array.from(atob(url.split(",")[1]), (c) => c.charCodeAt(0)))
+    files.set(
+      p.slice(2),
+      Uint8Array.from(atob(url.split(",")[1]), (c) => c.charCodeAt(0)),
+    )
   return files
 }
 
@@ -44,7 +47,9 @@ describe("content pack (data only)", () => {
     expect(data.prefabs[0].data).toHaveLength(2)
     expect(data.keymaps[0].data).toEqual({ undo: ["Ctrl+Z"], redo: ["Ctrl+Y"], save: ["Ctrl+S"] })
     expect(data.toolPresets[0].tool).toBe("scatter")
-    expect(data.fonts).toEqual([{ family: "Open20 Runas", path: "fonts/open20-runas.ttf", license: "CC0-1.0" }])
+    expect(data.fonts).toEqual([
+      { family: "Open20 Runas", path: "fonts/open20-runas.ttf", license: "CC0-1.0" },
+    ])
     const kinds = useExtensionsStore.getState().contributions.map((c) => c.contribution.type)
     expect(kinds).toEqual(expect.arrayContaining(["newMapPreset", "shader"]))
   })
@@ -73,7 +78,9 @@ describe("content pack (data only)", () => {
     expect(h.services.files.get("open20.content-pack")?.has("assets/dot.png")).toBe(true)
     expect(bridge.imageUrl("ext:open20.content-pack/dot.png")).toMatch(/^blob:/)
     // The template is a regular .otbm (opened by openMapTemplate in the app).
-    expect(dataContributions.get("open20.content-pack")!.templates[0].path).toBe("templates/capacidades.otbm")
+    expect(dataContributions.get("open20.content-pack")!.templates[0].path).toBe(
+      "templates/capacidades.otbm",
+    )
     expect(JSON.parse(texts["./templates/capacidades.otbm"])).toHaveProperty("map")
   })
 })

@@ -35,7 +35,9 @@ describe("tint example", () => {
     const prop = propertiesOf("object").find((p) => p.spec.paramKey === "open20.tint:tint")
     expect(prop).toBeDefined()
     updateEntities(propertyPatches([e], "open20.tint:tint", "#00ff00"))
-    expect(useMapStore.getState().map!.entities[0].ext).toEqual({ "open20.tint": { tint: "#00ff00" } })
+    expect(useMapStore.getState().map!.entities[0].ext).toEqual({
+      "open20.tint": { tint: "#00ff00" },
+    })
   })
 
   it("paints tinted entities through a data-driven rule", async () => {
@@ -65,6 +67,8 @@ describe("tint example", () => {
     await contribution("contextMenu", "clear-tint").run({ entities: [a!], at: { x: 0, y: 0 } })
     expect(useMapStore.getState().map!.entities[0].ext).toBeUndefined()
     undo()
-    expect(useMapStore.getState().map!.entities[0].ext).toEqual({ "open20.tint": { tint: "#a70909" } })
+    expect(useMapStore.getState().map!.entities[0].ext).toEqual({
+      "open20.tint": { tint: "#a70909" },
+    })
   })
 })

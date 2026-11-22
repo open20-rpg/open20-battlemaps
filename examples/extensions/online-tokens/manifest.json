@@ -11,7 +11,17 @@
   "license": "MIT",
   "engines": { "battlemaps": "^1.0.0" },
   "main": "main.js",
-  "permissions": ["map:read", "library:read", "packs:write", "ui", "services", "network:api.open20.app", "openUrl", "fonts", "preferences:read"],
+  "permissions": [
+    "map:read",
+    "library:read",
+    "packs:write",
+    "ui",
+    "services",
+    "network:api.open20.app",
+    "openUrl",
+    "fonts",
+    "preferences:read"
+  ],
   "optionalPermissions": ["network:live.open20.app"],
   "dependencies": { "open20.hex-grid": "^1.0.0" },
   "contributes": {
@@ -23,7 +33,13 @@
         "default": "main",
         "options": [{ "value": "main", "label": "api.open20.app" }]
       },
-      "limit": { "type": "number", "label": { "es": "Resultados", "en": "Results" }, "default": 40, "min": 10, "max": 200 }
+      "limit": {
+        "type": "number",
+        "label": { "es": "Resultados", "en": "Results" },
+        "default": 40,
+        "min": 10,
+        "max": 200
+      }
     }
   }
 }
